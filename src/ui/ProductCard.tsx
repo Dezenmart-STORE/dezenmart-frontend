@@ -13,6 +13,7 @@ const ProductCard = () => {
                     <FaRegHeart className='text-2xl text-white absolute top-4 right-4' />
                 </Link>
             </div>
+            {/* img  */}
             <img src={Product1} alt="" className='py-7 w-[70%]' />
             <div className="flex flex-col">
                 <h4 className='text-white text-lg font-bold px-6'>Vaseline Lotion</h4>
@@ -21,6 +22,7 @@ const ProductCard = () => {
                 <h4 className='text-[#AEAEB2] text-sm py-3 px-6 group-hover:hidden'>300 items 0.0002 ETH</h4>
                 <Link to="" className="mt-[5px] lg:px-8 gap-3 lg:gap-7 font-bold text-white bg-Red py-2 hidden group-hover:flex">
                     <div>Buy Now</div>
+                    <BsCart3 className='font-bolder text-2xl' />
                     <BsCart3 className='font-bolder text-2xl' />
                 </Link>
             </div>
