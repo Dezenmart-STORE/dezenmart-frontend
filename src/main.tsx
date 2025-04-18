@@ -1,18 +1,18 @@
-
-
-import { StrictMode } from "react";
+import { lazy, StrictMode, Suspense } from "react";
 import "./index.css";
 import { createBrowserRouter, Outlet, RouterProvider } from "react-router-dom";
 import { createRoot } from "react-dom/client";
-import App from "./App.tsx";
-import Layout from "./ui/Layout.tsx";
-import Login from "./pages/Login.tsx";
-import Loadscreen from "./pages/Loadscreen.tsx";
-import Home from "./pages/Home.tsx";
-import Product from "./pages/Product.tsx";
-import SingleProduct from "./pages/SingleProduct.tsx";
 import { Configuration } from "@react-md/layout";
-import Account from "./pages/Account.tsx";
+import Layout from "./components/layout/Layout.tsx";
+import ViewTrade from "./pages/ViewTrade.tsx";
+import Loadscreen from "./pages/Loadscreen.tsx";
+
+const Login = lazy(() => import("./pages/Login.tsx"));
+const Home = lazy(() => import("./pages/Home.tsx"));
+const Product = lazy(() => import("./pages/Product.tsx"));
+const SingleProduct = lazy(() => import("./pages/SingleProduct.tsx"));
+const Account = lazy(() => import("./pages/Account.tsx"));
+const Trade = lazy(() => import("./pages/Trade.tsx"));
 // import About from "./pages/About.tsx";
 // import Market from "./pages/Market.tsx";
 // import Photos from "./pages/Photos.tsx";
@@ -27,7 +27,9 @@ const RouterLayout = () => {
   return (
     <Configuration>
       <Layout>
-        <Outlet />
+        <Suspense fallback={<Loadscreen />}>
+          <Outlet />
+        </Suspense>
       </Layout>
     </Configuration>
   );
@@ -39,33 +41,42 @@ const router = createBrowserRouter([
     element: <RouterLayout />,
     children: [
       {
-        path: "/",
-        element: <App />,
+        index: true,
+        element: <Home />,
       },
       {
         path: "/login",
         element: <Login />,
       },
       {
-        path: "/load",
-        element: <Loadscreen />,
-      },
-      {
         path: "/account",
         element: <Account />,
-      },
-      {
-        path: "/",
-        element: <Home />,
       },
       {
         path: "/product",
         element: <Product />,
       },
       {
-        path: "/single-product/:id",
+        path: "/product/category/:categoryName",
+        element: <Product />,
+      },
+      {
+        path: "/product/:id",
         element: <SingleProduct />,
       },
+      {
+        path: "/trades",
+        element: <Trade />,
+      },
+      {
+        path: "/trades/viewtrades",
+        element: <ViewTrade />,
+      },
+      {
+        path: "/load",
+        element: <Loadscreen />,
+      },
+
       // {
       //   path: "/member/:id",
       //   element: <Members />,
@@ -97,10 +108,9 @@ const router = createBrowserRouter([
     ],
   },
 ]);
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <RouterProvider router={router} />
   </StrictMode>
 );
-
-

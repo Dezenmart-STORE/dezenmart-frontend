@@ -12,7 +12,8 @@ import Pen from "/images/pen.png";
 import Pen2 from "/images/pen2.png";
 import Comment from "/images/comment.svg";
 import Detail from "/images/detail.svg";
-// product image 
+
+
 import Product1 from "/images/product1.svg"
 
 

@@ -1,15 +1,14 @@
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 
-import './index.css'
-import Home from './pages/Home'
+const App = () => {
+  const navigate = useNavigate();
 
-function App() {
-  // const [count, setCount] = useState(0)
+  useEffect(() => {
+    navigate("/");
+  }, [navigate]);
 
-  return (
-    <>
-      <Home />
-    </>
-  )
-}
+  return null;
+};
 
-export default App
+export default App;
