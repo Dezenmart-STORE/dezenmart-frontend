@@ -37,7 +37,7 @@ const Home = () => {
       title: "Special Offers for",
       subtitle: "new users",
       primaryImage: Pen,
-      backgroundColor: "#3b82f6",
+      backgroundColor: "#ff3b3b",
       textColor: "white",
       isUppercase: true,
     },
@@ -54,7 +54,7 @@ const Home = () => {
       title: "Special Offers for",
       subtitle: "new users",
       primaryImage: Pen,
-      backgroundColor: "#3b82f6",
+      backgroundColor: "#ff3b3b",
       textColor: "white",
       isUppercase: true,
     },
@@ -71,7 +71,7 @@ const Home = () => {
       title: "Special Offers for",
       subtitle: "new users",
       primaryImage: Pen,
-      backgroundColor: "#3b82f6",
+      backgroundColor: "#ff3b3b",
       textColor: "white",
       isUppercase: true,
     },
@@ -88,7 +88,7 @@ const Home = () => {
       title: "Special Offers for",
       subtitle: "new users",
       primaryImage: Pen,
-      backgroundColor: "#3b82f6",
+      backgroundColor: "#ff3b3b",
       textColor: "white",
       isUppercase: true,
     },
@@ -162,6 +162,7 @@ const Home = () => {
           path="/product"
           className="mt-6 md:mt-10"
           isCategoryView={false}
+          isFeatured={true}
         />
       </Container>
     </div>

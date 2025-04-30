@@ -7,14 +7,16 @@ import { FaArrowRightLong } from "react-icons/fa6";
 
 interface ProductCardProps {
   product: Product;
-  onBuyClick?: () => void;
+  // onBuyClick?: () => void;
   actionType?: "buy" | "view";
+  isSellTab?: boolean;
 }
 
 const ProductCard: FC<ProductCardProps> = ({
   product,
-  onBuyClick,
+  // onBuyClick,
   actionType = "buy",
+  isSellTab = false,
 }) => {
   return (
     <motion.div
@@ -32,7 +34,7 @@ const ProductCard: FC<ProductCardProps> = ({
       layout
     >
       <motion.img
-        src={product.image}
+        src={product.images[0]}
         alt={product.description}
         className="w-[60%] md:w-full h-auto mx-auto md:mx-0 rounded-md lg:row-span-2"
         loading="lazy"
@@ -51,17 +53,17 @@ const ProductCard: FC<ProductCardProps> = ({
 
         <p className="text-xl font-bold text-white mb-2">{product.price}</p>
 
-        <div className="text-right text-sm text-[#AEAEB2] mb-3">
-          {product.orders} Orders | {product.rating}%
+        <div className="text-right text-sm text-[rgb(174, 174, 178)] mb-3">
+          {/* {product.orders} Orders | {product.rating}% */}
         </div>
 
         <div className="flex justify-between text-sm text-white mb-2">
           <span className="font-semibold">Quantity:</span>
-          <span>{product.quantity}</span>
+          {/* <span>{product.quantity}</span> */}
         </div>
         <div className="flex justify-between text-sm text-white mb-2">
           <span className="font-semibold">Min. Cost:</span>
-          <span>{product.minCost}</span>
+          {/* <span>{product.minCost}</span> */}
         </div>
         <div className="flex justify-between text-sm text-white mb-2">
           <span className="font-semibold">Description:</span>
@@ -80,11 +82,13 @@ const ProductCard: FC<ProductCardProps> = ({
         }}
       >
         <Button
-          title={actionType === "buy" ? "BUY" : "VIEW DETAILS"}
+          title={
+            actionType === "buy" ? (isSellTab ? "SELL" : "BUY") : "VIEW DETAILS"
+          }
           className="flex justify-between items-center w-full bg-Red border-0 rounded text-white px-6 py-2 w-full transition-colors hover:bg-[#e02d37]"
-          path=""
+          path={`/product/${product._id}`}
           icon={<FaArrowRightLong />}
-          onClick={onBuyClick}
+          // onClick={handleButtonClick}
         />
       </motion.div>
     </motion.div>

@@ -1,4 +1,4 @@
-import { useState, useEffect, FC, Suspense } from "react";
+import { useState, useEffect, FC, Suspense, lazy } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { FaExchangeAlt } from "react-icons/fa";
 import Container from "../components/common/Container";
@@ -9,11 +9,15 @@ import { Pen, Pen2 } from ".";
 import { useWallet } from "../utils/hooks/useWallet";
 import { Product, TradeTab } from "../utils/types";
 import ProductListingSkeleton from "../components/trade/ProductListingSkeleton";
-import IncomingOrderCard from "../components/trade/IncomingOrderCard";
-import OrderSummaryModal from "../components/trade/OrderSummary";
-import ProductCard from "../components/trade/ProductCard";
+// import IncomingOrderCard from "../components/trade/IncomingOrderCard";
+// import OrderSummaryModal from "../components/trade/OrderSummary";
+// import ProductCard from "../components/trade/ProductCard";
 import ConnectWallet from "../components/trade/ConnectWallet";
 import Tab from "../components/trade/Tab";
+const ProductCard = lazy(() => import("../components/trade/ProductCard"));
+const IncomingOrderCard = lazy(
+  () => import("../components/trade/IncomingOrderCard")
+);
 
 const ButtonPlaceholder: FC = () => (
   <motion.div
@@ -26,52 +30,58 @@ const ButtonPlaceholder: FC = () => (
 const Trade = () => {
   const [activeTab, setActiveTab] = useState<TradeTab>("buy");
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [showOrderSummary, setShowOrderSummary] = useState(false);
-  const { isConnected, connect, isConnecting } = useWallet(); // Custom hook for wallet management
+  const { isConnected } = useWallet();
 
   // Sample data for products
   const products: Product[] = [
     {
-      id: "1",
-      name: "FemiMark",
-      image: "/images/product1.svg",
-      price: "₦1,200",
-      quantity: "100 Cars",
-      minCost: "1M - 20M NGN",
-      description: "A wine Benz",
-      orders: 129,
-      rating: 99,
-      seller: "DanBike",
+      _id: "68082c3efae576e05502c04b",
+      name: "Test Product",
+      description: "Testing product endpoint",
+      price: 20000,
+      category: "Item",
+      seller: "680821b06eda53ead327e0ea",
+      images: [],
+      isSponsored: false,
+      isActive: true,
+      createdAt: "2025-04-22T23:54:38.445Z",
+      updatedAt: "2025-04-22T23:54:38.445Z",
     },
     {
-      id: "2",
-      name: "FemiMark",
-      image: "/images/product2.svg",
-      price: "₦1,200",
-      quantity: "100 Cars",
-      minCost: "1M - 20M NGN",
-      description: "A white PS5 Console",
-      orders: 129,
-      rating: 99,
-      seller: "DanBike",
+      _id: "68082f7a7d3f057ab0fafd5c",
+      name: "Wood Carving",
+      description: "Neat carved wood art works",
+      price: 20000,
+      category: "Art Work",
+      seller: "680821b06eda53ead327e0ea",
+      images: [
+        "images-1745366906480-810449189.jpeg",
+        "images-1745366906494-585992412.jpeg",
+      ],
+      isSponsored: false,
+      isActive: true,
+      createdAt: "2025-04-23T00:08:26.519Z",
+      updatedAt: "2025-04-23T00:08:26.519Z",
     },
   ];
 
   // Sample data for incoming orders (sell)
   const incomingOrders: Product[] = [
     {
-      id: "5",
-      name: "FemiMark",
-      image: "/images/product1.svg",
-      price: "₦1,350",
-      quantity: "35 Cars",
-      minCost: "800K - 8M NGN",
-      description: "A wine Benz",
-      orders: 53,
-      rating: 97,
-      seller: "You",
-      status: "Pending acceptance",
+      _id: "68082f7a7d3f057ab0fafd5c",
+      name: "Wood Carving",
+      description: "Neat carved wood art works",
+      price: 20000,
+      category: "Art Work",
+      seller: "680821b06eda53ead327e0ea",
+      images: [
+        "images-1745366906480-810449189.jpeg",
+        "images-1745366906494-585992412.jpeg",
+      ],
+      isSponsored: false,
+      isActive: true,
+      createdAt: "2025-04-23T00:08:26.519Z",
+      updatedAt: "2025-04-23T00:08:26.519Z",
     },
   ];
 
@@ -90,7 +100,7 @@ const Trade = () => {
       title: "Special Offers for",
       subtitle: "new users",
       primaryImage: Pen,
-      backgroundColor: "#3b82f6",
+      backgroundColor: "#ff3b3b",
       textColor: "white",
       isUppercase: true,
     },
@@ -107,7 +117,7 @@ const Trade = () => {
       title: "Special Offers for",
       subtitle: "new users",
       primaryImage: Pen,
-      backgroundColor: "#3b82f6",
+      backgroundColor: "#ff3b3b",
       textColor: "white",
       isUppercase: true,
     },
@@ -124,7 +134,7 @@ const Trade = () => {
       title: "Special Offers for",
       subtitle: "new users",
       primaryImage: Pen,
-      backgroundColor: "#3b82f6",
+      backgroundColor: "#ff3b3b",
       textColor: "white",
       isUppercase: true,
     },
@@ -141,7 +151,7 @@ const Trade = () => {
       title: "Special Offers for",
       subtitle: "new users",
       primaryImage: Pen,
-      backgroundColor: "#3b82f6",
+      backgroundColor: "#ff3b3b",
       textColor: "white",
       isUppercase: true,
     },
@@ -157,22 +167,6 @@ const Trade = () => {
     return () => window.clearTimeout(loadTimer);
   }, []);
 
-  // Handle product selection and order summary display
-  const handleBuyClick = (product: Product) => {
-    if (!isConnected) {
-      return;
-    }
-    setSelectedProduct(product);
-    setShowOrderSummary(true);
-  };
-
-  // Handle order acceptance (for sellers)
-  const handleAcceptOrder = (product: Product) => {
-    // Implementation for accepting an order
-    console.log("Order accepted:", product);
-    // Logic to update order status
-  };
-
   // Handle order rejection (for sellers)
   const handleRejectOrder = (product: Product) => {
     // Implementation for rejecting an order
@@ -181,18 +175,17 @@ const Trade = () => {
   };
 
   // Close order summary modal
-  const handleCloseOrderSummary = () => {
-    setShowOrderSummary(false);
-    setSelectedProduct(null);
-  };
+  // const handleCloseOrderSummary = () => {
+  //   setShowOrderSummary(false);
+  //   setSelectedProduct(null);
+  // };
 
   // Confirm order purchase
-  const handleConfirmPurchase = () => {
-    // Logic to process purchase
-    console.log("Purchase confirmed for:", selectedProduct);
-    setShowOrderSummary(false);
-    setActiveTab("active");
-  };
+  // const handleConfirmPurchase = () => {
+  //   console.log("Purchase confirmed for:", selectedProduct);
+  //   setShowOrderSummary(false);
+  //   setActiveTab("active");
+  // };
 
   if (!isConnected) {
     return (
@@ -205,7 +198,7 @@ const Trade = () => {
           >
             <Title text="P2P Trading" className="text-center my-8 text-3xl" />
           </motion.div>
-          <ConnectWallet onConnect={connect} isConnecting={isConnecting} />
+          <ConnectWallet showAlternatives={true} />
         </Container>
       </div>
     );
@@ -237,6 +230,7 @@ const Trade = () => {
               text="Buy"
               isActive={activeTab === "buy"}
               onClick={() => setActiveTab("buy")}
+              count={products.length}
             />
             <Tab
               text="Sell"
@@ -263,19 +257,20 @@ const Trade = () => {
                   {activeTab === "buy" &&
                     products.map((product) => (
                       <ProductCard
-                        key={product.id}
+                        key={product._id}
                         product={product}
-                        onBuyClick={() => handleBuyClick(product)}
+                        // onBuyClick={() => handleBuyClick(product)}
                         actionType="buy"
+                        isSellTab={false}
                       />
                     ))}
 
                   {activeTab === "sell" &&
                     incomingOrders.map((order) => (
                       <IncomingOrderCard
-                        key={order.id}
+                        key={order._id}
                         product={order}
-                        onAccept={() => handleAcceptOrder(order)}
+                        // onAccept={() => handleAcceptOrder(order)}
                         onReject={() => handleRejectOrder(order)}
                       />
                     ))}
@@ -287,7 +282,7 @@ const Trade = () => {
       </Container>
 
       {/* Order Summary Modal */}
-      <AnimatePresence>
+      {/* <AnimatePresence>
         {showOrderSummary && selectedProduct && (
           <OrderSummaryModal
             product={selectedProduct}
@@ -295,7 +290,7 @@ const Trade = () => {
             onConfirm={handleConfirmPurchase}
           />
         )}
-      </AnimatePresence>
+      </AnimatePresence> */}
 
       <Suspense fallback={<ButtonPlaceholder />}>
         <FloatingActionButton

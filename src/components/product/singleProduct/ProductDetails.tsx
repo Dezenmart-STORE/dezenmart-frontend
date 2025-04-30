@@ -1,12 +1,18 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { IoIosArrowDown } from "react-icons/io";
 import ProductAbout from "./ProductAbout";
 import ProductProperties from "./ProductProperties";
 import ProductDescription from "./ProductDescription";
+import { Product } from "../../../utils/types";
 
 type SectionType = "About this product" | "Properties" | "Description" | null;
 
-const ProductDetails = () => {
+interface ProductDetailsProps {
+  product?: Product;
+  ethPrice?: string;
+}
+
+const ProductDetails = ({ product, ethPrice }: ProductDetailsProps) => {
   const [openSection, setOpenSection] =
     useState<SectionType>("About this product");
   const [animating, setAnimating] = useState<SectionType | null>(null);
@@ -18,16 +24,19 @@ const ProductDetails = () => {
     }
   }, [animating]);
 
-  const toggleSection = (section: SectionType) => {
-    if (animating) return;
+  const toggleSection = useCallback(
+    (section: SectionType) => {
+      if (animating) return;
 
-    setAnimating(section);
-    setOpenSection(openSection === section ? null : section);
-  };
+      setAnimating(section);
+      setOpenSection(openSection === section ? null : section);
+    },
+    [animating, openSection]
+  );
 
   const renderSection = (
     title: SectionType,
-    Component: React.ComponentType
+    Component: React.ComponentType<any>
   ) => (
     <div className="rounded-lg overflow-hidden">
       <button
@@ -54,7 +63,7 @@ const ProductDetails = () => {
         }`}
       >
         <div className="text-gray-400 text-sm bg-[#212428] px-3 sm:px-6 md:px-12 lg:px-20 pt-4 sm:pt-6 md:pt-8 pb-4 sm:pb-6 md:pb-10">
-          <Component />
+          <Component product={product} ethPrice={ethPrice} />
         </div>
       </div>
     </div>

@@ -1,15 +1,15 @@
-import { useState, useEffect, useRef, TouchEvent } from "react";
-import { Product1 } from "../../../pages";
+import { useState, useEffect, useRef, TouchEvent, useCallback } from "react";
 import { IoChevronBack, IoChevronForward } from "react-icons/io5";
 import { BsZoomIn } from "react-icons/bs";
 
 interface ProductImageProps {
-  productId?: string;
+  // productId?: string;
+  images: string[];
 }
 
-const ProductImage = ({ productId }: ProductImageProps) => {
-  const [loading, setLoading] = useState(true);
-  const [images, setImages] = useState<string[]>([]);
+const ProductImage = ({ images }: ProductImageProps) => {
+  // const [loading, setLoading] = useState(true);
+  // const [images, setImages] = useState<string[]>([]);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [transitioning, setTransitioning] = useState(false);
   const [zoomed, setZoomed] = useState(false);
@@ -20,69 +20,72 @@ const ProductImage = ({ productId }: ProductImageProps) => {
   const slideContainerRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
 
-  // Fetch images based on productId
-  useEffect(() => {
-    setLoading(true);
-    setCurrentImageIndex(0);
+  // useEffect(() => {
+  //   const loadImages = async () => {
+  //     setLoading(true);
+  //     setCurrentImageIndex(0);
 
-    // future: API call to fetch product images
-    const fetchImages = async () => {
-      try {
-        // API call
-        // const response = await fetch(`/api/products/${productId}/images`);
-        // const data = await response.json();
+  //     try {
+  //       if (propImages && propImages.length > 0) {
+  //         setImages(propImages);
+  //       } else if (productId) {
+  //         // Simulate API call with timeout
+  //         await new Promise((resolve) => setTimeout(resolve, 300));
+  //         // Use placeholder images for demo
+  //         const placeholderImage = "https://via.placeholder.com/500";
+  //         setImages([placeholderImage, placeholderImage, placeholderImage]);
+  //       } else {
+  //         setImages([]);
+  //       }
+  //     } catch (error) {
+  //       console.error("Error loading product images:", error);
+  //     } finally {
+  //       setLoading(false);
+  //     }
+  //   };
 
-        const timer = setTimeout(() => {
-          setImages([Product1, Product1, Product1, Product1]); // Example with duplicate images
-          setLoading(false);
+  //   loadImages();
+  // }, [productId, propImages]);
+
+  const navigateToImage = useCallback(
+    (index: number) => {
+      if (transitioning || images.length <= 1 || index === currentImageIndex)
+        return;
+
+      setTransitioning(true);
+      setZoomed(false);
+
+      // Apply transition
+      if (slideContainerRef.current) {
+        const direction = index > currentImageIndex ? "next" : "prev";
+        slideContainerRef.current.style.transition = "transform 300ms ease-out";
+        slideContainerRef.current.style.transform =
+          direction === "next" ? "translateX(-100%)" : "translateX(100%)";
+
+        setTimeout(() => {
+          setCurrentImageIndex(index);
+          slideContainerRef.current!.style.transition = "none";
+          slideContainerRef.current!.style.transform = "translateX(0)";
+          setTransitioning(false);
         }, 300);
-
-        return () => clearTimeout(timer);
-      } catch (error) {
-        console.error("Error fetching product images:", error);
-        setLoading(false);
       }
-    };
+    },
+    [currentImageIndex, images.length, transitioning]
+  );
 
-    fetchImages();
-  }, [productId]);
-
-  const navigateToImage = (index: number) => {
-    if (transitioning || images.length <= 1 || index === currentImageIndex)
-      return;
-
-    setTransitioning(true);
-    setZoomed(false);
-
-    // Apply transition
-    if (slideContainerRef.current) {
-      const direction = index > currentImageIndex ? "next" : "prev";
-      slideContainerRef.current.style.transition = "transform 300ms ease-out";
-      slideContainerRef.current.style.transform =
-        direction === "next" ? "translateX(-100%)" : "translateX(100%)";
-
-      setTimeout(() => {
-        setCurrentImageIndex(index);
-        slideContainerRef.current!.style.transition = "none";
-        slideContainerRef.current!.style.transform = "translateX(0)";
-        setTransitioning(false);
-      }, 300);
-    }
-  };
-
-  const nextImage = () => {
+  const nextImage = useCallback(() => {
     if (images.length <= 1) return;
     const nextIndex =
       currentImageIndex === images.length - 1 ? 0 : currentImageIndex + 1;
     navigateToImage(nextIndex);
-  };
+  }, [currentImageIndex, images.length, navigateToImage]);
 
-  const prevImage = () => {
+  const prevImage = useCallback(() => {
     if (images.length <= 1) return;
     const prevIndex =
       currentImageIndex === 0 ? images.length - 1 : currentImageIndex - 1;
     navigateToImage(prevIndex);
-  };
+  }, [currentImageIndex, images.length, navigateToImage]);
 
   // Toggle zoom effect
   const toggleZoom = () => {
@@ -147,82 +150,99 @@ const ProductImage = ({ productId }: ProductImageProps) => {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [currentImageIndex, images.length, zoomed]);
+  }, [nextImage, prevImage, zoomed]);
+
+  // if (loading) {
+  //   return (
+  //     <div className="w-full flex justify-center items-center pt-10 pb-6 sm:py-8 relative m-auto">
+  //       <div className="w-[65%] sm:w-[50%] md:w-[40%] lg:w-[30%] xl:w-[100%] aspect-[1/2.5] bg-gray-700/30 animate-pulse rounded-lg"></div>
+  //     </div>
+  //   );
+  // }
+
+  if (images.length === 0) {
+    return (
+      <div className="w-full flex justify-center items-center pt-10 pb-6 sm:py-8 relative m-auto">
+        <div className="w-[65%] sm:w-[50%] md:w-[40%] lg:w-[30%] xl:w-[100%] aspect-[1/2.5] bg-gray-700/30 rounded-lg flex items-center justify-center">
+          <p className="text-gray-400">No images available</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full flex justify-center items-center pt-10 pb-6 sm:py-8 relative m-auto">
-      {loading ? (
-        <div className="w-[65%] sm:w-[50%] md:w-[40%] lg:w-[30%] xl:w-[100%] aspect-[1/2.5] bg-gray-700/30 animate-pulse rounded-lg"></div>
-      ) : (
-        <div className="relative w-[65%] sm:w-[50%] md:w-[40%] lg:w-[30%] xl:w-[100%] flex justify-center overflow-hidden rounded-lg">
+      <div className="relative w-[65%] sm:w-[50%] md:w-[40%] lg:w-[30%] xl:w-[100%] flex justify-center overflow-hidden rounded-lg">
+        <div
+          ref={slideContainerRef}
+          className={`w-full h-full touch-pan-y ${
+            zoomed ? "cursor-zoom-out" : "cursor-zoom-in"
+          }`}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          onClick={toggleZoom}
+        >
           <div
-            ref={slideContainerRef}
-            className={`w-full h-full touch-pan-y ${
-              zoomed ? "cursor-zoom-out" : "cursor-zoom-in"
+            className={`transition-transform duration-300 ${
+              zoomed ? "scale-150" : "scale-100"
             }`}
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
-            onClick={toggleZoom}
           >
-            <div
-              className={`transition-transform duration-300 ${
-                zoomed ? "scale-150" : "scale-100"
-              }`}
-            >
-              <img
-                ref={imageRef}
-                src={images[currentImageIndex]}
-                className="w-full object-contain transition-transform"
-                alt={`Product Image ${currentImageIndex + 1}`}
-                loading="lazy"
-              />
-            </div>
+            <img
+              ref={imageRef}
+              src={images[currentImageIndex]}
+              className="w-full object-contain transition-transform"
+              alt={`Product Image ${currentImageIndex + 1}`}
+              loading="lazy"
+            />
           </div>
-
-          {/* Zoom indicator */}
-          {!zoomed && (
-            <button
-              onClick={toggleZoom}
-              className="absolute top-2 right-2 bg-black/30 rounded-full p-1.5 text-white hover:bg-black/50 transition-colors z-10"
-              aria-label="Zoom image"
-            >
-              <BsZoomIn size={16} />
-            </button>
-          )}
-
-          {/* Navigation arrows - only show if more than one image and not zoomed */}
-          {images.length > 1 && !zoomed && (
-            <>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  prevImage();
-                }}
-                disabled={transitioning}
-                className="absolute left-0 top-1/2 -translate-y-1/2 bg-black/30 rounded-full p-1.5 text-white hover:bg-black/50 transition-colors focus:outline-none focus:ring-2 focus:ring-white/50 z-10"
-                aria-label="Previous image"
-              >
-                <IoChevronBack size={18} />
-              </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  nextImage();
-                }}
-                disabled={transitioning}
-                className="absolute right-0 top-1/2 -translate-y-1/2 bg-black/30 rounded-full p-1.5 text-white hover:bg-black/50 transition-colors focus:outline-none focus:ring-2 focus:ring-white/50 z-10"
-                aria-label="Next image"
-              >
-                <IoChevronForward size={18} />
-              </button>
-            </>
-          )}
         </div>
-      )}
+
+        {/* Zoom indicator */}
+        {!zoomed && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleZoom();
+            }}
+            className="absolute top-2 right-2 bg-black/30 rounded-full p-1.5 text-white hover:bg-black/50 transition-colors z-10"
+            aria-label="Zoom image"
+          >
+            <BsZoomIn size={16} />
+          </button>
+        )}
+
+        {/* Navigation arrows  */}
+        {images.length > 1 && !zoomed && (
+          <>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                prevImage();
+              }}
+              disabled={transitioning}
+              className="absolute left-0 top-1/2 -translate-y-1/2 bg-black/30 rounded-full p-1.5 text-white hover:bg-black/50 transition-colors focus:outline-none focus:ring-2 focus:ring-white/50 z-10"
+              aria-label="Previous image"
+            >
+              <IoChevronBack size={18} />
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                nextImage();
+              }}
+              disabled={transitioning}
+              className="absolute right-0 top-1/2 -translate-y-1/2 bg-black/30 rounded-full p-1.5 text-white hover:bg-black/50 transition-colors focus:outline-none focus:ring-2 focus:ring-white/50 z-10"
+              aria-label="Next image"
+            >
+              <IoChevronForward size={18} />
+            </button>
+          </>
+        )}
+      </div>
 
       {/* Indicator dots */}
-      {!loading && images.length > 1 && (
+      {images.length > 1 && (
         <div className="flex gap-2 absolute bottom-0 sm:bottom-2">
           {images.map((_, index) => (
             <button
@@ -243,8 +263,8 @@ const ProductImage = ({ productId }: ProductImageProps) => {
         </div>
       )}
 
-      {/* Zoom instructions tooltip  */}
-      {!loading && !zoomed && (
+      {/* Zoom instructions tooltip */}
+      {!zoomed && (
         <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-black/70 text-white text-xs py-1 px-3 rounded-full opacity-0 animate-fadeInOut pointer-events-none">
           Tap to zoom
         </div>

@@ -3,6 +3,9 @@ import { Link, useLocation, useParams } from "react-router-dom";
 import Container from "../components/common/Container";
 import { IoChevronBackOutline, IoSearch } from "react-icons/io5";
 import ProductList from "../components/product/ProductList";
+import { useProductData } from "../utils/hooks/useProductData";
+import { debounce } from "../utils/helpers";
+import ProductCard from "../components/product/ProductCard";
 
 // categories
 const categories = [
@@ -19,9 +22,14 @@ const Product = () => {
   const location = useLocation();
   const params = useParams();
   const categoryParam = params.categoryName;
+  const { searchProducts, searchResults, loading } = useProductData();
 
-  // future: Set the active category based on URL or default to "All"
   const [activeCategory, setActiveCategory] = useState(categoryParam || "All");
+  const debouncedSearch = debounce(async (query: string) => {
+    if (query.trim()) {
+      await searchProducts(query);
+    }
+  }, 300);
 
   // Update active category when URL changes
   useEffect(() => {
@@ -35,7 +43,9 @@ const Product = () => {
   }, [categoryParam, location]);
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchQuery(e.target.value);
+    const query = e.target.value;
+    setSearchQuery(query);
+    debouncedSearch(query);
   };
 
   return (
@@ -58,6 +68,30 @@ const Product = () => {
                 onChange={handleSearch}
               />
             </div>
+
+            {/* Display search results if there's a query */}
+            {searchQuery && (
+              <div className="mt-8">
+                <div className="text-white text-xl mb-4">
+                  {loading
+                    ? "Searching..."
+                    : `Search results for "${searchQuery}"`}
+                </div>
+                {!loading && searchResults.length > 0 ? (
+                  <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 md:gap-5">
+                    {searchResults.map((product) => (
+                      <ProductCard key={product._id} product={product} />
+                    ))}
+                  </div>
+                ) : (
+                  !loading && (
+                    <div className="text-gray-400 text-center py-4">
+                      No products found matching "{searchQuery}"
+                    </div>
+                  )
+                )}
+              </div>
+            )}
             {/* Categories */}
             <div className="mt-8 overflow-x-auto scrollbar-hide">
               <div className="flex space-x-4 py-2 min-w-max">

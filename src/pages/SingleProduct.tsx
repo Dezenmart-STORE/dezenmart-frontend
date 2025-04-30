@@ -11,36 +11,32 @@ import ProductDetails from "../components/product/singleProduct/ProductDetails";
 import CustomerReviews from "../components/product/singleProduct/CustomerReviews";
 import PurchaseSection from "../components/product/singleProduct/PurchaseSection";
 import ProductLoadingSkeleton from "../components/product/singleProduct/LoadingSkeleton";
-import ProductList from "../components/product/ProductList";
-// import { CartContext } from "../contexts/CartContext";
-// import { FavoritesContext } from "../contexts/FavoritesContext";
+// import ProductList from "../components/product/ProductList";
+import { useProductData } from "../utils/hooks/useProductData";
+import ProductCard from "../components/product/ProductCard";
 
 type TabType = "details" | "reviews";
 
 const SingleProduct = () => {
-  const { id } = useParams();
+  const { productId } = useParams();
   const navigate = useNavigate();
+  const {
+    product,
+    formattedProduct,
+    loading,
+    error,
+    fetchProductById,
+    relatedProducts,
+  } = useProductData();
   const [activeTab, setActiveTab] = useState<TabType>("details");
   const [isFavorite, setIsFavorite] = useState(false);
-  // const [dominantColor, setDominantColor] = useState("#292B30");
-  const [product, setProduct] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
   const [reviewCount, setReviewCount] = useState(0);
-
-  // Context hooks (uncomment when implementing contexts)
-  // const { addToCart } = useContext(CartContext);
-  // const { favorites, addToFavorites, removeFromFavorites } = useContext(FavoritesContext);
 
   const handleGoBack = () => navigate(-1);
 
   const toggleFavorite = () => {
     setIsFavorite((prev) => !prev);
-
-    // if (isFavorite) {
-    //   removeFromFavorites(id as string);
-    // } else {
-    //   addToFavorites(id as string);
-    // }
+    // favorite/wishlist logic
   };
 
   const handleShare = async () => {
@@ -57,59 +53,53 @@ const SingleProduct = () => {
         console.error("Error sharing product:", error);
       }
     } else {
-      // Fallback for browsers that don't support share API
       navigator.clipboard.writeText(window.location.href);
-      // Show toast or notification that URL was copied
       alert("Link copied to clipboard!");
     }
   };
-
   useEffect(() => {
-    // Fetch product data based on ID
-    const fetchProduct = async () => {
-      setLoading(true);
-      try {
-        // const response = await fetch(`/api/products/${id}`);
-        // const data = await response.json();
-
-        setTimeout(() => {
-          const mockProduct = {
-            id,
-            name: "Vaseline Cocoa Radiant",
-            price: 0.0002,
-            discountPrice: 0.00015,
-            description: "Product description goes here...",
-            rating: 4.7,
-            reviewCount: 4,
-          };
-
-          setProduct(mockProduct);
-          setReviewCount(mockProduct.reviewCount);
-          setLoading(false);
-        }, 800);
-      } catch (error) {
-        console.error("Failed to fetch product:", error);
-        setLoading(false);
-      }
-    };
-
-    // Check if product is in favorites
-    // Uncomment when implementing context
-
-    if (id) {
-      fetchProduct();
-      // checkFavoriteStatus();
-      // Reset to details tab when product changes
+    if (productId) {
+      fetchProductById(productId);
       setActiveTab("details");
     }
 
-    // Scroll to top when component mounts
     window.scrollTo(0, 0);
-  }, [id]);
 
-  if (loading) {
+    // Cleanup
+    return () => {};
+  }, [productId, fetchProductById]);
+  // useEffect(() => {
+  //   if (product) {
+  //     // Mock review count for now
+  //     setReviewCount(4);
+  //   }
+  // }, [product]);
+
+  if (loading || !product) {
     return <ProductLoadingSkeleton />;
   }
+
+  if (error) {
+    return (
+      <div className="bg-Dark min-h-screen flex items-center justify-center">
+        <div className="bg-[#292B30] p-8 rounded-xl shadow-lg">
+          <h2 className="text-Red text-xl font-bold mb-4">
+            Error Loading Product
+          </h2>
+          <p className="text-white mb-6">{error}</p>
+          <button
+            onClick={handleGoBack}
+            className="bg-Red text-white py-2 px-6 rounded-md hover:bg-[#d52a33] transition-colors"
+          >
+            Go Back
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const ethPrice =
+    formattedProduct?.formattedPrice || (product.price / 1000000).toFixed(6);
 
   const backgroundStyle = {
     background: `linear-gradient(to bottom, #292B30 0%, rgba(41, 43, 48, 0.95) 100%)`,
@@ -165,7 +155,7 @@ const SingleProduct = () => {
               </div>
 
               {/* Product Image */}
-              <ProductImage productId={id} />
+              <ProductImage images={product.images} />
             </div>
           </div>
 
@@ -174,23 +164,12 @@ const SingleProduct = () => {
               <div className="px-4 sm:px-8 md:px-12 py-6">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                   <h1 className="text-2xl sm:text-3xl font-bold">
-                    {product?.name}
+                    {product.name}
                   </h1>
                   <div className="flex items-center">
-                    {product?.discountPrice ? (
-                      <>
-                        <span className="text-xl sm:text-2xl font-bold text-Red">
-                          {product.discountPrice} ETH
-                        </span>
-                        <span className="ml-2 text-gray-400 line-through">
-                          {product.price}ETH
-                        </span>
-                      </>
-                    ) : (
-                      <span className="text-xl sm:text-2xl font-bold">
-                        {product?.price}ETH
-                      </span>
-                    )}
+                    <span className="text-xl sm:text-2xl font-bold">
+                      {ethPrice} ETH
+                    </span>
                   </div>
                 </div>
               </div>
@@ -205,22 +184,25 @@ const SingleProduct = () => {
               {/* Tab Content */}
               <div className="transition-all duration-300">
                 {activeTab === "details" ? (
-                  <ProductDetails />
+                  <ProductDetails product={product} ethPrice={ethPrice} />
                 ) : (
-                  <CustomerReviews />
+                  <CustomerReviews
+                    productId={product._id}
+                    reviewcount={setReviewCount}
+                  />
                 )}
               </div>
 
-              <PurchaseSection />
+              <PurchaseSection product={product} />
             </div>
           </div>
         </div>
         <div className="mt-8">
-          <ProductList
-            title="You might also like"
-            className="mt-8"
-            isCategoryView={false}
-          />
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 md:gap-5">
+            {relatedProducts.map((product) => (
+              <ProductCard key={product._id} product={product} />
+            ))}
+          </div>
         </div>
       </div>
     </motion.div>

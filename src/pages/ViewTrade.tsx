@@ -10,46 +10,48 @@ import CompletedTradeCard from "../components/trade/view/CompletedTradeCard";
 import ConnectWallet from "../components/trade/ConnectWallet";
 import Tab from "../components/trade/Tab";
 import EmptyState from "../components/trade/view/EmptyState";
+import { useNavigate } from "react-router-dom";
 
 const ViewTrade = () => {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<TradeTab>("active");
   const [isLoading, setIsLoading] = useState(true);
-  const { isConnected, connect, isConnecting } = useWallet();
+  const { isConnected } = useWallet();
 
   // Sample data for active trades
   const activeTrades: Product[] = [
     {
-      id: "3",
-      name: "FemiMark",
-      image: "/images/product1.svg",
-      price: "₦1,200",
-      quantity: "50 Cars",
-      minCost: "1M - 10M NGN",
-      description: "A wine Benz",
-      orders: 45,
-      rating: 98,
-      seller: "JohnDoe",
-      status: "Waiting for payment",
-      timeRemaining: "28:43",
+      _id: "68082f7a7d3f057ab0fafd5c",
+      name: "Wood Carving",
+      description: "Neat carved wood art works",
+      price: 20000,
+      category: "Art Work",
+      seller: "680821b06eda53ead327e0ea",
+      images: [
+        "images-1745366906480-810449189.jpeg",
+        "images-1745366906494-585992412.jpeg",
+      ],
+      isSponsored: false,
+      isActive: true,
+      createdAt: "2025-04-23T00:08:26.519Z",
+      updatedAt: "2025-04-23T00:08:26.519Z",
     },
   ];
 
   // Sample data for completed trades
   const completedTrades: Product[] = [
     {
-      id: "4",
-      name: "FemiMark",
-      image: "/images/product2.svg",
-      price: "₦1,500",
-      quantity: "20 Cars",
-      minCost: "500K - 5M NGN",
-      description: "A white PS5 Console",
-      orders: 78,
-      rating: 95,
-      seller: "SarahT",
-      status: "Completed",
-      paymentStatus: "Paid",
-      escrowStatus: "Released",
+      _id: "68082c3efae576e05502c04b",
+      name: "Test Product",
+      description: "Testing product endpoint",
+      price: 20000,
+      category: "Item",
+      seller: "680821b06eda53ead327e0ea",
+      images: [],
+      isSponsored: false,
+      isActive: true,
+      createdAt: "2025-04-22T23:54:38.445Z",
+      updatedAt: "2025-04-22T23:54:38.445Z",
     },
   ];
 
@@ -62,7 +64,6 @@ const ViewTrade = () => {
 
     return () => window.clearTimeout(loadTimer);
   }, []);
-
   if (!isConnected) {
     return (
       <div className="bg-Dark min-h-screen text-white">
@@ -74,7 +75,7 @@ const ViewTrade = () => {
           >
             <Title text="Trade" className="text-center my-8 text-3xl" />
           </motion.div>
-          <ConnectWallet onConnect={connect} isConnecting={isConnecting} />
+          <ConnectWallet showAlternatives={true} />
         </Container>
       </div>
     );
@@ -105,13 +106,14 @@ const ViewTrade = () => {
               text="Completed"
               isActive={activeTab === "completed"}
               onClick={() => setActiveTab("completed")}
-              count={completedTrades.length}
+              // count={completedTrades.length}
+              count={0}
               className="w-full"
             />
           </div>
 
           {/* Content Area */}
-          <div className="p-4">
+          <div className="py-4">
             <AnimatePresence mode="wait">
               {isLoading ? (
                 <ProductListingSkeleton />
@@ -127,7 +129,16 @@ const ViewTrade = () => {
                   {activeTab === "active" &&
                     (activeTrades.length > 0 ? (
                       activeTrades.map((trade) => (
-                        <ActiveTradeCard key={trade.id} trade={trade} />
+                        <div
+                          key={trade._id}
+                          onClick={() =>
+                            navigate(
+                              `/trades/viewtrades/${trade._id}?status=pending`
+                            )
+                          }
+                        >
+                          <ActiveTradeCard />
+                        </div>
                       ))
                     ) : (
                       <EmptyState
@@ -139,7 +150,18 @@ const ViewTrade = () => {
                   {activeTab === "completed" &&
                     (!(completedTrades.length > 0) ? (
                       completedTrades.map((trade) => (
-                        <CompletedTradeCard key={trade.id} trade={trade} />
+                        <div
+                          key={trade._id}
+                          onClick={() =>
+                            navigate(
+                              `/trades/viewtrades/${trade._id}?status=completed`
+                            )
+                          }
+                        >
+                          <CompletedTradeCard
+                          // trade={trade}
+                          />
+                        </div>
                       ))
                     ) : (
                       <EmptyState

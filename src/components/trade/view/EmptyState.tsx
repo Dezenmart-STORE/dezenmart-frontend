@@ -1,5 +1,6 @@
 import { FC } from "react";
 import { motion } from "framer-motion";
+import Button from "../../common/Button";
 
 interface EmptyStateProps {
   title: string;
@@ -61,7 +62,7 @@ const EmptyState: FC<EmptyStateProps> = ({
 
   return (
     <motion.div
-      className={`flex flex-col items-center justify-center w-full h-full py-16 px-4 ${className}`}
+      className={`flex flex-col items-center justify-start w-full h-[50vh] md:h-[60vh] py-16 px-4 ${className}`}
       variants={containerVariants}
       initial="initial"
       animate="animate"
@@ -123,117 +124,24 @@ const EmptyState: FC<EmptyStateProps> = ({
       >
         {message}
       </motion.p>
+      <motion.div
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
+        className="mt-auto text-center xs:col-span-2 xs:w-[80%] w-full lg:w-full lg:col-start-2"
+        transition={{
+          type: "spring",
+          stiffness: 400,
+          damping: 15,
+        }}
+      >
+        <Button
+          title="Browse for Products"
+          className="flex justify-center items-center  bg-Red border-0 rounded text-white px-6 py-2 w-full transition-colors hover:bg-[#e02d37]"
+          path={`/trades`}
+        />
+      </motion.div>
     </motion.div>
   );
 };
 
 export default EmptyState;
-
-// import { FC } from "react";
-// import { motion } from "framer-motion";
-// import { FaArrowLeft, FaArrowRight } from "react-icons/fa";
-
-// interface EmptyStateProps {
-//   title?: string;
-//   message?: string;
-//   iconSize?: number;
-//   className?: string;
-// }
-
-// const EmptyState: FC<EmptyStateProps> = ({
-//   title = "No Completed Trades",
-//   message = "Once you start a trade, you'll see it here.",
-//   iconSize = 24,
-//   className = "",
-// }) => {
-//   // Container animation
-//   const containerVariants = {
-//     initial: { opacity: 0, y: 20 },
-//     animate: { opacity: 1, y: 0 },
-//     exit: { opacity: 0, y: -20 },
-//   };
-
-//   // Icon circle animation
-//   const circleVariants = {
-//     initial: { scale: 0.8, opacity: 0 },
-//     animate: {
-//       scale: 1,
-//       opacity: 1,
-//       transition: { delay: 0.2 },
-//     },
-//     hover: {
-//       scale: 1.05,
-//       transition: { type: "spring", stiffness: 400, damping: 10 },
-//     },
-//   };
-
-//   // Arrows animation
-//   const arrowsVariants = {
-//     animate: {
-//       transition: { staggerChildren: 0.2 },
-//     },
-//   };
-
-//   const arrowVariant = {
-//     initial: { x: 0, opacity: 0.7 },
-//     animate: {
-//       x: [-5, 5, -5],
-//       opacity: [0.7, 1, 0.7],
-//       transition: {
-//         duration: 2,
-//         repeat: Infinity,
-//         ease: "easeInOut",
-//       },
-//     },
-//   };
-
-//   return (
-//     <motion.div
-//       className={`flex flex-col items-center justify-center w-full h-full py-16 px-4 ${className}`}
-//       variants={containerVariants}
-//       initial="initial"
-//       animate="animate"
-//       exit="exit"
-//       transition={{ duration: 0.5 }}
-//     >
-//       <motion.div
-//         className="relative w-20 h-20 mb-8 rounded-full flex items-center justify-center border border-gray-600"
-//         variants={circleVariants}
-//         whileHover="hover"
-//       >
-//         <motion.div
-//           className="flex items-center"
-//           variants={arrowsVariants}
-//           animate="animate"
-//         >
-//           <motion.div variants={arrowVariant}>
-//             <FaArrowLeft size={iconSize} className="text-gray-400 mr-2" />
-//           </motion.div>
-//           <motion.div variants={arrowVariant}>
-//             <FaArrowRight size={iconSize} className="text-gray-400" />
-//           </motion.div>
-//         </motion.div>
-//       </motion.div>
-
-//       <motion.h2
-//         className="text-white text-center font-bold text-2xl mb-2"
-//         initial={{ opacity: 0 }}
-//         animate={{ opacity: 1 }}
-//         transition={{ delay: 0.3, duration: 0.4 }}
-//       >
-//         {title}
-//       </motion.h2>
-
-//       <motion.p
-//         className="text-gray-400 text-center max-w-xs text-base"
-//         initial={{ opacity: 0 }}
-//         animate={{ opacity: 1 }}
-//         transition={{ delay: 0.4, duration: 0.4 }}
-//       >
-//         {message}
-//       </motion.p>
-//     </motion.div>
-//   );
-// };
-
-// export default EmptyState;

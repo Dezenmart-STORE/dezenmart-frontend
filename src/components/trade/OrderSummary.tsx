@@ -38,7 +38,7 @@ const OrderSummaryModal: FC<OrderSummaryModalProps> = ({
 
         <div className="flex items-center mb-6">
           <img
-            src={product.image}
+            src={product.images[0]}
             alt={product.description}
             className="w-20 h-20 object-cover rounded-md mr-4"
           />
@@ -52,11 +52,11 @@ const OrderSummaryModal: FC<OrderSummaryModalProps> = ({
         <div className="space-y-3 mb-6">
           <div className="flex justify-between text-sm">
             <span className="text-[#AEAEB2]">Quantity:</span>
-            <span>{product.quantity}</span>
+            {/* <span>{product.quantity}</span> */}
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-[#AEAEB2]">Min. Cost:</span>
-            <span>{product.minCost}</span>
+            {/* <span>{product.minCost}</span> */}
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-[#AEAEB2]">Seller:</span>
