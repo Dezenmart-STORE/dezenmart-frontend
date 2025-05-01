@@ -18,7 +18,6 @@ interface ConnectWalletProps {
 const ConnectWallet: FC<ConnectWalletProps> = ({ showAlternatives = true }) => {
   const {
     isConnecting,
-    isConnected,
     connectMetaMask,
     connectGoogle,
     connectEmail: walletConnectEmail,

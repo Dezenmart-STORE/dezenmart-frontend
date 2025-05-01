@@ -4,8 +4,12 @@ import { RiVerifiedBadgeFill } from "react-icons/ri";
 import Container from "../components/common/Container";
 import ProductList from "../components/product/ProductList";
 import BannerCarousel from "../components/common/BannerCarousel";
+import { useState } from "react";
+import ConnectWallet from "../components/trade/ConnectWallet";
+import Modal from "../components/common/Modal";
 
 const Home = () => {
+  const [showWallet, setShowWallet] = useState(false);
   const quickActions = [
     {
       icon: Browseproduct,
@@ -20,7 +24,7 @@ const Home = () => {
     {
       icon: Mywallet,
       title: "My Wallet",
-      path: "/wallet",
+      onclick: () => setShowWallet(true),
     },
   ];
   const banners = [
@@ -110,24 +114,43 @@ const Home = () => {
 
         {/* Quick action buttons */}
         <div className="flex justify-evenly md:justify-start mt-6 md:mt-20 gap-4 md:gap-10">
-          {quickActions.map((action, index) => (
-            <Link
-              key={index}
-              to={action.path}
-              className="flex flex-col items-center justify-center gap-2 group transition-transform hover:scale-105"
-            >
-              <span className="bg-[#292B30] rounded-full p-4 md:p-8 flex items-center justify-center transition-colors group-hover:bg-[#333]">
-                <img
-                  src={action.icon}
-                  alt=""
-                  className="w-[20px] h-[20px] md:w-[24px] md:h-[24px]"
-                />
-              </span>
-              <h3 className="text-[#AEAEB2] text-sm md:text-lg group-hover:text-white transition-colors">
-                {action.title}
-              </h3>
-            </Link>
-          ))}
+          {quickActions.map((action, index) =>
+            action.path ? (
+              <Link
+                key={index}
+                to={action.path}
+                className="flex flex-col items-center justify-center gap-2 group transition-transform hover:scale-105"
+              >
+                <span className="bg-[#292B30] rounded-full p-4 md:p-8 flex items-center justify-center transition-colors group-hover:bg-[#333]">
+                  <img
+                    src={action.icon}
+                    alt=""
+                    className="w-[20px] h-[20px] md:w-[24px] md:h-[24px]"
+                  />
+                </span>
+                <h3 className="text-[#AEAEB2] text-sm md:text-lg group-hover:text-white transition-colors">
+                  {action.title}
+                </h3>
+              </Link>
+            ) : (
+              <button
+                key={index}
+                onClick={action.onclick}
+                className="flex flex-col items-center justify-center gap-2 group transition-transform hover:scale-105"
+              >
+                <span className="bg-[#292B30] rounded-full p-4 md:p-8 flex items-center justify-center transition-colors group-hover:bg-[#333]">
+                  <img
+                    src={action.icon}
+                    alt=""
+                    className="w-[20px] h-[20px] md:w-[24px] md:h-[24px]"
+                  />
+                </span>
+                <h3 className="text-[#AEAEB2] text-sm md:text-lg group-hover:text-white transition-colors">
+                  {action.title}
+                </h3>
+              </button>
+            )
+          )}
         </div>
 
         {/* <div className="flex justify-between items-center px-4 bg-Red rounded-lg mt-8 md:mt-28 overflow-hidden">
@@ -165,6 +188,11 @@ const Home = () => {
           isFeatured={true}
         />
       </Container>
+      {showWallet && (
+        <Modal onClose={() => setShowWallet(false)} isOpen>
+          <ConnectWallet showAlternatives />
+        </Modal>
+      )}
     </div>
   );
 };

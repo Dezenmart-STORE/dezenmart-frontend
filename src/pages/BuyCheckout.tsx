@@ -5,8 +5,8 @@ import CheckoutLayout from "../components/trade/checkout/CheckoutLayout";
 import ProductInfo from "../components/trade/checkout/ProductInfo";
 import PaymentMethod from "../components/trade/checkout/PaymentMethod";
 import TransactionInfo from "../components/trade/checkout/TransactionInfo";
-// import { Product } from "../utils/types";
-// import { toast } from "react-toastify";
+import { Product } from "../utils/types";
+import { toast } from "react-toastify";
 import { useOrderData } from "../utils/hooks/useOrderData";
 import { useProductData } from "../utils/hooks/useProductData";
 import LoadingSpinner from "../components/common/LoadingSpinner";
@@ -14,73 +14,75 @@ import LoadingSpinner from "../components/common/LoadingSpinner";
 const BuyCheckout = () => {
   const { productId } = useParams();
   const navigate = useNavigate();
-  //   const [isLoading, setIsLoading] = useState(true);
-  //   const [product, setProduct] = useState<Product | null>(null);
+  const [loadingProduct, setLoadingProduct] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<any>();
+  const [product, setProduct] = useState<Product | null>(null);
   const [paymentAmount, setPaymentAmount] = useState<number>(190);
   const [paymentMethod, setPaymentMethod] = useState<string>("crypto");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { placeOrder, loading } = useOrderData();
-  const {
-    product,
-    // formattedProduct,
-    loading: loadingProduct,
-    error,
-    fetchProductById,
-  } = useProductData();
+  // const { placeOrder, loading } = useOrderData();
+  // const {
+  //   product,
+  //   formattedProduct,
+  //   loading: loadingProduct,
+  //   error,
+  //   fetchProductById,
+  // } = useProductData();
   // Fetch product data
+  // useEffect(() => {
+  //   if (productId) {
+  //     fetchProductById(productId);
+  //   }
+
+  //   // Cleanup
+  //   return () => {};
+  // }, [productId, fetchProductById]);
+  // const handleRetry = () => {
+  //   if (productId) {
+  //     fetchProductById(productId);
+  //   }
+
+  //   // Cleanup
+  //   return () => {};
+  // };
+
   useEffect(() => {
-    if (productId) {
-      fetchProductById(productId);
-    }
+    const fetchProduct = async () => {
+      try {
+        // API call
+        setTimeout(() => {
+          // Sample data
+          const productData: Product = {
+            _id: "68082f7a7d3f057ab0fafd5c",
+            name: "Wood Carving",
+            description: "Neat carved wood art works",
+            price: 20000,
+            category: "Art Work",
+            seller: "680821b06eda53ead327e0ea",
+            images: [
+              "images-1745366906480-810449189.jpeg",
+              "images-1745366906494-585992412.jpeg",
+            ],
+            isSponsored: false,
+            isActive: true,
+            createdAt: "2025-04-23T00:08:26.519Z",
+            updatedAt: "2025-04-23T00:08:26.519Z",
+          };
 
-    // Cleanup
-    return () => {};
-  }, [productId, fetchProductById]);
-  const handleRetry = () => {
-    if (productId) {
-      fetchProductById(productId);
-    }
+          setProduct(productData);
+          setLoadingProduct(false);
+        }, 600);
+      } catch (error) {
+        console.error("Error fetching product:", error);
+        toast.error("Failed to load product details");
+        setLoadingProduct(false);
+      }
+    };
 
-    // Cleanup
-    return () => {};
-  };
-
-  //   useEffect(() => {
-  //     const fetchProduct = async () => {
-  //       try {
-  //         // API call
-  //         setTimeout(() => {
-  //           // Sample data
-  //           const productData: Product = {
-  //             _id: "68082f7a7d3f057ab0fafd5c",
-  //             name: "Wood Carving",
-  //             description: "Neat carved wood art works",
-  //             price: 20000,
-  //             category: "Art Work",
-  //             seller: "680821b06eda53ead327e0ea",
-  //             images: [
-  //               "images-1745366906480-810449189.jpeg",
-  //               "images-1745366906494-585992412.jpeg",
-  //             ],
-  //             isSponsored: false,
-  //             isActive: true,
-  //             createdAt: "2025-04-23T00:08:26.519Z",
-  //             updatedAt: "2025-04-23T00:08:26.519Z",
-  //           };
-
-  //           setProduct(productData);
-  //           setIsLoading(false);
-  //         }, 600);
-  //       } catch (error) {
-  //         console.error("Error fetching product:", error);
-  //         toast.error("Failed to load product details");
-  //         setIsLoading(false);
-  //       }
-  //     };
-
-  //     fetchProduct();
-  //   }, [productId]);
+    fetchProduct();
+  }, [productId]);
 
   const handleBuy = async () => {
     if (!product) return;
@@ -88,18 +90,21 @@ const BuyCheckout = () => {
     setIsSubmitting(true);
 
     try {
-      const result = await placeOrder({
-        product: productId as string,
-        seller: product.seller,
-        amount: paymentAmount,
-      });
-
-      if (result) {
-        navigate(`/orders/${result._id}?status=pending`);
-      }
+      // const result = await placeOrder({
+      //   product: productId as string,
+      //   seller: product.seller,
+      //   amount: paymentAmount,
+      // });
+      setLoading(true);
+      // if (result) {
+      //   navigate(`/orders/${result._id}?status=pending`);
+      // }
+      navigate(`/orders/${product._id}?status=pending`);
     } catch (error) {
       console.error("Order creation error:", error);
+      setError(error);
     } finally {
+      setLoading(false);
       setIsSubmitting(false);
     }
   };
@@ -121,7 +126,7 @@ const BuyCheckout = () => {
           </h2>
           <p className="text-white mb-6">{error}</p>
           <button
-            onClick={handleRetry}
+            // onClick={handleRetry}
             className={`${
               loadingProduct ? "bg-Red/20" : "bg-Red"
             } text-white py-2 px-6 rounded-md hover:bg-[#d52a33] transition-colors`}

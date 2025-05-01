@@ -4,6 +4,7 @@ import productReducer from "./slices/productSlice";
 import reviewReducer from "./slices/reviewSlice";
 import referralReducer from "./slices/referralSlice";
 import orderReducer from "./slices/orderSlice";
+import contractReducer from "./slices/contractSlice";
 
 export const store = configureStore({
   reducer: {
@@ -12,6 +13,7 @@ export const store = configureStore({
     reviews: reviewReducer,
     referrals: referralReducer,
     orders: orderReducer,
+    contract: contractReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

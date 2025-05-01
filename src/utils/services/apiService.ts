@@ -1,4 +1,4 @@
-import { UserProfile } from "../types";
+import { CreateTradeParams, TradeResponse, UserProfile } from "../types";
 const API_URL = import.meta.env.VITE_API_URL;
 export const fetchWithAuth = async (
   endpoint: string,
@@ -339,6 +339,20 @@ export const api = {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status }),
+    });
+  },
+  createTrade: async (
+    tradeData: CreateTradeParams
+  ): Promise<{
+    ok: boolean;
+    status: number;
+    data: TradeResponse | null;
+    error: string | null;
+  }> => {
+    return fetchWithAuth("/contracts/trades", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(tradeData),
     });
   },
   raiseDispute: async (orderId: string, reason: string) => {

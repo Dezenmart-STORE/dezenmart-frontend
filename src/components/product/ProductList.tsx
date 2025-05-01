@@ -34,24 +34,25 @@ const ProductList = ({
     fetchSponsoredProducts,
     getProductsByCategory,
   } = useProductData();
+
   const [displayProducts, setDisplayProducts] = useState<Product[]>([]);
 
   useEffect(() => {
     const loadData = async () => {
       if (isFeatured) {
         await fetchSponsoredProducts();
-      } else if (products.length === 0) {
+      } else {
         await fetchAllProducts();
       }
     };
 
     loadData();
-  }, [fetchAllProducts, fetchSponsoredProducts, isFeatured, products.length]);
+  }, [isFeatured, fetchAllProducts, fetchSponsoredProducts]);
 
   useEffect(() => {
-    if (isFeatured && sponsoredProducts.length > 0) {
+    if (isFeatured && sponsoredProducts && sponsoredProducts.length > 0) {
       setDisplayProducts(sponsoredProducts.slice(0, maxItems));
-    } else if (products.length > 0) {
+    } else if (products && products.length > 0) {
       if (category) {
         const filteredProducts = getProductsByCategory(category);
         setDisplayProducts(filteredProducts.slice(0, maxItems));
@@ -60,12 +61,12 @@ const ProductList = ({
       }
     }
   }, [
+    category,
+    getProductsByCategory,
+    isFeatured,
+    maxItems,
     products,
     sponsoredProducts,
-    isFeatured,
-    category,
-    maxItems,
-    getProductsByCategory,
   ]);
 
   const newClass = twMerge("", className);

@@ -6,43 +6,18 @@ import { useEffect } from "react";
 
 const Layout = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
-  const isAuthPage = ["/login", "/load"].includes(location.pathname);
-
   const navigate = useNavigate();
-  // In Layout.tsx
+
+  // Pages that should not display header/footer
+  const isAuthPage = ["/login", "/load", "/auth/google"].includes(
+    location.pathname
+  );
+
   useEffect(() => {
-    // Check if this is a redirect from Google auth
     if (location.pathname === "/auth/google") {
-      // Extract token and user data from URL
-      const params = new URLSearchParams(location.search);
-      const token = params.get("token");
-      const userData = params.get("user");
-
-      if (token && userData) {
-        try {
-          // Log the raw data for debugging
-          console.log("Raw token:", token);
-          console.log("Raw userData:", userData);
-
-          // Redirect to our auth callback handler
-          navigate(
-            `/auth-callback?token=${encodeURIComponent(
-              token
-            )}&user=${encodeURIComponent(userData)}`,
-            { replace: true }
-          );
-        } catch (error) {
-          console.error("Failed to process auth callback:", error);
-          // Something went wrong, redirect to login
-          navigate("/login", { replace: true });
-        }
-      } else {
-        console.error("Missing token or user data in callback");
-        // Something went wrong, redirect to login
-        navigate("/login", { replace: true });
-      }
+      console.log("On auth/google page, URL:", window.location.href);
     }
-  }, [location, navigate]);
+  }, [location.pathname, navigate]);
 
   return (
     <>

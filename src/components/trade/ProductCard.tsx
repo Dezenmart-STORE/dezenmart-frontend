@@ -86,7 +86,7 @@ const ProductCard: FC<ProductCardProps> = ({
             actionType === "buy" ? (isSellTab ? "SELL" : "BUY") : "VIEW DETAILS"
           }
           className="flex justify-between items-center w-full bg-Red border-0 rounded text-white px-6 py-2 w-full transition-colors hover:bg-[#e02d37]"
-          path={`/product/${product._id}`}
+          path={`/trades/buy/${product._id}`}
           icon={<FaArrowRightLong />}
           // onClick={handleButtonClick}
         />

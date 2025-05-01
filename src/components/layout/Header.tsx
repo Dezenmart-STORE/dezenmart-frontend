@@ -1,11 +1,16 @@
 import { useState, useRef, useEffect } from "react";
 import { HiOutlineBell } from "react-icons/hi";
+import { BiLogIn, BiWallet } from "react-icons/bi"; // Import wallet icon
 import { Logo } from "../../pages";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import Container from "../common/Container";
 import { useNotifications } from "../../utils/hooks/useNotifications";
 import NotificationBadge from "../notifications/NotificationBadge";
 import { useAuth } from "../../context/AuthContext";
+import Button from "../common/Button";
+import { useWallet } from "../../utils/hooks/useWallet";
+import Modal from "../common/Modal";
+import ConnectWallet from "../trade/ConnectWallet";
 
 const NavList = [
   { title: "Home", path: "/" },
@@ -19,7 +24,9 @@ const Header = () => {
   const { unreadCount } = useNotifications();
   const { user, isAuthenticated, logout } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showWallet, setShowWallet] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
+  const { isConnected } = useWallet();
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -42,6 +49,11 @@ const Header = () => {
     navigate("/");
     setShowUserMenu(false);
   };
+
+  // const handleConnectWallet = () => {
+  //   // Wallet connection logic will go here
+  //   console.log("Connect wallet clicked");
+  // };
 
   return (
     <header className="w-full py-3 bg-[#212428] shadow-md sticky top-0 z-50">
@@ -83,6 +95,17 @@ const Header = () => {
 
         {/* Right section: Buttons */}
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowWallet(true)}
+            className="flex items-center gap-1.5 bg-[#292B30] text-white px-3 py-1.5 rounded-md hover:bg-[#33363b] transition-all"
+          >
+            <BiWallet className="text-lg" />
+            <span className="text-sm font-medium hidden sm:inline">
+              {!isConnected && "Connect"} Wallet
+            </span>
+            <span className="text-sm font-medium sm:hidden">Wallet</span>
+          </button>
+
           {isAuthenticated ? (
             <>
               <button
@@ -135,15 +158,21 @@ const Header = () => {
               </div>
             </>
           ) : (
-            <button
-              className="bg-Red text-white px-4 py-2 rounded-md hover:bg-opacity-90 transition-all"
+            <Button
+              title="Sign In"
+              className="bg-Red text-white pl-2 pr-3 py-2 rounded-md hover:bg-opacity-90 transition-all"
               onClick={() => navigate("/login")}
-            >
-              Sign In
-            </button>
+              icon={<BiLogIn className="text-lg" />}
+              iconPosition="start"
+            />
           )}
         </div>
       </Container>
+      {showWallet && (
+        <Modal onClose={() => setShowWallet(false)} isOpen>
+          <ConnectWallet showAlternatives />
+        </Modal>
+      )}
     </header>
   );
 };

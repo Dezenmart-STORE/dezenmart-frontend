@@ -1,3 +1,4 @@
+// Modified version of useProductData with more consistent handling
 import { useCallback } from "react";
 import { useAppDispatch, useAppSelector } from "./redux";
 import {
@@ -54,6 +55,29 @@ export const useProductData = () => {
     [dispatch, showSnackbar]
   );
 
+  const fetchSponsoredProductsAsync = useCallback(
+    async (showNotification = false, forceRefresh = false) => {
+      try {
+        const result = await dispatch(
+          fetchSponsoredProducts(forceRefresh)
+        ).unwrap();
+        if (showNotification) {
+          showSnackbar("Featured products loaded successfully", "success");
+        }
+        return result;
+      } catch (err) {
+        if (showNotification) {
+          showSnackbar(
+            (err as string) || "Failed to load featured products",
+            "error"
+          );
+        }
+        return [];
+      }
+    },
+    [dispatch, showSnackbar]
+  );
+
   const fetchProductByIdAsync = useCallback(
     async (id: string, showNotification = false) => {
       try {
@@ -72,34 +96,12 @@ export const useProductData = () => {
     [dispatch, showSnackbar]
   );
 
-  const fetchSponsoredProductsAsync = useCallback(
-    async (showNotification = false, forceRefresh = false) => {
-      try {
-        await dispatch(fetchSponsoredProducts(forceRefresh)).unwrap();
-        if (showNotification) {
-          showSnackbar("Featured products loaded successfully", "success");
-        }
-        return true;
-      } catch (err) {
-        if (showNotification) {
-          showSnackbar(
-            (err as string) || "Failed to load featured products",
-            "error"
-          );
-        }
-        return false;
-      }
-    },
-    [dispatch, showSnackbar]
-  );
-
   const searchProductsAsync = useCallback(
     async (query: string, showNotification = false) => {
       if (!query.trim()) {
         dispatch(clearSearchResults());
         return [];
       }
-
       try {
         const result = await dispatch(searchProducts(query)).unwrap();
         if (showNotification) {
@@ -120,21 +122,17 @@ export const useProductData = () => {
     async (productData: FormData, showNotification = true) => {
       try {
         const response = await api.createProduct(productData);
-
         if (!response.ok) {
           if (showNotification) {
             showSnackbar(response.error || "Failed to create product", "error");
           }
           return null;
         }
-
         // Refresh products list after successful creation
         await dispatch(fetchAllProducts(true)).unwrap();
-
         if (showNotification) {
           showSnackbar("Product created successfully", "success");
         }
-
         return response.data;
       } catch (err) {
         if (showNotification) {
@@ -154,22 +152,18 @@ export const useProductData = () => {
     ) => {
       try {
         const response = await api.updateProduct(productId, productData);
-
         if (!response.ok) {
           if (showNotification) {
             showSnackbar(response.error || "Failed to update product", "error");
           }
           return null;
         }
-
         // Refresh product details and list after successful update
         await dispatch(fetchProductById(productId)).unwrap();
         await dispatch(fetchAllProducts(true)).unwrap();
-
         if (showNotification) {
           showSnackbar("Product updated successfully", "success");
         }
-
         return response.data;
       } catch (err) {
         if (showNotification) {
@@ -185,21 +179,17 @@ export const useProductData = () => {
     async (productId: string, showNotification = true) => {
       try {
         const response = await api.deleteProduct(productId);
-
         if (!response.ok) {
           if (showNotification) {
             showSnackbar(response.error || "Failed to delete product", "error");
           }
           return false;
         }
-
         // Refresh products list after successful deletion
         await dispatch(fetchAllProducts(true)).unwrap();
-
         if (showNotification) {
           showSnackbar("Product deleted successfully", "success");
         }
-
         return true;
       } catch (err) {
         if (showNotification) {
@@ -213,9 +203,9 @@ export const useProductData = () => {
 
   const getProductsByCategory = useCallback(
     (category: string) => {
-      return selectProductsByCategory(
-        { products: { products } } as any,
-        category
+      return (
+        selectProductsByCategory({ products: { products } } as any, category) ||
+        []
       );
     },
     [products]
@@ -240,10 +230,8 @@ export const useProductData = () => {
     sponsoredProducts,
     searchResults,
     relatedProducts,
-
     loading,
     error,
-
     fetchAllProducts: fetchAllProductsAsync,
     fetchProductById: fetchProductByIdAsync,
     fetchSponsoredProducts: fetchSponsoredProductsAsync,

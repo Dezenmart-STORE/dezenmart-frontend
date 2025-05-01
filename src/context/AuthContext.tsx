@@ -7,15 +7,7 @@
 // } from "react";
 // import { jwtDecode } from "jwt-decode";
 // import { UserProfile } from "../utils/types";
-
-// // interface User {
-// //   id: string;
-// //   email: string;
-// //   name?: string;
-// //   avatar?: string;
-// //   googleId?: string;
-// //   profileImage?: string;
-// // }
+// import { useWallet } from "../utils/hooks/useWallet";
 
 // interface JwtPayload {
 //   sub: string;
@@ -23,6 +15,7 @@
 //   name?: string;
 //   exp: number;
 //   id?: string;
+//   walletAddress?: string;
 // }
 
 // interface AuthContextType {
@@ -30,6 +23,7 @@
 //   isAuthenticated: boolean;
 //   isLoading: boolean;
 //   login: (provider: string) => void;
+//   loginWithWallet: (walletAddress: string) => Promise<void>;
 //   handleAuthCallback: (token: string, userData: any) => void;
 //   logout: () => void;
 //   getToken: () => string | null;
@@ -44,6 +38,7 @@
 // export const AuthProvider = ({ children }: { children: ReactNode }) => {
 //   const [user, setUser] = useState<UserProfile | null>(null);
 //   const [isLoading, setIsLoading] = useState(true);
+//   const { account } = useWallet();
 
 //   useEffect(() => {
 //     const checkAuthStatus = async () => {
@@ -89,12 +84,54 @@
 //     const FRONTEND_URL = window.location.origin;
 
 //     if (provider === "google") {
-//       storage.setItem("auth_redirect", window.location.pathname);
-//       //localhost:5177/auth/google?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4MTIyZWRlMzVjODBlYzc0NWVjMzE4OSIsImVtYWlsIjoic2VhN2FtQGdtYWlsLmNvbSIsImlhdCI6MTc0NjAyMjExMCwiZXhwIjoxNzQ2NjI2OTEwfQ.gduRlRRSopEfh9cBPb7gw5rEICkM2XlT-gnfEAoHpdg&userId=68122ede35c80ec745ec3189
-
+//       //   storage.setItem("auth_redirect", window.location.pathname);
 //       window.location.href = `${API_URL}/auth/google?frontend=${FRONTEND_URL}`;
 //     }
 //   };
+
+//   const loginWithWallet = async (walletAddress: any) => {
+//     try {
+//       setIsLoading(true);
+//       //   const API_URL: any = import.meta.env.VITE_API_URL;
+
+//       //   const response = await fetch(`${API_URL}/auth/wallet`, {
+//       //     method: "POST",
+//       //     headers: {
+//       //       "Content-Type": "application/json",
+//       //     },
+//       //     body: JSON.stringify({ walletAddress }),
+//       //   });
+
+//       //   if (!response.ok) {
+//       //     throw new Error("Wallet authentication failed");
+//       //   }
+
+//       //   const data = await response.json();
+//       //   handleAuthCallback(data.token, data.user);
+
+//       return walletAddress;
+//     } catch (error) {
+//       console.error("Error logging in with wallet:", error);
+//       throw error;
+//     } finally {
+//       setIsLoading(false);
+//     }
+//   };
+
+//   // Auto-login with wallet if connected but not authenticated
+//   useEffect(() => {
+//     const attemptWalletLogin = async () => {
+//       if (account && !user && !isLoading) {
+//         try {
+//           await loginWithWallet(account);
+//         } catch (error) {
+//           console.error("Auto wallet login failed:", error);
+//         }
+//       }
+//     };
+
+//     attemptWalletLogin();
+//   }, [account, user, isLoading]);
 
 //   const handleAuthCallback = (token: string, userData: UserProfile) => {
 //     storage.setItem(TOKEN_KEY, token);
@@ -115,6 +152,7 @@
 //     isAuthenticated: !!user,
 //     isLoading,
 //     login,
+//     loginWithWallet,
 //     handleAuthCallback,
 //     logout,
 //     getToken,
@@ -187,13 +225,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
             if (decoded.exp < currentTime) {
               clearAuthState();
+              console.log("Token expired, clearing auth state");
             } else {
-              setUser(JSON.parse(storedUser));
+              const parsedUser = JSON.parse(storedUser);
+              setUser(parsedUser);
+              console.log(
+                "User authenticated from local storage:",
+                parsedUser.email
+              );
             }
           } catch (error) {
             console.error("Invalid token:", error);
             clearAuthState();
           }
+        } else {
+          console.log("No token or user found in storage");
         }
       } catch (error) {
         console.error("Error checking auth status:", error);
@@ -214,33 +260,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const login = (provider: string) => {
     const API_URL = import.meta.env.VITE_API_URL;
-    const FRONTEND_URL = window.location.origin;
+    // const FRONTEND_URL = window.location.origin;
 
     if (provider === "google") {
-      //   storage.setItem("auth_redirect", window.location.pathname);
-      window.location.href = `${API_URL}/auth/google?frontend=${FRONTEND_URL}`;
+      // storage.setItem("auth_redirect", window.location.origin);
+
+      const redirectUrl = `${API_URL}/auth/google`;
+      // ?frontend=${FRONTEND_URL}
+      console.log("Redirecting to:", redirectUrl);
+      window.location.href = redirectUrl;
     }
   };
 
   const loginWithWallet = async (walletAddress: any) => {
     try {
       setIsLoading(true);
-      //   const API_URL: any = import.meta.env.VITE_API_URL;
+      console.log("Wallet login attempted with:", walletAddress);
 
-      //   const response = await fetch(`${API_URL}/auth/wallet`, {
-      //     method: "POST",
-      //     headers: {
-      //       "Content-Type": "application/json",
-      //     },
-      //     body: JSON.stringify({ walletAddress }),
-      //   });
-
-      //   if (!response.ok) {
-      //     throw new Error("Wallet authentication failed");
-      //   }
-
-      //   const data = await response.json();
-      //   handleAuthCallback(data.token, data.user);
+      // TODO: Implement actual wallet authentication API call
 
       return walletAddress;
     } catch (error) {
@@ -267,12 +304,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [account, user, isLoading]);
 
   const handleAuthCallback = (token: string, userData: UserProfile) => {
-    storage.setItem(TOKEN_KEY, token);
-    storage.setItem(USER_KEY, JSON.stringify(userData));
-    setUser(userData);
+    try {
+      console.log("Handling auth callback for user:", userData.email);
+
+      // Store authentication data
+      storage.setItem(TOKEN_KEY, token);
+      storage.setItem(USER_KEY, JSON.stringify(userData));
+
+      // Update state
+      setUser(userData);
+    } catch (error) {
+      console.error("Error in handleAuthCallback:", error);
+      clearAuthState();
+    }
   };
 
   const logout = () => {
+    console.log("Logging out");
     clearAuthState();
   };
 
@@ -297,7 +345,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error("Error from useAuth");
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 };
