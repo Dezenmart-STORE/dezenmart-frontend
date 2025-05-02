@@ -1,3 +1,5 @@
+"use client";
+
 import { motion } from "framer-motion";
 import { FC, useState, useCallback } from "react";
 import {
@@ -8,6 +10,7 @@ import {
   FaPhone,
   FaFingerprint,
   FaUserSecret,
+  FaSignOutAlt,
 } from "react-icons/fa";
 import { useWallet } from "../../utils/hooks/useWallet";
 
@@ -18,23 +21,27 @@ interface ConnectWalletProps {
 const ConnectWallet: FC<ConnectWalletProps> = ({ showAlternatives = true }) => {
   const {
     isConnecting,
+    isConnected,
+    account,
+    balance,
+    chainId,
     connectMetaMask,
     connectGoogle,
     connectEmail: walletConnectEmail,
     connectPhone: walletConnectPhone,
     connectPasskey,
     connectGuest,
+    disconnect,
   } = useWallet();
 
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"main" | "email" | "phone">(
-    "main"
-  );
+  const [activeTab, setActiveTab] = useState<"main" | "email" | "phone">("main");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [verificationCode, setVerificationCode] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
   const [authMethod, setAuthMethod] = useState<"email" | "phone" | null>(null);
+  const [showDetails, setShowDetails] = useState(false);
 
   const handleConnect = useCallback(async () => {
     setError(null);
@@ -109,6 +116,92 @@ const ConnectWallet: FC<ConnectWalletProps> = ({ showAlternatives = true }) => {
     walletConnectEmail,
     walletConnectPhone,
   ]);
+
+  const handleDisconnect = useCallback(async () => {
+    await disconnect();
+    setError(null);
+    setActiveTab("main");
+    setEmail("");
+    setPhone("");
+    setVerificationCode("");
+    setAuthMethod(null);
+    setShowDetails(false);
+    setIsVerifying(false);
+  }, [disconnect]);
+
+  const shortenedAddress = account
+    ? `${account.slice(0, 6)}...${account.slice(-4)}`
+    : "";
+
+  if (isConnected && account) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="max-w-md mx-auto bg-[#212428] p-6 md:p-8 rounded-lg shadow-lg"
+      >
+        <div className="text-center mb-6">
+          <motion.div
+            whileHover={{ scale: 1.05 }}
+            transition={{ type: "spring", stiffness: 400, damping: 10 }}
+            className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-Red/10 text-Red mb-4"
+          >
+            <FaWallet className="text-3xl" />
+          </motion.div>
+          <h2 className="text-xl font-semibold mb-2">Wallet Connected</h2>
+          <p className="text-gray-400 text-sm">
+            Connected as {shortenedAddress}
+          </p>
+        </div>
+        {showDetails ? (
+          <div className="space-y-4">
+            <div className="bg-[#2A2D35] p-4 rounded-lg">
+              <p className="text-gray-400 text-sm">Address</p>
+              <p className="text-white font-mono text-sm break-all">{account}</p>
+            </div>
+            <div className="bg-[#2A2D35] p-4 rounded-lg">
+              <p className="text-gray-400 text-sm">Balance</p>
+              <p className="text-white">{balance || "Loading..."}</p>
+            </div>
+            <div className="bg-[#2A2D35] p-4 rounded-lg">
+              <p className="text-gray-400 text-sm">Chain ID</p>
+              <p className="text-white">{chainId}</p>
+            </div>
+            <button
+              onClick={() => setShowDetails(false)}
+              className="w-full py-3 bg-[#2A2D35] hover:bg-[#35383F] text-white rounded transition-colors"
+            >
+              Hide Details
+            </button>
+            <button
+              onClick={handleDisconnect}
+              className="w-full py-3 bg-Red hover:bg-[#e02d37] text-white rounded transition-colors flex items-center justify-center"
+            >
+              <FaSignOutAlt className="mr-2" />
+              Disconnect Wallet
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <button
+              onClick={() => setShowDetails(true)}
+              className="w-full py-3 bg-[#2A2D35] hover:bg-[#35383F] text-white rounded transition-colors"
+            >
+              View Details
+            </button>
+            <button
+              onClick={handleDisconnect}
+              className="w-full py-3 bg-Red hover:bg-[#e02d37] text-white rounded transition-colors flex items-center justify-center"
+            >
+              <FaSignOutAlt className="mr-2" />
+              Disconnect
+            </button>
+          </div>
+        )}
+      </motion.div>
+    );
+  }
 
   if (authMethod) {
     return (
@@ -260,7 +353,6 @@ const ConnectWallet: FC<ConnectWalletProps> = ({ showAlternatives = true }) => {
     );
   }
 
-  // Main wallet connection
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}

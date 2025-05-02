@@ -12,15 +12,12 @@ import {
 import { ethers } from "ethers";
 import {
   inAppWallet,
-  //   authenticate,
-  //   preAuthenticate,
-  //   createWallet,
 } from "thirdweb/wallets";
 import { createThirdwebClient, defineChain } from "thirdweb";
 
 export type WalletType = "eoa" | "smart" | null;
 
-//Chain definitions
+// Chain definitions
 const supportedChains = {
   liskSepolia: defineChain({
     id: 4202,
@@ -53,7 +50,7 @@ const walletStorage = {
   removeItem: async (key: string) => localStorage.removeItem(`WALLET_${key}`),
 };
 
-//ThirdWeb client
+// ThirdWeb client
 const thirdwebClient = createThirdwebClient({
   clientId:
     import.meta.env.VITE_THIRDWEB_CLIENT_ID ||
@@ -394,9 +391,14 @@ export function WalletProvider({
   );
 
   // Disconnect
-  const disconnect = useCallback(() => {
+  const disconnect = useCallback(async () => {
+    try {
+      await smartWallet.disconnect();
+    } catch (err) {
+      console.error("Failed to disconnect smart wallet:", err);
+    }
     reset();
-    smartWallet.disconnect().catch(() => {});
+    setIsConnecting(false);
   }, [reset, smartWallet]);
 
   // Context value
