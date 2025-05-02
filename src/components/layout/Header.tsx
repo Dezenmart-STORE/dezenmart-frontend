@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { HiOutlineBell } from "react-icons/hi";
-import { BiLogIn, BiWallet } from "react-icons/bi"; // Import wallet icon
+import { BiLogIn, BiWallet } from "react-icons/bi";
 import { Logo } from "../../pages";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import Container from "../common/Container";
@@ -23,10 +23,15 @@ const Header = () => {
   const navigate = useNavigate();
   const { unreadCount } = useNotifications();
   const { user, isAuthenticated, logout } = useAuth();
+  const { isConnected, account, disconnect } = useWallet();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showWallet, setShowWallet] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
-  const { isConnected } = useWallet();
+
+  // Compute shortened address
+  const shortenedAddress = account
+    ? `${account.slice(0, 6)}...${account.slice(-4)}`
+    : "";
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -44,16 +49,16 @@ const Header = () => {
     };
   }, []);
 
-  const handleLogout = () => {
-    logout();
-    navigate("/");
-    setShowUserMenu(false);
+  const handleLogout = async () => {
+    try {
+      await disconnect(); // Disconnect wallet
+      logout(); // Log out user
+      navigate("/");
+      setShowUserMenu(false);
+    } catch (err) {
+      console.error("Error during logout:", err);
+    }
   };
-
-  // const handleConnectWallet = () => {
-  //   // Wallet connection logic will go here
-  //   console.log("Connect wallet clicked");
-  // };
 
   return (
     <header className="w-full py-3 bg-[#212428] shadow-md sticky top-0 z-50">
@@ -100,10 +105,9 @@ const Header = () => {
             className="flex items-center gap-1.5 bg-[#292B30] text-white px-3 py-1.5 rounded-md hover:bg-[#33363b] transition-all"
           >
             <BiWallet className="text-lg" />
-            <span className="text-sm font-medium hidden sm:inline">
-              {!isConnected && "Connect"} Wallet
+            <span className="text-sm font-medium">
+              {isConnected ? shortenedAddress : "Connect Wallet"}
             </span>
-            <span className="text-sm font-medium sm:hidden">Wallet</span>
           </button>
 
           {isAuthenticated ? (
