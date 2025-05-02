@@ -6,14 +6,17 @@ import ProductList from "../components/product/ProductList";
 import { useProductData } from "../utils/hooks/useProductData";
 import { debounce } from "../utils/helpers";
 import ProductCard from "../components/product/ProductCard";
+import LoadingSpinner from "../components/common/LoadingSpinner";
 
 // categories
 const categories = [
-  "All",
-  "Clothing",
-  "Cosmetics",
+  // "All",
   "Electronics",
-  "Home",
+  "Clothing",
+  "Home & Garden",
+  "Beauty & Personal Care",
+  "Sports & Outdoors",
+  "Art Work",
   "Accessories",
 ];
 
@@ -22,16 +25,22 @@ const Product = () => {
   const location = useLocation();
   const params = useParams();
   const categoryParam = params.categoryName;
-  const { searchProducts, searchResults, loading } = useProductData();
-
+  const { searchProducts, searchResults, loading, fetchAllProducts } =
+    useProductData();
+  const [isLoading, setIsLoading] = useState(loading);
   const [activeCategory, setActiveCategory] = useState(categoryParam || "All");
+
   const debouncedSearch = debounce(async (query: string) => {
     if (query.trim()) {
       await searchProducts(query);
     }
   }, 300);
 
-  // Update active category when URL changes
+  useEffect(() => {
+    fetchAllProducts();
+    setIsLoading(false);
+  }, [fetchAllProducts]);
+
   useEffect(() => {
     if (categoryParam) {
       const formattedCategory =
@@ -95,14 +104,20 @@ const Product = () => {
             {/* Categories */}
             <div className="mt-8 overflow-x-auto scrollbar-hide">
               <div className="flex space-x-4 py-2 min-w-max">
+                <Link
+                  to="/product"
+                  className={`px-4 py-2 rounded-full transition-colors whitespace-nowrap ${
+                    activeCategory === "All"
+                      ? "bg-Red text-white"
+                      : "bg-[#292B30] text-[#AEAEB2] hover:bg-[#343539]"
+                  }`}
+                >
+                  All
+                </Link>
                 {categories.map((category) => (
                   <Link
-                    to={
-                      category === "All"
-                        ? "/product"
-                        : `/product/category/${category.toLowerCase()}`
-                    }
-                    key={category}
+                    to={`/product/category/${category.toLowerCase()}`}
+                    key={`${category}-productbutton`}
                     className={`px-4 py-2 rounded-full transition-colors whitespace-nowrap ${
                       activeCategory === category
                         ? "bg-Red text-white"
@@ -115,23 +130,13 @@ const Product = () => {
               </div>
             </div>
 
+            {/* Show all products */}
+
             <ProductList
-              title="Clothing"
-              path="/product/category/clothing"
+              title="All Products"
               className="mt-8"
               isCategoryView={false}
-            />
-            <ProductList
-              title="Cosmetics"
-              path="/product/category/cosmetics"
-              className="mt-16"
-              isCategoryView={false}
-            />
-            <ProductList
-              title="Electronics"
-              path="/product/category/electronics"
-              className="mt-16"
-              isCategoryView={false}
+              category="All"
             />
           </>
         ) : (
@@ -145,15 +150,16 @@ const Product = () => {
                 <IoChevronBackOutline className="h-6 w-6 align-middle" />
               </button>
 
-              <h2 className="text-white font-bold text-[34px]  px-4 md:px-0 mx-auto align-middle text-center">
+              <h2 className="text-white font-bold text-[34px] px-4 md:px-0 mx-auto align-middle text-center">
                 {activeCategory}
               </h2>
             </div>
             <ProductList
               title={activeCategory}
-              path={`/product/category/${activeCategory.toLowerCase()}`}
               className="mt-8"
               isCategoryView={true}
+              category={activeCategory}
+              maxItems={20}
             />
           </>
         )}

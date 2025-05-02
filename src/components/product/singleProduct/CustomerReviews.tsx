@@ -52,7 +52,11 @@ const CustomerReviews = ({ productId, reviewcount }: CustomerReviewsProps) => {
         const reviewData =
           typeof review.reviewer === "string"
             ? { _id: review._id, name: "Anonymous", profileImage: "" }
-            : review.reviewer;
+            : {
+                _id: review.reviewer._id || "",
+                name: review.reviewer.name || "Anonymous",
+                profileImage: review.reviewer.profileImage || "",
+              };
 
         return {
           id: review._id,
@@ -72,7 +76,7 @@ const CustomerReviews = ({ productId, reviewcount }: CustomerReviewsProps) => {
       setFormattedReviews(formatted);
       setIsLoading(false);
     }
-  }, [reviews]);
+  }, [reviews, reviewcount]);
 
   const loadMoreReviews = () => {
     setIsLoading(true);
@@ -100,7 +104,6 @@ const CustomerReviews = ({ productId, reviewcount }: CustomerReviewsProps) => {
     return stars;
   }, []);
 
-  // Calculate average rating
   const averageRating = formattedReviews.length
     ? (
         formattedReviews.reduce((sum, r) => sum + r.rating, 0) /

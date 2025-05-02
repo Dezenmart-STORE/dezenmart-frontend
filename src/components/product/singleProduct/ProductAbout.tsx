@@ -2,8 +2,10 @@ import { MdVerified } from "react-icons/md";
 import { FaStore } from "react-icons/fa";
 import { BiLinkExternal } from "react-icons/bi";
 import { Product } from "../../../utils/types";
+import { useNavigate } from "react-router";
 
 const ProductAbout = ({ product }: { product: Product }) => {
+  const navigate = useNavigate();
   // const [loading, setLoading] = useState(true);
   // const [product, setProduct] = useState<any>(null);
 
@@ -78,7 +80,10 @@ const ProductAbout = ({ product }: { product: Product }) => {
       </div>
 
       <div className="pt-1">
-        <span className="text-xs sm:text-sm bg-[#1a1b1f] text-gray-400 px-2 py-1 rounded">
+        <span
+          className="text-xs sm:text-sm bg-[#1a1b1f] text-gray-400 px-2 py-1 rounded"
+          onClick={() => navigate(`/product/category/${product.category}`)}
+        >
           {product.category}
         </span>
       </div>

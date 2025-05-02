@@ -5,6 +5,7 @@ import Title from "../common/Title";
 import { Link } from "react-router-dom";
 import { useProductData } from "../../utils/hooks/useProductData";
 import { Product } from "../../utils/types";
+import LoadingSpinner from "../common/LoadingSpinner";
 
 interface Props {
   title: string;
@@ -36,13 +37,28 @@ const ProductList = ({
   } = useProductData();
 
   const [displayProducts, setDisplayProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     const loadData = async () => {
-      if (isFeatured) {
-        await fetchSponsoredProducts();
-      } else {
-        await fetchAllProducts();
+      setIsLoading(true);
+      setLoadError(null);
+
+      try {
+        if (isFeatured) {
+          await fetchSponsoredProducts(false, false, true);
+        } else {
+          await fetchAllProducts(false, false, true);
+        }
+      } catch (err: any) {
+        if (err.name === "AbortError") {
+          setLoadError("Request was cancelled");
+        } else {
+          setLoadError("Failed to load products. Please try again later.");
+        }
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -50,14 +66,25 @@ const ProductList = ({
   }, [isFeatured, fetchAllProducts, fetchSponsoredProducts]);
 
   useEffect(() => {
-    if (isFeatured && sponsoredProducts && sponsoredProducts.length > 0) {
-      setDisplayProducts(sponsoredProducts.slice(0, maxItems));
-    } else if (products && products.length > 0) {
-      if (category) {
-        const filteredProducts = getProductsByCategory(category);
-        setDisplayProducts(filteredProducts.slice(0, maxItems));
+    if (!loading) {
+      if (isFeatured && sponsoredProducts && sponsoredProducts.length > 0) {
+        setDisplayProducts(sponsoredProducts.slice(0, maxItems));
+      } else if (products && products.length > 0) {
+        if (category) {
+          const filteredProducts = getProductsByCategory(category);
+          setDisplayProducts(
+            filteredProducts.slice(
+              0,
+              isCategoryView || category === "All"
+                ? filteredProducts.length
+                : maxItems
+            )
+          );
+        } else {
+          setDisplayProducts(products.slice(0, maxItems));
+        }
       } else {
-        setDisplayProducts(products.slice(0, maxItems));
+        setDisplayProducts([]);
       }
     }
   }, [
@@ -67,9 +94,20 @@ const ProductList = ({
     maxItems,
     products,
     sponsoredProducts,
+    isCategoryView,
+    loading,
   ]);
 
   const newClass = twMerge("", className);
+
+  if (
+    !isCategoryView &&
+    !isLoading &&
+    !loadError &&
+    displayProducts.length === 0
+  ) {
+    return <></>;
+  }
 
   return (
     <section className={newClass}>
@@ -87,37 +125,39 @@ const ProductList = ({
         </div>
       )}
       <div className="mt-4 md:mt-8 overflow-x-auto scrollbar-hide">
-        {loading ? (
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 md:gap-5">
-            {Array.from({ length: maxItems }).map((_, i) => (
-              <div
-                key={i}
-                className="bg-[#292B30] rounded-lg p-4 h-80 animate-pulse"
-              >
-                <div className="h-40 bg-gray-700/30 rounded-md mb-4"></div>
-                <div className="h-5 bg-gray-700/30 rounded-md mb-2 w-3/4"></div>
-                <div className="h-4 bg-gray-700/30 rounded-md mb-2 w-1/2"></div>
-                <div className="h-4 bg-gray-700/30 rounded-md w-5/6"></div>
-              </div>
-            ))}
+        {isLoading ? (
+          <div className="flex justify-center items-center py-12">
+            <LoadingSpinner size="md" />
           </div>
-        ) : error ? (
+        ) : loadError || error ? (
           <div className="text-Red text-center py-8">
-            Failed to load products. Please try again later.
+            {loadError ||
+              error ||
+              "Failed to load products. Please try again later."}
           </div>
         ) : displayProducts.length === 0 ? (
           <div className="text-gray-400 text-center py-8">
-            No products found.
+            No products found{category ? ` in ${category}` : ""}.
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 md:gap-5">
-            {displayProducts.map((product, index) => (
-              <ProductCard
-                key={product._id}
-                product={product}
-                isNew={index === 0 && isFeatured}
-              />
-            ))}
+            {displayProducts.map((product) => {
+              const isNew = (() => {
+                const createdDate = new Date(product.createdAt);
+                const now = new Date();
+                const diffInMs = now.getTime() - createdDate.getTime();
+                const diffInDays = diffInMs / (1000 * 60 * 60 * 24);
+                return diffInDays < 7;
+              })();
+
+              return (
+                <ProductCard
+                  key={product._id}
+                  product={product}
+                  isNew={isNew}
+                />
+              );
+            })}
           </div>
         )}
       </div>

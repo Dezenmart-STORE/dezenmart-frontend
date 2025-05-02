@@ -7,8 +7,10 @@ import BannerCarousel from "../components/common/BannerCarousel";
 import { useState } from "react";
 import ConnectWallet from "../components/trade/ConnectWallet";
 import Modal from "../components/common/Modal";
+import { useAuth } from "../context/AuthContext";
 
 const Home = () => {
+  const { user, isAuthenticated } = useAuth();
   const [showWallet, setShowWallet] = useState(false);
   const quickActions = [
     {
@@ -102,7 +104,28 @@ const Home = () => {
       <Container className="py-6 md:py-20">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h4 className="text-[20px] text-white mb-0">Welcome, Joe.</h4>
+            <h4 className="text-[20px] text-white mb-0">
+              Welcome,&nbsp;
+              {isAuthenticated ? (
+                <>
+                  <span className="max-xs:hidden">{user?.name}</span>
+                  <span className="xs:hidden">
+                    {user?.name && typeof user.name === "string"
+                      ? `${user.name.split(" ")[0]} ${
+                          user.name.split(" ").length > 1
+                            ? user.name.split(" ")[
+                                user.name.split(" ").length - 1
+                              ]
+                            : ""
+                        }`
+                      : "User"}
+                  </span>
+                </>
+              ) : (
+                "User"
+              )}
+              .
+            </h4>
             <span className="text-[#C6C6C8] text-[13px]">
               What would you like to do today?
             </span>
@@ -186,6 +209,14 @@ const Home = () => {
           className="mt-6 md:mt-10"
           isCategoryView={false}
           isFeatured={true}
+        />
+        <ProductList
+          title="All"
+          path="/product"
+          className="mt-6 md:mt-10"
+          isCategoryView={false}
+          maxItems={8}
+          // category="All"
         />
       </Container>
       {showWallet && (

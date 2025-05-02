@@ -45,8 +45,9 @@ const SingleProduct = () => {
         await navigator.share({
           title: product?.name || "Check out this product",
           text:
-            product?.description?.slice(0, 100) ||
-            "I found this amazing product",
+            typeof product?.description === "string"
+              ? product.description.slice(0, 100)
+              : "I found this amazing product",
           url: window.location.href,
         });
       } catch (error) {

@@ -195,6 +195,7 @@ interface AuthContextType {
   isLoading: boolean;
   login: (provider: string) => void;
   loginWithWallet: (walletAddress: string) => Promise<void>;
+  handleUserUpdate: (userData: any) => void;
   handleAuthCallback: (token: string, userData: any) => void;
   logout: () => void;
   getToken: () => string | null;
@@ -305,17 +306,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const handleAuthCallback = (token: string, userData: UserProfile) => {
     try {
-      console.log("Handling auth callback for user:", userData.email);
-
       // Store authentication data
       storage.setItem(TOKEN_KEY, token);
       storage.setItem(USER_KEY, JSON.stringify(userData));
 
-      // Update state
       setUser(userData);
     } catch (error) {
       console.error("Error in handleAuthCallback:", error);
       clearAuthState();
+    }
+  };
+
+  const handleUserUpdate = (userData: UserProfile) => {
+    try {
+      storage.setItem(USER_KEY, JSON.stringify(userData));
+
+      setUser(userData);
+    } catch (error) {
+      console.error("Error in handleUserUpdate:", error);
     }
   };
 
@@ -335,6 +343,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     login,
     loginWithWallet,
     handleAuthCallback,
+    handleUserUpdate,
     logout,
     getToken,
   };

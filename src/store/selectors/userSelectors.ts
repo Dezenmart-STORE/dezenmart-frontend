@@ -6,7 +6,6 @@ export const selectUserLoading = (state: RootState) => state.user.loading;
 export const selectUserError = (state: RootState) => state.user.error;
 export const selectAllUsers = (state: RootState) => state.user.users;
 export const selectSelectedUser = (state: RootState) => state.user.selectedUser;
-
 // Format date as MM/DD/YYYY
 const formatDate = (dateString: string | undefined): string => {
   if (!dateString) return "";

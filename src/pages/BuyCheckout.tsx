@@ -7,8 +7,6 @@ import PaymentMethod from "../components/trade/checkout/PaymentMethod";
 import TransactionInfo from "../components/trade/checkout/TransactionInfo";
 import { Product } from "../utils/types";
 import { toast } from "react-toastify";
-import { useOrderData } from "../utils/hooks/useOrderData";
-import { useProductData } from "../utils/hooks/useProductData";
 import LoadingSpinner from "../components/common/LoadingSpinner";
 
 const BuyCheckout = () => {

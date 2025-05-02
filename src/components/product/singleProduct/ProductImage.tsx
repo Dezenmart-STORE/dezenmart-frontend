@@ -3,13 +3,10 @@ import { IoChevronBack, IoChevronForward } from "react-icons/io5";
 import { BsZoomIn } from "react-icons/bs";
 
 interface ProductImageProps {
-  // productId?: string;
   images: string[];
 }
 
 const ProductImage = ({ images }: ProductImageProps) => {
-  // const [loading, setLoading] = useState(true);
-  // const [images, setImages] = useState<string[]>([]);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [transitioning, setTransitioning] = useState(false);
   const [zoomed, setZoomed] = useState(false);
@@ -19,33 +16,6 @@ const ProductImage = ({ images }: ProductImageProps) => {
   const touchEndX = useRef<number | null>(null);
   const slideContainerRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
-
-  // useEffect(() => {
-  //   const loadImages = async () => {
-  //     setLoading(true);
-  //     setCurrentImageIndex(0);
-
-  //     try {
-  //       if (propImages && propImages.length > 0) {
-  //         setImages(propImages);
-  //       } else if (productId) {
-  //         // Simulate API call with timeout
-  //         await new Promise((resolve) => setTimeout(resolve, 300));
-  //         // Use placeholder images for demo
-  //         const placeholderImage = "https://via.placeholder.com/500";
-  //         setImages([placeholderImage, placeholderImage, placeholderImage]);
-  //       } else {
-  //         setImages([]);
-  //       }
-  //     } catch (error) {
-  //       console.error("Error loading product images:", error);
-  //     } finally {
-  //       setLoading(false);
-  //     }
-  //   };
-
-  //   loadImages();
-  // }, [productId, propImages]);
 
   const navigateToImage = useCallback(
     (index: number) => {
@@ -136,7 +106,7 @@ const ProductImage = ({ images }: ProductImageProps) => {
     touchEndX.current = null;
   };
 
-  // Handle keyboard navigation
+  // keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "ArrowLeft") {
@@ -152,27 +122,19 @@ const ProductImage = ({ images }: ProductImageProps) => {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [nextImage, prevImage, zoomed]);
 
-  // if (loading) {
-  //   return (
-  //     <div className="w-full flex justify-center items-center pt-10 pb-6 sm:py-8 relative m-auto">
-  //       <div className="w-[65%] sm:w-[50%] md:w-[40%] lg:w-[30%] xl:w-[100%] aspect-[1/2.5] bg-gray-700/30 animate-pulse rounded-lg"></div>
-  //     </div>
-  //   );
-  // }
-
-  if (images.length === 0) {
+  if (!images || images.length === 0) {
     return (
-      <div className="w-full flex justify-center items-center pt-10 pb-6 sm:py-8 relative m-auto">
-        <div className="w-[65%] sm:w-[50%] md:w-[40%] lg:w-[30%] xl:w-[100%] aspect-[1/2.5] bg-gray-700/30 rounded-lg flex items-center justify-center">
-          <p className="text-gray-400">No images available</p>
+      <div className="w-full flex justify-center items-center py-8 relative m-auto">
+        <div className="w-[65%] max-h-[400px] aspect-square bg-gray-700/30 rounded-lg flex items-center justify-center">
+          <p className="text-gray-400">No image available</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="w-full flex justify-center items-center pt-10 pb-6 sm:py-8 relative m-auto">
-      <div className="relative w-[65%] sm:w-[50%] md:w-[40%] lg:w-[30%] xl:w-[100%] flex justify-center overflow-hidden rounded-lg">
+    <div className="w-full flex justify-center items-center py-8 relative m-auto">
+      <div className="relative w-[65%] sm:w-[50%] md:w-[40%] lg:w-[30%] xl:w-[100%] max-h-[500px] flex justify-center overflow-hidden rounded-lg">
         <div
           ref={slideContainerRef}
           className={`w-full h-full touch-pan-y ${
@@ -191,9 +153,14 @@ const ProductImage = ({ images }: ProductImageProps) => {
             <img
               ref={imageRef}
               src={images[currentImageIndex]}
-              className="w-full object-contain transition-transform"
+              className="w-full h-full object-contain max-h-[400px] transition-transform"
               alt={`Product Image ${currentImageIndex + 1}`}
               loading="lazy"
+              onError={(e) => {
+                // If image fails to load, set a placeholder
+                (e.target as HTMLImageElement).src =
+                  "https://placehold.co/400x400/1a1b1f/cccccc?text=Image+Not+Found";
+              }}
             />
           </div>
         </div>
@@ -243,7 +210,7 @@ const ProductImage = ({ images }: ProductImageProps) => {
 
       {/* Indicator dots */}
       {images.length > 1 && (
-        <div className="flex gap-2 absolute bottom-0 sm:bottom-2">
+        <div className="flex gap-2 absolute bottom-2">
           {images.map((_, index) => (
             <button
               key={index}

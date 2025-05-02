@@ -25,7 +25,10 @@ export const fetchWithAuth = async (
     }
     const data = await response.json().catch(() => null);
     return { ok: true, status: response.status, data, error: null };
-  } catch (error) {
+  } catch (error: any) {
+    if (error.name === "AbortError") {
+      throw error;
+    }
     return {
       ok: false,
       status: 0,
@@ -78,7 +81,6 @@ export const api = {
       body: formData,
     });
   },
-  // New user endpoints
   getUserById: async (userId: string) => {
     const key = cacheKey(`/users/${userId}`);
     if (abortControllers.has(key)) {
@@ -127,18 +129,19 @@ export const api = {
       method: "DELETE",
     });
   },
-  // New product methods
-  getProducts: async (skipCache = false) => {
+  getProducts: async (skipCache = false, preventAbort = false) => {
     const key = cacheKey("/products");
     if (!skipCache && requestCache.has(key)) {
       return requestCache.get(key);
     }
     // Cancel any existing request
-    if (abortControllers.has(key)) {
+    if (!preventAbort && abortControllers.has(key)) {
       abortControllers.get(key).abort();
     }
     const controller = new AbortController();
-    abortControllers.set(key, controller);
+    if (!preventAbort) {
+      abortControllers.set(key, controller);
+    }
     const result = await fetchWithAuth("/products", {
       signal: controller.signal,
     });
@@ -171,17 +174,20 @@ export const api = {
       signal: controller.signal,
     });
   },
-  getSponsoredProducts: async (skipCache = false) => {
+  getSponsoredProducts: async (skipCache = false, preventAbort = false) => {
     const key = cacheKey("/products/sponsored");
     if (!skipCache && requestCache.has(key)) {
       return requestCache.get(key);
     }
     // Cancel any existing request
-    if (abortControllers.has(key)) {
+    if (!preventAbort && abortControllers.has(key)) {
       abortControllers.get(key).abort();
     }
     const controller = new AbortController();
     abortControllers.set(key, controller);
+    if (!preventAbort) {
+      abortControllers.set(key, controller);
+    }
     const result = await fetchWithAuth("/products/sponsored", {
       signal: controller.signal,
     });

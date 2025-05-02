@@ -62,7 +62,7 @@ export const fetchUserProfile = createAsyncThunk<
 export const updateUserProfile = createAsyncThunk<
   UserProfile,
   Partial<UserProfile>,
-  { rejectValue: string }
+  { rejectValue: string; state: { user: UserState } }
 >("user/updateProfile", async (profileData, { rejectWithValue }) => {
   try {
     const response = await api.updateUserProfile(profileData);
@@ -166,11 +166,19 @@ const userSlice = createSlice({
     clearUserProfile: (state) => {
       state.profile = null;
       state.lastFetched = null;
-      // Also clear API cache
       api.clearCache();
     },
     clearSelectedUser: (state) => {
       state.selectedUser = null;
+    },
+    syncProfileWithSelectedUser: (state) => {
+      if (state.profile) {
+        state.selectedUser = state.profile;
+      }
+    },
+    updateUserFromAuth: (state, action: PayloadAction<UserProfile>) => {
+      state.profile = action.payload;
+      state.lastFetched = Date.now();
     },
   },
   extraReducers: (builder) => {
@@ -183,6 +191,7 @@ const userSlice = createSlice({
         fetchUserProfile.fulfilled,
         (state, action: PayloadAction<UserProfile>) => {
           state.profile = action.payload;
+          state.selectedUser = action.payload;
           state.loading = "succeeded";
           state.lastFetched = Date.now();
         }
@@ -207,7 +216,6 @@ const userSlice = createSlice({
         state.loading = "failed";
         state.error = (action.payload as string) || "Unknown error occurred";
       })
-      // New handlers for getUserById
       .addCase(getUserById.pending, (state) => {
         state.loading = "pending";
         state.error = null;
@@ -223,7 +231,6 @@ const userSlice = createSlice({
         state.loading = "failed";
         state.error = (action.payload as string) || "Unknown error occurred";
       })
-      // New handlers for getUserByEmail
       .addCase(getUserByEmail.pending, (state) => {
         state.loading = "pending";
         state.error = null;
@@ -239,7 +246,6 @@ const userSlice = createSlice({
         state.loading = "failed";
         state.error = (action.payload as string) || "Unknown error occurred";
       })
-      // New handlers for getAllUsers
       .addCase(getAllUsers.pending, (state) => {
         state.loading = "pending";
         state.error = null;
@@ -255,7 +261,6 @@ const userSlice = createSlice({
         state.loading = "failed";
         state.error = (action.payload as string) || "Unknown error occurred";
       })
-      // New handlers for deleteUserProfile
       .addCase(deleteUserProfile.pending, (state) => {
         state.loading = "pending";
         state.error = null;
@@ -266,12 +271,10 @@ const userSlice = createSlice({
           state,
           action: PayloadAction<{ success: boolean; userId: string }>
         ) => {
-          // Remove user from users array if present
           state.users = state.users.filter(
             (user) => user._id !== action.payload.userId
           );
           state.loading = "succeeded";
-          // Clear selected user if it's the deleted user
           if (state.selectedUser?._id === action.payload.userId) {
             state.selectedUser = null;
           }
@@ -284,5 +287,10 @@ const userSlice = createSlice({
   },
 });
 
-export const { clearUserProfile, clearSelectedUser } = userSlice.actions;
+export const {
+  clearUserProfile,
+  clearSelectedUser,
+  syncProfileWithSelectedUser,
+  updateUserFromAuth,
+} = userSlice.actions;
 export default userSlice.reducer;

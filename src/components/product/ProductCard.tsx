@@ -1,7 +1,7 @@
 import React from "react";
 import { FaRegHeart } from "react-icons/fa";
 import { RiVerifiedBadgeFill } from "react-icons/ri";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { BsCart3 } from "react-icons/bs";
 import { Product } from "../../utils/types";
 
@@ -14,16 +14,20 @@ const API_URL = import.meta.env.VITE_API_URL;
 
 const ProductCard = React.memo(
   ({ product, isNew = false }: ProductCardProps) => {
+    const navigate = useNavigate();
     const { _id, name, description, price, images, seller } = product;
 
-    // Calculate ETH price (example conversion, adjust as needed)
     const ethPrice = (price / 1000000).toFixed(6);
 
-    // Format image URL
     const imageUrl =
       images && images.length > 0
         ? `${API_URL}/uploads/${images[0]}`
         : "https://placehold.co/300x300?text=No+Image";
+
+    // const sellerName =
+    //   typeof seller === "object" && seller !== null
+    //     ? seller?.name || "Unknown Seller"
+    //     : seller || "Unknown Seller";
 
     return (
       <Link
@@ -32,7 +36,7 @@ const ProductCard = React.memo(
       >
         <div className="mb-2 md:mb-10 w-full flex justify-between p-2 md:p-4">
           {isNew && (
-            <div className="text-white text-xs md:text-sm bg-[#2563eb] rounded-xl py-1 px-2">
+            <div className="text-white text-xs md:text-sm bg-Red/20 rounded-xl py-1 px-2">
               New
             </div>
           )}
@@ -60,7 +64,7 @@ const ProductCard = React.memo(
             {name}
           </h4>
           <h4 className="flex items-center gap-1 text-xs md:text-sm text-[#AEAEB2] py-1">
-            By {seller}
+            By {typeof seller === "string" ? seller : "Unknown Seller"}
             <RiVerifiedBadgeFill className="text-[#4FA3FF] text-xs" />
           </h4>
           <h4 className="text-white text-xs md:text-sm py-0 line-clamp-1">
@@ -71,10 +75,7 @@ const ProductCard = React.memo(
           </h4>
           <button
             className="mt-[5px] gap-3 lg:gap-7 font-bold text-white bg-Red py-2 hidden group-hover:flex justify-center items-center w-full transition-all duration-300"
-            onClick={(e) => {
-              e.preventDefault();
-              // Add to cart logic
-            }}
+            onClick={() => navigate(`/product/${_id}`)}
           >
             <div>Buy Now</div>
             <BsCart3 className="font-bold text-xl" />

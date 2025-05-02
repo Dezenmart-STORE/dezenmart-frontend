@@ -82,7 +82,7 @@ const FundsReleaseStatus: FC<FundsReleaseStatusProps> = ({
       statusDescription="The buyer has confirmed payment for this order. Please release the funds."
       statusAlert={
         <StatusAlert
-          icon={<BsShieldExclamation size={20} className="text-yellow-600" />}
+          icon={<BsShieldExclamation size={18} />}
           message="To ensure the safety of your funds, please verify the real name of the payer: Femi Cole"
           type="warning"
         />

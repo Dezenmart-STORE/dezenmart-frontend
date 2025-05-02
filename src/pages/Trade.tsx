@@ -4,7 +4,7 @@ import { FaExchangeAlt } from "react-icons/fa";
 import Container from "../components/common/Container";
 import Title from "../components/common/Title";
 import BannerCarousel from "../components/common/BannerCarousel";
-import FloatingActionButton from "../components/common/FloatingActionButton";
+// import FloatingActionButton from "../components/common/FloatingActionButton";
 import { Pen, Pen2 } from ".";
 import { useWallet } from "../utils/hooks/useWallet";
 import { Product, TradeTab } from "../utils/types";
@@ -14,6 +14,7 @@ import ProductListingSkeleton from "../components/trade/ProductListingSkeleton";
 // import ProductCard from "../components/trade/ProductCard";
 import ConnectWallet from "../components/trade/ConnectWallet";
 import Tab from "../components/trade/Tab";
+import LazyFloatingButton from "../components/common/LazyFloatingButton";
 const ProductCard = lazy(() => import("../components/trade/ProductCard"));
 const IncomingOrderCard = lazy(
   () => import("../components/trade/IncomingOrderCard")
@@ -293,7 +294,7 @@ const Trade = () => {
       </AnimatePresence> */}
 
       <Suspense fallback={<ButtonPlaceholder />}>
-        <FloatingActionButton
+        <LazyFloatingButton
           icon={<FaExchangeAlt />}
           to="/trades/viewtrades"
           label="View Trades"

@@ -1,4 +1,3 @@
-// Modified version of useProductData with more consistent handling
 import { useCallback } from "react";
 import { useAppDispatch, useAppSelector } from "./redux";
 import {
@@ -38,16 +37,36 @@ export const useProductData = () => {
   const relatedProducts = useAppSelector(selectRelatedProducts);
 
   const fetchAllProductsAsync = useCallback(
-    async (showNotification = false, forceRefresh = false) => {
+    async (
+      showNotification = false,
+      forceRefresh = false,
+      preventAbort = false
+    ) => {
       try {
-        await dispatch(fetchAllProducts(forceRefresh)).unwrap();
+        const result = await api.getProducts(forceRefresh, preventAbort);
+        if (!result.ok) {
+          throw new Error(result.error || "Failed to load products");
+        }
+
+        await dispatch(
+          fetchAllProducts.fulfilled(result.data, "", forceRefresh)
+        );
+
         if (showNotification) {
           showSnackbar("Products loaded successfully", "success");
         }
         return true;
-      } catch (err) {
+      } catch (err: any) {
+        if (err.name === "AbortError") {
+          console.log("Request was cancelled");
+          return false;
+        }
+
         if (showNotification) {
-          showSnackbar((err as string) || "Failed to load products", "error");
+          showSnackbar(
+            (err as Error).message || "Failed to load products",
+            "error"
+          );
         }
         return false;
       }
@@ -56,19 +75,37 @@ export const useProductData = () => {
   );
 
   const fetchSponsoredProductsAsync = useCallback(
-    async (showNotification = false, forceRefresh = false) => {
+    async (
+      showNotification = false,
+      forceRefresh = false,
+      preventAbort = false
+    ) => {
       try {
-        const result = await dispatch(
-          fetchSponsoredProducts(forceRefresh)
-        ).unwrap();
+        const result = await api.getSponsoredProducts(
+          forceRefresh,
+          preventAbort
+        );
+        if (!result.ok) {
+          throw new Error(result.error || "Failed to load sponsored products");
+        }
+
+        await dispatch(
+          fetchSponsoredProducts.fulfilled(result.data, "", forceRefresh)
+        );
+
         if (showNotification) {
           showSnackbar("Featured products loaded successfully", "success");
         }
-        return result;
-      } catch (err) {
+        return result.data;
+      } catch (err: any) {
+        if (err.name === "AbortError") {
+          console.log("Request was cancelled");
+          return [];
+        }
+
         if (showNotification) {
           showSnackbar(
-            (err as string) || "Failed to load featured products",
+            (err as Error).message || "Failed to load featured products",
             "error"
           );
         }
@@ -203,9 +240,12 @@ export const useProductData = () => {
 
   const getProductsByCategory = useCallback(
     (category: string) => {
-      return (
-        selectProductsByCategory({ products: { products } } as any, category) ||
-        []
+      if (category === "All") return products || [];
+
+      return products.filter(
+        (product) =>
+          product.category &&
+          product.category.toLowerCase() === category.toLowerCase()
       );
     },
     [products]
@@ -218,8 +258,8 @@ export const useProductData = () => {
   // Clean up on unmount
   useEffect(() => {
     return () => {
-      api.cancelRequest("/products");
-      api.cancelRequest("/products/sponsored");
+      // api.cancelRequest("/products");
+      // api.cancelRequest("/products/sponsored");
     };
   }, []);
 

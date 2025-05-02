@@ -12,6 +12,9 @@ import { SnackbarProvider } from "./context/SnackbarContext.tsx";
 import { Provider } from "react-redux";
 import { store } from "./store/store.ts";
 import { WalletProvider } from "./context/WalletContext.tsx";
+import ErrorBoundary from "./components/error/ErrorBoundary.tsx";
+import NotFound from "./pages/NotFound.tsx";
+import { setupGlobalErrorHandling } from "./utils/errorHandling";
 // import GoogleCallback from "./pages/GoogleCallback.tsx";
 
 const Login = lazy(() => import("./pages/Login.tsx"));
@@ -35,6 +38,8 @@ const Notifications = lazy(() => import("./pages/Notifications.tsx"));
 // import Contact from "./pages/Contact.tsx";
 // import Account from "./pages/Account.tsx";
 // import NotFound from "./pages/NotFound.tsx";
+
+setupGlobalErrorHandling();
 
 const RouterLayout = () => {
   return (
@@ -60,6 +65,12 @@ const router = createBrowserRouter([
   {
     path: "/",
     element: <RouterLayout />,
+
+    errorElement: (
+      <ErrorBoundary>
+        <NotFound />
+      </ErrorBoundary>
+    ),
     children: [
       {
         index: true,
@@ -153,13 +164,11 @@ const router = createBrowserRouter([
       //   element: <Contact />,
       // },
       // {
-      //   path: "/account",
-      //   element: <Account />,
-      // },
-      // {
-      //   path: "",
-      //   element: <NotFound />,
-      // },
+
+      {
+        path: "*",
+        element: <NotFound />,
+      },
     ],
   },
 ]);

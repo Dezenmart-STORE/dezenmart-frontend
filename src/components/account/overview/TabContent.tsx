@@ -4,9 +4,11 @@ import DisputeItem from "./DisputeItem";
 import EmptyState from "./EmptyState";
 import { TabType } from "../../../utils/types";
 import ReferralsTab from "./referrals";
-import { useEffect, useState } from "react";
+import { useEffect, useState, lazy, Suspense } from "react";
 import LoadingSpinner from "../../common/LoadingSpinner";
 import { useOrderData } from "../../../utils/hooks/useOrderData";
+
+const CreateProduct = lazy(() => import("./products/CreateProduct"));
 
 interface TabContentProps {
   activeTab: TabType;
@@ -27,7 +29,6 @@ const TabContent: React.FC<TabContentProps> = ({ activeTab, productImage }) => {
   const { fetchBuyerOrders, formattedOrders, loading, error } = useOrderData();
   const [isInitialLoad, setIsInitialLoad] = useState(true);
 
-  // Fetch orders when component mounts or when the active tab is "1" (Orders)
   useEffect(() => {
     if (activeTab === "1") {
       const loadOrders = async () => {
@@ -39,9 +40,7 @@ const TabContent: React.FC<TabContentProps> = ({ activeTab, productImage }) => {
     }
 
     // Cleanup function
-    return () => {
-      // No need to cleanup since the API cancel is handled in useOrderData hook
-    };
+    return () => {};
   }, [activeTab, fetchBuyerOrders, isInitialLoad]);
 
   return (
@@ -129,6 +128,25 @@ const TabContent: React.FC<TabContentProps> = ({ activeTab, productImage }) => {
           transition={{ duration: 0.3 }}
         >
           <ReferralsTab />
+        </m.div>
+      )}
+
+      {activeTab === "5" && (
+        <m.div
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: 20 }}
+          transition={{ duration: 0.3 }}
+        >
+          <Suspense
+            fallback={
+              <div className="flex justify-center items-center py-12">
+                <LoadingSpinner size="lg" />
+              </div>
+            }
+          >
+            <CreateProduct />
+          </Suspense>
         </m.div>
       )}
     </LazyMotion>

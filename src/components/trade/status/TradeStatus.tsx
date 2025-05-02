@@ -258,16 +258,17 @@ const renderStatusComponent = (
         />
       );
     default:
-      return (
-        <PendingPaymentStatus
-          tradeDetails={tradeDetails!}
-          orderDetails={orderDetails!}
-          transactionInfo={transactionInfo!}
-          onContactSeller={onContactSeller}
-          onOrderDispute={onOrderDispute}
-          onReleaseNow={onReleaseNow}
-        />
-      );
+      return null;
+    // return (
+    //   <PendingPaymentStatus
+    //     tradeDetails={tradeDetails!}
+    //     orderDetails={orderDetails!}
+    //     transactionInfo={transactionInfo!}
+    //     onContactSeller={onContactSeller}
+    //     onOrderDispute={onOrderDispute}
+    //     onReleaseNow={onReleaseNow}
+    //   />
+    // );
   }
 };
 

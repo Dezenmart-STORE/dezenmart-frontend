@@ -1,7 +1,8 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { RiCalendarLine, RiCloseCircleLine } from "react-icons/ri";
+import { RiCalendarLine } from "react-icons/ri";
 import { useEffect, useRef, useState } from "react";
 import { UseFormRegisterReturn } from "react-hook-form";
+import { IoMdClose } from "react-icons/io";
 
 interface DatePickerFieldProps {
   register: UseFormRegisterReturn<string>;
@@ -308,7 +309,7 @@ const DatePickerField: React.FC<DatePickerFieldProps> = ({
                   className="absolute right-4 top-0 text-gray-400 hover:text-white transition-colors p-1.5 rounded-full hover:bg-gray-700/30"
                   aria-label="Close"
                 >
-                  <RiCloseCircleLine size={42} />
+                  <IoMdClose size={20} />
                 </button>
               </div>
 

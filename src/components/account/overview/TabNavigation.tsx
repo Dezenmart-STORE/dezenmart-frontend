@@ -38,7 +38,7 @@ const TabNavigation: React.FC<TabNavigationProps> = ({
   return (
     <motion.div
       ref={containerRef}
-      className="flex bg-[#292B30] items-center gap-4 md:gap-8 mt-20 md:mt-40 p-2 w-fit max-xs:w-full overflow-x-auto scrollbar-hide rounded"
+      className="flex bg-[#292B30] items-center gap-4 md:gap-8 mt-20 md:mt-40 p-2 w-fit max-lg:w-full overflow-x-auto scrollbar-hide rounded"
       initial={{ opacity: 0, y: 30 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay: 0.6 }}

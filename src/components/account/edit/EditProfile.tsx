@@ -9,11 +9,10 @@ import ProfileField from "./ProfileField";
 import PhoneInput from "./PhoneInput";
 import DatePickerField from "./DatePickerField";
 // import Button from "../../common/Button";
-import { useAppDispatch } from "../../../utils/hooks/redux";
 import { useSnackbar } from "../../../context/SnackbarContext";
-import { updateUserProfile } from "../../../store/slices/userSlice";
 import { ErrorBoundary } from "react-error-boundary";
 import ErrorFallback from "../../common/ErrorFallback";
+import { useUserManagement } from "../../../utils/hooks/useUserManagement";
 
 // Validation schema
 const profileSchema = z.object({
@@ -31,7 +30,7 @@ type ProfileFormData = z.infer<typeof profileSchema>;
 
 interface EditProfileProps {
   avatar: string;
-  showEditProfile: React.Dispatch<React.SetStateAction<boolean>>;
+  setViewState: () => void;
   currentProfile: {
     name: string;
     dob: string;
@@ -43,10 +42,10 @@ interface EditProfileProps {
 
 const EditProfile: React.FC<EditProfileProps> = ({
   avatar,
-  showEditProfile,
+  setViewState,
   currentProfile,
 }) => {
-  const dispatch = useAppDispatch();
+  const { updateProfile } = useUserManagement();
   const { showSnackbar } = useSnackbar();
   const [countryCode, setCountryCode] = useState("US");
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -139,20 +138,18 @@ const EditProfile: React.FC<EditProfileProps> = ({
       if (profileImageFile) {
         submitData.profileImage = profileImageFile;
       }
-
-      await dispatch(updateUserProfile(submitData)).unwrap();
-      showSnackbar("Profile updated successfully", "success");
-      showEditProfile(false);
+      const success = await updateProfile(data);
+      // await dispatch(updateUserProfile(submitData)).unwrap();
+      if (success) {
+        showSnackbar("Profile updated successfully", "success");
+      }
     } catch (error) {
       showSnackbar((error as string) || "Failed to update profile", "error");
     }
   };
 
   return (
-    <ErrorBoundary
-      FallbackComponent={ErrorFallback}
-      onReset={() => showEditProfile(false)}
-    >
+    <ErrorBoundary FallbackComponent={ErrorFallback} onReset={setViewState}>
       <motion.div
         className="mt-4 relative"
         initial={{ opacity: 0 }}
@@ -164,7 +161,7 @@ const EditProfile: React.FC<EditProfileProps> = ({
             aria-label="Back to Profile"
             className="hover:opacity-80 transition-opacity"
             transition={{ type: "spring", stiffness: 300 }}
-            onClick={() => showEditProfile(false)}
+            onClick={setViewState}
             whileHover={{ x: -3 }}
             whileTap={{ scale: 0.95 }}
           >

@@ -19,7 +19,7 @@ const TradeDetailRow: FC<TradeDetailRowProps> = ({
         <span className="text-gray-400 text-sm font-medium">{label}</span>
         <span className="text-white text-sm font-medium">{value}</span>
       </div>
-      {bottomNote && <span>{bottomNote}</span>}
+      {bottomNote && <span className="w-full">{bottomNote}</span>}
     </div>
   );
 };

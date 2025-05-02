@@ -1,11 +1,12 @@
 import { FC, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { OrderDetails, TradeDetails } from "../../../utils/types";
-import { FaCheck, FaStar } from "react-icons/fa";
-import { IoChevronBack } from "react-icons/io5";
+import { FaCheck, FaCopy, FaStar } from "react-icons/fa";
+import { IoChevronBack, IoChevronDown, IoChevronUp } from "react-icons/io5";
 import { LuMessageSquare } from "react-icons/lu";
 import Button from "../../common/Button";
 import { useReviewData } from "../../../utils/hooks/useReviewData";
+import { BsShieldExclamation } from "react-icons/bs";
 
 interface CompletedStatusProps {
   orderDetails?: OrderDetails;
@@ -19,16 +20,17 @@ const CompletedStatus: FC<CompletedStatusProps> = ({
   tradeDetails,
   onContactBuyer,
 }) => {
-  const details = tradeDetails || (orderDetails as unknown as TradeDetails);
+  // const details = tradeDetails || (orderDetails as unknown as TradeDetails);
   const [showFaq, setShowFaq] = useState(false);
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState("");
   const [hoveredRating, setHoveredRating] = useState(0);
   const { submitReview, loading } = useReviewData();
+  const [copied, setCopied] = useState(false);
 
-  if (!details) {
-    return <div>Order information not available</div>;
+  if (!tradeDetails && !orderDetails) {
+    return <div>Order/Trade information not available</div>;
   }
 
   const handleReviewSubmit = async (e: React.FormEvent) => {
@@ -39,9 +41,11 @@ const CompletedStatus: FC<CompletedStatusProps> = ({
       return;
     }
     const productId = tradeDetails
-      ? details.productId
+      ? tradeDetails.productId
       : orderDetails?.product?._id || "";
-    const orderId = tradeDetails ? details?.orderNo : orderDetails?._id || "";
+    const orderId = tradeDetails
+      ? tradeDetails?.orderNo
+      : orderDetails?._id || "";
     await submitReview({
       reviewed: productId,
       order: orderId,
@@ -54,161 +58,244 @@ const CompletedStatus: FC<CompletedStatusProps> = ({
     setShowReviewForm(false);
   };
 
+  const copyOrderId = (id: string) => {
+    navigator.clipboard.writeText(id);
+    setCopied(true);
+    console.log(
+      tradeDetails
+        ? tradeDetails.amount.toString()
+        : orderDetails?.formattedAmount.toString()
+    );
+    setTimeout(() => {
+      setCopied(false);
+    }, 2000);
+  };
   return (
     <>
       <motion.div
+        className="bg-green-50 border border-green-200 text-green-800 rounded-md p-4 flex items-center justify-between mb-6"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="bg-green-100 text-green-800 p-4 rounded-lg mb-6 flex items-center gap-2"
+        transition={{ duration: 0.4 }}
       >
-        <motion.div
-          className="bg-green-500 rounded-full p-1 flex items-center justify-center"
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          transition={{ delay: 0.3, type: "spring", stiffness: 200 }}
-        >
-          <FaCheck className="text-white" size={14} />
-        </motion.div>
-        <span className="font-medium">Your payment is complete</span>
+        <div className="flex items-center gap-2">
+          <FaCheck className="text-green-500" />
+          <span>Your payment is complete</span>
+        </div>
+        {/* <button className="text-gray-500 hover:text-gray-700">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <path
+              d="M15 5L5 15M5 5L15 15"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button> */}
       </motion.div>
 
       <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.5, delay: 0.2 }}
-        className="bg-neutral-900 text-white p-4 rounded-lg mb-6"
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+        className="flex items-center mb-8 justify-between flex-col sm:flex-row gap-4"
       >
-        <div className="flex flex-col gap-4">
-          <button
-            className="flex items-center text-gray-400 hover:text-white transition-colors"
+        <div className="w-full">
+          <motion.button
+            className="flex items-center text-gray-400 hover:text-white mb-4"
+            whileHover={{ x: -3 }}
+            transition={{ type: "spring", stiffness: 400 }}
             onClick={() => window.history.back()}
           >
-            <IoChevronBack className="mr-1" />
-            Back
-          </button>
-
-          <h2 className="text-2xl font-bold">Completed</h2>
-
-          <div className="text-gray-300">
-            <p className="mb-2">
+            <IoChevronBack className="w-5 h-5" />
+          </motion.button>
+          <motion.h1
+            className="text-2xl font-medium text-white"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.1 }}
+          >
+            Completed
+          </motion.h1>
+          <div>
+            <motion.p
+              className="text-gray-400 text-sm mt-2 w-full inline"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.2 }}
+            >
               This order has concluded and the assets are no longer locked in
               Desemnart escrow system.
-            </p>
-            <hr className="my-4 border-gray-700" />
-            <p className="text-red-500 font-medium">
+            </motion.p>
+            &nbsp;
+            <motion.p
+              className="text-Red text-sm mt-2 w-full inline"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.2 }}
+            >
               Do not trust strangers or release funds without confirming.
-            </p>
+            </motion.p>
           </div>
+        </div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          className="self-end sm:self-auto"
+        >
+          <Button
+            title="Contact Buyer"
+            className="bg-transparent hover:bg-gray-700 text-white text-sm px-4 py-2 border border-Red rounded-2xl transition-colors flex items-center gap-x-2 justify-center"
+            onClick={onContactBuyer}
+            icon={<LuMessageSquare className="w-5 h-5 text-Red" />}
+            iconPosition="start"
+          />
+        </motion.div>
+      </motion.div>
+
+      {/* alert */}
+      <motion.div
+        className="rounded-lg p-4 flex items-center gap-3 text-white-200 bg-Red/10 mb-6"
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+      >
+        <div className="text-red-500">
+          <BsShieldExclamation size={18} />
+        </div>
+        <div className="w-full">
+          <p className="text-sm">
+            This order has concluded and the assets are no longer locked in
+            Desemnart escrow system. Do not trust strangers or release funds
+            without confirming.
+          </p>
         </div>
       </motion.div>
 
+      {/* Order details */}
+      <motion.div
+        className="bg-[#292B30] rounded-lg overflow-hidden shadow-lg mb-6"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4, duration: 0.5 }}
+      >
+        <div className="py-4 px-6 md:px-12">
+          <div className="flex flex-wrap items-center gap-4 mb-6">
+            <div className="w-fit flex flex-col gap-2">
+              <div className="w-full flex gap-4 items-center">
+                <motion.h3
+                  className="font-medium text-xl text-white"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.1 }}
+                >
+                  {tradeDetails
+                    ? tradeDetails.productName
+                    : orderDetails?.product.name}
+                </motion.h3>
+                <motion.span
+                  className="bg-green-500 text-white text-xs px-3 py-1 rounded-full"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.2 }}
+                >
+                  {tradeDetails ? tradeDetails.tradeType : "BOUGHT"}
+                </motion.span>
+              </div>
+            </div>
+          </div>
+
+          <div className="border-t border-gray-700 py-8">
+            <motion.div
+              className="space-y-4"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+            >
+              <div className="flex justify-between items-center">
+                <span className="text-gray-400 text-sm">Amount</span>
+                <span className="text-red-500 text-xl font-bold">
+                  {tradeDetails
+                    ? tradeDetails.amount.toString()
+                    : orderDetails?.formattedAmount}
+                </span>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex justify-between py-2">
+                  <span className="text-gray-400 text-sm">Total Quantity</span>
+                  <span className="text-white">
+                    {tradeDetails
+                      ? tradeDetails.quantity.toString()
+                      : orderDetails?.quantity.toString()}
+                  </span>
+                </div>
+
+                <div className="flex justify-between py-2">
+                  <span className="text-gray-400 text-sm">Order Time</span>
+                  <span className="text-white">
+                    {tradeDetails
+                      ? tradeDetails.orderTime
+                      : orderDetails?.formattedDate}
+                  </span>
+                </div>
+                <div>
+                  <div className="flex justify-between py-2">
+                    <span className="text-gray-400 text-sm">Order No.</span>
+                    <div className="flex items-center">
+                      <span className="text-white mr-2">
+                        {tradeDetails
+                          ? tradeDetails.orderNo
+                          : orderDetails?._id}
+                      </span>
+                      <motion.button
+                        onClick={() =>
+                          copyOrderId(
+                            tradeDetails
+                              ? tradeDetails.orderNo
+                              : orderDetails?._id || ""
+                          )
+                        }
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                      >
+                        <FaCopy className="text-gray-400 hover:text-white transition-colors" />
+                      </motion.button>
+                    </div>
+                  </div>
+                  {copied && (
+                    <motion.p
+                      className="w-full text-xs text-green-400 text-right mt-2 mb-1 "
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                    >
+                      Order number copied to clipboard!
+                    </motion.p>
+                  )}
+                </div>
+
+                <div className="flex justify-between py-2">
+                  <span className="text-gray-400 text-sm">Payment Method</span>
+                  <span className="text-white">
+                    {tradeDetails ? tradeDetails.paymentMethod : "CRYPTO"}
+                  </span>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        </div>
+      </motion.div>
+      {/*  Review section */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.4 }}
-        className="bg-neutral-900 rounded-lg mb-6"
-      >
-        <div className="p-6">
-          <div className="mb-6">
-            <div className="flex justify-between items-center">
-              <div className="flex items-center gap-2">
-                <span className="bg-green-600 text-white text-xs px-2 py-1 rounded-md">
-                  SOLD
-                </span>
-                <h3 className="text-xl font-bold text-white">
-                  {details?.productName}
-                </h3>
-              </div>
-              <motion.div
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <Button
-                  title="Contact Buyer"
-                  onClick={onContactBuyer}
-                  className="bg-transparent border border-red-500 text-red-500 hover:bg-red-500 hover:text-white"
-                  icon={<LuMessageSquare />}
-                />
-              </motion.div>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <div className="flex flex-col gap-4">
-              <div className="bg-neutral-800 p-4 rounded-lg">
-                <span className="text-gray-400 block mb-1">Amount</span>
-                <span className="font-bold text-xl text-red-500">
-                  {details?.amount?.toLocaleString()}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <motion.div
-                  className="bg-neutral-800 p-3 rounded-lg"
-                  whileHover={{ backgroundColor: "rgba(38, 38, 38, 1)" }}
-                >
-                  <span className="text-gray-400 block text-sm">
-                    Total Quantity
-                  </span>
-                  <span className="font-semibold text-white">
-                    {details?.quantity}
-                  </span>
-                </motion.div>
-                <motion.div
-                  className="bg-neutral-800 p-3 rounded-lg"
-                  whileHover={{ backgroundColor: "rgba(38, 38, 38, 1)" }}
-                >
-                  <span className="text-gray-400 block text-sm">
-                    Order Time
-                  </span>
-                  <span className="font-semibold text-white">
-                    {details?.orderTime}
-                  </span>
-                </motion.div>
-                <motion.div
-                  className="bg-neutral-800 p-3 rounded-lg"
-                  whileHover={{ backgroundColor: "rgba(38, 38, 38, 1)" }}
-                >
-                  <span className="text-gray-400 block text-sm">Order No.</span>
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-white">
-                      {details?.orderNo}
-                    </span>
-                    <motion.button
-                      onClick={() =>
-                        navigator.clipboard.writeText(details?.orderNo || "")
-                      }
-                      className="text-gray-400 hover:text-white"
-                      whileHover={{ scale: 1.2 }}
-                      whileTap={{ scale: 0.9 }}
-                    >
-                      <FaCheck size={14} />
-                    </motion.button>
-                  </div>
-                </motion.div>
-                <motion.div
-                  className="bg-neutral-800 p-3 rounded-lg"
-                  whileHover={{ backgroundColor: "rgba(38, 38, 38, 1)" }}
-                >
-                  <span className="text-gray-400 block text-sm">
-                    Payment Method
-                  </span>
-                  <span className="font-semibold text-white">
-                    {details?.paymentMethod}
-                  </span>
-                </motion.div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </motion.div>
-
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.6 }}
-        className="bg-neutral-900 rounded-lg p-6 mb-6"
+        whileHover={{ scale: 1.01 }}
+        className="bg-[#292B30] rounded-lg mb-6 p-4"
       >
         <motion.button
           onClick={() => setShowReviewForm(!showReviewForm)}
@@ -217,7 +304,13 @@ const CompletedStatus: FC<CompletedStatusProps> = ({
           transition={{ duration: 0.2 }}
         >
           <span>Leave A Review</span>
-          <span>{showReviewForm ? "▲" : "▼"}</span>
+          <span>
+            {showReviewForm ? (
+              <IoChevronUp className="text-gray-400" />
+            ) : (
+              <IoChevronDown className="text-gray-400" />
+            )}
+          </span>
         </motion.button>
 
         <AnimatePresence>
@@ -279,7 +372,7 @@ const CompletedStatus: FC<CompletedStatusProps> = ({
                   <Button
                     title="Submit Review"
                     type="submit"
-                    className={`${
+                    className={`max-w-md mx-auto flex items-center justify-center p-3 ${
                       loading ? "bg-Red/20" : "bg-Red"
                     } hover:bg-red-600 text-white w-full`}
                   />
@@ -294,7 +387,7 @@ const CompletedStatus: FC<CompletedStatusProps> = ({
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.8 }}
-        className="bg-neutral-900 rounded-lg p-6 mb-6"
+        className="bg-[#292B30] rounded-lg p-4 mb-6"
       >
         <motion.button
           className="flex justify-between items-center w-full text-xl font-bold text-white"
@@ -303,7 +396,13 @@ const CompletedStatus: FC<CompletedStatusProps> = ({
           transition={{ duration: 0.2 }}
         >
           <span>FAQ</span>
-          <span>{showFaq ? "▲" : "▼"}</span>
+          <span>
+            {showFaq ? (
+              <IoChevronUp className="text-gray-400" />
+            ) : (
+              <IoChevronDown className="text-gray-400" />
+            )}
+          </span>
         </motion.button>
 
         <AnimatePresence>
@@ -369,7 +468,7 @@ const CompletedStatus: FC<CompletedStatusProps> = ({
         <Button
           title="Sell more"
           onClick={() => (window.location.href = "/trades")}
-          className="bg-red-500 hover:bg-red-600 text-white w-full"
+          className="bg-Red max-w-md mx-auto flex items-center justify-center p-3 hover:bg-red-600 text-white w-full"
         />
       </motion.div>
     </>

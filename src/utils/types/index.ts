@@ -94,6 +94,20 @@ export interface Order {
   quantity: number;
   updatedAt: string;
 }
+export interface CreateTradeParams {
+  seller: string;
+  productCost: string;
+  logisticsProvider: string;
+  logisticsCost: string;
+  useUSDT: boolean;
+  orderId: string;
+}
+
+export interface TradeResponse {
+  status: "success" | "error";
+  message: string;
+  data?: any;
+}
 
 export interface ReferralInfo {
   referralCode: string;
@@ -111,7 +125,7 @@ export interface Notification {
   link?: string;
 }
 
-export type TabType = "1" | "2" | "3" | "4";
+export type TabType = "1" | "2" | "3" | "4" | "5";
 export type TradeTab = "buy" | "sell" | "active" | "completed";
 
 export interface TabOption {

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-// import { motion } from "framer-motion";
+import { motion } from "framer-motion";
 import Container from "../components/common/Container";
 import {
   TradeDetails,
@@ -16,7 +16,7 @@ const ViewTradeDetail = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
   const [tradeStatus, setTradeStatus] = useState<TradeStatusType>("pending");
-  const [isProcessing, setIsProcessing] = useState(false);
+  // const [isProcessing, setIsProcessing] = useState(false);
 
   // Mock data - future: from API
   const tradeDetails: TradeDetails = {
@@ -91,7 +91,7 @@ const ViewTradeDetail = () => {
   };
 
   const handleReleaseNow = () => {
-    setIsProcessing(true);
+    // setIsProcessing(true);
 
     // Simulate API call
     setTimeout(() => {
@@ -99,7 +99,7 @@ const ViewTradeDetail = () => {
       navigate(`/trades/viewtrades/${tradeId}?status=completed`, {
         replace: true,
       });
-      setIsProcessing(false);
+      // setIsProcessing(false);
       toast.success("Trade completed successfully!");
     }, 1500);
   };
@@ -119,9 +119,18 @@ const ViewTradeDetail = () => {
     <Container>
       <div className="py-6">
         {/* Demo buttons */}
-        <div className="flex gap-2 mb-6 flex-wrap">
+        {/* <motion.div
+          className="mb-8 flex flex-wrap gap-2 justify-center"
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
           <button
-            className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded"
+            className={`px-4 py-2 rounded transition-colors ${
+              tradeStatus === "cancelled"
+                ? "bg-Red"
+                : "bg-gray-700 hover:bg-gray-600"
+            }`}
             onClick={() => {
               setTradeStatus("cancelled");
               navigate(`/trades/viewtrades/${tradeId}?status=cancelled`, {
@@ -132,9 +141,12 @@ const ViewTradeDetail = () => {
           >
             Show Cancelled
           </button>
-
           <button
-            className="bg-yellow-200 hover:bg-yellow-300 text-yellow-800 px-4 py-2 rounded"
+            className={`px-4 py-2 rounded transition-colors ${
+              tradeStatus === "pending"
+                ? "bg-Red"
+                : "bg-gray-700 hover:bg-gray-600"
+            }`}
             onClick={() => {
               setTradeStatus("pending");
               navigate(`/trades/viewtrades/${tradeId}?status=pending`, {
@@ -145,9 +157,12 @@ const ViewTradeDetail = () => {
           >
             Show Pending
           </button>
-
           <button
-            className="bg-blue-200 hover:bg-blue-300 text-blue-800 px-4 py-2 rounded"
+            className={`px-4 py-2 rounded transition-colors ${
+              tradeStatus === "release"
+                ? "bg-Red"
+                : "bg-gray-700 hover:bg-gray-600"
+            }`}
             onClick={() => {
               setTradeStatus("release");
               navigate(`/trades/viewtrades/${tradeId}?status=release`, {
@@ -158,9 +173,12 @@ const ViewTradeDetail = () => {
           >
             Show Release
           </button>
-
           <button
-            className="bg-green-200 hover:bg-green-300 text-green-800 px-4 py-2 rounded"
+            className={`px-4 py-2 rounded transition-colors ${
+              tradeStatus === "completed"
+                ? "bg-Red"
+                : "bg-gray-700 hover:bg-gray-600"
+            }`}
             onClick={() => {
               setTradeStatus("completed");
               navigate(`/trades/viewtrades/${tradeId}?status=completed`, {
@@ -171,18 +189,24 @@ const ViewTradeDetail = () => {
           >
             Show Completed
           </button>
-        </div>
+        </motion.div> */}
 
-        <TradeStatus
-          status={tradeStatus}
-          tradeDetails={tradeDetails}
-          transactionInfo={transactionInfo}
-          onContactSeller={handleContactSeller}
-          onContactBuyer={handleContactBuyer}
-          onOrderDispute={handleOrderDispute}
-          onReleaseNow={handleReleaseNow}
-          orderId={tradeId}
-        />
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+        >
+          <TradeStatus
+            status={tradeStatus}
+            tradeDetails={tradeDetails}
+            transactionInfo={transactionInfo}
+            onContactSeller={handleContactSeller}
+            onContactBuyer={handleContactBuyer}
+            onOrderDispute={handleOrderDispute}
+            onReleaseNow={handleReleaseNow}
+            orderId={tradeId}
+          />
+        </motion.div>
       </div>
     </Container>
   );
