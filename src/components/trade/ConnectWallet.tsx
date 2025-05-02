@@ -12,13 +12,26 @@ import {
   FaUserSecret,
   FaSignOutAlt,
 } from "react-icons/fa";
+import TransactionConfirmation from "./TransactionConfirmation";
+import ConfirmDelivery from "./ConfirmDelivery";
 import { useWallet } from "../../utils/hooks/useWallet";
 
 interface ConnectWalletProps {
   showAlternatives?: boolean;
+  pendingTransaction?: {
+    type: "escrow" | "delivery";
+    contractAddress?: string;
+    amount?: string;
+    tradeId?: string;
+  } | null;
+  onTransactionComplete?: (success: boolean) => void;
 }
 
-const ConnectWallet: FC<ConnectWalletProps> = ({ showAlternatives = true }) => {
+const ConnectWallet: FC<ConnectWalletProps> = ({
+  showAlternatives = true,
+  pendingTransaction = null,
+  onTransactionComplete = () => {},
+}) => {
   const {
     isConnecting,
     isConnected,
@@ -355,6 +368,31 @@ const ConnectWallet: FC<ConnectWalletProps> = ({ showAlternatives = true }) => {
         </div>
       </motion.div>
     );
+  }
+
+  if (pendingTransaction) {
+    if (
+      pendingTransaction.type === "escrow" &&
+      pendingTransaction.contractAddress &&
+      pendingTransaction.amount
+    ) {
+      return (
+        <TransactionConfirmation
+          contractAddress={pendingTransaction.contractAddress}
+          amount={pendingTransaction.amount}
+          onComplete={onTransactionComplete}
+        />
+      );
+    }
+
+    if (pendingTransaction.type === "delivery" && pendingTransaction.tradeId) {
+      return (
+        <ConfirmDelivery
+          tradeId={pendingTransaction.tradeId}
+          onComplete={() => onTransactionComplete(true)}
+        />
+      );
+    }
   }
 
   return (

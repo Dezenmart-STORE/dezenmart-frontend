@@ -203,10 +203,10 @@ const Login = () => {
               onClick={() => handleSocialLogin("x")}
             />
           </div>
-          <div className="relative flex items-center justify-center my-12">
+          {/* <div className="relative flex items-center justify-center my-12">
             <hr className="border-t border-gray-700 w-full" />
             <span className="text-white text-sm bg-Dark px-3 absolute">OR</span>
-          </div>
+          </div> */}
           {/* Connect Wallet Button */}
           {/* <Button
               title="Connect with a wallet"

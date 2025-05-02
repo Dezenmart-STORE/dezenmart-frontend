@@ -6,12 +6,18 @@ interface ContractState {
   loading: "idle" | "pending" | "succeeded" | "failed";
   error: string | null;
   tradeResponse: TradeResponse | null;
+  transactionPending: boolean;
+  deliveryConfirmLoading: boolean;
+  deliveryConfirmError: string | null;
 }
 
 const initialState: ContractState = {
   loading: "idle",
   error: null,
   tradeResponse: null,
+  transactionPending: false,
+  deliveryConfirmLoading: false,
+  deliveryConfirmError: null,
 };
 
 export const createTrade = createAsyncThunk<
@@ -36,12 +42,38 @@ export const createTrade = createAsyncThunk<
   }
 });
 
+export const confirmDelivery = createAsyncThunk<
+  { status: string; message: string },
+  string,
+  { rejectValue: string }
+>("contract/confirmDelivery", async (tradeId, { rejectWithValue }) => {
+  try {
+    const response = await api.confirmDelivery(tradeId);
+
+    if (!response.ok) {
+      return rejectWithValue(response.error || "Failed to confirm delivery");
+    }
+
+    return response.data as { status: string; message: string };
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "An unknown error occurred";
+    return rejectWithValue(message);
+  }
+});
+
 const contractSlice = createSlice({
   name: "contract",
   initialState,
   reducers: {
     clearTradeResponse: (state) => {
       state.tradeResponse = null;
+    },
+    setTransactionPending: (state, action: PayloadAction<boolean>) => {
+      state.transactionPending = action.payload;
+    },
+    clearDeliveryConfirmError: (state) => {
+      state.deliveryConfirmError = null;
     },
   },
   extraReducers: (builder) => {
@@ -60,9 +92,25 @@ const contractSlice = createSlice({
       .addCase(createTrade.rejected, (state, action) => {
         state.loading = "failed";
         state.error = (action.payload as string) || "Unknown error occurred";
+      })
+      .addCase(confirmDelivery.pending, (state) => {
+        state.deliveryConfirmLoading = true;
+        state.deliveryConfirmError = null;
+      })
+      .addCase(confirmDelivery.fulfilled, (state) => {
+        state.deliveryConfirmLoading = false;
+      })
+      .addCase(confirmDelivery.rejected, (state, action) => {
+        state.deliveryConfirmLoading = false;
+        state.deliveryConfirmError =
+          (action.payload as string) || "Failed to confirm delivery";
       });
   },
 });
 
-export const { clearTradeResponse } = contractSlice.actions;
+export const {
+  clearTradeResponse,
+  setTransactionPending,
+  clearDeliveryConfirmError,
+} = contractSlice.actions;
 export default contractSlice.reducer;

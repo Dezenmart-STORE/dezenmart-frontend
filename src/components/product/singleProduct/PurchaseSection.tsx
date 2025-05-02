@@ -25,22 +25,6 @@ const PurchaseSection = ({ product }: PurchaseSectionProps) => {
     }
   };
 
-  // useEffect(() => {
-  //   // Check if wallet is already connected (placeholder for real implementation)
-  //   const checkWalletConnection = async () => {
-  //     try {
-  //       //wallet connection check
-  //       const connected = localStorage.getItem("walletConnected") === "true";
-  //       setWalletConnected(connected);
-  //     } catch (err) {
-  //       console.error("Error checking wallet connection:", err);
-  //       setWalletConnected(false);
-  //     }
-  //   };
-
-  //   checkWalletConnection();
-  // }, []);
-
   const handlePurchase = async () => {
     if (!product) return;
 

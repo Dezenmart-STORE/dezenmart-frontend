@@ -10,12 +10,21 @@ import {
 import TradeStatus from "../components/trade/status/TradeStatus";
 import { toast } from "react-toastify";
 import LoadingSpinner from "../components/common/LoadingSpinner";
+import { useOrderData } from "../utils/hooks/useOrderData";
 
 const ViewTradeDetail = () => {
   const { tradeId } = useParams<{ tradeId: string }>();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
   const [tradeStatus, setTradeStatus] = useState<TradeStatusType>("pending");
+  // const {
+  //   getOrderById,
+  //   formattedCurrentOrder: orderDetails,
+  //   loading,
+  //   error,
+  //   changeOrderStatus,
+  //   raiseDispute,
+  // } = useOrderData();
   // const [isProcessing, setIsProcessing] = useState(false);
 
   // Mock data - future: from API
@@ -91,17 +100,37 @@ const ViewTradeDetail = () => {
   };
 
   const handleReleaseNow = () => {
+    if (!tradeId) return;
     // setIsProcessing(true);
 
     // Simulate API call
     setTimeout(() => {
+      // setTradeStatus("completed");
+      navigate(`/trades/viewtrades/${tradeId}?status=release`, {
+        replace: true,
+      });
+      // setIsProcessing(false);
+      toast.success("Release successful!");
+    }, 1500);
+  };
+
+  const handleConfirmDelivery = async () => {
+    if (!tradeId) return;
+
+    // setIsProcessing(true);
+    try {
+      // await changeOrderStatus(tradeId, "completed");
       setTradeStatus("completed");
       navigate(`/trades/viewtrades/${tradeId}?status=completed`, {
         replace: true,
       });
-      // setIsProcessing(false);
-      toast.success("Trade completed successfully!");
-    }, 1500);
+      toast.success("Order has been completed successfully!");
+    } catch (error) {
+      toast.error("Failed to complete the order. Please try again.");
+      console.log(error);
+    } finally {
+      //   setIsProcessing(false);
+    }
   };
 
   if (isLoading) {
@@ -205,6 +234,7 @@ const ViewTradeDetail = () => {
             onOrderDispute={handleOrderDispute}
             onReleaseNow={handleReleaseNow}
             orderId={tradeId}
+            navigatePath=""
           />
         </motion.div>
       </div>

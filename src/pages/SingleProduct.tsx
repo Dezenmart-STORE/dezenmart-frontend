@@ -84,10 +84,11 @@ const SingleProduct = () => {
     return (
       <div className="bg-Dark min-h-screen flex items-center justify-center">
         <div className="bg-[#292B30] p-8 rounded-xl shadow-lg">
-          <h2 className="text-Red text-xl font-bold mb-4">
-            Error Loading Product
-          </h2>
-          <p className="text-white mb-6">{error}</p>
+          <h2 className="text-xl font-bold mb-4">Cannot Find Product</h2>
+          {/* <p className="text-white mb-6">{error}</p> */}
+          <p className="text-gray-400 mb-6">
+            Sorry, we couldn't find the order you're looking for.
+          </p>
           <button
             onClick={handleGoBack}
             className="bg-Red text-white py-2 px-6 rounded-md hover:bg-[#d52a33] transition-colors"

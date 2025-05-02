@@ -6,6 +6,12 @@ export const selectContractLoading = (state: RootState) =>
 export const selectContractError = (state: RootState) => state.contract.error;
 export const selectTradeResponse = (state: RootState) =>
   state.contract.tradeResponse;
+export const selectTransactionPending = (state: RootState) =>
+  state.contract.transactionPending;
+export const selectDeliveryConfirmLoading = (state: RootState) =>
+  state.contract.deliveryConfirmLoading;
+export const selectDeliveryConfirmError = (state: RootState) =>
+  state.contract.deliveryConfirmError;
 
 export const selectIsContractPending = createSelector(
   [selectContractLoading],

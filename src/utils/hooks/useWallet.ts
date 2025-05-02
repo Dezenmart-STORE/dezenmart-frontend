@@ -19,6 +19,8 @@ type UseWalletHook = Pick<
   | "connectGuest"
   | "switchChain"
   | "disconnect"
+  | "signer"
+  | "provider"
 >;
 
 export function useWallet(): UseWalletHook {
@@ -41,6 +43,8 @@ export function useWallet(): UseWalletHook {
     connectGuest,
     switchChain,
     disconnect,
+    signer,
+    provider,
   } = ctx;
 
   const connect = useCallback((): Promise<
@@ -81,6 +85,8 @@ export function useWallet(): UseWalletHook {
       connectGuest,
       switchChain,
       disconnect,
+      signer,
+      provider,
     }),
     [
       account,
@@ -98,6 +104,8 @@ export function useWallet(): UseWalletHook {
       connectGuest,
       switchChain,
       disconnect,
+      signer,
+      provider,
     ]
   );
 }

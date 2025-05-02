@@ -151,6 +151,7 @@ import { ErrorBoundary } from "react-error-boundary";
 
 interface TradeStatusProps extends StatusProps {
   orderDetails?: OrderDetails;
+  navigatePath: string;
 }
 
 const TradeStatus: FC<TradeStatusProps> = ({
@@ -161,8 +162,10 @@ const TradeStatus: FC<TradeStatusProps> = ({
   onContactSeller,
   onContactBuyer,
   onOrderDispute,
+  onConfirmDelivery,
   onReleaseNow,
   orderId,
+  navigatePath,
 }) => {
   const details = tradeDetails || (orderDetails as unknown as TradeDetails);
   const transactionData = transactionInfo || {
@@ -197,8 +200,10 @@ const TradeStatus: FC<TradeStatusProps> = ({
         onContactSeller,
         onContactBuyer,
         onOrderDispute,
+        onConfirmDelivery,
         onReleaseNow,
-        orderId
+        orderId,
+        navigatePath
       )}
     </ErrorBoundary>
   );
@@ -213,7 +218,9 @@ const renderStatusComponent = (
   onContactBuyer?: () => void,
   onOrderDispute?: (reason?: string) => void,
   onReleaseNow?: () => void,
-  orderId?: string
+  onConfirmDelivery?: () => void,
+  orderId?: string,
+  navigatePath?: string
 ) => {
   switch (status) {
     case "cancelled":
@@ -235,6 +242,7 @@ const renderStatusComponent = (
           onContactSeller={onContactSeller}
           onOrderDispute={onOrderDispute}
           onReleaseNow={onReleaseNow}
+          navigatePath={navigatePath}
         />
       );
     case "release":
@@ -245,7 +253,7 @@ const renderStatusComponent = (
           transactionInfo={transactionInfo!}
           onContactSeller={onContactSeller}
           onOrderDispute={onOrderDispute}
-          onReleaseNow={onReleaseNow}
+          onConfirmDelivery={onConfirmDelivery}
           orderId={orderId}
         />
       );

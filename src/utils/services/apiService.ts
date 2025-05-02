@@ -361,6 +361,18 @@ export const api = {
       body: JSON.stringify(tradeData),
     });
   },
+  confirmDelivery: async (
+    tradeId: string
+  ): Promise<{
+    ok: boolean;
+    status: number;
+    data: TradeResponse | null;
+    error: string | null;
+  }> => {
+    return fetchWithAuth(`/trades/${tradeId}/confirm-delivery`, {
+      method: "POST",
+    });
+  },
   raiseDispute: async (orderId: string, reason: string) => {
     // Clear cache on update
     requestCache.delete(cacheKey("/orders?type=buyer"));
