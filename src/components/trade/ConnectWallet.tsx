@@ -35,7 +35,9 @@ const ConnectWallet: FC<ConnectWalletProps> = ({ showAlternatives = true }) => {
   } = useWallet();
 
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"main" | "email" | "phone">("main");
+  const [activeTab, setActiveTab] = useState<"main" | "email" | "phone">(
+    "main"
+  );
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [verificationCode, setVerificationCode] = useState("");
@@ -158,7 +160,9 @@ const ConnectWallet: FC<ConnectWalletProps> = ({ showAlternatives = true }) => {
           <div className="space-y-4">
             <div className="bg-[#2A2D35] p-4 rounded-lg">
               <p className="text-gray-400 text-sm">Address</p>
-              <p className="text-white font-mono text-sm break-all">{account}</p>
+              <p className="text-white font-mono text-sm break-all">
+                {account}
+              </p>
             </div>
             <div className="bg-[#2A2D35] p-4 rounded-lg">
               <p className="text-gray-400 text-sm">Balance</p>

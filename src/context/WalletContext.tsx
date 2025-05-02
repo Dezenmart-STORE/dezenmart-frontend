@@ -10,9 +10,7 @@ import {
   useMemo,
 } from "react";
 import { ethers } from "ethers";
-import {
-  inAppWallet,
-} from "thirdweb/wallets";
+import { inAppWallet } from "thirdweb/wallets";
 import { createThirdwebClient, defineChain } from "thirdweb";
 
 export type WalletType = "eoa" | "smart" | null;

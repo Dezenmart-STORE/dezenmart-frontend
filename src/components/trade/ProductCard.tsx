@@ -34,7 +34,11 @@ const ProductCard: FC<ProductCardProps> = ({
       layout
     >
       <motion.img
-        src={product.images[0]}
+        src={
+          product.images && product.images.length > 0
+            ? product.images[0]
+            : "https://placehold.co/300x300?text=No+Image"
+        }
         alt={product.description}
         className="w-[60%] md:w-full h-auto mx-auto md:mx-0 rounded-md lg:row-span-2"
         loading="lazy"

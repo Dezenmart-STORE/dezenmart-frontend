@@ -194,7 +194,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (provider: string) => void;
-  loginWithWallet: (walletAddress: string) => Promise<void>;
+  // loginWithWallet: (walletAddress: string) => Promise<void>;
   handleUserUpdate: (userData: any) => void;
   handleAuthCallback: (token: string, userData: any) => void;
   logout: () => void;
@@ -273,36 +273,35 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const loginWithWallet = async (walletAddress: any) => {
-    try {
-      setIsLoading(true);
-      console.log("Wallet login attempted with:", walletAddress);
+  // const loginWithWallet = async (walletAddress: any) => {
+  //   try {
+  //     setIsLoading(true);
+  //     console.log("Wallet login attempted with:", walletAddress);
 
-      // TODO: Implement actual wallet authentication API call
+  //     // TODO: Implement actual wallet authentication API call
 
-      return walletAddress;
-    } catch (error) {
-      console.error("Error logging in with wallet:", error);
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  //     return walletAddress;
+  //   } catch (error) {
+  //     console.error("Error logging in with wallet:", error);
+  //     throw error;
+  //   } finally {
+  //     setIsLoading(false);
+  //   }
+  // };
 
-  // Auto-login with wallet if connected but not authenticated
-  useEffect(() => {
-    const attemptWalletLogin = async () => {
-      if (account && !user && !isLoading) {
-        try {
-          await loginWithWallet(account);
-        } catch (error) {
-          console.error("Auto wallet login failed:", error);
-        }
-      }
-    };
+  // useEffect(() => {
+  //   const attemptWalletLogin = async () => {
+  //     if (account && !user && !isLoading) {
+  //       try {
+  //         await loginWithWallet(account);
+  //       } catch (error) {
+  //         console.error("Auto wallet login failed:", error);
+  //       }
+  //     }
+  //   };
 
-    attemptWalletLogin();
-  }, [account, user, isLoading]);
+  //   attemptWalletLogin();
+  // }, [account, user, isLoading]);
 
   const handleAuthCallback = (token: string, userData: UserProfile) => {
     try {
@@ -341,7 +340,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     isAuthenticated: !!user,
     isLoading,
     login,
-    loginWithWallet,
+    // loginWithWallet,
     handleAuthCallback,
     handleUserUpdate,
     logout,
