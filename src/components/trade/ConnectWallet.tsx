@@ -1,5 +1,4 @@
-"use client";
-
+'use client'
 import { motion } from "framer-motion";
 import { FC, useState, useCallback } from "react";
 import {
@@ -164,10 +163,10 @@ const ConnectWallet: FC<ConnectWalletProps> = ({
           >
             <FaWallet className="text-3xl" />
           </motion.div>
-          <h2 className="text-xl font-semibold mb-2">Wallet Connected</h2>
-          <p className="text-gray-400 text-sm">
-            Connected as {shortenedAddress}
+          <p className="text-gray-400 text-sm mb-2">
+            Connected as <span className="font-semibold text-white">{shortenedAddress}</span>
           </p>
+          <h2 className="text-xl font-semibold">Wallet Connected</h2>
         </div>
         {showDetails ? (
           <div className="space-y-4">
@@ -196,7 +195,7 @@ const ConnectWallet: FC<ConnectWalletProps> = ({
               className="w-full py-3 bg-Red hover:bg-[#e02d37] text-white rounded transition-colors flex items-center justify-center"
             >
               <FaSignOutAlt className="mr-2" />
-              Disconnect Wallet
+              Sign Out
             </button>
           </div>
         ) : (
@@ -212,7 +211,7 @@ const ConnectWallet: FC<ConnectWalletProps> = ({
               className="w-full py-3 bg-Red hover:bg-[#e02d37] text-white rounded transition-colors flex items-center justify-center"
             >
               <FaSignOutAlt className="mr-2" />
-              Disconnect
+              Sign Out
             </button>
           </div>
         )}
@@ -336,7 +335,7 @@ const ConnectWallet: FC<ConnectWalletProps> = ({
           </div>
         )}
         <div className="text-center mb-6">
-          <h2 className="text-xl font-semibold mb-2">Connect with Phone</h2>
+          <h2 className="account text-xl font-semibold mb-2">Connect with Phone</h2>
           <p className="text-gray-400 text-sm">
             We'll send you a verification code via SMS
           </p>

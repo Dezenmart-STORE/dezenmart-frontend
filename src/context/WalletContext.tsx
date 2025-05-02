@@ -17,15 +17,7 @@ export type WalletType = "eoa" | "smart" | null;
 
 // Chain definitions
 const supportedChains = {
-  liskSepolia: defineChain({
-    id: 4202,
-    name: "Lisk Sepolia Testnet",
-    nativeCurrency: { name: "Lisk Sepolia ETH", symbol: "ETH", decimals: 18 },
-    rpc: "https://rpc.sepolia-api.lisk.com",
-    blockExplorers: [
-      { name: "Lisk Explorer", url: "https://sepolia-blockscout.lisk.com" },
-    ],
-  }),
+  
   celoAlfajores: defineChain({
     id: 44787,
     name: "Celo Alfajores Testnet",
@@ -130,11 +122,8 @@ export function WalletProvider({
     () =>
       inAppWallet({
         smartAccount: {
-          chain:
-            chainId === 44787
-              ? supportedChains.celoAlfajores
-              : supportedChains.liskSepolia,
-          sponsorGas: true,
+          chain:supportedChains.celoAlfajores,
+               sponsorGas: true,
         },
         auth: {
           mode: "popup",
@@ -226,10 +215,7 @@ export function WalletProvider({
           setSigner(s);
           await fetchBalance(acc, bp);
         } else if (wt === "smart") {
-          const chain =
-            chainId === 44787
-              ? supportedChains.celoAlfajores
-              : supportedChains.liskSepolia;
+          const chain =supportedChains.celoAlfajores;
           const rp = new ethers.JsonRpcProvider(chain.rpc);
           setProvider(rp);
           await fetchBalance(acc, rp);
@@ -290,7 +276,8 @@ export function WalletProvider({
         const chainDef =
           chainId === 44787
             ? supportedChains.celoAlfajores
-            : supportedChains.liskSepolia;
+            : supportedChains.celoAlfajores;
+          
 
         // For email/phone, opts may contain verificationCode
         const connOpts: any = {
@@ -365,7 +352,7 @@ export function WalletProvider({
             const def =
               newChainId === 44787
                 ? supportedChains.celoAlfajores
-                : supportedChains.liskSepolia;
+                : supportedChains.celoAlfajores;
             await window.ethereum.request({
               method: "wallet_addEthereumChain",
               params: [
