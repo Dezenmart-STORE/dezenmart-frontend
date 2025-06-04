@@ -10,7 +10,7 @@ export default {
       },
       screens: {
         xs: "480px",
-        xxs: "320px",
+        xxs: "390px",
       },
       flex: {
         full: "0 0 100%",

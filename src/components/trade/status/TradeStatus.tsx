@@ -1,142 +1,4 @@
-// import { FC } from "react";
-// import CancelledStatus from "./CancelledStatus";
-// import PendingPaymentStatus from "./PendingPaymentStatus";
-// import FundsReleaseStatus from "./FundsReleaseStatus";
-// import CompletedStatus from "./CompletedStatus";
-// import {
-//   Order,
-//   OrderDetails,
-//   StatusProps,
-//   TradeDetails,
-//   TradeTransactionInfo,
-// } from "../../../utils/types";
-// import { ErrorBoundary } from "react-error-boundary";
-
-// interface TradeStatusProps extends StatusProps {
-//   orderDetails?: OrderDetails;
-// }
-
-// const TradeStatus: FC<TradeStatusProps> = ({
-//   status,
-//   orderDetails,
-//   tradeDetails,
-//   transactionInfo,
-//   onContactSeller,
-//   onContactBuyer,
-//   onOrderDispute,
-//   onReleaseNow,
-//   orderId,
-// }) => {
-//   // Ensure we have orderDetails and transactionInfo to prevent rendering errors
-//   if (!tradeDetails || !transactionInfo) {
-//     return (
-//       <div className="text-center p-6 bg-[#292B30] rounded-lg">
-//         <p className="text-gray-400">Order information is not available.</p>
-//       </div>
-//     );
-//   }
-
-//   // Use ErrorBoundary to catch any rendering errors
-//   return (
-//     <ErrorBoundary
-//       fallback={
-//         <div className="text-center p-6 bg-[#292B30] rounded-lg">
-//           <p className="text-Red">
-//             Something went wrong displaying the order status.
-//           </p>
-//         </div>
-//       }
-//     >
-//       {renderStatusComponent(
-//         status,
-//         orderDetails,
-//         tradeDetails,
-//         transactionInfo,
-//         onContactSeller,
-//         onContactBuyer,
-//         onOrderDispute,
-//         onReleaseNow,
-//         orderId
-//       )}
-//     </ErrorBoundary>
-//   );
-// };
-
-// const renderStatusComponent = (
-//   status: string,
-//   orderDetails?: OrderDetails,
-//   tradeDetails?: TradeDetails,
-//   transactionInfo?: TradeTransactionInfo,
-//   onContactSeller?: () => void,
-//   onContactBuyer?: () => void,
-//   onOrderDispute?: (reason?: string) => void,
-//   onReleaseNow?: () => void,
-//   orderId?: string
-// ) => {
-//   switch (status) {
-//     case "cancelled":
-//       return (
-//         <CancelledStatus
-//           orderDetails={orderDetails}
-//           tradeDetails={tradeDetails}
-//           transactionInfo={transactionInfo}
-//           onContactSeller={onContactSeller}
-//           onOrderDispute={onOrderDispute}
-//         />
-//       );
-//     case "pending":
-//       return (
-//         <PendingPaymentStatus
-//           orderDetails={orderDetails}
-//           tradeDetails={tradeDetails}
-//           transactionInfo={transactionInfo}
-//           onContactSeller={onContactSeller}
-//           onOrderDispute={onOrderDispute}
-//           onReleaseNow={onReleaseNow}
-//         />
-//       );
-//     case "release":
-//       return (
-//         <FundsReleaseStatus
-//           orderDetails={orderDetails}
-//           tradeDetails={tradeDetails}
-//           transactionInfo={transactionInfo}
-//           onContactSeller={onContactSeller}
-//           onOrderDispute={onOrderDispute}
-//           onReleaseNow={onReleaseNow}
-//           orderId={orderId}
-//         />
-//       );
-//     case "completed":
-//       return (
-//         <CompletedStatus
-//           orderDetails={orderDetails}
-//           tradeDetails={tradeDetails}
-//           transactionInfo={transactionInfo}
-//           onContactBuyer={onContactBuyer}
-//           onLeaveReview={() =>
-//             (window.location.href = `/review/create/${orderId}`)
-//           }
-//           onViewFAQ={() => (window.location.href = "/faq")}
-//         />
-//       );
-//     default:
-//       return (
-//         <PendingPaymentStatus
-//           orderDetails={orderDetails}
-//           tradeDetails={tradeDetails}
-//           transactionInfo={transactionInfo}
-//           onContactSeller={onContactSeller}
-//           onOrderDispute={onOrderDispute}
-//           onReleaseNow={onReleaseNow}
-//         />
-//       );
-//   }
-// };
-
-// export default TradeStatus;
-
-import { FC } from "react";
+import { FC, memo } from "react";
 import CancelledStatus from "./CancelledStatus";
 import PendingPaymentStatus from "./PendingPaymentStatus";
 import FundsReleaseStatus from "./FundsReleaseStatus";
@@ -151,63 +13,86 @@ import { ErrorBoundary } from "react-error-boundary";
 
 interface TradeStatusProps extends StatusProps {
   orderDetails?: OrderDetails;
-  navigatePath: string;
+  navigatePath?: string;
+  showTimer?: boolean;
 }
 
-const TradeStatus: FC<TradeStatusProps> = ({
-  status,
-  orderDetails,
-  tradeDetails,
-  transactionInfo,
-  onContactSeller,
-  onContactBuyer,
-  onOrderDispute,
-  onConfirmDelivery,
-  onReleaseNow,
-  orderId,
-  navigatePath,
-}) => {
-  const details = tradeDetails || (orderDetails as unknown as TradeDetails);
-  const transactionData = transactionInfo || {
-    buyerName: "Unknown",
-    goodRating: 0,
-    completedOrders: 0,
-    completionRate: 0,
-    avgPaymentTime: 0,
-  };
+const ErrorFallback = memo(({ error }: { error: Error }) => (
+  <div className="p-4 bg-[#292B30] rounded-lg text-Red">
+    <p className="font-medium mb-2">
+      Something went wrong displaying the order status.
+    </p>
+    <p className="text-sm text-gray-400">{error.message}</p>
+  </div>
+));
 
-  if (!details) {
+ErrorFallback.displayName = "ErrorFallback";
+
+const EmptyState = memo(() => (
+  <div className="p-4 bg-[#292B30] rounded-lg text-center text-gray-400">
+    Order information is not available.
+  </div>
+));
+
+EmptyState.displayName = "EmptyState";
+
+const TradeStatus: FC<TradeStatusProps> = memo(
+  ({
+    status,
+    orderDetails,
+    tradeDetails,
+    transactionInfo,
+    onContactSeller,
+    onContactBuyer,
+    onOrderDispute,
+    onConfirmDelivery,
+    onReleaseNow,
+    orderId,
+    navigatePath,
+    showTimer = false,
+  }) => {
+    if (!tradeDetails && !orderDetails) {
+      return <EmptyState />;
+    }
+
+    // defaults for transaction info
+    const safeTransactionInfo: TradeTransactionInfo = transactionInfo || {
+      buyerName: "Unknown",
+      sellerName: "Unknown",
+      goodRating: 0,
+      completedOrders: 0,
+      completionRate: 0,
+      avgPaymentTime: 0,
+    };
+
     return (
-      <div className="p-4 bg-gray-100 rounded-lg text-center">
-        Order information is not available.
-      </div>
+      <ErrorBoundary fallbackRender={ErrorFallback}>
+        {renderStatusComponent(
+          status,
+          orderDetails,
+          tradeDetails,
+          safeTransactionInfo,
+          onContactSeller,
+          onContactBuyer,
+          onOrderDispute,
+          onConfirmDelivery,
+          onReleaseNow,
+          orderId,
+          navigatePath,
+          showTimer
+        )}
+      </ErrorBoundary>
+    );
+  },
+  (prevProps, nextProps) => {
+    return (
+      prevProps.status === nextProps.status &&
+      prevProps.orderDetails?._id === nextProps.orderDetails?._id &&
+      prevProps.orderDetails?.status === nextProps.orderDetails?.status &&
+      prevProps.orderId === nextProps.orderId
     );
   }
-
-  return (
-    <ErrorBoundary
-      fallback={
-        <div className="p-4 bg-red-100 text-red-800 rounded-lg">
-          Something went wrong displaying the order status.
-        </div>
-      }
-    >
-      {renderStatusComponent(
-        status,
-        orderDetails,
-        details,
-        transactionData,
-        onContactSeller,
-        onContactBuyer,
-        onOrderDispute,
-        onConfirmDelivery,
-        onReleaseNow,
-        orderId,
-        navigatePath
-      )}
-    </ErrorBoundary>
-  );
-};
+);
 
 const renderStatusComponent = (
   status: string,
@@ -216,47 +101,45 @@ const renderStatusComponent = (
   transactionInfo?: TradeTransactionInfo,
   onContactSeller?: () => void,
   onContactBuyer?: () => void,
-  onOrderDispute?: (reason?: string) => void,
-  onReleaseNow?: () => void,
+  onOrderDispute?: (reason: string) => Promise<void>,
   onConfirmDelivery?: () => void,
+  onReleaseNow?: () => void,
   orderId?: string,
-  navigatePath?: string
+  navigatePath?: string,
+  showTimer?: boolean
 ) => {
+  const commonProps = {
+    tradeDetails,
+    orderDetails,
+    transactionInfo,
+    onContactSeller,
+    orderId,
+    showTimer,
+  };
+
   switch (status) {
     case "cancelled":
-      return (
-        <CancelledStatus
-          tradeDetails={tradeDetails!}
-          orderDetails={orderDetails!}
-          transactionInfo={transactionInfo!}
-          onContactSeller={onContactSeller}
-          onOrderDispute={onOrderDispute}
-        />
-      );
+      return <CancelledStatus {...commonProps} />;
+
     case "pending":
       return (
         <PendingPaymentStatus
-          tradeDetails={tradeDetails!}
-          orderDetails={orderDetails!}
-          transactionInfo={transactionInfo!}
-          onContactSeller={onContactSeller}
+          {...commonProps}
           onOrderDispute={onOrderDispute}
           onReleaseNow={onReleaseNow}
           navigatePath={navigatePath}
         />
       );
+
     case "release":
       return (
         <FundsReleaseStatus
-          tradeDetails={tradeDetails!}
-          orderDetails={orderDetails!}
-          transactionInfo={transactionInfo!}
-          onContactSeller={onContactSeller}
+          {...commonProps}
           onOrderDispute={onOrderDispute}
           onConfirmDelivery={onConfirmDelivery}
-          orderId={orderId}
         />
       );
+
     case "completed":
       return (
         <CompletedStatus
@@ -265,19 +148,19 @@ const renderStatusComponent = (
           onContactBuyer={onContactBuyer}
         />
       );
+
     default:
-      return null;
-    // return (
-    //   <PendingPaymentStatus
-    //     tradeDetails={tradeDetails!}
-    //     orderDetails={orderDetails!}
-    //     transactionInfo={transactionInfo!}
-    //     onContactSeller={onContactSeller}
-    //     onOrderDispute={onOrderDispute}
-    //     onReleaseNow={onReleaseNow}
-    //   />
-    // );
+      return (
+        <PendingPaymentStatus
+          {...commonProps}
+          onOrderDispute={onOrderDispute}
+          onReleaseNow={onReleaseNow}
+          navigatePath={navigatePath}
+        />
+      );
   }
 };
+
+TradeStatus.displayName = "TradeStatus";
 
 export default TradeStatus;

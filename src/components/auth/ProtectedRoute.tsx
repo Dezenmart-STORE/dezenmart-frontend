@@ -5,14 +5,14 @@ import Loadscreen from "../../pages/Loadscreen";
 const ProtectedRoute = () => {
   const { isAuthenticated, isLoading } = useAuth();
 
-  console.log("Protected route check:", { isAuthenticated, isLoading });
+  // console.log("Protected route check:", { isAuthenticated, isLoading });
 
   if (isLoading) {
     return <Loadscreen />;
   }
 
   if (!isAuthenticated) {
-    console.log("User not authenticated, redirecting to login");
+    // console.log("User not authenticated, redirecting to login");
     return <Navigate to="/login" replace />;
   }
 

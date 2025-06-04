@@ -1,81 +1,143 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Container from "../components/common/Container";
 import Title from "../components/common/Title";
-import { useWallet } from "../utils/hooks/useWallet";
-import { Product, TradeTab } from "../utils/types";
+import { TradeTab } from "../utils/types";
 import ProductListingSkeleton from "../components/trade/ProductListingSkeleton";
 import ActiveTradeCard from "../components/trade/view/ActiveTradeCard";
 import CompletedTradeCard from "../components/trade/view/CompletedTradeCard";
-import ConnectWallet from "../components/trade/ConnectWallet";
 import Tab from "../components/trade/Tab";
 import EmptyState from "../components/trade/view/EmptyState";
 import { useNavigate } from "react-router-dom";
+import { useOrderData } from "../utils/hooks/useOrder";
+import { useWeb3 } from "../context/Web3Context";
+import WalletConnectionModal from "../components/web3/WalletConnectionModal";
 
 const ViewTrade = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<TradeTab>("active");
   const [isLoading, setIsLoading] = useState(true);
-  const { isConnected } = useWallet();
+  const [showConnectionModal, setShowConnectionModal] = useState(false);
+  const { wallet } = useWeb3();
+  // const { clearError } = useWallet();
+  // const { isConnected, isConnecting, error } = useWalletStatus();
+  const {
+    activeTrades,
+    completedTrades,
+    fetchBuyerOrders,
+    fetchMerchantOrders,
+    loading: orderLoading,
+  } = useOrderData();
 
-  // Sample data for active trades
-  const activeTrades: Product[] = [
-    {
-      _id: "68082f7a7d3f057ab0fafd5c",
-      name: "Wood Carving",
-      description: "Neat carved wood art works",
-      price: 20000,
-      category: "Art Work",
-      seller: "680821b06eda53ead327e0ea",
-      images: [
-        "images-1745366906480-810449189.jpeg",
-        "images-1745366906494-585992412.jpeg",
-      ],
-      isSponsored: false,
-      isActive: true,
-      createdAt: "2025-04-23T00:08:26.519Z",
-      updatedAt: "2025-04-23T00:08:26.519Z",
-    },
-  ];
+  const filteredActiveTrades = useMemo(() => {
+    return activeTrades?.filter((trade) => trade && trade.product) || [];
+  }, [activeTrades]);
 
-  // Sample data for completed trades
-  const completedTrades: Product[] = [
-    {
-      _id: "68082c3efae576e05502c04b",
-      name: "Test Product",
-      description: "Testing product endpoint",
-      price: 20000,
-      category: "Item",
-      seller: "680821b06eda53ead327e0ea",
-      images: [],
-      isSponsored: false,
-      isActive: true,
-      createdAt: "2025-04-22T23:54:38.445Z",
-      updatedAt: "2025-04-22T23:54:38.445Z",
-    },
-  ];
+  const filteredCompletedTrades = useMemo(() => {
+    return completedTrades?.filter((trade) => trade && trade.product) || [];
+  }, [completedTrades]);
 
-  useEffect(() => {
-    const loadTimer = window.setTimeout(() => {
-      window.requestAnimationFrame(() => {
-        setIsLoading(false);
-      });
-    }, 600);
-
-    return () => window.clearTimeout(loadTimer);
+  // Tab change handler
+  const handleTabChange = useCallback((tab: TradeTab) => {
+    setActiveTab(tab);
   }, []);
-  if (!isConnected) {
+
+  const handleTradeClick = useCallback(
+    (tradeId: string) => {
+      navigate(`/orders/${tradeId}`, { replace: false });
+    },
+    [navigate]
+  );
+
+  const loadOrders = useCallback(
+    async (silent = false) => {
+      if (!wallet.isConnected) return;
+
+      try {
+        if (!silent) {
+          setIsLoading(true);
+        }
+
+        // Fetch both buyer and seller orders
+        const [buyerResult, merchantResult] = await Promise.allSettled([
+          fetchBuyerOrders(false, silent),
+          fetchMerchantOrders(false, silent),
+        ]);
+
+        if (buyerResult.status === "rejected") {
+          console.warn("Failed to fetch buyer orders:", buyerResult.reason);
+        }
+        if (merchantResult.status === "rejected") {
+          console.warn(
+            "Failed to fetch merchant orders:",
+            merchantResult.reason
+          );
+        }
+      } catch (error) {
+        console.error("Failed to load orders:", error);
+      } finally {
+        if (!silent) {
+          setTimeout(() => {
+            setIsLoading(false);
+          }, 600);
+        }
+      }
+    },
+    [wallet.isConnected, fetchBuyerOrders, fetchMerchantOrders]
+  );
+
+  // Initial data fetch effect
+  useEffect(() => {
+    let isMounted = true;
+
+    const initializeOrders = async () => {
+      if (!wallet.isConnected) return;
+
+      await loadOrders(false);
+
+      if (isMounted) {
+        const refreshInterval = setInterval(() => {
+          if (activeTab === "active") {
+            loadOrders(true);
+          }
+        }, 30000);
+
+        return () => clearInterval(refreshInterval);
+      }
+    };
+
+    initializeOrders();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [wallet.isConnected, loadOrders, activeTab]);
+
+  // Handle order loading state changes
+  useEffect(() => {
+    if (!orderLoading && wallet.isConnected) {
+      const timer = setTimeout(() => {
+        setIsLoading(false);
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [orderLoading, wallet.isConnected]);
+
+  // Clear wallet errors when component mounts
+  // useEffect(() => {
+  //   if (error) {
+  //     clearError();
+  //   }
+  // }, [error, clearError]);
+
+  if (!wallet.isConnected && !wallet.isConnecting) {
     return (
       <div className="bg-Dark min-h-screen text-white">
         <Container>
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, ease: "easeOut" }}
-          >
-            <Title text="Trade" className="text-center my-8 text-3xl" />
-          </motion.div>
-          <ConnectWallet showAlternatives={true} />
+          <WalletConnectionModal
+            isOpen={showConnectionModal}
+            onClose={() => setShowConnectionModal(false)}
+          />
         </Container>
       </div>
     );
@@ -98,16 +160,15 @@ const ViewTrade = () => {
             <Tab
               text="Active Trades"
               isActive={activeTab === "active"}
-              onClick={() => setActiveTab("active")}
-              count={activeTrades.length}
+              onClick={() => handleTabChange("active")}
+              count={filteredActiveTrades.length}
               className="w-full"
             />
             <Tab
               text="Completed"
               isActive={activeTab === "completed"}
-              onClick={() => setActiveTab("completed")}
-              // count={completedTrades.length}
-              count={0}
+              onClick={() => handleTabChange("completed")}
+              count={filteredCompletedTrades.length}
               className="w-full"
             />
           </div>
@@ -116,7 +177,7 @@ const ViewTrade = () => {
           <div className="py-4">
             <AnimatePresence mode="wait">
               {isLoading ? (
-                <ProductListingSkeleton />
+                <ProductListingSkeleton key="loading" />
               ) : (
                 <motion.div
                   key={activeTab}
@@ -126,49 +187,47 @@ const ViewTrade = () => {
                   transition={{ duration: 0.3 }}
                   className="space-y-6"
                 >
-                  {activeTab === "active" &&
-                    (activeTrades.length > 0 ? (
-                      activeTrades.map((trade) => (
-                        <div
-                          key={trade._id}
-                          onClick={() =>
-                            navigate(
-                              `/trades/viewtrades/${trade._id}?status=pending`
-                            )
-                          }
-                        >
-                          <ActiveTradeCard />
-                        </div>
-                      ))
-                    ) : (
-                      <EmptyState
-                        title="No Active Trades"
-                        message="Once you start a trade, you'll see it here."
-                      />
-                    ))}
+                  {activeTab === "active" && (
+                    <>
+                      {filteredActiveTrades.length > 0 ? (
+                        filteredActiveTrades.map((trade) => (
+                          <div
+                            key={trade._id}
+                            onClick={() => handleTradeClick(trade._id)}
+                            className="cursor-pointer transition-transform hover:scale-[1.02] active:scale-[0.98]"
+                          >
+                            <ActiveTradeCard trade={trade} />
+                          </div>
+                        ))
+                      ) : (
+                        <EmptyState
+                          title="No Active Trades"
+                          message="Once you start a trade, you'll see it here."
+                        />
+                      )}
+                    </>
+                  )}
 
-                  {activeTab === "completed" &&
-                    (!(completedTrades.length > 0) ? (
-                      completedTrades.map((trade) => (
-                        <div
-                          key={trade._id}
-                          onClick={() =>
-                            navigate(
-                              `/trades/viewtrades/${trade._id}?status=completed`
-                            )
-                          }
-                        >
-                          <CompletedTradeCard
-                          // trade={trade}
-                          />
-                        </div>
-                      ))
-                    ) : (
-                      <EmptyState
-                        title="No Completed Trades"
-                        message="Once you start a trade, you'll see it here."
-                      />
-                    ))}
+                  {activeTab === "completed" && (
+                    <>
+                      {filteredCompletedTrades.length > 0 ? (
+                        filteredCompletedTrades.map((trade) => (
+                          <div
+                            key={trade._id}
+                            onClick={() => handleTradeClick(trade._id)}
+                            className="cursor-pointer transition-transform hover:scale-[1.02] active:scale-[0.98]"
+                          >
+                            <CompletedTradeCard trade={trade} />
+                          </div>
+                        ))
+                      ) : (
+                        <EmptyState
+                          title="No Completed Trades"
+                          message="Your completed trades will appear here."
+                        />
+                      )}
+                    </>
+                  )}
                 </motion.div>
               )}
             </AnimatePresence>

@@ -1,6 +1,6 @@
 // src/components/ProductForm.tsx
 import React, { useState, useRef } from "react";
-import { useProductData } from "../../utils/hooks/useProductData";
+import { useProductData } from "../../utils/hooks/useProduct";
 import { Product } from "../../utils/types";
 
 interface ProductFormProps {

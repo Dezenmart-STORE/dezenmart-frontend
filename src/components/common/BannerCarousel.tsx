@@ -44,7 +44,6 @@ const BannerCarousel: FC<BannerCarouselProps> = ({
     };
   }, [autoRotate, goToNext, rotationInterval, banners.length]);
 
-  // If only one banner, show it without carousel
   if (banners.length === 1) {
     return (
       <div className={`mt-8 md:mt-28 ${className}`}>

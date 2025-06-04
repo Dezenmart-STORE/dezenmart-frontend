@@ -24,9 +24,15 @@ const initialState: ProductState = {
 
 export const fetchAllProducts = createAsyncThunk(
   "products/fetchAll",
-  async (forceRefresh: boolean = false, { rejectWithValue }) => {
+  async (
+    {
+      forceRefresh = false,
+      preventAbort = false,
+    }: { forceRefresh?: boolean; preventAbort?: boolean } = {},
+    { rejectWithValue }
+  ) => {
     try {
-      const response = await api.getProducts(forceRefresh);
+      const response = await api.getProducts(forceRefresh, preventAbort);
       if (!response.ok) {
         return rejectWithValue(response.error || "Failed to fetch products");
       }
@@ -58,9 +64,18 @@ export const fetchProductById = createAsyncThunk(
 
 export const fetchSponsoredProducts = createAsyncThunk(
   "products/fetchSponsored",
-  async (forceRefresh: boolean = false, { rejectWithValue }) => {
+  async (
+    {
+      forceRefresh = false,
+      preventAbort = false,
+    }: { forceRefresh?: boolean; preventAbort?: boolean } = {},
+    { rejectWithValue }
+  ) => {
     try {
-      const response = await api.getSponsoredProducts(forceRefresh);
+      const response = await api.getSponsoredProducts(
+        forceRefresh,
+        preventAbort
+      );
       if (!response.ok) {
         return rejectWithValue(
           response.error || "Failed to fetch sponsored products"

@@ -1,80 +1,128 @@
-
-import { useState, useEffect } from 'react';
-import { Notification } from '../types';
+import { useCallback } from "react";
+import { useAppDispatch, useAppSelector } from "./redux";
+import {
+  fetchNotifications,
+  fetchUnreadCount,
+  markNotificationsAsRead,
+} from "../../store/slices/notificationsSlice";
+import {
+  selectNotifications,
+  selectUnreadCount,
+  selectNotificationsLoading,
+  selectNotificationsError,
+  selectUnreadNotifications,
+  selectReadNotifications,
+  selectNotificationsByType,
+  selectHasUnreadNotifications,
+} from "../../store/selectors/notificationsSelectors";
+import { useSnackbar } from "../../context/SnackbarContext";
 
 export const useNotifications = () => {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const dispatch = useAppDispatch();
+  const { showSnackbar } = useSnackbar();
 
-  useEffect(() => {
-    //  API call
-    const fetchNotifications = async () => {
-      setLoading(true);
-      try {
-        // Mock data
-        const mockNotifications: Notification[] = [
-        //   {
-        //     id: '1',
-        //     type: 'update',
-        //     message: 'We released some new Updates\nCheck them out!',
-        //     isRead: false,
-        //     timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24),
-        //     link: '/updates'
-        //   },
-          {
-            id: '1',
-            type: 'funds',
-            message: 'funds are released, is that you?',
-            isRead: false,
-            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 5),
-            icon: '/images/avatar2.png'
-          },
-          {
-            id: '2',
-            type: 'buyer',
-            message: 'Hey Peter, we\'ve got a newb buyer for you. Adam from The Mayor\'s Office is looking for new product like yours.',
-            isRead: true,
-            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 30),
-            icon: '/images/logo.png'
-          },
-        ];
-        
-        setNotifications(mockNotifications);
-        setUnreadCount(mockNotifications.filter(n => !n.isRead).length);
-      } catch (error) {
-        console.error('Failed to fetch notifications:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const notifications = useAppSelector(selectNotifications);
+  const unreadCount = useAppSelector(selectUnreadCount);
+  const loading = useAppSelector(selectNotificationsLoading);
+  const error = useAppSelector(selectNotificationsError);
+  const unreadNotifications = useAppSelector(selectUnreadNotifications);
+  const readNotifications = useAppSelector(selectReadNotifications);
+  const hasUnread = useAppSelector(selectHasUnreadNotifications);
 
-    fetchNotifications();
+  const getNotificationsByType = useCallback((type: string) => {
+    return useAppSelector(selectNotificationsByType(type));
   }, []);
 
-  const markAsRead = (id: string) => {
-    setNotifications(prev => 
-      prev.map(notification => 
-        notification.id === id 
-          ? { ...notification, isRead: true } 
-          : notification
-      )
-    );
-    setUnreadCount(prev => Math.max(0, prev - 1));
-  };
+  const fetchUserNotifications = useCallback(
+    async (showNotifications = false, forceRefresh = false) => {
+      try {
+        await dispatch(fetchNotifications(forceRefresh)).unwrap();
+        if (showNotifications) {
+          showSnackbar("Notifications loaded successfully", "success");
+        }
+        return true;
+      } catch (err) {
+        if (showNotifications) {
+          showSnackbar(
+            (err as string) || "Failed to load notifications",
+            "error"
+          );
+        }
+        return false;
+      }
+    },
+    [dispatch, showSnackbar]
+  );
 
-  const markAllAsRead = () => {
-    setNotifications(prev => 
-      prev.map(notification => ({ ...notification, isRead: true }))
-    );
-    setUnreadCount(0);
-  };
+  const fetchUserUnreadCount = useCallback(
+    async (showNotifications = false, forceRefresh = false) => {
+      try {
+        await dispatch(fetchUnreadCount(forceRefresh)).unwrap();
+        return true;
+      } catch (err) {
+        if (showNotifications) {
+          showSnackbar(
+            (err as string) || "Failed to load unread count",
+            "error"
+          );
+        }
+        return false;
+      }
+    },
+    [dispatch, showSnackbar]
+  );
+
+  const markAsRead = useCallback(
+    async (notificationIds: string[], showNotifications = false) => {
+      try {
+        await dispatch(markNotificationsAsRead(notificationIds)).unwrap();
+        if (showNotifications) {
+          showSnackbar("Notifications marked as read", "success");
+        }
+        return true;
+      } catch (err) {
+        if (showNotifications) {
+          showSnackbar(
+            (err as string) || "Failed to mark notifications as read",
+            "error"
+          );
+        }
+        return false;
+      }
+    },
+    [dispatch, showSnackbar]
+  );
+
+  const markAllAsRead = useCallback(async () => {
+    const unreadIds = unreadNotifications.map((n) => n._id);
+    if (unreadIds.length === 0) return true;
+
+    return markAsRead(unreadIds, true);
+  }, [unreadNotifications, markAsRead]);
+
+  const refreshNotificationData = useCallback(
+    async (showNotifications = false) => {
+      await fetchUserUnreadCount(false, true);
+      return fetchUserNotifications(showNotifications, true);
+    },
+    [fetchUserUnreadCount, fetchUserNotifications]
+  );
 
   return {
     notifications,
-    loading,
     unreadCount,
+    unreadNotifications,
+    readNotifications,
+    hasUnread,
+    isLoading: loading === "pending",
+    error,
+    getNotificationsByType,
+    fetchUserNotifications,
+    fetchUserUnreadCount,
     markAsRead,
-    markAllAsRead
+    markAllAsRead,
+    refreshNotificationData,
+    isError: loading === "failed" && error !== null,
+    isSuccess: loading === "succeeded",
   };
 };

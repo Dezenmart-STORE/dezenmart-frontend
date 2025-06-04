@@ -68,6 +68,8 @@ const Settings = ({
           icon: <RiContactsBook2Fill className="text-white" />,
           label: "Join Our Community",
           delay: 0.2,
+          onClick: () =>
+            window.open("https://t.me/dezenmart_commuinity", "_blank"),
         },
       ],
     },

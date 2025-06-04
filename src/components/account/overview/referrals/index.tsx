@@ -4,88 +4,89 @@ import PointsDisplay from "./PointsDisplay";
 import ReferralInvite from "./Invite";
 import ReferralHistory from "./History";
 import ReferralSkeleton from "./Skeleton";
-import { ReferralData } from "../../../../utils/types";
-
-const fetchReferralData = () => {
-  return new Promise<ReferralData>((resolve) => {
-    setTimeout(() => {
-      resolve({
-        activePoints: 10,
-        usedPoints: 150,
-        promoCode: "GBD21",
-        history: [
-          {
-            id: "1",
-            name: "Samuel Ogo",
-            type: "Reward for an invite",
-            points: 5,
-            action: "from",
-            date: "01.15.22 15:43",
-          },
-          {
-            id: "2",
-            name: "Samuel Ogo",
-            type: "Invitation accepted",
-            points: 0,
-            date: "01.15.22 15:43",
-          },
-          {
-            id: "3",
-            name: "Steve Olayinka",
-            type: "Invitation sent",
-            points: 0,
-            date: "01.15.22 15:43",
-          },
-          {
-            id: "4",
-            name: "",
-            type: "Received referral credits",
-            status: "Authorization code",
-            points: 5,
-            date: "01.15.22 15:43",
-          },
-        ],
-      });
-    }, 800);
-  });
-};
+import { RewardItem } from "../../../../utils/types";
+import { useReferralData } from "../../../../utils/hooks/useReferral";
+import { useRewards } from "../../../../utils/hooks/useRewards";
 
 const ReferralsTab = () => {
-  const [loading, setLoading] = useState(true);
-  const [referralData, setReferralData] = useState<ReferralData | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
-
   const inviteRef = useRef(null);
 
-  const handleInviteFriends = useCallback(() => {
-    setIsShareModalOpen(true);
-  }, []);
+  const {
+    referralInfo,
+    formattedReferralInfo,
+    loading: referralLoading,
+    error: referralError,
+    getReferralInfo,
+  } = useReferralData();
+
+  const {
+    availablePoints,
+    totalPoints,
+    rewards,
+    isLoading: rewardsLoading,
+    error: rewardsError,
+    fetchRewards,
+    fetchSummary,
+  } = useRewards();
+
+  const loading = referralLoading || rewardsLoading;
+  const error = referralError || rewardsError;
+
+  // const handleInviteFriends = useCallback(() => {
+  //   setIsShareModalOpen(true);
+  // }, []);
+
+  const formatRewardsHistory = useCallback(() => {
+    if (!rewards || rewards.length === 0) return [];
+
+    return rewards.map((reward): RewardItem => {
+      const getActionTypeDisplay = (actionType: string) => {
+        const actionMap: { [key: string]: string } = {
+          FIRST_PURCHASE: "First Purchase Bonus",
+          REFERRAL_BONUS: "Referral Bonus",
+          PURCHASE: "Purchase Reward",
+          PRODUCT_REVIEW: "Review Reward",
+          SIGNUP: "Signup Bonus",
+          REFERRAL_SIGNUP: "Friend Signup",
+          DAILY_LOGIN: "Daily Login",
+        };
+
+        return actionMap[actionType] || actionType;
+      };
+
+      return {
+        id: reward._id,
+        name: "",
+        type: getActionTypeDisplay(reward.actionType),
+        points: reward.points,
+        date: new Date(reward.createdAt).toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+        status: "Completed",
+      };
+    });
+  }, [rewards]);
 
   useEffect(() => {
-    let isMounted = true;
-
-    const getData = async () => {
+    const loadData = async () => {
       try {
-        const data: ReferralData = await fetchReferralData();
-        if (isMounted) {
-          setReferralData(data);
-          setLoading(false);
-        }
-      } catch (err: any) {
-        if (isMounted) {
-          setError(err.message || "Failed to load referral data");
-          setLoading(false);
-        }
+        await Promise.all([
+          getReferralInfo(false, true),
+          fetchRewards(false, true),
+          fetchSummary(false, true),
+        ]);
+      } catch (err) {
+        console.error("Error loading referral data:", err);
       }
     };
 
-    getData();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+    loadData();
+  }, [getReferralInfo, fetchRewards, fetchSummary]);
 
   if (loading) {
     return <ReferralSkeleton />;
@@ -102,17 +103,9 @@ const ReferralsTab = () => {
         <button
           className="mt-4 bg-Red text-white py-2 px-4 rounded"
           onClick={() => {
-            setLoading(true);
-            setError(null);
-            fetchReferralData()
-              .then((data) => {
-                setReferralData(data);
-                setLoading(false);
-              })
-              .catch((err) => {
-                setError(err.message || "Failed to load referral data");
-                setLoading(false);
-              });
+            getReferralInfo(false, true);
+            fetchRewards(false, true);
+            fetchSummary(false, true);
           }}
         >
           Try Again
@@ -130,20 +123,22 @@ const ReferralsTab = () => {
       transition={{ duration: 0.4 }}
     >
       <PointsDisplay
-        activePoints={referralData?.activePoints || 0}
-        usedPoints={referralData?.usedPoints || 0}
+        activePoints={availablePoints || 0}
+        usedPoints={(totalPoints || 0) - (availablePoints || 0)}
       />
 
       <ReferralInvite
-        promoCode={referralData?.promoCode || ""}
+        promoCode={referralInfo?.referralCode || ""}
+        shareLink={formattedReferralInfo?.shareLink || ""}
         isShareModalOpen={isShareModalOpen}
         setIsShareModalOpen={setIsShareModalOpen}
+        referralCount={referralInfo?.referralCount || 0}
         ref={inviteRef}
       />
 
       <ReferralHistory
-        history={referralData?.history || []}
-        onInviteFriends={handleInviteFriends}
+        history={formatRewardsHistory()}
+        // onInviteFriends={handleInviteFriends}
       />
     </motion.div>
   );

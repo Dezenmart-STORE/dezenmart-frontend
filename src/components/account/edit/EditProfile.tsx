@@ -12,7 +12,7 @@ import DatePickerField from "./DatePickerField";
 import { useSnackbar } from "../../../context/SnackbarContext";
 import { ErrorBoundary } from "react-error-boundary";
 import ErrorFallback from "../../common/ErrorFallback";
-import { useUserManagement } from "../../../utils/hooks/useUserManagement";
+import { useUserManagement } from "../../../utils/hooks/useUser";
 
 // Validation schema
 const profileSchema = z.object({

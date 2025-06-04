@@ -1,24 +1,25 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { FiX, FiCopy } from "react-icons/fi";
-import {
-  FaFacebook,
-  FaTwitter,
-  FaWhatsapp,
-  FaTelegram,
-  FaEnvelope,
-} from "react-icons/fa";
+import { FaFacebook, FaWhatsapp, FaTelegram, FaEnvelope } from "react-icons/fa";
+import { FaXTwitter } from "react-icons/fa6";
+import { useSnackbar } from "../../../../context/SnackbarContext";
 
 interface ShareModalProps {
   isOpen: boolean;
   onClose: () => void;
   promoCode: string;
+  shareLink?: string;
 }
 
 const ShareModal: React.FC<ShareModalProps> = ({
   isOpen,
   onClose,
   promoCode,
+  shareLink = "",
 }) => {
+  const { showSnackbar } = useSnackbar();
+  const finalShareLink =
+    shareLink || (typeof window !== "undefined" ? window.location.origin : "");
   const shareText = `Use my promo code ${promoCode} to get points on your first purchase!`;
 
   const socialLinks = [
@@ -26,43 +27,56 @@ const ShareModal: React.FC<ShareModalProps> = ({
       name: "Facebook",
       icon: <FaFacebook size={24} />,
       color: "#1877F2",
-      url: `https://www.facebook.com/sharer/sharer.php?u=${
-        window.location.href
-      }&quote=${encodeURIComponent(shareText)}`,
+      url: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(
+        finalShareLink
+      )}&quote=${encodeURIComponent(shareText)}`,
     },
     {
       name: "Twitter",
-      icon: <FaTwitter size={24} />,
-      color: "#1DA1F2",
+      icon: <FaXTwitter size={24} />,
+      color: "#1A1A1A",
       url: `https://twitter.com/intent/tweet?text=${encodeURIComponent(
         shareText
-      )}&url=${window.location.href}`,
+      )}&url=${encodeURIComponent(finalShareLink)}`,
     },
     {
       name: "WhatsApp",
       icon: <FaWhatsapp size={24} />,
       color: "#25D366",
       url: `https://wa.me/?text=${encodeURIComponent(
-        shareText + " " + window.location.href
+        shareText + " " + finalShareLink
       )}`,
     },
     {
       name: "Telegram",
       icon: <FaTelegram size={24} />,
       color: "#0088cc",
-      url: `https://t.me/share/url?url=${
-        window.location.href
-      }&text=${encodeURIComponent(shareText)}`,
+      url: `https://t.me/share/url?url=${encodeURIComponent(
+        finalShareLink
+      )}&text=${encodeURIComponent(shareText)}`,
     },
     {
       name: "Email",
       icon: <FaEnvelope size={24} />,
       color: "#D44638",
       url: `mailto:?subject=Check out this promo code&body=${encodeURIComponent(
-        shareText + " " + window.location.href
+        shareText + " " + finalShareLink
       )}`,
     },
   ];
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard
+      .writeText(text)
+      .then(() => {
+        onClose();
+        showSnackbar("Copied referral link successfully", "success");
+      })
+      .catch((err) => {
+        console.error("Failed to copy:", err);
+        showSnackbar("Failed to copy referral link, try again", "error");
+      });
+  };
 
   return (
     <AnimatePresence>
@@ -93,21 +107,23 @@ const ShareModal: React.FC<ShareModalProps> = ({
               Share your code
             </h3>
 
-            <div className="p-3 bg-[#333] rounded-lg mb-6 flex items-center justify-between">
-              <span className="text-white font-medium">{promoCode}</span>
-              <motion.button
-                className="text-gray-400 hover:text-white"
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
-                onClick={() => {
-                  navigator.clipboard.writeText(promoCode);
-                }}
-              >
-                <FiCopy size={20} />
-              </motion.button>
-            </div>
+            {shareLink && (
+              <div className="p-3 bg-[#333] rounded-lg mb-6 flex items-center justify-between">
+                <span className="text-white font-medium truncate pr-2">
+                  {finalShareLink}
+                </span>
+                <motion.button
+                  className="text-gray-400 hover:text-white flex-shrink-0"
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => copyToClipboard(shareLink)}
+                >
+                  <FiCopy size={20} />
+                </motion.button>
+              </div>
+            )}
 
-            <div className="grid grid-cols-5 gap-4">
+            <div className="flex flex-wrap items-center gap-4">
               {socialLinks.map((social) => (
                 <motion.a
                   key={social.name}

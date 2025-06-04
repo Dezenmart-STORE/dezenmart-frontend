@@ -43,7 +43,10 @@ const ProductInfo: FC<ProductInfoProps> = ({ product, className = "" }) => {
         </div>
 
         <div className="flex items-center text-sm text-[#AEAEB2]">
-          By {product.seller}
+          By{" "}
+          {typeof product.seller === "object"
+            ? product.seller.name
+            : product.seller}
           <RiVerifiedBadgeFill className="text-[#4FA3FF] text-xs ml-1" />
         </div>
 

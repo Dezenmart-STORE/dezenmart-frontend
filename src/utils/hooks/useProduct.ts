@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { useAppDispatch, useAppSelector } from "./redux";
 import {
   fetchAllProducts,
@@ -15,27 +15,126 @@ import {
   selectProductLoading,
   selectProductError,
   selectSearchResults,
-  selectProductsByCategory,
+  // selectProductsByCategory,
   selectRelatedProducts,
-  selectFormattedProduct,
+  // selectFormattedProduct,
 } from "../../store/selectors/productSelectors";
 import { useSnackbar } from "../../context/SnackbarContext";
 import { useEffect } from "react";
 import { api } from "../services/apiService";
+import { useCurrencyConverter } from "./useCurrencyConverter";
+import { Product } from "../types";
+import { useCurrency } from "../../context/CurrencyContext";
+import { useAuth } from "../../context/AuthContext";
 
 export const useProductData = () => {
+  const { user } = useAuth();
+  const { secondaryCurrency } = useCurrency();
   const dispatch = useAppDispatch();
   const { showSnackbar } = useSnackbar();
+  const {
+    loading: exchangeRatesLoading,
+    convertPrice,
+    formatPrice,
+  } = useCurrencyConverter();
 
   const products = useAppSelector(selectAllProducts);
   const product = useAppSelector(selectCurrentProduct);
-  const formattedProduct = useAppSelector(selectFormattedProduct);
+  // const rawFormattedProduct = useAppSelector(selectFormattedProduct);
   const sponsoredProducts = useAppSelector(selectSponsoredProducts);
   const loading = useAppSelector(selectProductLoading) === "pending";
   const error = useAppSelector(selectProductError);
   const searchResults = useAppSelector(selectSearchResults);
   const relatedProducts = useAppSelector(selectRelatedProducts);
 
+  const formatProductWithCurrencies = useCallback(
+    (product: Product) => {
+      if (!product) return null;
+
+      const celoPrice = convertPrice(product.price, "USDT", "CELO");
+      const fiatPrice = convertPrice(product.price, "USDT", "FIAT");
+
+      return {
+        ...product,
+        celoPrice,
+        fiatPrice,
+        formattedUsdtPrice: formatPrice(product.price, "USDT"),
+        formattedCeloPrice: formatPrice(celoPrice, "CELO"),
+        formattedFiatPrice: formatPrice(fiatPrice, "FIAT"),
+      };
+    },
+    [convertPrice, formatPrice]
+  );
+  const shouldExcludeSeller = useCallback(
+    (productSeller: string | { _id: string; name: string }) => {
+      if (!user) return false;
+
+      if (typeof productSeller === "object" && productSeller) {
+        return (
+          productSeller._id === user._id || productSeller.name === user.name
+        );
+      }
+
+      return productSeller === user._id;
+    },
+    [user]
+  );
+  const formattedProduct = useMemo(() => {
+    if (!product) return null;
+    return formatProductWithCurrencies(product);
+  }, [product, formatProductWithCurrencies]);
+
+  const formattedProducts = useMemo(() => {
+    return products
+      .map(formatProductWithCurrencies)
+      .filter((product): product is NonNullable<typeof product> => {
+        if (!product) return false;
+        return !shouldExcludeSeller(product.seller);
+      });
+  }, [products, formatProductWithCurrencies, shouldExcludeSeller]);
+
+  const formattedRelatedProducts = useMemo(() => {
+    return relatedProducts
+      .map(formatProductWithCurrencies)
+      .filter((product): product is NonNullable<typeof product> => {
+        if (!product) return false;
+        return !shouldExcludeSeller(product.seller);
+      });
+  }, [relatedProducts, formatProductWithCurrencies, shouldExcludeSeller]);
+
+  const formattedSponsoredProducts = useMemo(() => {
+    return sponsoredProducts
+      .map(formatProductWithCurrencies)
+      .filter((product): product is NonNullable<typeof product> => {
+        if (!product) return false;
+        return !shouldExcludeSeller(product.seller);
+      });
+  }, [sponsoredProducts, formatProductWithCurrencies, shouldExcludeSeller]);
+
+  const formattedSearchResults = useMemo(() => {
+    return searchResults
+      .map(formatProductWithCurrencies)
+      .filter((product): product is NonNullable<typeof product> => {
+        if (!product) return false;
+        return !shouldExcludeSeller(product.seller);
+      });
+  }, [searchResults, formatProductWithCurrencies, shouldExcludeSeller]);
+
+  const formattedProductsByUser = useMemo(() => {
+    return products
+      .map(formatProductWithCurrencies)
+      .filter((product): product is NonNullable<typeof product> => {
+        if (!product || !user) return false;
+
+        if (typeof product.seller === "object" && product.seller) {
+          return (
+            product.seller._id === user._id || product.seller.name === user.name
+          );
+        }
+
+        return product.seller === user._id;
+      });
+  }, [products, formatProductWithCurrencies, user]);
   const fetchAllProductsAsync = useCallback(
     async (
       showNotification = false,
@@ -43,13 +142,15 @@ export const useProductData = () => {
       preventAbort = false
     ) => {
       try {
-        const result = await api.getProducts(forceRefresh, preventAbort);
+        const result = await dispatch(
+          fetchAllProducts({ forceRefresh, preventAbort })
+        ).unwrap();
         if (!result.ok) {
           throw new Error(result.error || "Failed to load products");
         }
 
         await dispatch(
-          fetchAllProducts.fulfilled(result.data, "", forceRefresh)
+          fetchAllProducts.fulfilled(result.data, "", { forceRefresh })
         );
 
         if (showNotification) {
@@ -58,7 +159,6 @@ export const useProductData = () => {
         return true;
       } catch (err: any) {
         if (err.name === "AbortError") {
-          console.log("Request was cancelled");
           return false;
         }
 
@@ -81,16 +181,15 @@ export const useProductData = () => {
       preventAbort = false
     ) => {
       try {
-        const result = await api.getSponsoredProducts(
-          forceRefresh,
-          preventAbort
-        );
+        const result = await dispatch(
+          fetchSponsoredProducts({ forceRefresh, preventAbort })
+        ).unwrap();
         if (!result.ok) {
           throw new Error(result.error || "Failed to load sponsored products");
         }
 
         await dispatch(
-          fetchSponsoredProducts.fulfilled(result.data, "", forceRefresh)
+          fetchSponsoredProducts.fulfilled(result.data, "", { forceRefresh })
         );
 
         if (showNotification) {
@@ -99,7 +198,6 @@ export const useProductData = () => {
         return result.data;
       } catch (err: any) {
         if (err.name === "AbortError") {
-          console.log("Request was cancelled");
           return [];
         }
 
@@ -166,7 +264,7 @@ export const useProductData = () => {
           return null;
         }
         // Refresh products list after successful creation
-        await dispatch(fetchAllProducts(true)).unwrap();
+        await dispatch(fetchAllProducts({ forceRefresh: true })).unwrap();
         if (showNotification) {
           showSnackbar("Product created successfully", "success");
         }
@@ -197,7 +295,7 @@ export const useProductData = () => {
         }
         // Refresh product details and list after successful update
         await dispatch(fetchProductById(productId)).unwrap();
-        await dispatch(fetchAllProducts(true)).unwrap();
+        await dispatch(fetchAllProducts({ forceRefresh: true })).unwrap();
         if (showNotification) {
           showSnackbar("Product updated successfully", "success");
         }
@@ -223,7 +321,7 @@ export const useProductData = () => {
           return false;
         }
         // Refresh products list after successful deletion
-        await dispatch(fetchAllProducts(true)).unwrap();
+        await dispatch(fetchAllProducts({ forceRefresh: true })).unwrap();
         if (showNotification) {
           showSnackbar("Product deleted successfully", "success");
         }
@@ -240,15 +338,26 @@ export const useProductData = () => {
 
   const getProductsByCategory = useCallback(
     (category: string) => {
-      if (category === "All") return products || [];
+      let filteredProducts;
 
-      return products.filter(
-        (product) =>
-          product.category &&
-          product.category.toLowerCase() === category.toLowerCase()
-      );
+      if (category === "All") {
+        filteredProducts = products || [];
+      } else {
+        filteredProducts = products.filter(
+          (product) =>
+            product.category &&
+            product.category.toLowerCase() === category.toLowerCase()
+        );
+      }
+
+      return filteredProducts
+        .map(formatProductWithCurrencies)
+        .filter((product): product is NonNullable<typeof product> => {
+          if (!product) return false;
+          return !shouldExcludeSeller(product.seller);
+        });
     },
-    [products]
+    [products, formatProductWithCurrencies, shouldExcludeSeller]
   );
 
   const clearProduct = useCallback(() => {
@@ -257,20 +366,18 @@ export const useProductData = () => {
 
   // Clean up on unmount
   useEffect(() => {
-    return () => {
-      // api.cancelRequest("/products");
-      // api.cancelRequest("/products/sponsored");
-    };
+    return () => {};
   }, []);
 
   return {
-    products,
+    products: formattedProducts,
     product,
     formattedProduct,
-    sponsoredProducts,
-    searchResults,
-    relatedProducts,
-    loading,
+    sponsoredProducts: formattedSponsoredProducts,
+    searchResults: formattedSearchResults,
+    relatedProducts: formattedRelatedProducts,
+    productsByUser: formattedProductsByUser,
+    loading: loading,
     error,
     fetchAllProducts: fetchAllProductsAsync,
     fetchProductById: fetchProductByIdAsync,
@@ -281,5 +388,6 @@ export const useProductData = () => {
     deleteProduct: deleteProductAsync,
     getProductsByCategory,
     clearProduct,
+    secondaryCurrency,
   };
 };

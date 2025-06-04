@@ -1,7 +1,12 @@
 import { motion } from "framer-motion";
-// import { format } from "date-fns";
 import { Link } from "react-router-dom";
 import { HiChevronRight } from "react-icons/hi";
+import {
+  HiOutlineBell,
+  HiOutlineCurrencyDollar,
+  HiOutlineShoppingBag,
+  HiOutlineInformationCircle,
+} from "react-icons/hi";
 import { Notification } from "../../utils/types";
 
 interface NotificationItemProps {
@@ -10,10 +15,11 @@ interface NotificationItemProps {
 }
 
 const NotificationItem = ({ notification, onRead }: NotificationItemProps) => {
-  const getTimeString = (date: Date) => {
+  const getTimeString = (date: string) => {
+    const notificationDate = new Date(date);
     const now = new Date();
     const diffDays = Math.floor(
-      (now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24)
+      (now.getTime() - notificationDate.getTime()) / (1000 * 60 * 60 * 24)
     );
 
     if (diffDays < 1) return "Today";
@@ -25,8 +31,25 @@ const NotificationItem = ({ notification, onRead }: NotificationItemProps) => {
   };
 
   const handleClick = () => {
-    if (!notification.isRead) {
-      onRead(notification.id);
+    if (!notification.read) {
+      onRead(notification._id);
+    }
+  };
+
+  const link = notification.metadata?.orderId
+    ? `/orders/${notification.metadata.orderId}`
+    : undefined;
+
+  const getNotificationIcon = () => {
+    switch (notification.type) {
+      case "update":
+        return <HiOutlineInformationCircle className="w-6 h-6 text-blue-400" />;
+      case "funds":
+        return <HiOutlineCurrencyDollar className="w-6 h-6 text-green-400" />;
+      case "buyer":
+        return <HiOutlineShoppingBag className="w-6 h-6 text-purple-400" />;
+      default:
+        return <HiOutlineBell className="w-6 h-6 text-gray-400" />;
     }
   };
 
@@ -37,30 +60,24 @@ const NotificationItem = ({ notification, onRead }: NotificationItemProps) => {
       exit={{ opacity: 0, y: -20 }}
       transition={{ duration: 0.3 }}
       className={`flex items-start p-4 ${
-        notification.isRead ? "bg-[#22252b]" : "bg-[#292B30]"
+        notification.read ? "bg-[#22252b]" : "bg-[#292B30]"
       }`}
       onClick={handleClick}
     >
-      {notification.icon && (
-        <div className="flex-shrink-0 mr-3">
-          <img
-            src={notification.icon}
-            alt="Notification icon"
-            className="w-10 h-10 rounded-full object-cover"
-          />
-        </div>
-      )}
+      <div className="flex-shrink-0 mr-3 w-10 h-10 rounded-full bg-[#333940] flex items-center justify-center">
+        {getNotificationIcon()}
+      </div>
 
       <div className="flex-grow min-w-0">
         <div className="flex justify-between items-start">
           <p
             className={`text-sm ${
-              !notification.isRead ? "text-white" : "text-gray-300"
+              !notification.read ? "text-white" : "text-gray-300"
             }`}
           >
             {notification.message}
           </p>
-          {!notification.isRead && (
+          {!notification.read && (
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
@@ -69,7 +86,7 @@ const NotificationItem = ({ notification, onRead }: NotificationItemProps) => {
           )}
         </div>
         <p className="text-xs text-gray-500 mt-1">
-          {getTimeString(notification.timestamp)}
+          {getTimeString(notification.createdAt)}
         </p>
       </div>
 
@@ -79,9 +96,9 @@ const NotificationItem = ({ notification, onRead }: NotificationItemProps) => {
     </motion.div>
   );
 
-  if (notification.link) {
+  if (link) {
     return (
-      <Link to={notification.link} className="block">
+      <Link to={link} className="block">
         {itemContent}
       </Link>
     );

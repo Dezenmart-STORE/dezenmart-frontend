@@ -15,7 +15,7 @@ const ProductTabs = ({
     <div className="flex items-center justify-between border-b border-gray-700 px-3 sm:px-6 md:px-12 lg:px-20 pt-2 sm:pt-4 overflow-x-auto">
       {/* Details Tab */}
       <button
-        className={`flex-1 flex items-center justify-center gap-1 sm:gap-2 text-base sm:text-lg md:text-xl font-bold px-2 sm:px-4 transition-all focus:outline-none focus:ring-2 focus:ring-Red/30 ${
+        className={`flex-1 flex items-center justify-center gap-1 sm:gap-2 text-base sm:text-lg md:text-xl font-bold px-2 sm:px-4 transition-all focus:outline-none  ${
           activeTab === "details"
             ? "text-Red"
             : "text-gray-400 hover:text-gray-200"
@@ -37,7 +37,7 @@ const ProductTabs = ({
 
       {/* Reviews Tab */}
       <button
-        className={`flex-1 flex items-center justify-center gap-1 sm:gap-2 text-base sm:text-lg md:text-xl font-bold px-2 sm:px-4 transition-all focus:outline-none focus:ring-2 focus:ring-Red/30 ${
+        className={`flex-1 flex items-center justify-center gap-1 sm:gap-2 text-base sm:text-lg md:text-xl font-bold px-2 sm:px-4 transition-all focus:outline-none  ${
           activeTab === "reviews"
             ? "text-Red"
             : "text-gray-400 hover:text-gray-200"

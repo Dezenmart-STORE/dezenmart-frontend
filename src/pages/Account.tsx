@@ -6,8 +6,7 @@ import TabNavigation from "../components/account/overview/TabNavigation";
 import { LiaAngleDownSolid } from "react-icons/lia";
 import Button from "../components/common/Button";
 import LoadingSpinner from "../components/common/LoadingSpinner";
-import { useUserManagement } from "../utils/hooks/useUserManagement";
-import { Product1 } from ".";
+import { useUserManagement } from "../utils/hooks/useUser";
 import { TabOption, TabType } from "../utils/types";
 
 const TabContent = lazy(
@@ -19,10 +18,10 @@ const EditProfile = lazy(
 const Settings = lazy(() => import("../components/account/settings/Settings"));
 
 const TAB_OPTIONS: TabOption[] = [
-  { id: "1", label: "Order History" },
-  { id: "2", label: "Saved Items" },
-  { id: "3", label: "Dispute Center" },
-  { id: "4", label: "Referrals" },
+  { id: "1", label: "Saved Items" },
+  { id: "2", label: "Rewards" },
+  { id: "3", label: "Order History" },
+  { id: "4", label: "Dispute History" },
   { id: "5", label: "Create Product" },
 ];
 
@@ -62,12 +61,6 @@ const Account = () => {
   useEffect(() => {
     fetchProfile(false, false);
   }, [fetchProfile]);
-
-  // useEffect(() => {
-  //   if (!selectedUser) {
-  //     fetchProfile(false);
-  //   }
-  // }, [fetchProfile, selectedUser]);
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -156,6 +149,7 @@ const Account = () => {
                   : ""
               }
               name={selectedUser.name}
+              id={selectedUser._id}
               email={selectedUser.email}
               showSettings={handleShowSettings}
             />
@@ -182,7 +176,6 @@ const Account = () => {
               <Suspense fallback={<LoadingFallback />}>
                 <TabContent
                   activeTab={activeTab}
-                  productImage={Product1}
                   milestones={selectedUser.milestones}
                   referralCode={selectedUser.referralCode}
                   referralCount={selectedUser.referralCount}

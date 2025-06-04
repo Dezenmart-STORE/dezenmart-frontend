@@ -4,6 +4,7 @@ import { LiaAngleLeftSolid } from "react-icons/lia";
 import { FaRegHeart, FaHeart } from "react-icons/fa";
 import { IoShareSocialOutline } from "react-icons/io5";
 import { motion } from "framer-motion";
+import { useWatchlist } from "../utils/hooks/useWatchlist";
 
 import ProductImage from "../components/product/singleProduct/ProductImage";
 import ProductTabs from "../components/product/singleProduct/ProductTabs";
@@ -11,9 +12,10 @@ import ProductDetails from "../components/product/singleProduct/ProductDetails";
 import CustomerReviews from "../components/product/singleProduct/CustomerReviews";
 import PurchaseSection from "../components/product/singleProduct/PurchaseSection";
 import ProductLoadingSkeleton from "../components/product/singleProduct/LoadingSkeleton";
-// import ProductList from "../components/product/ProductList";
-import { useProductData } from "../utils/hooks/useProductData";
 import ProductCard from "../components/product/ProductCard";
+import { useProductData } from "../utils/hooks/useProduct";
+import { useCurrency } from "../context/CurrencyContext";
+import { ProductVariant } from "../utils/types";
 
 type TabType = "details" | "reviews";
 
@@ -21,32 +23,49 @@ const SingleProduct = () => {
   const { productId } = useParams();
   const navigate = useNavigate();
   const {
-    product,
     formattedProduct,
     loading,
     error,
     fetchProductById,
     relatedProducts,
   } = useProductData();
+  const { secondaryCurrency } = useCurrency();
   const [activeTab, setActiveTab] = useState<TabType>("details");
-  const [isFavorite, setIsFavorite] = useState(false);
   const [reviewCount, setReviewCount] = useState(0);
+  const { isProductInWatchlist, toggleWatchlist, checkProductWatchlist } =
+    useWatchlist();
+  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(
+    null
+  );
+  const isFavorite = productId ? isProductInWatchlist(productId) : false;
 
   const handleGoBack = () => navigate(-1);
 
-  const toggleFavorite = () => {
-    setIsFavorite((prev) => !prev);
-    // favorite/wishlist logic
+  const handleToggleFavorite = () => {
+    if (productId) {
+      toggleWatchlist(productId);
+    }
+  };
+
+  const handleVariantSelect = (variant: ProductVariant) => {
+    if (!variant) return;
+
+    // if (typeof variant.quantity !== "number") {
+    //   console.warn("Invalid variant selected: missing quantity");
+    //   return;
+    // }
+
+    setSelectedVariant(variant);
   };
 
   const handleShare = async () => {
     if (navigator.share) {
       try {
         await navigator.share({
-          title: product?.name || "Check out this product",
+          title: formattedProduct?.name || "Check out this product",
           text:
-            typeof product?.description === "string"
-              ? product.description.slice(0, 100)
+            typeof formattedProduct?.description === "string"
+              ? formattedProduct.description.slice(0, 100)
               : "I found this amazing product",
           url: window.location.href,
         });
@@ -58,25 +77,44 @@ const SingleProduct = () => {
       alert("Link copied to clipboard!");
     }
   };
+
   useEffect(() => {
-    if (productId) {
-      fetchProductById(productId);
-      setActiveTab("details");
-    }
+    const loadProduct = async () => {
+      if (productId) {
+        await fetchProductById(productId);
+        await checkProductWatchlist(productId);
+        setActiveTab("details");
+      }
+    };
+    loadProduct();
 
     window.scrollTo(0, 0);
 
     // Cleanup
     return () => {};
-  }, [productId, fetchProductById]);
-  // useEffect(() => {
-  //   if (product) {
-  //     // Mock review count for now
-  //     setReviewCount(4);
-  //   }
-  // }, [product]);
+  }, [productId, fetchProductById, checkProductWatchlist]);
 
-  if (loading || !product) {
+  // Initialize with first available variant when product loads
+  useEffect(() => {
+    if (
+      !loading &&
+      formattedProduct?.type &&
+      Array.isArray(formattedProduct.type) &&
+      formattedProduct.type.length > 0
+    ) {
+      // Find first variant with quantity > 0
+      const firstAvailableVariant =
+        formattedProduct.type.find(
+          (variant: ProductVariant) => variant.quantity > 0
+        ) || formattedProduct.type[0];
+
+      handleVariantSelect(firstAvailableVariant);
+    } else {
+      setSelectedVariant(null);
+    }
+  }, [formattedProduct, loading]);
+
+  if (loading || !formattedProduct) {
     return <ProductLoadingSkeleton />;
   }
 
@@ -85,9 +123,8 @@ const SingleProduct = () => {
       <div className="bg-Dark min-h-screen flex items-center justify-center">
         <div className="bg-[#292B30] p-8 rounded-xl shadow-lg">
           <h2 className="text-xl font-bold mb-4">Cannot Find Product</h2>
-          {/* <p className="text-white mb-6">{error}</p> */}
           <p className="text-gray-400 mb-6">
-            Sorry, we couldn't find the order you're looking for.
+            Sorry, we couldn't find the product you're looking for.
           </p>
           <button
             onClick={handleGoBack}
@@ -99,9 +136,6 @@ const SingleProduct = () => {
       </div>
     );
   }
-
-  const ethPrice =
-    formattedProduct?.formattedPrice || (product.price / 1000000).toFixed(6);
 
   const backgroundStyle = {
     background: `linear-gradient(to bottom, #292B30 0%, rgba(41, 43, 48, 0.95) 100%)`,
@@ -141,7 +175,7 @@ const SingleProduct = () => {
                   </button>
 
                   <button
-                    onClick={toggleFavorite}
+                    onClick={handleToggleFavorite}
                     aria-label={
                       isFavorite ? "Remove from favorites" : "Add to favorites"
                     }
@@ -157,7 +191,7 @@ const SingleProduct = () => {
               </div>
 
               {/* Product Image */}
-              <ProductImage images={product.images} />
+              <ProductImage images={formattedProduct.images} />
             </div>
           </div>
 
@@ -166,11 +200,18 @@ const SingleProduct = () => {
               <div className="px-4 sm:px-8 md:px-12 py-6">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                   <h1 className="text-2xl sm:text-3xl font-bold">
-                    {product.name}
+                    {formattedProduct.name}
                   </h1>
-                  <div className="flex items-center">
-                    <span className="text-xl sm:text-2xl font-bold">
-                      {ethPrice} ETH
+                  <div className="flex flex-col gap-1 text-right">
+                    <div className="flex items-center gap-2">
+                      <span className="text-2xl font-bold">
+                        {formattedProduct.formattedCeloPrice}
+                      </span>
+                    </div>
+                    <span className="text-sm text-gray-400 justify-self-start sm:justify-self-end">
+                      {secondaryCurrency === "USDT"
+                        ? formattedProduct.formattedUsdtPrice
+                        : formattedProduct.formattedFiatPrice}
                     </span>
                   </div>
                 </div>
@@ -186,26 +227,38 @@ const SingleProduct = () => {
               {/* Tab Content */}
               <div className="transition-all duration-300">
                 {activeTab === "details" ? (
-                  <ProductDetails product={product} ethPrice={ethPrice} />
+                  <ProductDetails
+                    product={formattedProduct}
+                    onVariantSelect={handleVariantSelect}
+                  />
                 ) : (
                   <CustomerReviews
-                    productId={product._id}
+                    productId={formattedProduct._id}
                     reviewcount={setReviewCount}
                   />
                 )}
               </div>
 
-              <PurchaseSection product={product} />
+              <PurchaseSection
+                product={formattedProduct}
+                selectedVariant={selectedVariant as ProductVariant}
+              />
             </div>
           </div>
         </div>
-        <div className="mt-8">
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 md:gap-5">
-            {relatedProducts.map((product) => (
-              <ProductCard key={product._id} product={product} />
-            ))}
+        {relatedProducts.length > 0 && (
+          <div className="mt-8">
+            <h2 className="text-xl font-semibold text-white mb-4">
+              Related Products
+            </h2>
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 md:gap-5">
+              {relatedProducts.map((product) => {
+                if (!product) return null;
+                return <ProductCard key={product?._id} product={product} />;
+              })}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </motion.div>
   );

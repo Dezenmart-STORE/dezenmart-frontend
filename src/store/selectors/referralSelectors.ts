@@ -19,7 +19,7 @@ export const selectFormattedReferralInfo = createSelector(
     return {
       code: info.referralCode,
       count: info.referralCount,
-      shareLink: `${window.location.origin}/referral/${info.referralCode}`,
+      shareLink: `${window.location.origin}/referral?code=${info.referralCode}`,
     };
   }
 );

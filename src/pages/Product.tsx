@@ -1,16 +1,13 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import Container from "../components/common/Container";
 import { IoChevronBackOutline, IoSearch } from "react-icons/io5";
 import ProductList from "../components/product/ProductList";
-import { useProductData } from "../utils/hooks/useProductData";
+import { useProductData } from "../utils/hooks/useProduct";
 import { debounce } from "../utils/helpers";
 import ProductCard from "../components/product/ProductCard";
-import LoadingSpinner from "../components/common/LoadingSpinner";
 
-// categories
 const categories = [
-  // "All",
   "Electronics",
   "Clothing",
   "Home & Garden",
@@ -25,22 +22,46 @@ const Product = () => {
   const location = useLocation();
   const params = useParams();
   const categoryParam = params.categoryName;
-  const { searchProducts, searchResults, loading, fetchAllProducts } =
-    useProductData();
-  const [isLoading, setIsLoading] = useState(loading);
+
+  const {
+    searchProducts,
+    searchResults,
+    loading,
+    fetchAllProducts,
+    fetchSponsoredProducts,
+  } = useProductData();
+
+  const [isSearching, setIsSearching] = useState(false);
   const [activeCategory, setActiveCategory] = useState(categoryParam || "All");
 
-  const debouncedSearch = debounce(async (query: string) => {
-    if (query.trim()) {
-      await searchProducts(query);
-    }
-  }, 300);
+  // search
+  const debouncedSearch = useMemo(
+    () =>
+      debounce(async (query: string) => {
+        if (query.trim()) {
+          setIsSearching(true);
+          try {
+            await searchProducts(query);
+          } finally {
+            setIsSearching(false);
+          }
+        }
+      }, 300),
+    [searchProducts]
+  );
 
+  // Load initial data
   useEffect(() => {
-    fetchAllProducts();
-    setIsLoading(false);
-  }, [fetchAllProducts]);
+    const loadData = async () => {
+      await Promise.all([
+        fetchAllProducts(false, false, true),
+        fetchSponsoredProducts(false, false, true),
+      ]);
+    };
+    loadData();
+  }, [fetchAllProducts, fetchSponsoredProducts]);
 
+  // Update active category based on URL
   useEffect(() => {
     if (categoryParam) {
       const formattedCategory =
@@ -51,49 +72,80 @@ const Product = () => {
     }
   }, [categoryParam, location]);
 
-  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const query = e.target.value;
-    setSearchQuery(query);
-    debouncedSearch(query);
-  };
+  const handleSearch = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const query = e.target.value;
+      setSearchQuery(query);
+      debouncedSearch(query);
+    },
+    [debouncedSearch]
+  );
+
+  const handleGoBack = useCallback(() => {
+    window.history.back();
+  }, []);
+
+  const searchResultsWithNew = useMemo(() => {
+    return searchResults
+      .map((product) => {
+        if (!product) return null;
+
+        const isNew = (() => {
+          const createdDate = new Date(product.createdAt);
+          const now = new Date();
+          const diffInMs = now.getTime() - createdDate.getTime();
+          const diffInDays = diffInMs / (1000 * 60 * 60 * 24);
+          return diffInDays < 7;
+        })();
+
+        return { product, isNew };
+      })
+      .filter((item) => item !== null);
+  }, [searchResults]);
+
+  const isAllCategory = activeCategory === "All";
 
   return (
     <div className="bg-Dark min-h-screen">
       <Container>
-        {/* Content based on active category */}
-        {activeCategory === "All" ? (
+        {isAllCategory ? (
           <>
             <h2 className="text-white font-bold text-2xl mb-6">
               Browse Products
             </h2>
+
             {/* Search Bar */}
             <div className="flex justify-center items-center gap-3 bg-[#292B30] outline-none border-0 rounded-lg px-4 py-3">
               <IoSearch className="text-white text-xl" />
               <input
                 type="text"
                 placeholder="Search DezenMart"
-                className="w-full rounded-none bg-[#292B30] outline-none text-white"
+                className="w-full rounded-none bg-[#292B30] outline-none text-white placeholder-gray-400"
                 value={searchQuery}
                 onChange={handleSearch}
               />
             </div>
 
-            {/* Display search results if there's a query */}
+            {/* Search Results */}
             {searchQuery && (
               <div className="mt-8">
                 <div className="text-white text-xl mb-4">
-                  {loading
+                  {isSearching
                     ? "Searching..."
                     : `Search results for "${searchQuery}"`}
                 </div>
-                {!loading && searchResults.length > 0 ? (
+                {!isSearching && searchResultsWithNew.length > 0 ? (
                   <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 md:gap-5">
-                    {searchResults.map((product) => (
-                      <ProductCard key={product._id} product={product} />
+                    {searchResultsWithNew.map(({ product, isNew }, index) => (
+                      <ProductCard
+                        key={`search-${product._id}-${index}`}
+                        product={product}
+                        isNew={isNew}
+                      />
                     ))}
                   </div>
                 ) : (
-                  !loading && (
+                  !isSearching && (
                     <div className="text-gray-400 text-center py-4">
                       No products found matching "{searchQuery}"
                     </div>
@@ -101,6 +153,7 @@ const Product = () => {
                 )}
               </div>
             )}
+
             {/* Categories */}
             <div className="mt-8 overflow-x-auto scrollbar-hide">
               <div className="flex space-x-4 py-2 min-w-max">
@@ -130,21 +183,33 @@ const Product = () => {
               </div>
             </div>
 
-            {/* Show all products */}
-
-            <ProductList
-              title="All Products"
-              className="mt-8"
-              isCategoryView={false}
-              category="All"
-            />
+            {/* All Products */}
+            {!searchQuery && (
+              <>
+                <ProductList
+                  title="Featured Products"
+                  className="mt-8"
+                  isCategoryView={false}
+                  isFeatured={true}
+                  showViewAll={false}
+                />
+                <ProductList
+                  title="All Products"
+                  className="mt-8"
+                  isCategoryView={true}
+                  category="All"
+                  showViewAll={false}
+                />
+              </>
+            )}
           </>
         ) : (
           <>
+            {/* Category Header */}
             <div className="relative mt-8">
               <button
                 className="absolute top-1/2 left-0 -translate-y-1/2 text-white p-1.5 rounded-full hover:bg-[#292B30] transition-colors"
-                onClick={() => window.history.back()}
+                onClick={handleGoBack}
                 aria-label="Go back"
               >
                 <IoChevronBackOutline className="h-6 w-6 align-middle" />
@@ -154,12 +219,13 @@ const Product = () => {
                 {activeCategory}
               </h2>
             </div>
+
             <ProductList
               title={activeCategory}
               className="mt-8"
               isCategoryView={true}
               category={activeCategory}
-              maxItems={20}
+              showViewAll={false}
             />
           </>
         )}

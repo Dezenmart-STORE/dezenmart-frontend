@@ -67,6 +67,10 @@ const BuyCheckout = () => {
             isActive: true,
             createdAt: "2025-04-23T00:08:26.519Z",
             updatedAt: "2025-04-23T00:08:26.519Z",
+            type: [],
+            stock: 100,
+            logisticsCost: [],
+            logisticsProviders: [],
           };
 
           setProduct(productData);
@@ -97,7 +101,7 @@ const BuyCheckout = () => {
       // if (result) {
       //   navigate(`/orders/${result._id}?status=pending`);
       // }
-      navigate(`/orders/${product._id}?status=pending`);
+      navigate(`/trades/viewtrades/${product._id}?status=pending`);
     } catch (error) {
       console.error("Order creation error:", error);
       setError(error);

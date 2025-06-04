@@ -10,7 +10,7 @@ import {
 import TradeStatus from "../components/trade/status/TradeStatus";
 import { toast } from "react-toastify";
 import LoadingSpinner from "../components/common/LoadingSpinner";
-import { useOrderData } from "../utils/hooks/useOrderData";
+// import { useOrderData } from "../utils/hooks/useOrderData";
 
 const ViewTradeDetail = () => {
   const { tradeId } = useParams<{ tradeId: string }>();
@@ -43,6 +43,7 @@ const ViewTradeDetail = () => {
 
   const transactionInfo: TradeTransactionInfo = {
     buyerName: "Femi Cole",
+    sellerName: "John Doe",
     goodRating: 88,
     completedOrders: 456,
     completionRate: 99,
@@ -95,9 +96,10 @@ const ViewTradeDetail = () => {
     toast.info("Opening chat with buyer...");
   };
 
-  const handleOrderDispute = () => {
-    toast.info("Dispute request has been sent");
-  };
+  // const handleOrderDispute = (): Promise<void> => {
+  //   toast.info("Dispute request has been sent");
+  //   return
+  // };
 
   const handleReleaseNow = () => {
     if (!tradeId) return;
@@ -114,24 +116,24 @@ const ViewTradeDetail = () => {
     }, 1500);
   };
 
-  const handleConfirmDelivery = async () => {
-    if (!tradeId) return;
+  // const handleConfirmDelivery = async () => {
+  //   if (!tradeId) return;
 
-    // setIsProcessing(true);
-    try {
-      // await changeOrderStatus(tradeId, "completed");
-      setTradeStatus("completed");
-      navigate(`/trades/viewtrades/${tradeId}?status=completed`, {
-        replace: true,
-      });
-      toast.success("Order has been completed successfully!");
-    } catch (error) {
-      toast.error("Failed to complete the order. Please try again.");
-      console.log(error);
-    } finally {
-      //   setIsProcessing(false);
-    }
-  };
+  //   // setIsProcessing(true);
+  //   try {
+  //     // await changeOrderStatus(tradeId, "completed");
+  //     setTradeStatus("completed");
+  //     navigate(`/trades/viewtrades/${tradeId}?status=completed`, {
+  //       replace: true,
+  //     });
+  //     toast.success("Order has been completed successfully!");
+  //   } catch (error) {
+  //     toast.error("Failed to complete the order. Please try again.");
+  //     console.log(error);
+  //   } finally {
+  //     //   setIsProcessing(false);
+  //   }
+  // };
 
   if (isLoading) {
     return (
@@ -231,10 +233,11 @@ const ViewTradeDetail = () => {
             transactionInfo={transactionInfo}
             onContactSeller={handleContactSeller}
             onContactBuyer={handleContactBuyer}
-            onOrderDispute={handleOrderDispute}
+            // onOrderDispute={handleOrderDispute}
             onReleaseNow={handleReleaseNow}
             orderId={tradeId}
-            navigatePath=""
+            // navigatePath=""
+            showTimer
           />
         </motion.div>
       </div>

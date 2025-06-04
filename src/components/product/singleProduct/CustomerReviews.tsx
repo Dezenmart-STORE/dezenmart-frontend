@@ -6,7 +6,7 @@ import {
 } from "react-icons/md";
 import { BiSolidQuoteRight } from "react-icons/bi";
 import { motion, AnimatePresence } from "framer-motion";
-import { useReviewData } from "../../../utils/hooks/useReviewData";
+import { useReviewData } from "../../../utils/hooks/useReview";
 
 interface CustomerReviewsProps {
   productId?: string;

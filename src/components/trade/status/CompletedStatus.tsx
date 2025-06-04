@@ -5,7 +5,7 @@ import { FaCheck, FaCopy, FaStar } from "react-icons/fa";
 import { IoChevronBack, IoChevronDown, IoChevronUp } from "react-icons/io5";
 import { LuMessageSquare } from "react-icons/lu";
 import Button from "../../common/Button";
-import { useReviewData } from "../../../utils/hooks/useReviewData";
+import { useReviewData } from "../../../utils/hooks/useReview";
 import { BsShieldExclamation } from "react-icons/bs";
 
 interface CompletedStatusProps {
@@ -61,11 +61,11 @@ const CompletedStatus: FC<CompletedStatusProps> = ({
   const copyOrderId = (id: string) => {
     navigator.clipboard.writeText(id);
     setCopied(true);
-    console.log(
-      tradeDetails
-        ? tradeDetails.amount.toString()
-        : orderDetails?.formattedAmount.toString()
-    );
+    // console.log(
+    //   tradeDetails
+    //     ? tradeDetails.amount.toString()
+    //     : orderDetails?.product.price.toString()
+    // );
     setTimeout(() => {
       setCopied(false);
     }, 2000);
@@ -220,7 +220,7 @@ const CompletedStatus: FC<CompletedStatusProps> = ({
                 <span className="text-red-500 text-xl font-bold">
                   {tradeDetails
                     ? tradeDetails.amount.toString()
-                    : orderDetails?.formattedAmount}
+                    : orderDetails?.product.price}
                 </span>
               </div>
 
@@ -230,7 +230,7 @@ const CompletedStatus: FC<CompletedStatusProps> = ({
                   <span className="text-white">
                     {tradeDetails
                       ? tradeDetails.quantity.toString()
-                      : orderDetails?.quantity.toString()}
+                      : orderDetails?.quantity.toString() || "2"}
                   </span>
                 </div>
 

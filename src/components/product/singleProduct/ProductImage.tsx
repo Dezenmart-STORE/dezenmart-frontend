@@ -157,7 +157,6 @@ const ProductImage = ({ images }: ProductImageProps) => {
               alt={`Product Image ${currentImageIndex + 1}`}
               loading="lazy"
               onError={(e) => {
-                // If image fails to load, set a placeholder
                 (e.target as HTMLImageElement).src =
                   "https://placehold.co/400x400/1a1b1f/cccccc?text=Image+Not+Found";
               }}

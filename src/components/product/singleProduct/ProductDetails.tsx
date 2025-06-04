@@ -1,21 +1,24 @@
 import { useState, useEffect, useCallback } from "react";
 import { IoIosArrowDown } from "react-icons/io";
+import { Product, ProductVariant } from "../../../utils/types";
 import ProductAbout from "./ProductAbout";
 import ProductProperties from "./ProductProperties";
 import ProductDescription from "./ProductDescription";
-import { Product } from "../../../utils/types";
 
-type SectionType = "About this product" | "Properties" | "Description" | null;
+type SectionType = "About this product" | "Properties" | "Description";
 
 interface ProductDetailsProps {
   product?: Product;
-  ethPrice?: string;
+  onVariantSelect?: (variant: ProductVariant) => void;
 }
 
-const ProductDetails = ({ product, ethPrice }: ProductDetailsProps) => {
+const ProductDetails = ({ product, onVariantSelect }: ProductDetailsProps) => {
   const [openSection, setOpenSection] =
     useState<SectionType>("About this product");
   const [animating, setAnimating] = useState<SectionType | null>(null);
+  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(
+    null
+  );
 
   useEffect(() => {
     if (animating) {
@@ -24,19 +27,57 @@ const ProductDetails = ({ product, ethPrice }: ProductDetailsProps) => {
     }
   }, [animating]);
 
+  // Initialize with first available variant
+  useEffect(() => {
+    if (
+      product?.type &&
+      Array.isArray(product.type) &&
+      product.type.length > 0
+    ) {
+      const firstAvailableVariant =
+        product.type.find((variant: ProductVariant) => variant.quantity > 0) ||
+        product.type[0];
+
+      setSelectedVariant(firstAvailableVariant);
+      if (onVariantSelect) {
+        onVariantSelect(firstAvailableVariant);
+      }
+    } else {
+      setSelectedVariant(null);
+    }
+  }, [product?.type, onVariantSelect]);
+
+  const handleVariantChange = useCallback(
+    (variant: ProductVariant) => {
+      if (!variant || typeof variant.quantity !== "number") {
+        console.warn("Invalid variant selected");
+        return;
+      }
+
+      setSelectedVariant(variant);
+      if (onVariantSelect) {
+        onVariantSelect(variant);
+      }
+    },
+    [onVariantSelect]
+  );
+
   const toggleSection = useCallback(
     (section: SectionType) => {
       if (animating) return;
 
       setAnimating(section);
-      setOpenSection(openSection === section ? null : section);
+      setOpenSection((currentSection) =>
+        currentSection === section ? "About this product" : section
+      );
     },
-    [animating, openSection]
+    [animating]
   );
 
   const renderSection = (
     title: SectionType,
-    Component: React.ComponentType<any>
+    Component: React.ComponentType<any>,
+    props: any = {}
   ) => (
     <div className="rounded-lg overflow-hidden">
       <button
@@ -63,7 +104,7 @@ const ProductDetails = ({ product, ethPrice }: ProductDetailsProps) => {
         }`}
       >
         <div className="text-gray-400 text-sm bg-[#212428] px-3 sm:px-6 md:px-12 lg:px-20 pt-4 sm:pt-6 md:pt-8 pb-4 sm:pb-6 md:pb-10">
-          <Component product={product} ethPrice={ethPrice} />
+          <Component product={product} {...props} />
         </div>
       </div>
     </div>
@@ -72,7 +113,10 @@ const ProductDetails = ({ product, ethPrice }: ProductDetailsProps) => {
   return (
     <div className="space-y-px">
       {renderSection("About this product", ProductAbout)}
-      {renderSection("Properties", ProductProperties)}
+      {renderSection("Properties", ProductProperties, {
+        onVariantSelect: handleVariantChange,
+        selectedVariant,
+      })}
       {renderSection("Description", ProductDescription)}
     </div>
   );

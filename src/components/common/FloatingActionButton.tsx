@@ -18,41 +18,48 @@ const FloatingActionButton: FC<FloatingActionButtonProps> = ({
   color = "primary",
 }) => {
   const positionClasses = {
-    "bottom-right": "bottom-20 right-4 md:right-6",
-    "bottom-center": "bottom-20 left-1/2 transform -translate-x-1/2",
+    "bottom-right": "bottom-20 md:bottom-6 right-4 md:right-6",
+    "bottom-center":
+      "bottom-20 md:bottom-6 left-1/2 transform -translate-x-1/2",
   };
 
   const colorClasses = {
-    primary: "bg-Red text-white hover:bg-[#e02d37]",
-    secondary: "bg-[#212428] text-white hover:bg-[#292B30]",
+    primary:
+      "bg-Red text-white hover:bg-[#e02d37] transition-colors duration-200",
+    secondary:
+      "bg-[#212428] text-white hover:bg-[#292B30] transition-colors duration-200",
   };
 
   return (
     <motion.div
-      className={`fixed z-50 ${positionClasses[position]}`}
+      className={`fixed z-40 ${positionClasses[position]} flex flex-col items-center`}
       initial={{ scale: 0, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
       transition={{
         type: "spring",
         stiffness: 260,
         damping: 20,
+        delay: 0.1,
       }}
-      whileHover={{ scale: 1.1 }}
-      whileTap={{ scale: 0.9 }}
     >
-      <Link
-        to={to}
-        className={`flex items-center justify-center ${colorClasses[color]} rounded-full shadow-lg p-4`}
-        aria-label={label || "Action button"}
-      >
-        <div className="text-xl">{icon}</div>
-      </Link>
+      <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+        <Link
+          to={to}
+          className={`flex items-center justify-center ${colorClasses[color]} rounded-full shadow-lg p-3 md:p-4 min-w-[48px] min-h-[48px] md:min-w-[56px] md:min-h-[56px]`}
+          aria-label={label || "Action button"}
+        >
+          <div className="text-lg md:text-xl flex items-center justify-center">
+            {icon}
+          </div>
+        </Link>
+      </motion.div>
+
       {label && (
         <motion.span
-          className="absolute top-full left-1/2 -translate-x-1/2 mt-1 text-xs bg-[#292B30] text-white px-2 py-1 rounded whitespace-nowrap"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.2 }}
+          className="hidden md:block mt-2 text-xs bg-[#292B30] text-white px-2 py-1 rounded whitespace-nowrap shadow-lg pointer-events-none text-center"
+          initial={{ opacity: 0, y: -5 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
         >
           {label}
         </motion.span>

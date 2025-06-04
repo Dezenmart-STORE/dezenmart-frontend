@@ -51,7 +51,9 @@ const IncomingOrderCard: FC<IncomingOrderCardProps> = ({
           </span> */}
         </div>
 
-        <p className="text-xl font-bold text-white my-2">{product.price}</p>
+        <p className="text-xl font-bold text-white my-2">
+          {product.price} cUSD
+        </p>
 
         <div className="flex justify-between text-sm text-white mb-2">
           <span className="font-semibold">Quantity:</span>

@@ -6,7 +6,7 @@ import {
   FaExclamationTriangle,
 } from "react-icons/fa";
 import { motion } from "framer-motion";
-import { useContractData } from "../../utils/hooks/useContractData";
+import { useContract } from "../../utils/hooks/useContract";
 
 interface ConfirmDeliveryProps {
   tradeId: string;
@@ -14,7 +14,7 @@ interface ConfirmDeliveryProps {
 }
 
 const ConfirmDelivery: FC<ConfirmDeliveryProps> = ({ tradeId, onComplete }) => {
-  const { confirmTradeDelivery, isDeliveryConfirmLoading } = useContractData();
+  const { confirmDelivery, deliveryConfirmLoading } = useContract();
   const [status, setStatus] = useState<
     "pending" | "confirming" | "success" | "error"
   >("pending");
@@ -23,7 +23,7 @@ const ConfirmDelivery: FC<ConfirmDeliveryProps> = ({ tradeId, onComplete }) => {
   const handleConfirm = async () => {
     setStatus("confirming");
     try {
-      const result = await confirmTradeDelivery(tradeId);
+      const result = await confirmDelivery(tradeId);
       if (result.success) {
         setStatus("success");
         setTimeout(() => {
@@ -87,10 +87,10 @@ const ConfirmDelivery: FC<ConfirmDeliveryProps> = ({ tradeId, onComplete }) => {
         <div className="space-y-3">
           <button
             onClick={handleConfirm}
-            disabled={isDeliveryConfirmLoading}
+            disabled={deliveryConfirmLoading}
             className="w-full py-3 bg-Red hover:bg-[#e02d37] text-white rounded transition-colors flex items-center justify-center"
           >
-            {isDeliveryConfirmLoading ? (
+            {deliveryConfirmLoading ? (
               <FaSpinner className="animate-spin mr-2" />
             ) : null}
             Confirm Delivery

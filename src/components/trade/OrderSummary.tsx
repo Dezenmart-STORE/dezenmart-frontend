@@ -61,7 +61,9 @@ const OrderSummaryModal: FC<OrderSummaryModalProps> = ({
           <div className="flex justify-between text-sm">
             <span className="text-[#AEAEB2]">Seller:</span>
             <span className="flex items-center">
-              {product.seller}
+              {typeof product.seller === "object"
+                ? product.seller.name
+                : product.seller}
               <RiVerifiedBadgeFill className="text-[#4FA3FF] text-xs ml-1" />
             </span>
           </div>

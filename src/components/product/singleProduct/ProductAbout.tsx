@@ -6,46 +6,16 @@ import { useNavigate } from "react-router";
 
 const ProductAbout = ({ product }: { product: Product }) => {
   const navigate = useNavigate();
-  // const [loading, setLoading] = useState(true);
-  // const [product, setProduct] = useState<any>(null);
-
-  // useEffect(() => {
-  //   // future: API call
-  //   const timer = setTimeout(() => {
-  //     setProduct({
-  //       name: "Vaseline Lotion",
-  //       seller: "DanBike",
-  //       verified: true,
-  //       price: "0.0002 ETH",
-  //       category: "Health & Beauty",
-  //       sold: 125,
-  //       inStock: true,
-  //       storeUrl: "#",
-  //     });
-  //     setLoading(false);
-  //   }, 300);
-
-  //   return () => clearTimeout(timer);
-  // }, []);
-
-  // if (loading) {
-  //   return (
-  //     <div className="space-y-3">
-  //       <div className="h-8 sm:h-10 w-full bg-gray-700/30 animate-pulse rounded"></div>
-  //       <div className="h-5 sm:h-6 w-2/3 bg-gray-700/30 animate-pulse rounded"></div>
-  //     </div>
-  //   );
-  // }
 
   return (
     <div className="space-y-4 sm:space-y-5">
-      <div className="flex items-center justify-between">
+      <div className="w-full">
         <h2 className="text-base sm:text-xl text-white font-medium">
           {product.name}
         </h2>
-        <span className="text-base sm:text-xl text-white font-medium">
+        {/* <span className="text-base sm:text-xl text-white font-medium">
           {product.price}
-        </span>
+        </span> */}
       </div>
 
       <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
@@ -59,7 +29,10 @@ const ProductAbout = ({ product }: { product: Product }) => {
               target="_blank"
               rel="noopener noreferrer"
             > */}
-            {product.seller} <BiLinkExternal className="inline h-3 w-3" />
+            {typeof product.seller === "object"
+              ? product.seller.name
+              : product.seller}{" "}
+            <BiLinkExternal className="inline h-3 w-3" />
             {/* </a> */}
           </span>
           {/* {product.verified && ( */}
@@ -73,8 +46,15 @@ const ProductAbout = ({ product }: { product: Product }) => {
           </div>
 
           <div className="text-xs sm:text-sm">
-            {/* <span className={product.inStock ? "text-green-500" : "text-Red"}> */}
-            <span className="text-green-500">"In Stock"</span>
+            <span
+              className={
+                product.stock && product.stock !== 0
+                  ? "text-green-500"
+                  : "text-Red"
+              }
+            >
+              {`"${product.stock} In Stock"`}
+            </span>
           </div>
         </div>
       </div>

@@ -6,7 +6,7 @@ import {
   FaExclamationTriangle,
 } from "react-icons/fa";
 import { motion } from "framer-motion";
-import { useContractData } from "../../utils/hooks/useContractData";
+import { useOrderData } from "../../utils/hooks/useOrder";
 
 interface RaiseDisputeProps {
   tradeId: string;
@@ -14,7 +14,7 @@ interface RaiseDisputeProps {
 }
 
 const RaiseDispute: FC<RaiseDisputeProps> = ({ tradeId, onComplete }) => {
-  const { raiseTradeDispute } = useContractData();
+  const { raiseDispute } = useOrderData();
   const [status, setStatus] = useState<
     "pending" | "processing" | "success" | "error"
   >("pending");
@@ -32,15 +32,15 @@ const RaiseDispute: FC<RaiseDisputeProps> = ({ tradeId, onComplete }) => {
     setStatus("processing");
 
     try {
-      const result = await raiseTradeDispute(tradeId, reason);
-      if (result.success) {
+      const result = await raiseDispute(tradeId, reason);
+      if (result) {
         setStatus("success");
         setTimeout(() => {
           onComplete(true);
         }, 2000);
       } else {
         setStatus("error");
-        setErrorMessage(result.message || "Failed to raise dispute");
+        setErrorMessage("Failed to raise dispute");
         onComplete(false);
       }
     } catch (error: any) {

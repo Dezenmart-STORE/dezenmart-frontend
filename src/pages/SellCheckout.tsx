@@ -35,6 +35,10 @@ const SellCheckout = () => {
           isActive: true,
           createdAt: "2025-04-23T00:08:26.519Z",
           updatedAt: "2025-04-23T00:08:26.519Z",
+          type: [],
+          stock: 100,
+          logisticsCost: [],
+          logisticsProviders: [],
         };
 
         setProduct(productData);
@@ -47,9 +51,9 @@ const SellCheckout = () => {
 
   const handleSell = () => {
     // sell logic
-    console.log("Sell initiated for:", product);
-    console.log("Payment amount:", paymentAmount);
-    console.log("Payment method:", paymentMethod);
+    // console.log("Sell initiated for:", product);
+    // console.log("Payment amount:", paymentAmount);
+    // console.log("Payment method:", paymentMethod);
 
     // success message and redirect
     setTimeout(() => {

@@ -51,11 +51,16 @@ const ProductCard: FC<ProductCardProps> = ({
           {product.name}
         </h3>
         <span className="flex items-center gap-2 text-sm text-[#AEAEB2] mb-4">
-          By {product.seller}
+          By{" "}
+          {typeof product.seller === "object"
+            ? product.seller.name
+            : product.seller}
           <RiVerifiedBadgeFill className="text-[#4FA3FF] text-xs" />
         </span>
 
-        <p className="text-xl font-bold text-white mb-2">{product.price}</p>
+        <p className="text-xl font-bold text-white mb-2">
+          {product.price} cUSD
+        </p>
 
         <div className="text-right text-sm text-[rgb(174, 174, 178)] mb-3">
           {/* {product.orders} Orders | {product.rating}% */}

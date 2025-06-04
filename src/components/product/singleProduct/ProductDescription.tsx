@@ -1,8 +1,10 @@
 import { useState } from "react";
+import { Product } from "../../../utils/types";
 
-const ProductDescription = ({ description }: { description: string }) => {
+const ProductDescription = ({ product }: { product: Product }) => {
   const [expanded, setExpanded] = useState(false);
 
+  const description = product?.description || "";
   const safeDescription = typeof description === "string" ? description : "";
   const visibleDescription = expanded
     ? safeDescription

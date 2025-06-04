@@ -1,8 +1,9 @@
 import { memo } from "react";
-import { Link } from "react-router-dom";
+import { replace, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { BiErrorAlt } from "react-icons/bi";
 import Container from "../common/Container";
+import Button from "../common/Button";
 
 interface FallbackErrorProps {
   error?: Error;
@@ -10,6 +11,7 @@ interface FallbackErrorProps {
 }
 
 const FallbackError = memo(({ resetErrorBoundary }: FallbackErrorProps) => {
+  const navigate = useNavigate();
   return (
     <div className="bg-Dark min-h-screen flex items-center justify-center">
       <Container className="py-10 md:py-20">
@@ -57,19 +59,22 @@ const FallbackError = memo(({ resetErrorBoundary }: FallbackErrorProps) => {
               onClick={() =>
                 resetErrorBoundary
                   ? resetErrorBoundary()
-                  : window.location.reload()
+                  : navigate(`${window.location.href}`, { replace: true })
               }
               className="bg-[#292B30] text-white px-6 py-3 rounded-md hover:bg-[#33363b] transition-all"
             >
               Refresh Page
             </button>
 
-            <Link
-              to="/"
-              className="bg-Red text-white px-6 py-3 rounded-md hover:bg-opacity-90 transition-all"
-            >
-              Back to Home
-            </Link>
+            <Button
+              title="Back to Home"
+              onClick={() =>
+                navigate(`${window.location.origin}`, { replace: true })
+              }
+              className="flex items-center justify-center bg-Red text-white px-6 py-3 rounded-md hover:bg-opacity-90 transition-all"
+            />
+
+            {/* </Link> */}
           </motion.div>
         </motion.div>
       </Container>

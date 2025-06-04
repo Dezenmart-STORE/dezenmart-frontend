@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { useUserManagement } from "../utils/hooks/useUserManagement";
+import { useUserManagement } from "../utils/hooks/useUser";
 import Loadscreen from "./Loadscreen";
 
 const AuthCallback = () => {
@@ -18,10 +18,10 @@ const AuthCallback = () => {
         const token = searchParams.get("token");
         const userId = searchParams.get("userId");
 
-        console.log("Auth callback received:", {
-          token: token?.substring(0, 10) + "...",
-          userId,
-        });
+        // console.log("Auth callback received:", {
+        //   token: token?.substring(0, 10) + "...",
+        //   userId,
+        // });
 
         if (!token || !userId) {
           throw new Error("Authentication failed: Missing token or user ID");
@@ -33,9 +33,18 @@ const AuthCallback = () => {
             api.getUserProfile(true).then((response) => {
               if (response.ok && response.data) {
                 handleAuthCallback(token, response.data);
+                // const pendingCode = sessionStorage.getItem(
+                //   "pendingReferralCode"
+                // );
                 const redirectPath = "/";
+                // if (pendingCode) {
+                //   navigate("/", { replace: true });
+                // } else {
+                //   const redirectPath = "/";
+                //   navigate(redirectPath, { replace: true });
+                // }
                 navigate(redirectPath, { replace: true });
-                console.log("Complete user profile loaded");
+                // console.log("Complete user profile loaded");
               }
             });
           });

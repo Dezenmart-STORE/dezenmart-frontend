@@ -17,7 +17,7 @@ const Banner: FC<BannerProps> = ({
   isUppercase = true,
   primaryImage,
   secondaryImage,
-  backgroundColor = "#ff3b3b", // Default red color as in the example
+  backgroundColor = "#ff3b3b",
   textColor = "white",
 }) => {
   return (
