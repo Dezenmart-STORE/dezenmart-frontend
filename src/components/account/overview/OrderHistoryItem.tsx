@@ -91,14 +91,16 @@ const OrderHistoryItem: React.FC<EnhancedOrder> = React.memo((item) => {
       transition={{ duration: 0.4, delay: 0.1 * (item.index || 0) }}
       whileHover={{ scale: 1.01 }}
     >
+      {/* <div className="w-full"> */}
       <motion.img
         src={productImage}
         alt={item.product?.name || "Product"}
-        className="w-[60%] md:w-full h-auto mx-auto md:mx-0 rounded-md lg:row-span-2 object-cover aspect-square"
+        className="w-full h-auto mx-auto md:mx-0 rounded-md lg:row-span-2 object-cover aspect-square"
         whileHover={{ scale: 1.05 }}
         transition={{ type: "spring", stiffness: 300, damping: 25 }}
         loading="lazy"
       />
+      {/* </div> */}
 
       <div className="flex flex-col w-full">
         <div className="text-white flex flex-col w-full text-left">

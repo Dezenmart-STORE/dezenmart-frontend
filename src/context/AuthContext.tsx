@@ -45,7 +45,33 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const checkAuthStatus = async () => {
       try {
         const token = storage.getItem(TOKEN_KEY);
+        // ||
+        // "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4MGY0NmM1MjA1YmFjZTdhYjM0ZmMwMyIsImVtYWlsIjoic2FtdWVsYWRlYm9sYW95ZW51Z2FAZ21haWwuY29tIiwiaWF0IjoxNzQ5NjYwMzA5LCJleHAiOjE3NTAyNjUxMDl9.rKJNOrr2c4g9nqMWpCtwzDt_1Ij2glD1fQ_UCqlS4MA";
         const storedUser = storage.getItem(USER_KEY);
+        //   || {
+        //   milestones: { sales: 0, purchases: 0 },
+        //   orders: [],
+        //   _id: "680f46c5205bace7ab34fc03",
+        //   googleId: "112614201578661238185",
+        //   email: "samueladebolaoyenuga@gmail.com",
+        //   name: "Samuel Oyenuga",
+        //   profileImage:
+        //     "https://lh3.googleusercontent.com/a/ACg8ocIa_dOWUI6f1D7zAZ5snzGz-An9zlbIO0oVjOhFrukH7Th0z1Sk=s96-c",
+        //   isMerchant: false,
+        //   rating: 0,
+        //   totalPoints: 70,
+        //   availablePoints: 70,
+        //   referralCount: 1,
+        //   isReferralCodeUsed: false,
+        //   referralCode: "P55OB250",
+        //   createdAt: "2025-04-28T09:13:41.349Z",
+        //   updatedAt: "2025-06-07T10:04:16.269Z",
+        //   __v: 0,
+        //   address: "2828 Parker St",
+        //   dateOfBirth: "1998-12-08T00:00:00.000Z",
+        //   phoneNumber: "09136577132",
+        //   lastRewardCalculation: "2025-06-07T10:04:16.269Z",
+        // };
 
         if (token && storedUser) {
           // Verify token hasn't expired
@@ -57,7 +83,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               clearAuthState();
               // console.log("Token expired, clearing auth state");
             } else {
-              const parsedUser = JSON.parse(storedUser);
+              const parsedUser =
+                typeof storedUser === "string"
+                  ? JSON.parse(storedUser)
+                  : storedUser;
               setUser(parsedUser);
               // console.log(
               //   "User authenticated from local storage:",
