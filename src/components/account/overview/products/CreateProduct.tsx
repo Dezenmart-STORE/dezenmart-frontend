@@ -21,6 +21,10 @@ import { useContract } from "../../../../utils/hooks/useContract";
 
 const LoadingSpinner = lazy(() => import("../../../common/LoadingSpinner"));
 
+interface CreateProductProps {
+  onProductCreated?: () => void;
+}
+
 interface FormErrors {
   name?: string;
   description?: string;
@@ -63,7 +67,7 @@ const CATEGORIES = [
   "Other",
 ];
 
-const logisticsProviders: LogisticsProvider[] = [];
+// const logisticsProviders: LogisticsProvider[] = [];
 
 const NIGERIAN_CITIES = [
   "Lagos",
@@ -116,7 +120,7 @@ const fadeInAnimation = {
   transition: { duration: 0.3 },
 };
 
-const CreateProduct = () => {
+const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
   const navigate = useNavigate();
   const { createProduct, loading } = useProductData();
   const { showSnackbar } = useSnackbar();
@@ -641,9 +645,28 @@ const CreateProduct = () => {
         setSuccessMessage("Product created successfully! Redirecting...");
         showSnackbar("Product created successfully!", "success");
 
+        onProductCreated?.();
+
         // console.log(result, "kk");
+        // setTimeout(() => {
+        //   navigate(`/product/${result.data._id}`);
+        // }, 1500);
         setTimeout(() => {
-          navigate(`/product/${result.data._id}`);
+          setFormState({
+            name: "",
+            description: "",
+            category: "",
+            stock: "",
+            sellerWalletAddress: "",
+            priceInUSDT: "",
+            priceInFiat: "",
+          });
+          setMediaFiles([]);
+          setVariants([
+            { id: `variant-${Date.now()}`, properties: [], quantity: 0 },
+          ]);
+          setSelectedLogistics([]);
+          setSuccessMessage(null);
         }, 1500);
       }
     } catch (error) {

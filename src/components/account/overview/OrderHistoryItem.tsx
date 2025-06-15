@@ -91,7 +91,6 @@ const OrderHistoryItem: React.FC<EnhancedOrder> = React.memo((item) => {
       transition={{ duration: 0.4, delay: 0.1 * (item.index || 0) }}
       whileHover={{ scale: 1.01 }}
     >
-      {/* <div className="w-full"> */}
       <motion.img
         src={productImage}
         alt={item.product?.name || "Product"}
@@ -100,11 +99,10 @@ const OrderHistoryItem: React.FC<EnhancedOrder> = React.memo((item) => {
         transition={{ type: "spring", stiffness: 300, damping: 25 }}
         loading="lazy"
       />
-      {/* </div> */}
 
-      <div className="flex flex-col w-full">
+      <div className="flex flex-col w-full overflow-hidden">
         <div className="text-white flex flex-col w-full text-left">
-          <h3 className="font-normal text-2xl md:text-3xl truncate">
+          <h3 className="font-normal text-2xl md:text-3xl">
             {item.product?.name || "Unknown Product"}
           </h3>
           <span className="flex items-center gap-2 text-[12px] text-[#AEAEB2]">

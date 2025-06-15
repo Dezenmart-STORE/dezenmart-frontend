@@ -247,10 +247,18 @@ export const useOrderData = () => {
   );
 
   const changeOrderStatus = useCallback(
-    async (orderId: string, status: OrderStatus, showNotification = true) => {
+    async (
+      orderId: string,
+      details: {
+        purchaseId?: string;
+        status?: OrderStatus;
+        [key: string]: string | OrderStatus | undefined;
+      },
+      showNotification = true
+    ) => {
       try {
         const result = await dispatch(
-          updateOrderStatus({ orderId, status })
+          updateOrderStatus({ orderId, details })
         ).unwrap();
         if (showNotification) {
           showSnackbar("Order status updated successfully", "success");

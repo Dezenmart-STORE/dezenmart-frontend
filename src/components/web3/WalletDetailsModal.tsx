@@ -222,12 +222,12 @@ const WalletDetailsModal: React.FC<WalletDetailsModalProps> = ({
               ) : (
                 <p className="text-2xl font-bold text-white">
                   {secondaryCurrency === "USDT"
-                    ? convertPrice(totalFiatValue, "FIAT", "USDT")
+                    ? convertPrice(totalFiatValue, "FIAT", "USDT").toFixed(2)
                     : formatPrice(totalFiatValue, "FIAT")}
                 </p>
               )}
               <p className="text-xs text-gray-500 mt-1">
-                in {userCountry || "USD"}
+                in {secondaryCurrency === "USDT" ? "USDT" : userCountry}
               </p>
             </div>
           </div>
@@ -239,7 +239,7 @@ const WalletDetailsModal: React.FC<WalletDetailsModalProps> = ({
           <div className="space-y-3">
             {/* USDT Balance with dropdown */}
             <div className="p-3 bg-Dark rounded-lg border border-gray-700/50">
-              <div className="flex justify-between items-center">
+              <div className="flex flex-wrap gap-2 justify-between items-center">
                 <div className="flex items-center gap-2">
                   <HiCurrencyDollar className="w-5 h-5 text-green-500" />
                   <span className="text-gray-300 font-medium">USDT</span>

@@ -13,7 +13,7 @@ import {
   useBalance,
   useSwitchChain,
 } from "wagmi";
-import { parseUnits, formatUnits, erc20Abi } from "viem";
+import { parseUnits, formatUnits, erc20Abi, decodeEventLog } from "viem";
 import {
   useReadContract,
   useWriteContract,
@@ -36,7 +36,11 @@ import { useCurrencyConverter } from "../utils/hooks/useCurrencyConverter";
 import { DEZENMART_ABI } from "../utils/abi/dezenmartAbi.json";
 import { ESCROW_ADDRESSES } from "../utils/config/web3.config";
 import { parseWeb3Error } from "../utils/errorParser";
-import { readContract, simulateContract } from "@wagmi/core";
+import {
+  readContract,
+  simulateContract,
+  waitForTransactionReceipt,
+} from "@wagmi/core";
 
 interface ExtendedWalletState extends WalletState {
   usdtBalance?: {
@@ -116,7 +120,8 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
     args: address ? [address] : undefined,
     query: {
       enabled: !!address && !!usdtContractAddress && isCorrectNetwork,
-      refetchInterval: 30000,
+      refetchInterval: 60000,
+      staleTime: 30000,
     },
   });
 
@@ -124,19 +129,15 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     if (isConnected && address && isCorrectNetwork) {
       const interval = setInterval(() => {
-        refetchUSDTBalance();
-        refetchCeloBalance();
-      }, 30000);
+        if (!isLoadingUSDT) {
+          refetchUSDTBalance();
+          refetchCeloBalance();
+        }
+      }, 60000);
 
       return () => clearInterval(interval);
     }
-  }, [
-    isConnected,
-    address,
-    isCorrectNetwork,
-    refetchUSDTBalance,
-    refetchCeloBalance,
-  ]);
+  }, [isConnected, address, isCorrectNetwork, isLoadingUSDT]);
 
   const connectWallet = useCallback(async () => {
     try {
@@ -226,7 +227,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
         raw: rawBalance,
         usdt: `${formatWithDecimals(numericBalance, 6)} USDT`,
         celo: formatPrice(convertPrice(numericBalance, "USDT", "CELO"), "CELO"),
-        fiat: `$${formatWithDecimals(numericBalance, 2)}`,
+        fiat: formatPrice(convertPrice(numericBalance, "USDT", "FIAT"), "FIAT"),
       };
     } catch (error) {
       console.error("Error formatting USDT balance:", error);
@@ -319,6 +320,42 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
           throw new Error("Transaction failed to execute");
         }
 
+        const receipt = await waitForTransactionReceipt(wagmiConfig, {
+          hash,
+          timeout: 60000,
+        });
+
+        let purchaseId: string | undefined;
+
+        if (receipt.logs) {
+          try {
+            const decodedLogs = receipt.logs
+              .map((log) => {
+                try {
+                  return decodeEventLog({
+                    abi: DEZENMART_ABI,
+                    data: log.data,
+                    topics: log.topics,
+                  });
+                } catch {
+                  return null;
+                }
+              })
+              .filter(Boolean);
+
+            const purchaseCreatedEvent = decodedLogs.find(
+              (event: any) => event?.eventName === "PurchaseCreated"
+            );
+
+            if (purchaseCreatedEvent?.args) {
+              const args = purchaseCreatedEvent.args as any;
+              purchaseId = args.purchaseId?.toString();
+            }
+          } catch (error) {
+            console.warn("Failed to decode event logs:", error);
+          }
+        }
+
         return {
           hash,
           amount: "0",
@@ -327,6 +364,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
           from: address,
           status: "pending",
           timestamp: Date.now(),
+          purchaseId,
         };
       } catch (error: any) {
         console.error("Buy trade failed:", error);

@@ -7,10 +7,11 @@ interface ConfirmationModalProps {
   isOpen: boolean;
   onClose: () => void;
   onConfirm: () => Promise<void> | void;
-  type: "delivery" | "purchase";
+  type: "delivery" | "payment";
   amount?: string;
   currency?: string;
   recipientName?: string;
+  senderName?: string;
   isProcessing?: boolean;
 }
 
@@ -20,8 +21,9 @@ const ConfirmationModal: FC<ConfirmationModalProps> = ({
   onConfirm,
   type,
   amount,
-  currency = "btc",
+  currency = "USDT",
   recipientName,
+  senderName,
   isProcessing = false,
 }) => {
   const [hasCheckedWallet, setHasCheckedWallet] = useState(false);
@@ -29,26 +31,24 @@ const ConfirmationModal: FC<ConfirmationModalProps> = ({
 
   const isDelivery = type === "delivery";
   const title = isDelivery
-    ? "Please Confirm Receipt of payment"
+    ? "Please Confirm your Delivery"
     : "Please Confirm Payment";
 
   const warningMessage = isDelivery
-    ? `Never release funds before confirming payment receipt. Dezmart does hold your fiat assets. Be cautious and protect yourself from scams.`
-    : `Never release funds before confirming payment receipt. Dezmart does hold your fiat assets. Be cautious and protect yourself from scams.`;
-
-  const walletCheckText = isDelivery
-    ? `I have checked my bank e-wallet and confirmed that ${amount}${currency} has been credited to my available balance.`
-    : `I have checked my payment method and confirmed that ${amount}${currency} has been debited from my account.`;
+    ? `Upon confirmation funds will be released to the seller. Dezenmart does not hold your assets. Be cautious and protect yourself from scams.`
+    : `Never release funds before confirming payment receipt. Dezenmart does not hold your assets. Be cautious and protect yourself from scams.`;
 
   const creditConfirmText = isDelivery
-    ? `I confirm that ${
-        recipientName || "Femi cole"
-      } has credited to my available balance.`
+    ? `I confirm that ${senderName || "the seller"} has delivered the product.`
     : `I confirm that ${
-        recipientName || "Femi cole"
-      } has received the payment.`;
+        recipientName || "the buyer"
+      } has credited to my available balance.`;
 
-  const buttonText = isDelivery ? "Release Now" : "Confirm Payment";
+  const walletCheckText = isDelivery
+    ? `I have checked the product and confirmed its authenticity.`
+    : `I have checked my bank e-wallet and confirmed that ${amount}${currency} has been credited to my available balance.`;
+
+  const buttonText = isDelivery ? "Confirm Delivery" : "Confirm Payment";
 
   const canConfirm = hasCheckedWallet && hasConfirmedCredit && !isProcessing;
 
@@ -127,7 +127,7 @@ const ConfirmationModal: FC<ConfirmationModalProps> = ({
             title="Cancel"
             onClick={handleClose}
             disabled={isProcessing}
-            className="flex-1 bg-transparent hover:bg-gray-700 text-white text-sm px-4 py-3 border border-gray-600 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center justify-center flex-1 bg-transparent hover:bg-gray-700 text-white text-sm px-4 py-3 border border-gray-600 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           />
 
           <Button
@@ -143,7 +143,7 @@ const ConfirmationModal: FC<ConfirmationModalProps> = ({
             }
             onClick={handleConfirm}
             disabled={!canConfirm}
-            className={`flex-1 text-white text-sm px-4 py-3 border-none rounded transition-colors ${
+            className={`flex items-center justify-center flex-1 text-white text-sm px-4 py-3 border-none rounded transition-colors ${
               !canConfirm
                 ? "bg-gray-600 cursor-not-allowed opacity-50"
                 : "bg-Red hover:bg-[#e02d37]"

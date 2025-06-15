@@ -98,7 +98,13 @@ const FundsReleaseStatus: FC<FundsReleaseStatusProps> = ({
         if (!result.success) {
           throw new Error(result.message || "Failed to confirm delivery");
         }
-        await changeOrderStatus(orderId, "completed", false);
+        await changeOrderStatus(
+          orderId,
+          {
+            status: "completed",
+          },
+          false
+        );
 
         showSnackbar(
           "Delivery confirmed successfully! Order has been completed.",
@@ -265,7 +271,7 @@ const FundsReleaseStatus: FC<FundsReleaseStatusProps> = ({
   return (
     <>
       <BaseStatus
-        statusTitle="Order Status"
+        statusTitle="Confirm Delivery"
         statusDescription="Dezenmart has confirmed payment for this order."
         statusAlert={
           <StatusAlert
@@ -291,8 +297,13 @@ const FundsReleaseStatus: FC<FundsReleaseStatusProps> = ({
         onConfirm={handleConfirmDelivery}
         type="delivery"
         amount={orderAmount}
-        currency="btc"
-        recipientName={sellerName}
+        currency="USDT"
+        senderName={sellerName}
+        recipientName={
+          typeof orderDetails?.buyer === "string"
+            ? orderDetails?.buyer
+            : orderDetails?.buyer?.name
+        }
         isProcessing={processingState.confirmDelivery}
       />
     </>

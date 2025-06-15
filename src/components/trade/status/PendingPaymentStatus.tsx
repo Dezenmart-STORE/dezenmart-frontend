@@ -25,6 +25,7 @@ import {
   getStoredOrderId,
   storeOrderId,
 } from "../../../utils/helpers";
+import { PaymentTransaction } from "../../../utils/types/web3.types";
 
 interface PendingPaymentStatusProps {
   tradeDetails?: TradeDetails;
@@ -61,9 +62,10 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
 }) => {
   const navigate = useNavigate();
   const { showSnackbar } = useSnackbar();
+  const [isLoadingBalance, setIsLoadingBalance] = useState(false);
   const { wallet, connectWallet, validateTradeBeforePurchase } = useWeb3();
   const { usdtBalance, refetch: refetchBalance } = useWalletBalance();
-  const { changeOrderStatus } = useOrderData();
+  const { changeOrderStatus, currentOrder } = useOrderData();
   const [tradeValidation, setTradeValidation] = useState<{
     isValid: boolean;
     isLoading: boolean;
@@ -89,8 +91,21 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
   const [quantity, setQuantity] = useState<number>(1);
   const [selectedLogisticsProvider, setSelectedLogisticsProvider] =
     useState<any>(null);
+  const tradeValidationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const orderDetails = useMemo(() => details, [details?._id, details?.status]);
+  const orderDetails = useMemo(() => {
+    if (!details) return details;
+    return {
+      ...details,
+      logisticsProviderWalletAddress:
+        details.logisticsProviderWalletAddress || [],
+    };
+  }, [
+    details?._id,
+    details?.status,
+    details?.quantity,
+    details?.product?.price,
+  ]);
   const transactionInfo = useMemo(
     () => txInfo,
     [txInfo?.buyerName, txInfo?.sellerName]
@@ -101,43 +116,76 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
       storeOrderId(orderId);
     }
   }, [orderId]);
+  useEffect(() => {
+    mountedRef.current = true;
+
+    return () => {
+      mountedRef.current = false;
+      if (timerRef.current) clearInterval(timerRef.current);
+      if (abortControllerRef.current) abortControllerRef.current.abort();
+      if (balanceRefetchTimeoutRef.current)
+        clearTimeout(balanceRefetchTimeoutRef.current);
+      if (tradeValidationTimeoutRef.current)
+        clearTimeout(tradeValidationTimeoutRef.current); // Add this
+    };
+  }, []);
 
   useEffect(() => {
     const validateTrade = async () => {
-      if (!orderDetails?.product?.tradeId || !wallet.isConnected) return;
+      if (
+        !orderDetails?.product?.tradeId ||
+        !wallet.isConnected ||
+        tradeValidation.isLoading
+      )
+        return;
 
-      setTradeValidation({ isValid: true, isLoading: true, error: null });
-
-      try {
-        const isValid = await validateTradeBeforePurchase?.(
-          orderDetails.product.tradeId,
-          orderDetails.quantity.toString(),
-          orderDetails.logisticsProviderWalletAddress[0]
-        );
-
-        setTradeValidation({
-          isValid: isValid || false,
-          isLoading: false,
-          error: isValid ? null : "Product no longer available",
-        });
-      } catch (error) {
-        console.error("Trade validation error:", error);
-        setTradeValidation({
-          isValid: false,
-          isLoading: false,
-          error: "Unable to verify product availability",
-        });
+      // Clear previous timeout
+      if (tradeValidationTimeoutRef.current) {
+        clearTimeout(tradeValidationTimeoutRef.current);
       }
+
+      tradeValidationTimeoutRef.current = setTimeout(async () => {
+        setTradeValidation({ isValid: true, isLoading: true, error: null });
+
+        try {
+          const isValid = await validateTradeBeforePurchase?.(
+            orderDetails.product.tradeId,
+            orderDetails.quantity.toString(),
+            orderDetails.logisticsProviderWalletAddress[0]
+          );
+
+          if (mountedRef.current) {
+            setTradeValidation({
+              isValid: isValid || false,
+              isLoading: false,
+              error: isValid ? null : "Product no longer available",
+            });
+          }
+        } catch (error) {
+          if (mountedRef.current) {
+            console.error("Trade validation error:", error);
+            setTradeValidation({
+              isValid: false,
+              isLoading: false,
+              error: "Unable to verify product availability",
+            });
+          }
+        }
+      }, 2000);
     };
 
-    const timeoutId = setTimeout(validateTrade, 500);
-    return () => clearTimeout(timeoutId);
+    validateTrade();
+
+    return () => {
+      if (tradeValidationTimeoutRef.current) {
+        clearTimeout(tradeValidationTimeoutRef.current);
+      }
+    };
   }, [
     orderDetails?.product?.tradeId,
     orderDetails?.quantity,
-    orderDetails?.logisticsProviderWalletAddress,
+    orderDetails?.logisticsProviderWalletAddress?.[0],
     wallet.isConnected,
-    validateTradeBeforePurchase,
   ]);
 
   const orderValidation = useMemo(() => {
@@ -205,9 +253,10 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
       const requiredAmount = Number((totalAmount * 1.02).toFixed(6));
 
       const hasQuantityChanged = quantity !== orderDetails.quantity;
+      const currentLogistics = orderDetails.logisticsProviderWalletAddress?.[0];
+      const selectedLogistics = selectedLogisticsProvider?.walletAddress;
       const hasLogisticsChanged =
-        selectedLogisticsProvider?.walletAddress !==
-        orderDetails.logisticsProviderWalletAddress;
+        selectedLogistics && selectedLogistics !== currentLogistics;
 
       const userBalance = (() => {
         const balanceStr = String(usdtBalance || 0).replace(/[,\s]/g, "");
@@ -218,7 +267,7 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
       return {
         totalAmount,
         requiredAmount,
-        hasChanges: hasQuantityChanged || hasLogisticsChanged,
+        hasChanges: hasQuantityChanged || Boolean(hasLogisticsChanged),
         userBalance,
         hasSufficientBalance: userBalance >= requiredAmount,
       };
@@ -236,7 +285,7 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
     orderValidation.isValid,
     orderDetails?.product?.price,
     orderDetails?.quantity,
-    orderDetails?.logisticsProviderWalletAddress,
+    orderDetails?.logisticsProviderWalletAddress?.[0],
     quantity,
     selectedLogisticsProvider?.walletAddress,
     usdtBalance,
@@ -316,12 +365,19 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
     if (balanceRefetchTimeoutRef.current) {
       clearTimeout(balanceRefetchTimeoutRef.current);
     }
-    balanceRefetchTimeoutRef.current = setTimeout(() => {
-      if (mountedRef.current) {
-        refetchBalance();
+    balanceRefetchTimeoutRef.current = setTimeout(async () => {
+      if (mountedRef.current && !isLoadingBalance) {
+        setIsLoadingBalance(true);
+        try {
+          await refetchBalance();
+        } finally {
+          if (mountedRef.current) {
+            setIsLoadingBalance(false);
+          }
+        }
       }
-    }, 500);
-  }, [refetchBalance]);
+    }, 1000);
+  }, [refetchBalance, isLoadingBalance]);
 
   const handlePayNow = useCallback(async () => {
     if (!orderValidation.isValid || loading) return;
@@ -378,14 +434,27 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
   ]);
 
   const handlePaymentSuccess = useCallback(
-    async (transaction: any) => {
+    async (transaction: PaymentTransaction) => {
       setIsPaymentModalOpen(false);
-      if (!mountedRef.current) return;
+      console.log("currentOrder befor", currentOrder);
+      // if (!mountedRef.current) return;
 
+      console.log("currentOrder after", currentOrder);
       try {
-        const currentOrderId = orderId || getStoredOrderId();
-        if (currentOrderId) {
-          await changeOrderStatus(currentOrderId, "accepted", true);
+        const currentOrderId = getStoredOrderId();
+
+        console.log("currentOrder inside", currentOrder);
+        console.log("rest", transaction);
+        if (currentOrder?._id) {
+          console.log("currentOrder inside if", currentOrder);
+          await changeOrderStatus(
+            currentOrder._id,
+            {
+              status: "accepted",
+              purchaseId: transaction.purchaseId,
+            },
+            true
+          );
         }
         // else if (orderDetails?._id) {
         //   await changeOrderStatus(orderDetails._id, "accepted", true);

@@ -156,7 +156,7 @@ const Product = () => {
 
             {/* Categories */}
             <div className="mt-8 overflow-x-auto scrollbar-hide">
-              <div className="flex space-x-4 py-2 min-w-max">
+              <div className="flex space-x-4 py-2 min-w-max scrollbar-hide ">
                 <Link
                   to="/product"
                   className={`px-4 py-2 rounded-full transition-colors whitespace-nowrap ${

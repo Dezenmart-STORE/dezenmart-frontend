@@ -7,12 +7,14 @@ import { useProductData } from "../../utils/hooks/useProduct";
 import { Product } from "../../utils/types";
 import LoadingSpinner from "../common/LoadingSpinner";
 import { useIntersectionObserver } from "../../utils/hooks/useIntersectionObserver";
+import { useAuth } from "../../context/AuthContext";
 
 interface Props {
   title: string;
   path?: string;
   className?: string;
   isCategoryView: boolean;
+  isUserProducts?: boolean;
   category?: string;
   isFeatured?: boolean;
   maxItems?: number;
@@ -40,7 +42,9 @@ const ProductList = ({
   isFeatured = false,
   maxItems,
   showViewAll = true,
+  isUserProducts = false,
 }: Props) => {
+  const { user } = useAuth();
   const {
     products,
     sponsoredProducts,
@@ -49,6 +53,7 @@ const ProductList = ({
     fetchAllProducts,
     fetchSponsoredProducts,
     getProductsByCategory,
+    productsByUser,
   } = useProductData();
 
   const [displayProducts, setDisplayProducts] = useState<
@@ -89,6 +94,22 @@ const ProductList = ({
       allProducts = categoryProducts.filter(
         (product) => !sponsoredIds.has(product._id)
       );
+    } else if (isUserProducts) {
+      const userProducts = productsByUser;
+      categorySponsored = (sponsoredProducts || []).filter((product) => {
+        if (!product || !user) return [];
+        if (typeof product.seller === "object" && product.seller) {
+          return (
+            product.seller._id === user._id || product.seller.name === user.name
+          );
+        }
+
+        return product.seller === user._id;
+      });
+      const sponsoredIds = new Set(categorySponsored.map((p) => p._id));
+      allProducts = userProducts.filter(
+        (product) => !sponsoredIds.has(product._id)
+      );
     } else {
       const sponsoredIds = new Set((sponsoredProducts || []).map((p) => p._id));
       allProducts = (products || []).filter(
@@ -102,6 +123,7 @@ const ProductList = ({
     sponsoredProducts,
     category,
     isFeatured,
+    productsByUser,
     getProductsByCategory,
   ]);
 
@@ -136,7 +158,10 @@ const ProductList = ({
     if (isInitialLoading || loading) return;
 
     // Handle sponsored products for category view
-    if (isCategoryView && category && categorySponsored.length > 0) {
+    if (
+      ((isCategoryView && category) || isUserProducts) &&
+      categorySponsored.length > 0
+    ) {
       setSponsoredDisplayProducts(categorySponsored);
     }
 
@@ -253,41 +278,42 @@ const ProductList = ({
         ) : (
           <>
             {/* Sponsored products section for category view */}
-            {isCategoryView && sponsoredDisplayProducts.length > 0 && (
-              <div className="mb-8">
-                <h3 className="text-white text-lg font-semibold mb-4 flex items-center gap-2">
-                  <span className="text-Green text-sm bg-Green/10 px-2 py-1 rounded border border-Green/20">
-                    Sponsored
-                  </span>
-                  Featured in {category}
-                </h3>
-                <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 md:gap-5">
-                  {sponsoredDisplayProducts.map((product) => {
-                    const isNew = (() => {
-                      const createdDate = new Date(product.createdAt);
-                      const now = new Date();
-                      const diffInMs = now.getTime() - createdDate.getTime();
-                      const diffInDays = diffInMs / (1000 * 60 * 60 * 24);
-                      return diffInDays < 7;
-                    })();
+            {(isCategoryView || isUserProducts) &&
+              sponsoredDisplayProducts.length > 0 && (
+                <div className="mb-8">
+                  <h3 className="text-white text-lg font-semibold mb-4 flex items-center gap-2">
+                    <span className="text-Green text-sm bg-Green/10 px-2 py-1 rounded border border-Green/20">
+                      Sponsored
+                    </span>
+                    Featured in {category}
+                  </h3>
+                  <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 md:gap-5">
+                    {sponsoredDisplayProducts.map((product) => {
+                      const isNew = (() => {
+                        const createdDate = new Date(product.createdAt);
+                        const now = new Date();
+                        const diffInMs = now.getTime() - createdDate.getTime();
+                        const diffInDays = diffInMs / (1000 * 60 * 60 * 24);
+                        return diffInDays < 7;
+                      })();
 
-                    return (
-                      <ProductCard
-                        key={`sponsored-${product._id}`}
-                        product={product}
-                        isNew={isNew}
-                      />
-                    );
-                  })}
+                      return (
+                        <ProductCard
+                          key={`sponsored-${product._id}`}
+                          product={product}
+                          isNew={isNew}
+                        />
+                      );
+                    })}
+                  </div>
+
+                  {/* Divider */}
+                  <div className="border-t border-gray-700 my-8"></div>
+                  <h3 className="text-white text-lg font-semibold mb-4">
+                    All {category} Products
+                  </h3>
                 </div>
-
-                {/* Divider */}
-                <div className="border-t border-gray-700 my-8"></div>
-                <h3 className="text-white text-lg font-semibold mb-4">
-                  All {category} Products
-                </h3>
-              </div>
-            )}
+              )}
 
             {/* Main products grid */}
             <div className="grid grid-cols-1 xxs:grid-cols-2 gap-4 lg:grid-cols-4">

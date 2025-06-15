@@ -127,7 +127,13 @@ const ViewOrderDetail = memo(() => {
       try {
         const [disputeRes, changeOrderRes] = await Promise.all([
           raiseDispute(currentOrderId, reason, false),
-          changeOrderStatus(currentOrderId, "disputed", false),
+          changeOrderStatus(
+            currentOrderId,
+            {
+              status: "disputed",
+            },
+            false
+          ),
         ]);
 
         if (disputeRes && changeOrderRes?.status === "disputed") {
@@ -163,7 +169,13 @@ const ViewOrderDetail = memo(() => {
     if (!currentOrderId) return;
 
     try {
-      await changeOrderStatus(currentOrderId, "completed");
+      await changeOrderStatus(
+        currentOrderId,
+        {
+          status: "completed",
+        },
+        false
+      );
       setOrderStatus("completed");
       navigate(`/trades/viewtrades/${currentOrderId}?status=completed`, {
         replace: true,

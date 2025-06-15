@@ -95,7 +95,7 @@ const CheckoutWithWeb3: React.FC<CheckoutWithWeb3Props> = React.memo(
         {/* <PaymentModal
           isOpen={showPaymentModal}
           onClose={handleModalClose}
-          orderDetails={memoizedOrderDetails}
+          orderDetails={orderDetails}
           onPaymentSuccess={handlePaymentSuccess}
         /> */}
       </div>

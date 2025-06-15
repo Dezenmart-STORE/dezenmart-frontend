@@ -17,6 +17,7 @@ export interface PaymentTransaction {
   timestamp: number;
   gasUsed?: string;
   gasPrice?: string;
+  purchaseId?: string;
 }
 
 export interface EscrowPayment {

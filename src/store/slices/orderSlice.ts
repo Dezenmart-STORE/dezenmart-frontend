@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
-import { Order, OrderStatusUpdate } from "../../utils/types";
+import { Order, OrderStatus, OrderStatusUpdate } from "../../utils/types";
 import { api } from "../../utils/services/apiService";
 
 interface OrderState {
@@ -54,7 +54,7 @@ export const fetchUserOrders = createAsyncThunk<
       if (!response.ok) {
         return rejectWithValue(response.error || "Failed to fetch orders");
       }
-      return response.data;
+      return response.data.data.orders;
     } catch (error) {
       return rejectWithValue(
         error instanceof Error ? error.message : "Unknown error"
@@ -77,7 +77,7 @@ export const fetchSellerOrders = createAsyncThunk<
           response.error || "Failed to fetch seller orders"
         );
       }
-      return response.data;
+      return response.data.data.orders;
     } catch (error) {
       return rejectWithValue(
         error instanceof Error ? error.message : "Unknown error"
@@ -106,11 +106,18 @@ export const fetchOrderById = createAsyncThunk<
 
 export const updateOrderStatus = createAsyncThunk<
   OrderStatusUpdate,
-  { orderId: string; status: string },
+  {
+    orderId: string;
+    details: {
+      purchaseId?: string;
+      status?: OrderStatus;
+      [key: string]: string | OrderStatus | undefined;
+    };
+  },
   { rejectValue: string }
->("orders/updateStatus", async ({ orderId, status }, { rejectWithValue }) => {
+>("orders/updateStatus", async ({ orderId, details }, { rejectWithValue }) => {
   try {
-    const response = await api.updateOrderStatus(orderId, status);
+    const response = await api.updateOrderStatus(orderId, details);
     if (!response.ok) {
       return rejectWithValue(response.error || "Failed to update order status");
     }

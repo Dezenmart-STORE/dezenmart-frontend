@@ -147,7 +147,7 @@ const CompletedStatus: FC<CompletedStatusProps> = ({
           className="self-end sm:self-auto"
         >
           <Button
-            title="Contact Buyer"
+            title="Contact Seller"
             className="bg-transparent hover:bg-gray-700 text-white text-sm px-4 py-2 border border-Red rounded-2xl transition-colors flex items-center gap-x-2 justify-center"
             onClick={onContactBuyer}
             icon={<LuMessageSquare className="w-5 h-5 text-Red" />}
@@ -417,9 +417,9 @@ const CompletedStatus: FC<CompletedStatusProps> = ({
               <div className="mt-4 space-y-4">
                 {[
                   {
-                    question: "How do I contact the buyer?",
+                    question: "How do I contact the Seller?",
                     answer:
-                      'Click on the "Contact Buyer" button to open a direct messaging channel.',
+                      'Click on the "Contact Seller" button to open a direct messaging channel.',
                   },
                   {
                     question: "When will I receive my payment?",
@@ -466,8 +466,8 @@ const CompletedStatus: FC<CompletedStatusProps> = ({
         whileTap={{ scale: 0.98 }}
       >
         <Button
-          title="Sell more"
-          onClick={() => (window.location.href = "/trades")}
+          title="Buy more"
+          onClick={() => (window.location.href = "/product")}
           className="bg-Red max-w-md mx-auto flex items-center justify-center p-3 hover:bg-red-600 text-white w-full"
         />
       </motion.div>

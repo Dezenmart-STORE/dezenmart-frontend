@@ -67,14 +67,14 @@ const SavedItem: React.FC<SavedItemProps> = React.memo(
         <motion.img
           src={productImage}
           alt={item.product?.name || "Product"}
-          className="w-[60%] md:w-full h-auto mx-auto md:mx-0 rounded-md lg:row-span-2 object-cover aspect-square"
+          className="w-full h-auto mx-auto md:mx-0 rounded-md lg:row-span-2 object-cover aspect-square"
           whileHover={{ scale: 1.05 }}
           transition={{ type: "spring", stiffness: 300, damping: 25 }}
           loading="lazy"
         />
 
         <div className="flex flex-col w-full text-left">
-          <h3 className="font-normal text-2xl md:text-3xl text-white truncate">
+          <h3 className="font-normal text-2xl md:text-3xl text-white">
             {item.product?.name || "Unknown Product"}
           </h3>
           <span className="flex items-center gap-2 text-[12px] text-[#AEAEB2] mb-4">
