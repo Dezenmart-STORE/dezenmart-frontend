@@ -48,7 +48,7 @@ const ProductContainer: React.FC = () => {
               <CreateProduct onProductCreated={handleProductCreated} />
             ) : (
               <ProductList
-                title="Your Products"
+                title="Products"
                 className="mt-6 md:mt-10"
                 isCategoryView={false}
                 showViewAll={false}

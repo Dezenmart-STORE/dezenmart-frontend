@@ -278,42 +278,41 @@ const ProductList = ({
         ) : (
           <>
             {/* Sponsored products section for category view */}
-            {(isCategoryView || isUserProducts) &&
-              sponsoredDisplayProducts.length > 0 && (
-                <div className="mb-8">
-                  <h3 className="text-white text-lg font-semibold mb-4 flex items-center gap-2">
-                    <span className="text-Green text-sm bg-Green/10 px-2 py-1 rounded border border-Green/20">
-                      Sponsored
-                    </span>
-                    Featured in {category}
-                  </h3>
-                  <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 md:gap-5">
-                    {sponsoredDisplayProducts.map((product) => {
-                      const isNew = (() => {
-                        const createdDate = new Date(product.createdAt);
-                        const now = new Date();
-                        const diffInMs = now.getTime() - createdDate.getTime();
-                        const diffInDays = diffInMs / (1000 * 60 * 60 * 24);
-                        return diffInDays < 7;
-                      })();
+            {(isCategoryView || isUserProducts) && (
+              <div className="mb-8">
+                <h3 className="text-white text-lg font-semibold mb-4 flex items-center gap-2">
+                  <span className="text-Green text-sm bg-Green/10 px-2 py-1 rounded border border-Green/20">
+                    Sponsored
+                  </span>
+                  Featured in {category}
+                </h3>
+                <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 md:gap-5">
+                  {sponsoredDisplayProducts.map((product) => {
+                    const isNew = (() => {
+                      const createdDate = new Date(product.createdAt);
+                      const now = new Date();
+                      const diffInMs = now.getTime() - createdDate.getTime();
+                      const diffInDays = diffInMs / (1000 * 60 * 60 * 24);
+                      return diffInDays < 7;
+                    })();
 
-                      return (
-                        <ProductCard
-                          key={`sponsored-${product._id}`}
-                          product={product}
-                          isNew={isNew}
-                        />
-                      );
-                    })}
-                  </div>
-
-                  {/* Divider */}
-                  <div className="border-t border-gray-700 my-8"></div>
-                  <h3 className="text-white text-lg font-semibold mb-4">
-                    All {category} Products
-                  </h3>
+                    return (
+                      <ProductCard
+                        key={`sponsored-${product._id}`}
+                        product={product}
+                        isNew={isNew}
+                      />
+                    );
+                  })}
                 </div>
-              )}
+
+                {/* Divider */}
+                <div className="border-t border-gray-700 my-8"></div>
+                <h3 className="text-white text-lg font-semibold mb-4">
+                  All {category} Products
+                </h3>
+              </div>
+            )}
 
             {/* Main products grid */}
             <div className="grid grid-cols-1 xxs:grid-cols-2 gap-4 lg:grid-cols-4">
