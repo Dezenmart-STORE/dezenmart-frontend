@@ -16,10 +16,12 @@ import ProductCard from "../components/product/ProductCard";
 import { useProductData } from "../utils/hooks/useProduct";
 import { useCurrency } from "../context/CurrencyContext";
 import { ProductVariant } from "../utils/types";
+import { useAuth } from "../context/AuthContext";
 
 type TabType = "details" | "reviews";
 
 const SingleProduct = () => {
+  const { user } = useAuth();
   const { productId } = useParams();
   const navigate = useNavigate();
   const {
@@ -239,10 +241,13 @@ const SingleProduct = () => {
                 )}
               </div>
 
-              <PurchaseSection
-                product={formattedProduct}
-                selectedVariant={selectedVariant as ProductVariant}
-              />
+              {typeof formattedProduct.seller === "object" &&
+                formattedProduct.seller?._id !== user?._id && (
+                  <PurchaseSection
+                    product={formattedProduct}
+                    selectedVariant={selectedVariant as ProductVariant}
+                  />
+                )}
             </div>
           </div>
         </div>
