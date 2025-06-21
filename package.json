@@ -17,6 +17,7 @@
     "@react-md/layout": "^5.1.6",
     "@react-md/tabs": "^5.1.6",
     "@reduxjs/toolkit": "^2.7.0",
+    "@selfxyz/core": "^0.0.25",
     "@selfxyz/qrcode": "^1.0.8",
     "@tanstack/react-query": "^5.0.0",
     "@wagmi/core": "^2.0.0",

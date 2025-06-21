@@ -8,8 +8,10 @@ import Button from "../components/common/Button";
 import LoadingSpinner from "../components/common/LoadingSpinner";
 import { useUserManagement } from "../utils/hooks/useUser";
 import { TabOption, TabType } from "../utils/types";
-import { SelfApp, SelfAppBuilder, SelfQRcodeWrapper } from "@selfxyz/qrcode";
+import SelfQRcodeWrapper, { SelfApp, SelfAppBuilder } from "@selfxyz/qrcode";
+import { getUniversalLink } from "@selfxyz/core";
 import { useAuth } from "../context/AuthContext";
+import { FullLogo } from ".";
 
 const TabContent = lazy(
   () => import("../components/account/overview/TabContent")
@@ -80,6 +82,8 @@ const Account = () => {
         appName: "Dezenmart",
         scope: "dezenmart-scope",
         endpoint: import.meta.env.VITE_API_URL,
+        endpointType: "https",
+        logoBase64: FullLogo,
         userId: id,
         disclosures: {
           name: true,
@@ -87,6 +91,7 @@ const Account = () => {
           passport_number: true,
           expiry_date: true,
           issuing_state: true,
+          minimumAge: 18,
         },
       }).build()
     );
@@ -190,24 +195,37 @@ const Account = () => {
             />
             {selfApp && (
               <div className="my-6">
-                <h3 className="text-lg font-semibold">Passport Verification</h3>
-                {/* For desktop */}
-                <SelfQRcodeWrapper
-                  selfApp={selfApp}
-                  onSuccess={async () => {
-                    await updateProfile({ isVerified: true }, true);
-                    await fetchProfile(true, true);
-                  }}
-                  onError={() => {
-                    console.error("Error scanning QR code");
-                  }}
-                  size={isMobile ? 200 : 300}
-                  darkMode={false}
-                />
-                {isMobile && (
-                  <p className="mt-2 text-sm text-gray-400">
-                    Alternative: open this page on desktop to scan QR.
-                  </p>
+                <h3 className="text-lg font-semibold mb-2">
+                  Passport Verification
+                </h3>
+                {isMobile ? (
+                  <div>
+                    <p className="text-sm text-gray-400 mb-2">
+                      You're on mobile. Tap the button below to verify via the
+                      Self app.
+                    </p>
+                    <a
+                      href={getUniversalLink(selfApp)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-block bg-Red text-white text-sm font-medium px-4 py-2 rounded-lg transition hover:bg-[#e02d37]"
+                    >
+                      Verify Identity via Self App
+                    </a>
+                  </div>
+                ) : (
+                  <SelfQRcodeWrapper
+                    selfApp={selfApp}
+                    onSuccess={async () => {
+                      await updateProfile({ isVerified: true }, false);
+                      await fetchProfile(false, true);
+                    }}
+                    onError={() => {
+                      console.error("Error scanning QR code");
+                    }}
+                    size={300}
+                    darkMode={false}
+                  />
                 )}
               </div>
             )}
