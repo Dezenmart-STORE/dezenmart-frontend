@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { RiSettings3Fill } from "react-icons/ri";
-import { MdOutlineCheckCircleOutline } from "react-icons/md";
+import { GoVerified, GoUnverified } from "react-icons/go";
 import { useCallback } from "react";
 import { FiCopy } from "react-icons/fi";
 
@@ -10,6 +10,7 @@ interface ProfileHeaderProps {
   email: string;
   id: string;
   showSettings: React.Dispatch<React.SetStateAction<boolean>>;
+  isVerified: boolean;
 }
 
 const ProfileHeader: React.FC<ProfileHeaderProps> = ({
@@ -17,6 +18,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
   name,
   email,
   id,
+  isVerified,
   showSettings,
 }) => {
   const handleCopyId = useCallback(() => {
@@ -78,7 +80,11 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
           transition={{ delay: 0.4 }}
         >
           <h3 className="text-white text-lg sm:text-xl my-2">{email}</h3>
-          <MdOutlineCheckCircleOutline className="text-[#1FBE42] text-2xl" />
+          {isVerified ? (
+            <GoVerified className="text-green-500 text-2xl" />
+          ) : (
+            <GoUnverified className="text-yellow-500 text-2xl" />
+          )}
         </motion.div>
         {/* <motion.button
           className="flex items-center justify-center gap-1 cursor-pointer"

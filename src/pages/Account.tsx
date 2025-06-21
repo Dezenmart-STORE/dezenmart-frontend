@@ -8,6 +8,8 @@ import Button from "../components/common/Button";
 import LoadingSpinner from "../components/common/LoadingSpinner";
 import { useUserManagement } from "../utils/hooks/useUser";
 import { TabOption, TabType } from "../utils/types";
+import { SelfApp, SelfAppBuilder, SelfQRcodeWrapper } from "@selfxyz/qrcode";
+import { useAuth } from "../context/AuthContext";
 
 const TabContent = lazy(
   () => import("../components/account/overview/TabContent")
@@ -53,10 +55,42 @@ const Account = () => {
     error,
     fetchProfile,
     isError,
+    updateProfile,
   } = useUserManagement();
+  const { user } = useAuth();
 
   const [activeTab, setActiveTab] = useState<TabType>("1");
   const [viewState, setViewState] = useState<AccountViewState>("overview");
+  const [selfApp, setSelfApp] = useState<SelfApp | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkIfMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    checkIfMobile();
+    window.addEventListener("resize", checkIfMobile);
+    return () => window.removeEventListener("resize", checkIfMobile);
+  }, []);
+  useEffect(() => {
+    const id = user?._id;
+    setSelfApp(
+      new SelfAppBuilder({
+        appName: "Dezenmart",
+        scope: "dezenmart-scope",
+        endpoint: import.meta.env.VITE_API_URL,
+        userId: id,
+        disclosures: {
+          name: true,
+          nationality: true,
+          passport_number: true,
+          expiry_date: true,
+          issuing_state: true,
+        },
+      }).build()
+    );
+  }, [user?._id]);
 
   useEffect(() => {
     fetchProfile(false, false);
@@ -152,7 +186,32 @@ const Account = () => {
               id={selectedUser._id}
               email={selectedUser.email}
               showSettings={handleShowSettings}
+              isVerified={selectedUser.isVerified || false}
             />
+            {selfApp && (
+              <div className="my-6">
+                <h3 className="text-lg font-semibold">Passport Verification</h3>
+                {/* For desktop */}
+                <SelfQRcodeWrapper
+                  selfApp={selfApp}
+                  onSuccess={async () => {
+                    await updateProfile({ isVerified: true }, true);
+                    await fetchProfile(true, true);
+                  }}
+                  onError={() => {
+                    console.error("Error scanning QR code");
+                  }}
+                  size={isMobile ? 200 : 300}
+                  darkMode={false}
+                />
+                {isMobile && (
+                  <p className="mt-2 text-sm text-gray-400">
+                    Alternative: open this page on desktop to scan QR.
+                  </p>
+                )}
+              </div>
+            )}
+
             <motion.div
               className="w-full max-w-[650px] mx-auto"
               initial={{ opacity: 0, y: 20 }}
