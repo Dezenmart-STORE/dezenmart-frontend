@@ -154,35 +154,33 @@ const Home = () => {
   return (
     <div className="bg-Dark min-h-screen">
       <Container className="py-6 md:py-20">
-        <div className="mb-4">
+        <div className="flex items-center justify-between mb-4">
           <div>
             <h4 className="text-[20px] text-white mb-0">
               Welcome,&nbsp;
               {isAuthenticated ? (
                 <>
                   <span className="max-xs:hidden">{userGreeting}</span>
-                  <span className="xs:hidden">
-                    {displayName}{" "}
-                    {user?.isVerified ? (
-                      <span className="relative group">
-                        <GoVerified className="text-green-500 text-2xl cursor-help" />
-                        <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-800 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10">
-                          Account Verified ✓
-                          <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
-                        </span>
-                      </span>
-                    ) : (
-                      <span className="relative group">
-                        <GoUnverified className="text-yellow-500 text-2xl cursor-help" />
-                        <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-800 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10">
-                          Account Not Verified
-                          <br />
-                          Click "Verify Account" button below
-                          <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
-                        </span>
-                      </span>
-                    )}
-                  </span>
+                  <span className="xs:hidden inline-block">{displayName} </span>
+                  {user?.isVerified ? (
+                    <div className="relative group">
+                      <GoVerified className="text-green-500 text-2xl cursor-help" />
+                      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-800 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10">
+                        Account Verified ✓
+                        <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="relative group">
+                      <GoUnverified className="text-yellow-500 text-2xl cursor-help" />
+                      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-800 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10">
+                        Account Not Verified
+                        <br />
+                        Click "Verify Account" button below
+                        <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
+                      </div>
+                    </div>
+                  )}
                 </>
               ) : (
                 "User"
