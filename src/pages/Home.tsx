@@ -177,7 +177,7 @@ const Home = () => {
                       <div className="absolute md:bottom-full md:top-auto top-full left-1/2 transform -translate-x-1/2 md:mb-2 mt-2 px-3 py-2 bg-gray-800 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10">
                         Account Not Verified
                         <br />
-                        Click "Verify Account" button below
+                        Click "Verify Account" button on your account page
                         <div className="absolute md:top-full top-auto bottom-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 md:border-t-4 border-b-4 border-transparent md:border-t-gray-800 border-b-gray-800"></div>
                       </div>
                     </div>
