@@ -22,21 +22,21 @@ const Modal: FC<ModalProps> = ({
 }) => {
   const modalRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
+  // useEffect(() => {
+  //   const handleEscape = (e: KeyboardEvent) => {
+  //     if (e.key === "Escape") onClose();
+  //   };
 
-    if (isOpen) {
-      document.addEventListener("keydown", handleEscape);
-      document.body.style.overflow = "hidden";
-    }
+  //   if (isOpen) {
+  //     document.addEventListener("keydown", handleEscape);
+  //     document.body.style.overflow = "hidden";
+  //   }
 
-    return () => {
-      document.removeEventListener("keydown", handleEscape);
-      document.body.style.overflowY = "auto";
-    };
-  }, [isOpen, onClose]);
+  //   return () => {
+  //     document.removeEventListener("keydown", handleEscape);
+  //     document.body.style.overflowY = "auto";
+  //   };
+  // }, [isOpen, onClose]);
 
   const handleBackdropClick = (e: React.MouseEvent) => {
     if (modalRef.current && !modalRef.current.contains(e.target as Node)) {
