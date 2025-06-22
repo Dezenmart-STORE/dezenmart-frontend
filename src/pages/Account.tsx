@@ -77,7 +77,7 @@ const Account = () => {
     return () => window.removeEventListener("resize", checkIfMobile);
   }, []);
   useEffect(() => {
-    const id = user?._id;
+    const id = user?._id || selectedUser?._id;
     setSelfApp(
       new SelfAppBuilder({
         appName: "Dezenmart",
