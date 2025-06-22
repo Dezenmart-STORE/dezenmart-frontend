@@ -49,7 +49,7 @@ const Modal: FC<ModalProps> = ({
   return createPortal(
     <AnimatePresence>
       <motion.div
-        className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 overflow-x-hidden"
         onClick={handleBackdropClick}
       >
         <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" />
@@ -57,7 +57,7 @@ const Modal: FC<ModalProps> = ({
         {/* Modal content */}
         <div
           ref={modalRef}
-          className={`relative w-full ${maxWidth} bg-[#212428]/90 backdrop-blur-md rounded-xl shadow-xl border border-gray-700/50 overflow-hidden transform transition-all max-h-[90vh] flex flex-col`}
+          className={`relative w-full max-w-[calc(100vw-1rem)] sm:max-w-[calc(100vw-2rem)] ${maxWidth} bg-[#212428]/90 backdrop-blur-md rounded-xl shadow-xl border border-gray-700/50 overflow-hidden transform transition-all max-h-[90vh] flex flex-col`}
           style={{ backdropFilter: "blur(12px)" }}
         >
           {/* Header with title and close button */}
