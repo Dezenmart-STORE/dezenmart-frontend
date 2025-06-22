@@ -8,8 +8,8 @@ import Button from "../components/common/Button";
 import LoadingSpinner from "../components/common/LoadingSpinner";
 import { useUserManagement } from "../utils/hooks/useUser";
 import { TabOption, TabType } from "../utils/types";
-import SelfQRcodeWrapper, { SelfAppBuilder } from "@selfxyz/qrcode";
-import { getUniversalLink, SelfApp } from "@selfxyz/core";
+import SelfQRcodeWrapper from "@selfxyz/qrcode";
+import { getUniversalLink, SelfApp, SelfAppBuilder } from "@selfxyz/core";
 import { useAuth } from "../context/AuthContext";
 import { FullLogo } from ".";
 
@@ -215,7 +215,7 @@ const Account = () => {
                   </div>
                 ) : (
                   <SelfQRcodeWrapper
-                    selfApp={selfApp}
+                    selfApp={selfApp as any}
                     onSuccess={async () => {
                       await updateProfile({ isVerified: true }, false);
                       await fetchProfile(false, true);
