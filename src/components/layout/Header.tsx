@@ -13,6 +13,7 @@ import CurrencyToggle from "../common/CurrencyToggle";
 import WalletConnectButton from "../web3/WalletConnectButton";
 import { useWeb3 } from "../../context/Web3Context";
 import { FiInfo } from "react-icons/fi";
+import SefltVerification from "../common/SefltVerification";
 
 const NavList = [
   { title: "Home", path: "/" },
@@ -26,7 +27,8 @@ const Header = () => {
   const { user, isAuthenticated, logout } = useAuth();
   const { wallet, disconnectWallet } = useWeb3();
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const [showWallet, setShowWallet] = useState(false);
+  // const [showWallet, setShowWallet] = useState(false);
+  const [showVerifyModal, setShowVerifyModal] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const { unreadCount, fetchUserUnreadCount } = useNotifications();
   const { loadConversations, totalUnreadMessages } = useChat();
@@ -210,6 +212,13 @@ const Header = () => {
                     className="w-8 h-8 rounded-full ring-2 ring-[#292B30] hover:ring-Red transition-all"
                     loading="lazy"
                   />
+                  <div className="relative group">
+                    <FiInfo className="text-yellow-500 text-sm cursor-help" />
+                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-800 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10">
+                      Verify your account to unlock all features
+                      <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
+                    </div>
+                  </div>
                 </button>
 
                 {showUserMenu && (
@@ -227,7 +236,7 @@ const Header = () => {
                     </button>
                     {!user?.isVerified && (
                       <button
-                        onClick={handleProfileNavigation}
+                        onClick={() => setShowVerifyModal(true)}
                         className="block w-full text-left px-4 py-2 text-sm text-white hover:bg-[#292B30] transition-colors"
                         role="menuitem"
                       >
@@ -266,6 +275,10 @@ const Header = () => {
           )}
         </div>
       </Container>
+      <SefltVerification
+        isOpen={showVerifyModal}
+        onClose={() => setShowVerifyModal(false)}
+      />
     </header>
   );
 };
