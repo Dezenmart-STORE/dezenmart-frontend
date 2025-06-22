@@ -242,13 +242,13 @@ const Header = () => {
                       >
                         <div className="flex items-center gap-2">
                           <span>Verify Account</span>
-                          <div className="relative group">
+                          {/* <div className="relative group">
                             <FiInfo className="text-yellow-500 text-sm cursor-help" />
                             <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-800 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10">
                               Verify your account to unlock all features
                               <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
                             </div>
-                          </div>
+                          </div> */}
                         </div>
                       </button>
                     )}
