@@ -212,7 +212,7 @@ const Header = () => {
                     className="w-8 h-8 rounded-full ring-2 ring-[#292B30] hover:ring-Red transition-all"
                     loading="lazy"
                   />
-                  {/* {!user?.isVerified && (
+                  {!user?.isVerified && (
                     <div className="absolute -top-1 -right-1">
                       <div className="relative group">
                         <div className="w-3 h-3 bg-yellow-500 rounded-full flex items-center justify-center">
@@ -230,7 +230,7 @@ const Header = () => {
                         </div>
                       </div>
                     </div>
-                  )} */}
+                  )}
                 </button>
 
                 {showUserMenu && (
