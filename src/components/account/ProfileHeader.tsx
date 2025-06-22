@@ -81,9 +81,23 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
         >
           <h3 className="text-white text-lg sm:text-xl my-2">{email}</h3>
           {isVerified ? (
-            <GoVerified className="text-green-500 text-2xl" />
+            <div className="relative group">
+              <GoVerified className="text-green-500 text-2xl cursor-help" />
+              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-800 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10">
+                Account Verified ✓
+                <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
+              </div>
+            </div>
           ) : (
-            <GoUnverified className="text-yellow-500 text-2xl" />
+            <div className="relative group">
+              <GoUnverified className="text-yellow-500 text-2xl cursor-help" />
+              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-800 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10">
+                Account Not Verified
+                <br />
+                Click "Verify Account" button below
+                <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
+              </div>
+            </div>
           )}
         </motion.div>
         {/* <motion.button

@@ -230,7 +230,7 @@ const Account = () => {
                 transition={{ delay: 0.6 }}
               >
                 <Button
-                  title="Verify Profile"
+                  title="Verify Account"
                   icon={<MdOutlineVerifiedUser />}
                   onClick={() => setShowVerifyModal(true)}
                   className="bg-Red text-white text-lg font-bold h-11 rounded-none flex justify-center w-full border-none outline-none text-center my-2 hover:bg-[#e02d37] transition-colors"
@@ -279,18 +279,23 @@ const Account = () => {
             </a>
           </div>
         ) : (
-          <SelfQRcodeWrapper
-            selfApp={selfApp as any}
-            onSuccess={async () => {
-              await updateProfile({ isVerified: true }, false);
-              await fetchProfile(false, true);
-            }}
-            onError={() => {
-              console.error("Error scanning QR code");
-            }}
-            size={300}
-            darkMode={false}
-          />
+          <div>
+            <p className="text-sm text-gray-400 mb-2">
+              Scan the QR code below to verify your account.
+            </p>
+            <SelfQRcodeWrapper
+              selfApp={selfApp as any}
+              onSuccess={async () => {
+                await updateProfile({ isVerified: true }, false);
+                await fetchProfile(false, true);
+              }}
+              onError={() => {
+                console.error("Error scanning QR code");
+              }}
+              size={300}
+              darkMode={false}
+            />
+          </div>
         )}
       </Modal>
     </div>
