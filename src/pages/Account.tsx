@@ -14,6 +14,8 @@ import type { SelfApp } from "@selfxyz/common/utils/appType";
 import { useAuth } from "../context/AuthContext";
 import { FullLogo } from ".";
 import { v4 as uuidv4 } from "uuid";
+import { MdOutlineVerifiedUser } from "react-icons/md";
+import Modal from "../components/common/Modal";
 
 const TabContent = lazy(
   () => import("../components/account/overview/TabContent")
@@ -67,6 +69,7 @@ const Account = () => {
   const [viewState, setViewState] = useState<AccountViewState>("overview");
   const [selfApp, setSelfApp] = useState<SelfApp | null>(null);
   const [isMobile, setIsMobile] = useState(false);
+  const [showVerifyModal, setShowVerifyModal] = useState(false);
 
   useEffect(() => {
     const checkIfMobile = () => {
@@ -197,42 +200,13 @@ const Account = () => {
               showSettings={handleShowSettings}
               isVerified={selectedUser.isVerified || false}
             />
-            {selfApp && (
+            {/* {selfApp && (
               <div className="my-6">
                 <h3 className="text-lg font-semibold mb-2">
                   Passport Verification
                 </h3>
-                {isMobile ? (
-                  <div>
-                    <p className="text-sm text-gray-400 mb-2">
-                      You're on mobile. Tap the button below to verify via the
-                      Self app.
-                    </p>
-                    <a
-                      href={getUniversalLink(selfApp)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-block bg-Red text-white text-sm font-medium px-4 py-2 rounded-lg transition hover:bg-[#e02d37]"
-                    >
-                      Verify Identity via Self App
-                    </a>
-                  </div>
-                ) : (
-                  <SelfQRcodeWrapper
-                    selfApp={selfApp as any}
-                    onSuccess={async () => {
-                      await updateProfile({ isVerified: true }, false);
-                      await fetchProfile(false, true);
-                    }}
-                    onError={() => {
-                      console.error("Error scanning QR code");
-                    }}
-                    size={300}
-                    darkMode={false}
-                  />
-                )}
               </div>
-            )}
+            )} */}
 
             <motion.div
               className="w-full max-w-[650px] mx-auto"
@@ -248,6 +222,21 @@ const Account = () => {
                 className="bg-white text-black text-lg font-bold h-11 rounded-none flex justify-center w-full border-none outline-none text-center my-2 hover:bg-gray-100 transition-colors"
               />
             </motion.div>
+            {selfApp && !selectedUser.isVerified && (
+              <motion.div
+                className="w-full max-w-[650px] mx-auto"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.6 }}
+              >
+                <Button
+                  title="Verify Profile"
+                  icon={<MdOutlineVerifiedUser />}
+                  onClick={() => setShowVerifyModal(true)}
+                  className="bg-Red text-white text-lg font-bold h-11 rounded-none flex justify-center w-full border-none outline-none text-center my-2 hover:bg-[#e02d37] transition-colors"
+                />
+              </motion.div>
+            )}
             <TabNavigation
               activeTab={activeTab}
               onTabChange={setActiveTab}
@@ -270,6 +259,40 @@ const Account = () => {
           </>
         )}
       </Container>
+      <Modal
+        isOpen={showVerifyModal}
+        onClose={() => setShowVerifyModal(false)}
+        title="Passport Verification"
+      >
+        {isMobile ? (
+          <div>
+            <p className="text-sm text-gray-400 mb-2">
+              You're on mobile. Tap the button below to verify via the Self app.
+            </p>
+            <a
+              href={getUniversalLink(selfApp as SelfApp)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mx-auto inline-block bg-Red text-white text-sm font-medium px-4 py-2 rounded-lg transition hover:bg-[#e02d37]"
+            >
+              Verify Identity via Self App
+            </a>
+          </div>
+        ) : (
+          <SelfQRcodeWrapper
+            selfApp={selfApp as any}
+            onSuccess={async () => {
+              await updateProfile({ isVerified: true }, false);
+              await fetchProfile(false, true);
+            }}
+            onError={() => {
+              console.error("Error scanning QR code");
+            }}
+            size={300}
+            darkMode={false}
+          />
+        )}
+      </Modal>
     </div>
   );
 };
