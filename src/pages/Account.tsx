@@ -9,7 +9,8 @@ import LoadingSpinner from "../components/common/LoadingSpinner";
 import { useUserManagement } from "../utils/hooks/useUser";
 import { TabOption, TabType } from "../utils/types";
 import SelfQRcodeWrapper from "@selfxyz/qrcode";
-import { getUniversalLink, SelfApp, SelfAppBuilder } from "@selfxyz/core";
+import { getUniversalLink, SelfAppBuilder } from "@selfxyz/core";
+import type { SelfApp } from "@selfxyz/common/utils/appType";
 import { useAuth } from "../context/AuthContext";
 import { FullLogo } from ".";
 
@@ -85,6 +86,7 @@ const Account = () => {
         endpointType: "https",
         logoBase64: FullLogo,
         userId: id,
+        // chainID: 44787,
         disclosures: {
           name: true,
           nationality: true,
@@ -93,7 +95,7 @@ const Account = () => {
           issuing_state: true,
           minimumAge: 18,
         },
-      }).build()
+      }).build() as SelfApp
     );
   }, [user?._id]);
 
