@@ -156,12 +156,13 @@ const Home = () => {
       <Container className="py-6 md:py-20">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h4 className="text-[20px] text-white mb-0">
+            <h4 className="text-[20px] text-white mb-0 align-middle">
               Welcome,&nbsp;
               {isAuthenticated ? (
                 <>
                   <span className="max-xs:hidden">{userGreeting}</span>
-                  <span className="xs:hidden inline-block">{displayName} </span>
+                  <span className="xs:hidden inline-block">{displayName}</span>
+                  &nsbsp;
                   {user?.isVerified ? (
                     <div className="relative group inline-block">
                       <GoVerified className="text-green-500 text-2xl cursor-help" />
@@ -185,7 +186,6 @@ const Home = () => {
               ) : (
                 "User"
               )}
-              .
             </h4>
             <span className="text-[#C6C6C8] text-[13px]">
               What would you like to do today?
