@@ -161,7 +161,7 @@ const Home = () => {
               {isAuthenticated ? (
                 <>
                   <span className="max-xs:hidden">{userGreeting}</span>
-                  <span className="xs:hidden">
+                  <span className="xs:hidden inline-block">
                     {displayName}{" "}
                     {user?.isVerified ? (
                       <div className="relative group">
@@ -193,9 +193,9 @@ const Home = () => {
               What would you like to do today?
             </span>
           </div>
-          <div className="flex md:hidden items-center">
+          {/* <div className="flex md:hidden items-center">
             <RiVerifiedBadgeFill className="text-[#4FA3FF] text-xl" />
-          </div>
+          </div> */}
         </div>
 
         {/* Quick action buttons */}
