@@ -8,14 +8,12 @@ import Button from "../components/common/Button";
 import LoadingSpinner from "../components/common/LoadingSpinner";
 import { useUserManagement } from "../utils/hooks/useUser";
 import { TabOption, TabType } from "../utils/types";
-import SelfQRcodeWrapper from "@selfxyz/qrcode";
-import { getUniversalLink, SelfAppBuilder } from "@selfxyz/core";
-import type { SelfApp } from "@selfxyz/common/utils/appType";
+
 import { useAuth } from "../context/AuthContext";
-import { FullLogo } from ".";
-import { v4 as uuidv4 } from "uuid";
+
 import { MdOutlineVerifiedUser } from "react-icons/md";
 import Modal from "../components/common/Modal";
+import SefltVerification from "../components/common/SefltVerification";
 
 const TabContent = lazy(
   () => import("../components/account/overview/TabContent")
@@ -61,48 +59,13 @@ const Account = () => {
     error,
     fetchProfile,
     isError,
-    updateProfile,
   } = useUserManagement();
   const { user } = useAuth();
 
   const [activeTab, setActiveTab] = useState<TabType>("1");
   const [viewState, setViewState] = useState<AccountViewState>("overview");
-  const [selfApp, setSelfApp] = useState<SelfApp | null>(null);
-  const [isMobile, setIsMobile] = useState(false);
+
   const [showVerifyModal, setShowVerifyModal] = useState(false);
-
-  useEffect(() => {
-    const checkIfMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-
-    checkIfMobile();
-    window.addEventListener("resize", checkIfMobile);
-    return () => window.removeEventListener("resize", checkIfMobile);
-  }, []);
-  useEffect(() => {
-    const id = uuidv4();
-    // user?._id || selectedUser?._id;
-    setSelfApp(
-      new SelfAppBuilder({
-        appName: "Dezenmart",
-        scope: "dezenmart-scope",
-        endpoint: import.meta.env.VITE_API_URL,
-        endpointType: "https",
-        logoBase64: FullLogo,
-        userId: id,
-        // chainID: 44787,
-        disclosures: {
-          name: true,
-          nationality: true,
-          passport_number: true,
-          expiry_date: true,
-          issuing_state: true,
-          minimumAge: 18,
-        },
-      }).build() as SelfApp
-    );
-  }, [user?._id]);
 
   useEffect(() => {
     fetchProfile(false, false);
@@ -222,7 +185,7 @@ const Account = () => {
                 className="bg-white text-black text-lg font-bold h-11 rounded-none flex justify-center w-full border-none outline-none text-center my-2 hover:bg-gray-100 transition-colors"
               />
             </motion.div>
-            {selfApp && !selectedUser.isVerified && (
+            {!selectedUser.isVerified && (
               <motion.div
                 className="w-full max-w-[650px] mx-auto"
                 initial={{ opacity: 0, y: 20 }}
@@ -259,45 +222,10 @@ const Account = () => {
           </>
         )}
       </Container>
-      <Modal
+      <SefltVerification
         isOpen={showVerifyModal}
         onClose={() => setShowVerifyModal(false)}
-        title="Passport Verification"
-      >
-        {isMobile ? (
-          <div>
-            <p className="text-sm text-gray-400 mb-2">
-              You're on mobile. Tap the button below to verify via the Self app.
-            </p>
-            <a
-              href={getUniversalLink(selfApp as SelfApp)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mx-auto inline-block bg-Red text-white text-sm font-medium px-4 py-2 rounded-lg transition hover:bg-[#e02d37]"
-            >
-              Verify Identity via Self App
-            </a>
-          </div>
-        ) : (
-          <div>
-            <p className="text-sm text-gray-400 mb-2">
-              Scan the QR code below to verify your account.
-            </p>
-            <SelfQRcodeWrapper
-              selfApp={selfApp as any}
-              onSuccess={async () => {
-                await updateProfile({ isVerified: true }, false);
-                await fetchProfile(false, true);
-              }}
-              onError={() => {
-                console.error("Error scanning QR code");
-              }}
-              size={300}
-              darkMode={false}
-            />
-          </div>
-        )}
-      </Modal>
+      />
     </div>
   );
 };
