@@ -8,8 +8,8 @@ import Button from "../components/common/Button";
 import LoadingSpinner from "../components/common/LoadingSpinner";
 import { useUserManagement } from "../utils/hooks/useUser";
 import { TabOption, TabType } from "../utils/types";
-import SelfQRcodeWrapper, { SelfApp, SelfAppBuilder } from "@selfxyz/qrcode";
-import { getUniversalLink } from "@selfxyz/core";
+import SelfQRcodeWrapper, { SelfAppBuilder } from "@selfxyz/qrcode";
+import { getUniversalLink, SelfApp } from "@selfxyz/core";
 import { useAuth } from "../context/AuthContext";
 import { FullLogo } from ".";
 
