@@ -13,6 +13,7 @@ import { getUniversalLink, SelfAppBuilder } from "@selfxyz/core";
 import type { SelfApp } from "@selfxyz/common/utils/appType";
 import { useAuth } from "../context/AuthContext";
 import { FullLogo } from ".";
+import { v4 as uuidv4 } from "uuid";
 
 const TabContent = lazy(
   () => import("../components/account/overview/TabContent")
@@ -77,7 +78,8 @@ const Account = () => {
     return () => window.removeEventListener("resize", checkIfMobile);
   }, []);
   useEffect(() => {
-    const id = user?._id || selectedUser?._id;
+    const id = uuidv4();
+    // user?._id || selectedUser?._id;
     setSelfApp(
       new SelfAppBuilder({
         appName: "Dezenmart",
