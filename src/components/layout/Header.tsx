@@ -218,7 +218,7 @@ const Header = () => {
                         <div className="w-3 h-3 bg-yellow-500 rounded-full flex items-center justify-center">
                           <FiInfo className="text-black text-xs" />
                         </div>
-                        <div className="absolute bottom-full right-0 mb-2 px-3 py-2 bg-gray-800 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10 max-w-[200px]">
+                        <div className="absolute bottom-full right-0 mb-2 px-3 py-2 bg-gray-800 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10 max-w-[200px] overflow-hidden">
                           <div className="font-semibold mb-1">
                             Account Verification Required
                           </div>
