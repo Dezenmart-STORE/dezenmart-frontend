@@ -246,7 +246,7 @@ const Header = () => {
                     >
                       My Account
                     </button>
-                    {/* {!user?.isVerified && (
+                    {!user?.isVerified && (
                       <button
                         onClick={() => setShowVerifyModal(true)}
                         className="block w-full text-left px-4 py-2 text-sm text-white hover:bg-[#292B30] transition-colors"
@@ -263,7 +263,7 @@ const Header = () => {
                           </div>
                         </div>
                       </button>
-                    )} */}
+                    )}
                     <button
                       onClick={handleLogout}
                       className="block w-full text-left px-4 py-2 text-sm text-white hover:bg-[#292B30] transition-colors"
