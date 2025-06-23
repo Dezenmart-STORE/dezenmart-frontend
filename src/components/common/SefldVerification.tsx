@@ -7,25 +7,31 @@ import SelfQRcodeWrapper from "@selfxyz/qrcode";
 import { getUniversalLink, SelfAppBuilder } from "@selfxyz/core";
 import type { SelfApp } from "@selfxyz/common/utils/appType";
 import { useAuth } from "../../context/AuthContext";
-import { useUserManagement } from "../../utils/hooks/useUser";
+import { useSnackbar } from "../../context/SnackbarContext";
+// import { useUserManagement } from "../../utils/hooks/useUser";
 
 interface props {
   isOpen: boolean;
   onClose: () => void;
 }
-function SefltVerification({ isOpen, onClose }: props) {
+
+function SefldVerification({ isOpen, onClose }: props) {
   const { user } = useAuth();
-  const {
-    selectedUser,
-    formattedSelectedUser,
-    isLoading,
-    error,
-    fetchProfile,
-    isError,
-    updateProfile,
-  } = useUserManagement();
+  const { showSnackbar } = useSnackbar();
+  // const {
+  //   selectedUser,
+  //   formattedSelectedUser,
+  //   isLoading,
+  //   error,
+  //   fetchProfile,
+  //   isError,
+  //   updateProfile,
+  //   verifySelf,
+  // } = useUserManagement();
+
   const [selfApp, setSelfApp] = useState<SelfApp | null>(null);
   const [isMobile, setIsMobile] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
 
   useEffect(() => {
     const checkIfMobile = () => {
@@ -36,18 +42,18 @@ function SefltVerification({ isOpen, onClose }: props) {
     window.addEventListener("resize", checkIfMobile);
     return () => window.removeEventListener("resize", checkIfMobile);
   }, []);
+
   useEffect(() => {
     const id = uuidv4();
-    // user?._id || selectedUser?._id;
+    const API_URL = import.meta.env.VITE_API_URL;
     setSelfApp(
       new SelfAppBuilder({
         appName: "Dezenmart",
         scope: "dezenmart-scope",
-        endpoint: import.meta.env.VITE_API_URL,
+        endpoint: `${API_URL}/users/verify-self`,
         endpointType: "https",
         logoBase64: FullLogo,
         userId: id,
-        // chainID: 44787,
         disclosures: {
           name: true,
           nationality: true,
@@ -59,6 +65,26 @@ function SefltVerification({ isOpen, onClose }: props) {
       }).build() as SelfApp
     );
   }, [user?._id]);
+
+  const handleVerificationSuccess = async () => {
+    // verificationData: {
+    //   proof: any;
+    //   publicSignals: any;
+    // }
+    showSnackbar("Verification successful", "success");
+    // setIsVerifying(true);
+    // try {
+    //   const success = await verifySelf(verificationData, true);
+    //   if (success) {
+    //     await fetchProfile(false, true);
+    //     onClose();
+    //   }
+    // } catch (error) {
+    //   console.error("Verification failed:", error);
+    // } finally {
+    //   setIsVerifying(false);
+    // }
+  };
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Passport Verification">
@@ -86,14 +112,19 @@ function SefltVerification({ isOpen, onClose }: props) {
           <p className="text-sm text-gray-400 mb-2">
             Scan the QR code below to verify your account.
           </p>
+          {isVerifying && (
+            <div className="text-center mb-4">
+              <p className="text-sm text-yellow-400">
+                Processing verification...
+              </p>
+            </div>
+          )}
           <SelfQRcodeWrapper
             selfApp={selfApp as any}
-            onSuccess={async () => {
-              await updateProfile({ isVerified: true }, false);
-              await fetchProfile(false, true);
-            }}
+            onSuccess={handleVerificationSuccess}
             onError={() => {
               console.error("Error scanning QR code");
+              setIsVerifying(false);
             }}
             size={300}
             darkMode={false}
@@ -104,4 +135,4 @@ function SefltVerification({ isOpen, onClose }: props) {
   );
 }
 
-export default SefltVerification;
+export default SefldVerification;

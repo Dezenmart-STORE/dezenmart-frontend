@@ -13,7 +13,8 @@ import CurrencyToggle from "../common/CurrencyToggle";
 import WalletConnectButton from "../web3/WalletConnectButton";
 import { useWeb3 } from "../../context/Web3Context";
 import { FiInfo } from "react-icons/fi";
-import SefltVerification from "../common/SefltVerification";
+import SefldVerification from "../common/SefldVerification";
+import { useUserManagement } from "../../utils/hooks/useUser";
 
 const NavList = [
   { title: "Home", path: "/" },
@@ -23,6 +24,7 @@ const NavList = [
 ] as const;
 
 const Header = () => {
+  const { selectedUser, checkVerificationStatus } = useUserManagement();
   const navigate = useNavigate();
   const { user, isAuthenticated, logout } = useAuth();
   const { wallet, disconnectWallet } = useWeb3();
@@ -32,6 +34,12 @@ const Header = () => {
   const userMenuRef = useRef<HTMLDivElement>(null);
   const { unreadCount, fetchUserUnreadCount } = useNotifications();
   const { loadConversations, totalUnreadMessages } = useChat();
+
+  useEffect(() => {
+    if (selectedUser?._id) {
+      checkVerificationStatus(false);
+    }
+  }, [selectedUser?._id, checkVerificationStatus]);
 
   const fetchData = useCallback(
     async (silent = false) => {
@@ -287,7 +295,7 @@ const Header = () => {
           )}
         </div>
       </Container>
-      <SefltVerification
+      <SefldVerification
         isOpen={showVerifyModal}
         onClose={() => setShowVerifyModal(false)}
       />

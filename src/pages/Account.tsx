@@ -13,7 +13,7 @@ import { useAuth } from "../context/AuthContext";
 
 import { MdOutlineVerifiedUser } from "react-icons/md";
 import Modal from "../components/common/Modal";
-import SefltVerification from "../components/common/SefltVerification";
+import SefldVerification from "../components/common/SefldVerification";
 
 const TabContent = lazy(
   () => import("../components/account/overview/TabContent")
@@ -222,7 +222,7 @@ const Account = () => {
           </>
         )}
       </Container>
-      <SefltVerification
+      <SefldVerification
         isOpen={showVerifyModal}
         onClose={() => setShowVerifyModal(false)}
       />
