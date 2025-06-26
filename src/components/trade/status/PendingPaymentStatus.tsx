@@ -263,6 +263,10 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
       return "Connect Wallet to Pay";
     }
 
+    if (!calculations.hasSufficientBalance) {
+      return "Insufficient Balance";
+    }
+
     return `Pay ${calculations.totalAmount.toFixed(2)} USDT`;
   }, [
     paymentState.isCompleted,
@@ -270,6 +274,7 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
     loading,
     wallet.isConnected,
     calculations.totalAmount,
+    calculations.hasSufficientBalance,
   ]);
 
   // Set initial quantity
@@ -352,6 +357,16 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
 
       if (controller.signal.aborted) return;
 
+      if (!calculations.hasSufficientBalance) {
+        showSnackbar(
+          `Insufficient USDT balance. Required: ${calculations.requiredAmount.toFixed(
+            2
+          )} USDT`,
+          "error"
+        );
+        return;
+      }
+
       setIsPaymentModalOpen(true);
     } catch (error) {
       if (!controller.signal.aborted && mountedRef.current) {
@@ -375,6 +390,8 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
     paymentState.isProcessing,
     paymentState.isCompleted,
     wallet.isConnected,
+    calculations.hasSufficientBalance,
+    calculations.requiredAmount,
     debouncedRefetchBalance,
     showSnackbar,
   ]);
@@ -623,12 +640,17 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
         className={`text-white text-sm px-6 py-3 rounded transition-all duration-200 disabled:cursor-not-allowed ${
           paymentState.isCompleted
             ? "bg-green-600 hover:bg-green-700"
+            : calculations.hasSufficientBalance &&
+              !loading &&
+              !paymentState.isProcessing &&
+              orderValidation.isValid
+            ? "bg-Red hover:bg-[#e02d37]"
             : "bg-gray-600 opacity-75"
         }`}
         onClick={handlePayNow}
         disabled={
           paymentState.isCompleted ||
-          (!calculations.hasSufficientBalance && wallet.isConnected) ||
+          // (!calculations.hasSufficientBalance && wallet.isConnected) ||
           loading ||
           paymentState.isProcessing ||
           !orderValidation.isValid
