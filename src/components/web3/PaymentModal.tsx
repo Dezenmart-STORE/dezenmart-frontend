@@ -18,6 +18,7 @@ import { formatCurrency } from "../../utils/web3.utils";
 import { useSnackbar } from "../../context/SnackbarContext";
 import { Order } from "../../utils/types";
 import { parseWeb3Error } from "../../utils/errorParser";
+import NetworkSwitcher from "./NetworkSwitcher";
 
 interface PaymentModalProps {
   isOpen: boolean;
@@ -488,29 +489,13 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   const renderDestinationChainSelector = () => (
     <div className="space-y-3">
       <h3 className="text-lg font-semibold text-white">Destination Chain</h3>
-      {isLoadingChains ? (
-        <div className="flex items-center justify-center py-4">
-          <div className="w-5 h-5 border-2 border-Red/30 border-t-Red rounded-full animate-spin" />
-          <span className="ml-2 text-gray-400">Loading chains...</span>
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 gap-2">
-          {availableChains.map((chain) => (
-            <button
-              key={chain.chainId}
-              onClick={() => setSelectedDestinationChain(chain.chainId)}
-              className={`p-3 rounded-lg border transition-all ${
-                selectedDestinationChain === chain.chainId
-                  ? "border-Red bg-Red/20 text-Red"
-                  : "border-Red/20 bg-Dark/50 text-gray-300 hover:border-Red/40"
-              }`}
-            >
-              <div className="text-sm font-medium">{chain.name}</div>
-              <div className="text-xs opacity-75">{chain.shortName}</div>
-            </button>
-          ))}
-        </div>
-      )}
+      <NetworkSwitcher
+        selectedChainId={selectedDestinationChain ?? undefined}
+        onChainSelect={setSelectedDestinationChain}
+        variant="grid"
+        size="md"
+        disabled={isProcessing || step !== "review"}
+      />
     </div>
   );
 
