@@ -632,7 +632,13 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
     ),
     [handleEditModalOpen, loading, paymentState.isCompleted]
   );
-
+  console.log(
+    paymentState.isCompleted ||
+      (!calculations.hasSufficientBalance && wallet.isConnected) ||
+      loading ||
+      paymentState.isProcessing ||
+      !orderValidation.isValid
+  );
   const payButton = useMemo(
     () => (
       <Button
@@ -650,7 +656,7 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
         onClick={handlePayNow}
         disabled={
           paymentState.isCompleted ||
-          // (!calculations.hasSufficientBalance && wallet.isConnected) ||
+          (!calculations.hasSufficientBalance && wallet.isConnected) ||
           loading ||
           paymentState.isProcessing ||
           !orderValidation.isValid
