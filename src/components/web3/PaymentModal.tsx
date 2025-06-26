@@ -284,11 +284,11 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
         orderDetails.logisticsProviderWalletAddress[0]
       );
 
-      if (!isValidTrade) {
-        throw new Error(
-          "This product is no longer available. Please refresh and try another item."
-        );
-      }
+      // if (!isValidTrade) {
+      //   throw new Error(
+      //     "This product is no longer available. Please refresh and try another item."
+      //   );
+      // }
 
       // Handle approval if needed
       if (needsApproval) {
