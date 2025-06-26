@@ -142,10 +142,6 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     [wallet.balance]
   );
 
-  const hasInsufficientBalance = useMemo(
-    () => balanceNumber < orderAmount,
-    [balanceNumber, orderAmount]
-  );
   const hasInsufficientGas = useMemo(() => gasBalance < 0.01, [gasBalance]);
 
   // Load supported chains
@@ -273,25 +269,6 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
         setIsProcessing(false);
         return;
       }
-    }
-
-    if (hasInsufficientBalance) {
-      setError(
-        `Insufficient USDT balance. Required: ${formatCurrency(
-          orderAmount
-        )} USDT`
-      );
-      setStep("error");
-      return;
-    }
-
-    if (hasInsufficientGas) {
-      const nativeCurrency = currentChain?.nativeCurrency || "native tokens";
-      setError(
-        `Insufficient ${nativeCurrency} for transaction fees. Please add some ${nativeCurrency} to your wallet.`
-      );
-      setStep("error");
-      return;
     }
 
     try {
@@ -444,7 +421,6 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   }, [
     wallet.isConnected,
     isCorrectNetwork,
-    hasInsufficientBalance,
     hasInsufficientGas,
     needsApproval,
     orderDetails,
@@ -610,7 +586,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
             )}
 
             {(!wallet.isConnected ||
-              hasInsufficientBalance ||
+              /* hasInsufficientBalance || */
               hasInsufficientGas ||
               !isCorrectNetwork) && (
               <div className="space-y-2">
@@ -625,6 +601,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                   </div>
                 )}
 
+                {/*
                 {wallet.isConnected && hasInsufficientBalance && (
                   <div className="bg-red-900/20 border border-red-500/30 rounded-lg p-3">
                     <div className="flex items-center gap-2">
@@ -636,6 +613,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                     </div>
                   </div>
                 )}
+                */}
 
                 {wallet.isConnected && hasInsufficientGas && (
                   <div className="bg-yellow-900/20 border border-yellow-500/30 rounded-lg p-3">
@@ -686,7 +664,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                 isLoadingBalance ||
                 isLoadingChains ||
                 (wallet.isConnected &&
-                  (hasInsufficientBalance || hasInsufficientGas))
+                  /* hasInsufficientBalance || */ hasInsufficientGas)
               }
               className="flex items-center justify-center w-full bg-Red hover:bg-Red/80 disabled:bg-gray-600 disabled:cursor-not-allowed text-white text-lg py-4 font-semibold transition-all duration-200"
             />
