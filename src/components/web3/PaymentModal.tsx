@@ -575,16 +575,16 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
               </div>
             </div>
 
-            {needsApproval && (
-              <div className="bg-yellow-900/20 border border-yellow-500/30 rounded-lg p-3">
-                <div className="flex items-center gap-2">
-                  <HiExclamationTriangle className="w-4 h-4 text-yellow-400" />
-                  <span className="text-yellow-400 text-sm">
-                    USDT spending approval required for this transaction
-                  </span>
-                </div>
+            {/* {needsApproval && ( */}
+            <div className="bg-yellow-900/20 border border-yellow-500/30 rounded-lg p-3">
+              <div className="flex items-center gap-2">
+                <HiExclamationTriangle className="w-4 h-4 text-yellow-400" />
+                <span className="text-yellow-400 text-sm">
+                  USDT spending approval required for this transaction
+                </span>
               </div>
-            )}
+            </div>
+            {/* )} */}
 
             {(!wallet.isConnected ||
               /* hasInsufficientBalance || */
@@ -660,13 +660,13 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                   : `Pay ${formatCurrency(orderAmount)} USDT`
               }
               onClick={handlePayment}
-              disabled={
-                isProcessing ||
-                isLoadingBalance ||
-                isLoadingChains ||
-                (wallet.isConnected &&
-                  /* hasInsufficientBalance || */ hasInsufficientGas)
-              }
+              // disabled={
+              //   isProcessing ||
+              //   isLoadingBalance ||
+              //   isLoadingChains ||
+              //   (!wallet.isConnected &&
+              //     /* hasInsufficientBalance || */ hasInsufficientGas)
+              // }
               className="flex items-center justify-center w-full bg-Red hover:bg-Red/80 disabled:bg-gray-600 disabled:cursor-not-allowed text-white text-lg py-4 font-semibold transition-all duration-200"
             />
           </div>
