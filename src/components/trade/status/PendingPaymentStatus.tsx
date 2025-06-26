@@ -63,7 +63,7 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
   const navigate = useNavigate();
   const { showSnackbar } = useSnackbar();
   const [isLoadingBalance, setIsLoadingBalance] = useState(false);
-  const { wallet, connectWallet, validateTradeBeforePurchase } = useWeb3();
+  const { wallet, connectWallet } = useWeb3();
   const { usdtBalance, refetch: refetchBalance } = useWalletBalance();
   const { changeOrderStatus, currentOrder } = useOrderData();
 
@@ -78,15 +78,7 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
     completedAt: null,
   });
 
-  const [tradeValidation, setTradeValidation] = useState<{
-    isValid: boolean;
-    isLoading: boolean;
-    error: string | null;
-  }>({
-    isValid: true,
-    isLoading: false,
-    error: null,
-  });
+  const tradeValidation = { isValid: true, isLoading: false, error: null };
 
   const [showWalletModal, setShowWalletModal] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -160,73 +152,6 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
     };
   }, []);
 
-  // Enhanced trade validation with debounce
-  useEffect(() => {
-    const validateTrade = async () => {
-      if (
-        !orderDetails?.product?.tradeId ||
-        !wallet.isConnected ||
-        tradeValidation.isLoading ||
-        paymentState.isCompleted
-      )
-        return;
-
-      if (tradeValidationTimeoutRef.current) {
-        clearTimeout(tradeValidationTimeoutRef.current);
-      }
-
-      tradeValidationTimeoutRef.current = setTimeout(async () => {
-        if (!mountedRef.current) return;
-
-        setTradeValidation({ isValid: true, isLoading: true, error: null });
-
-        try {
-          // Simulate validation for hackathon demo
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-
-          const isValid =
-            (await validateTradeBeforePurchase?.(
-              orderDetails.product.tradeId,
-              orderDetails.quantity.toString(),
-              orderDetails.logisticsProviderWalletAddress[0]
-            )) ?? true; // Default to true if validation fails
-
-          if (mountedRef.current) {
-            setTradeValidation({
-              isValid,
-              isLoading: false,
-              error: isValid ? null : "Product availability changed",
-            });
-          }
-        } catch (error) {
-          if (mountedRef.current) {
-            console.warn("Trade validation error:", error);
-            // For hackathon demo, assume product is available
-            setTradeValidation({
-              isValid: true,
-              isLoading: false,
-              error: null,
-            });
-          }
-        }
-      }, 1500);
-    };
-
-    validateTrade();
-
-    return () => {
-      if (tradeValidationTimeoutRef.current) {
-        clearTimeout(tradeValidationTimeoutRef.current);
-      }
-    };
-  }, [
-    orderDetails?.product?.tradeId,
-    orderDetails?.quantity,
-    orderDetails?.logisticsProviderWalletAddress?.[0],
-    wallet.isConnected,
-    paymentState.isCompleted,
-  ]);
-
   // Enhanced order validation
   const orderValidation = useMemo(() => {
     try {
@@ -248,20 +173,6 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
         };
       }
 
-      if (tradeValidation.isLoading) {
-        return {
-          isValid: false,
-          error: "Verifying product availability...",
-        };
-      }
-
-      if (!tradeValidation.isValid) {
-        return {
-          isValid: false,
-          error: tradeValidation.error || "Product not available",
-        };
-      }
-
       return { isValid: true, error: null };
     } catch (error) {
       console.error("Order validation error:", error);
@@ -274,9 +185,6 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
     orderDetails?.product?.price,
     orderDetails?.quantity,
     quantity,
-    tradeValidation.isValid,
-    tradeValidation.isLoading,
-    tradeValidation.error,
     paymentState.isCompleted,
   ]);
 
@@ -288,7 +196,7 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
         requiredAmount: 0,
         hasChanges: false,
         userBalance: 0,
-        hasSufficientBalance: false,
+        hasSufficientBalance: true,
       };
     }
 
@@ -315,7 +223,7 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
         requiredAmount,
         hasChanges: hasQuantityChanged || Boolean(hasLogisticsChanged),
         userBalance,
-        hasSufficientBalance: userBalance >= requiredAmount,
+        hasSufficientBalance: true,
       };
     } catch (error) {
       console.error("Calculation error:", error);
@@ -324,7 +232,7 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
         requiredAmount: 0,
         hasChanges: false,
         userBalance: 0,
-        hasSufficientBalance: false,
+        hasSufficientBalance: true,
       };
     }
   }, [
@@ -355,20 +263,8 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
       return "Processing Payment...";
     }
 
-    if (tradeValidation.isLoading) {
-      return "Checking availability...";
-    }
-
-    if (!tradeValidation.isValid) {
-      return "Product unavailable";
-    }
-
     if (!wallet.isConnected) {
       return "Connect Wallet to Pay";
-    }
-
-    if (!calculations.hasSufficientBalance) {
-      return "Insufficient Balance";
     }
 
     return `Pay ${calculations.totalAmount.toFixed(2)} USDT`;
@@ -376,11 +272,8 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
     paymentState.isCompleted,
     paymentState.isProcessing,
     loading,
-    tradeValidation.isLoading,
-    tradeValidation.isValid,
     wallet.isConnected,
     calculations.totalAmount,
-    calculations.hasSufficientBalance,
   ]);
 
   // Set initial quantity
@@ -463,16 +356,6 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
 
       if (controller.signal.aborted) return;
 
-      if (!calculations.hasSufficientBalance) {
-        showSnackbar(
-          `Insufficient USDT balance. Required: ${calculations.requiredAmount.toFixed(
-            2
-          )} USDT`,
-          "error"
-        );
-        return;
-      }
-
       setIsPaymentModalOpen(true);
     } catch (error) {
       if (!controller.signal.aborted && mountedRef.current) {
@@ -496,8 +379,6 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
     paymentState.isProcessing,
     paymentState.isCompleted,
     wallet.isConnected,
-    calculations.hasSufficientBalance,
-    calculations.requiredAmount,
     debouncedRefetchBalance,
     showSnackbar,
   ]);
@@ -746,23 +627,16 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
         className={`text-white text-sm px-6 py-3 rounded transition-all duration-200 disabled:cursor-not-allowed ${
           paymentState.isCompleted
             ? "bg-green-600 hover:bg-green-700"
-            : calculations.hasSufficientBalance &&
-              !loading &&
-              !paymentState.isProcessing &&
-              tradeValidation.isValid &&
-              orderValidation.isValid
+            : orderValidation.isValid
             ? "bg-Red hover:bg-[#e02d37]"
             : "bg-gray-600 opacity-75"
         }`}
         onClick={handlePayNow}
         disabled={
           paymentState.isCompleted ||
-          (!calculations.hasSufficientBalance && wallet.isConnected) ||
           loading ||
           paymentState.isProcessing ||
-          !orderValidation.isValid ||
-          !tradeValidation.isValid ||
-          tradeValidation.isLoading
+          !orderValidation.isValid
         }
       />
     ),
@@ -770,12 +644,8 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
       payButtonText,
       paymentState.isCompleted,
       paymentState.isProcessing,
-      calculations.hasSufficientBalance,
       loading,
       orderValidation.isValid,
-      tradeValidation.isValid,
-      tradeValidation.isLoading,
-      wallet.isConnected,
       handlePayNow,
     ]
   );
