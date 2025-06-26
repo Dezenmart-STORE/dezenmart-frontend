@@ -87,6 +87,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     validateTradeBeforePurchase,
     refreshBalances,
     estimateCrossChainFees,
+    chainId,
   } = useWeb3();
 
   const { getSupportedChains } = useSmartContract();
@@ -108,8 +109,8 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   const [crossChainFees, setCrossChainFees] = useState<string>("0");
 
   const currentChain = useMemo(() => {
-    return wallet.chainId ? SUPPORTED_CHAINS[wallet.chainId] : null;
-  }, [wallet.chainId]);
+    return chainId ? SUPPORTED_CHAINS[chainId] : null;
+  }, [chainId]);
 
   const destinationChain = useMemo(() => {
     return selectedDestinationChain
@@ -160,7 +161,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
 
         if (!selectedDestinationChain) {
           const defaultChain =
-            mappedChains.find((chain) => chain.chainId === wallet.chainId) ||
+            mappedChains.find((chain) => chain.chainId === chainId) ||
             mappedChains.find((chain) => chain.chainId === 43113) ||
             mappedChains[0];
           if (defaultChain) {
@@ -179,7 +180,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     };
 
     loadSupportedChains();
-  }, [isOpen, getSupportedChains, wallet.chainId, selectedDestinationChain]);
+  }, [isOpen, getSupportedChains, chainId, selectedDestinationChain]);
 
   // Estimate cross-chain fees
   useEffect(() => {

@@ -13,7 +13,7 @@ interface UseNetworkSwitchOptions {
 }
 
 export const useNetworkSwitch = (options: UseNetworkSwitchOptions = {}) => {
-  const { wallet, switchToCorrectNetwork } = useWeb3();
+  const { wallet, switchToCorrectNetwork, chainId } = useWeb3();
   const { showSnackbar } = useSnackbar();
   const [isSwitching, setIsSwitching] = useState(false);
 
@@ -37,7 +37,7 @@ export const useNetworkSwitch = (options: UseNetworkSwitchOptions = {}) => {
       setIsSwitching(true);
 
       try {
-        if (targetId && wallet.chainId !== targetId) {
+        if (targetId && chainId !== targetId) {
           const { switchChain } = await import("wagmi/actions");
           const { wagmiConfig } = await import(
             "../../utils/config/web3.config"
@@ -53,7 +53,7 @@ export const useNetworkSwitch = (options: UseNetworkSwitchOptions = {}) => {
           await switchToCorrectNetwork();
         }
 
-        options.onSuccess?.(targetId || wallet.chainId || 0);
+        options.onSuccess?.(targetId || chainId || 0);
         return { success: true, error: null };
       } catch (error: any) {
         console.error("Network switch failed:", error);
@@ -72,7 +72,7 @@ export const useNetworkSwitch = (options: UseNetworkSwitchOptions = {}) => {
     },
     [
       wallet.isConnected,
-      wallet.chainId,
+      chainId,
       isSwitching,
       options,
       switchToCorrectNetwork,
@@ -83,24 +83,21 @@ export const useNetworkSwitch = (options: UseNetworkSwitchOptions = {}) => {
   const isOnTargetNetwork = useCallback(
     (chainId?: number) => {
       const targetId = chainId || options.targetChainId;
-      return wallet.chainId === targetId;
+      return chainId === targetId;
     },
-    [wallet.chainId, options.targetChainId]
+    [chainId, options.targetChainId]
   );
 
   const isOnSupportedNetwork = useCallback(() => {
-    return (
-      wallet.chainId &&
-      SUPPORTED_CHAINS.some((chain) => chain.id === wallet.chainId)
-    );
-  }, [wallet.chainId]);
+    return chainId && SUPPORTED_CHAINS.some((chain) => chain.id === chainId);
+  }, [chainId]);
 
   return {
     switchNetwork,
     isSwitching,
     isOnTargetNetwork,
     isOnSupportedNetwork,
-    currentChainId: wallet.chainId,
+    currentChainId: chainId,
     isConnected: wallet.isConnected,
   };
 };

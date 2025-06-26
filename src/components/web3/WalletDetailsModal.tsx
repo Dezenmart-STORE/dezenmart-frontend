@@ -38,8 +38,13 @@ const WalletDetailsModal: React.FC<WalletDetailsModalProps> = ({
 }) => {
   const { showSnackbar } = useSnackbar();
   const { secondaryCurrency } = useCurrency();
-  const { wallet, disconnectWallet, isCorrectNetwork, switchToCorrectNetwork } =
-    useWeb3();
+  const {
+    wallet,
+    disconnectWallet,
+    isCorrectNetwork,
+    switchToCorrectNetwork,
+    chainId,
+  } = useWeb3();
 
   const {
     userCountry,
@@ -55,8 +60,8 @@ const WalletDetailsModal: React.FC<WalletDetailsModalProps> = ({
 
   // Memoized chain metadata
   const currentChainMetadata = useMemo(() => {
-    return wallet.chainId ? getChainMetadata(wallet.chainId) : null;
-  }, [wallet.chainId]);
+    return chainId ? getChainMetadata(chainId) : null;
+  }, [chainId]);
 
   const nativeCurrency = currentChainMetadata?.nativeCurrency || "ETH";
   const blockExplorer = currentChainMetadata?.blockExplorer;
@@ -171,7 +176,7 @@ const WalletDetailsModal: React.FC<WalletDetailsModalProps> = ({
 
   // Network status component
   const NetworkStatus = () => {
-    if (!wallet.chainId) {
+    if (!chainId) {
       return (
         <div className="p-3 bg-gray-500/10 border border-gray-500/30 rounded-lg">
           <div className="flex items-center gap-2">
