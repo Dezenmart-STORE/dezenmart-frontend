@@ -184,7 +184,7 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
     paymentState.isCompleted,
   ]);
 
-  // Enhanced calculations with performance optimization
+  // calculations with performance optimization
   const calculations = useMemo(() => {
     if (!orderValidation.isValid || !orderDetails?.product?.price) {
       return {
