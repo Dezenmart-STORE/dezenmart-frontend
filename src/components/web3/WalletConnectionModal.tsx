@@ -43,11 +43,22 @@ const WalletConnectionModal: React.FC<WalletConnectionModalProps> = ({
   const [connectionTimeout, setConnectionTimeout] = useState(false);
   const [walletConnectLoading, setWalletConnectLoading] = useState(false);
 
+  useEffect(() => {
+    const walletConnectProjectId = import.meta.env
+      .VITE_WALLETCONNECT_PROJECT_ID;
+    if (
+      !walletConnectProjectId &&
+      connectors.some((c) => c.name.toLowerCase().includes("walletconnect"))
+    ) {
+      console.warn("WalletConnect enabled but no project ID configured");
+    }
+  }, [connectors]);
   // Memoized available connectors with enhanced filtering
   const availableConnectors = useMemo(() => {
     return connectors.filter((connector) => {
       if (connector.name.toLowerCase().includes("walletconnect")) {
-        return !!import.meta.env.VITE_WALLETCONNECT_PROJECT_ID;
+        const projectId = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID;
+        return !!projectId;
       }
       return connector.ready !== false;
     });

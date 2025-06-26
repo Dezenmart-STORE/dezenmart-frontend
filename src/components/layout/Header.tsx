@@ -184,7 +184,7 @@ const Header = () => {
           <CurrencyToggle />
 
           {/* Wallet button */}
-          {/* <WalletConnectButton /> */}
+          <WalletConnectButton />
 
           {isAuthenticated ? (
             <>

@@ -104,6 +104,26 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
 
   const isCorrectNetwork = chain?.id === TARGET_CHAIN.id;
 
+  useEffect(() => {
+    // Cleanup WalletConnect on component unmount
+    return () => {
+      if (typeof window !== "undefined" && window.ethereum) {
+        // Reset any lingering WalletConnect sessions
+        const walletConnectConnector = connectors.find((c) =>
+          c.name.toLowerCase().includes("walletconnect")
+        );
+
+        if (walletConnectConnector && !isConnected) {
+          try {
+            walletConnectConnector.disconnect?.();
+          } catch (e) {
+            console.warn("WalletConnect cleanup warning:", e);
+          }
+        }
+      }
+    };
+  }, [connectors, isConnected]);
+
   // AVAX balance for gas fees (since we're on Avalanche Fuji)
   const { data: avaxBalance, refetch: refetchAvaxBalance } = useBalance({
     address,

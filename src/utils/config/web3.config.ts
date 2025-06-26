@@ -7,6 +7,7 @@ import {
 } from "wagmi/chains";
 import { coinbaseWallet, metaMask, walletConnect } from "wagmi/connectors";
 import { ChainMetadata } from "../types/web3.types";
+import { createClient } from "viem";
 
 // RPC endpoints with fallbacks
 const rpcEndpoints = {
@@ -170,7 +171,13 @@ export const wagmiConfig = createConfig({
               url: window.location.origin,
               icons: [`${window.location.origin}/images/logo-full.png`],
             },
-            showQrModal: true,
+            showQrModal: false,
+            qrModalOptions: {
+              themeMode: "dark",
+              themeVariables: {
+                "--wcm-z-index": "9999",
+              },
+            },
           }),
         ]
       : []),
