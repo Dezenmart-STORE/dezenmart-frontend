@@ -357,15 +357,15 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
 
       if (controller.signal.aborted) return;
 
-      if (!calculations.hasSufficientBalance) {
-        showSnackbar(
-          `Insufficient USDT balance. Required: ${calculations.requiredAmount.toFixed(
-            2
-          )} USDT`,
-          "error"
-        );
-        return;
-      }
+      // if (!calculations.hasSufficientBalance) {
+      //   showSnackbar(
+      //     `Insufficient USDT balance. Required: ${calculations.requiredAmount.toFixed(
+      //       2
+      //     )} USDT`,
+      //     "error"
+      //   );
+      //   return;
+      // }
 
       setIsPaymentModalOpen(true);
     } catch (error) {
