@@ -637,7 +637,13 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
       (!calculations.hasSufficientBalance && wallet.isConnected) ||
       loading ||
       paymentState.isProcessing ||
-      !orderValidation.isValid
+      !orderValidation.isValid,
+    paymentState.isCompleted,
+    calculations.hasSufficientBalance,
+    wallet.isConnected,
+    loading,
+    paymentState.isProcessing,
+    orderValidation.isValid
   );
   const payButton = useMemo(
     () => (
