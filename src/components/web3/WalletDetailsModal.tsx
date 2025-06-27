@@ -229,9 +229,9 @@ const WalletDetailsModal: React.FC<WalletDetailsModalProps> = ({
 
   // Supported chains display
 
-  const SupportedChains = () => (
-    <NetworkSwitcher variant="grid" size="sm" showCurrentNetwork={false} />
-  );
+  // const SupportedChains = () => (
+  //   <NetworkSwitcher variant="grid" size="sm" showCurrentNetwork={false} />
+  // );
 
   return (
     <Modal
@@ -281,7 +281,7 @@ const WalletDetailsModal: React.FC<WalletDetailsModalProps> = ({
         </div>
 
         {/* Supported Networks */}
-        <SupportedChains />
+        {/* <SupportedChains /> */}
 
         {/* Portfolio Overview */}
         <div className="space-y-3">
