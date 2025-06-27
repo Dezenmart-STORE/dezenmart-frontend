@@ -52,7 +52,6 @@ export const useNetworkSwitch = (options: UseNetworkSwitchOptions = {}) => {
         abortControllerRef.current.abort();
       }
 
-      // Create new abort controller for this attempt
       abortControllerRef.current = new AbortController();
       const signal = abortControllerRef.current.signal;
 
@@ -79,7 +78,7 @@ export const useNetworkSwitch = (options: UseNetworkSwitchOptions = {}) => {
           throw new Error("Operation was cancelled");
         }
 
-        // Add connection check before switch
+        // connection check before switch
         if (!window.ethereum || !window.ethereum.isConnected?.()) {
           throw new Error("Wallet connection lost. Please reconnect.");
         }
@@ -104,7 +103,6 @@ export const useNetworkSwitch = (options: UseNetworkSwitchOptions = {}) => {
           clearTimeout(switchTimeoutRef.current);
         }
 
-        // Don't process errors for aborted operations
         if (signal.aborted) {
           return { success: false, error: new Error("Operation cancelled") };
         }
