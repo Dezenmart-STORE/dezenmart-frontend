@@ -133,39 +133,26 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   const isCorrectNetwork = useMemo(() => {
-    const correct = SUPPORTED_CHAINS.some(
-      (chain) => chain.id === currentChainId
-    );
+    return SUPPORTED_CHAINS.some((chain) => chain.id === currentChainId);
+  }, [currentChainId]);
 
-    if (isConnected) {
-      const newStatus = correct ? "connected" : "wrong-network";
-      if (networkStatus !== newStatus && networkStatus !== "switching") {
-        setNetworkStatus(newStatus);
-      }
+  // Optimized network status management
+  const updateNetworkStatus = useCallback(() => {
+    if (!isConnected) {
+      setNetworkStatus("disconnected");
+      return;
     }
 
-    return correct;
-  }, [currentChainId, isConnected, networkStatus]);
+    if (isSwitchingChain) {
+      setNetworkStatus("switching");
+      return;
+    }
 
-  // Cleanup effect - no changes needed
-  // useEffect(() => {
-  //   return () => {
-  //     if (typeof window !== "undefined" && window.ethereum) {
-  //       const walletConnectConnector = connectors.find((c) =>
-  //         c.name.toLowerCase().includes("walletconnect")
-  //       );
+    const newStatus = isCorrectNetwork ? "connected" : "wrong-network";
+    setNetworkStatus(newStatus);
+  }, [isConnected, isSwitchingChain, isCorrectNetwork]);
 
-  //       if (walletConnectConnector && !isConnected) {
-  //         try {
-  //           walletConnectConnector.disconnect?.();
-  //         } catch (e) {
-  //           console.warn("WalletConnect cleanup warning:", e);
-  //         }
-  //       }
-  //     }
-  //   };
-  // }, [connectors, isConnected]);
-
+  // Network status effect with optimized dependencies
   useEffect(() => {
     if (networkStatusRef.current) {
       clearTimeout(networkStatusRef.current);
@@ -176,19 +163,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
       previousChainIdRef.current = currentChainId;
 
       networkStatusRef.current = setTimeout(() => {
-        if (!isConnected) {
-          setNetworkStatus("disconnected");
-          return;
-        }
-
-        if (isSwitchingChain) {
-          setNetworkStatus("switching");
-          return;
-        }
-
-        const newStatus =
-          currentChainId === TARGET_CHAIN.id ? "connected" : "wrong-network";
-        setNetworkStatus(newStatus);
+        updateNetworkStatus();
 
         // Show appropriate notifications
         if (currentChainId && currentChainId !== TARGET_CHAIN.id) {
@@ -209,7 +184,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
         clearTimeout(networkStatusRef.current);
       }
     };
-  }, [currentChainId, isConnected, isSwitchingChain, showSnackbar]);
+  }, [currentChainId, updateNetworkStatus, showSnackbar]);
 
   // Connection status effect
   useEffect(() => {
@@ -226,20 +201,22 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, [isConnected]);
 
-  // AVAX balance with better error handling
+  // AVAX balance with better error handling and optimized polling
   const { data: avaxBalance, refetch: refetchAvaxBalance } = useBalance({
     address,
     query: {
       enabled: Boolean(address && currentChainId && isCorrectNetwork),
       refetchInterval: isCorrectNetwork
-        ? PERFORMANCE_CONFIG.CACHE_DURATION / 2
+        ? PERFORMANCE_CONFIG.CACHE_DURATION
         : false,
-      staleTime: PERFORMANCE_CONFIG.CACHE_DURATION / 4,
-      retry: isCorrectNetwork ? 3 : 1,
+      staleTime: PERFORMANCE_CONFIG.CACHE_DURATION / 2,
+      retry: isCorrectNetwork ? 2 : 1,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
     },
   });
 
-  // Get USDT contract address
+  // Get USDT contract address with memoization
   const usdtContractAddress = useMemo(() => {
     if (!address || !currentChainId || !isCorrectNetwork) return undefined;
 
@@ -248,7 +225,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
     return contractAddr ? (contractAddr as `0x${string}`) : undefined;
   }, [address, currentChainId, isCorrectNetwork]);
 
-  // Get escrow contract address
+  // Get escrow contract address with memoization
   const escrowContractAddress = useMemo(() => {
     if (!currentChainId || !isCorrectNetwork) return undefined;
 
@@ -257,6 +234,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
     return contractAddr ? (contractAddr as `0x${string}`) : undefined;
   }, [currentChainId, isCorrectNetwork]);
 
+  // USDT balance with optimized query settings
   const {
     data: usdtBalance,
     refetch: refetchUSDTBalance,
@@ -273,11 +251,13 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
         ? PERFORMANCE_CONFIG.CACHE_DURATION
         : false,
       staleTime: PERFORMANCE_CONFIG.CACHE_DURATION / 2,
-      retry: isCorrectNetwork ? 3 : 1,
+      retry: isCorrectNetwork ? 2 : 1,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
     },
   });
 
-  // Get USDT decimals
+  // Get USDT decimals with infinite stale time since decimals don't change
   const { data: usdtDecimals } = useReadContract({
     address: usdtContractAddress,
     abi: erc20Abi,
@@ -285,11 +265,13 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
     query: {
       enabled: Boolean(usdtContractAddress && isCorrectNetwork),
       staleTime: Infinity,
-      retry: 3,
+      retry: 2,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
     },
   });
 
-  // Check current allowance
+  // Check current allowance with optimized polling
   const { data: usdtAllowance, refetch: refetchAllowance } = useReadContract({
     address: usdtContractAddress,
     abi: erc20Abi,
@@ -305,13 +287,15 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
           escrowContractAddress &&
           isCorrectNetwork
       ),
-      refetchInterval: PERFORMANCE_CONFIG.CACHE_DURATION / 4,
-      staleTime: PERFORMANCE_CONFIG.CACHE_DURATION / 8,
-      retry: 3,
+      refetchInterval: PERFORMANCE_CONFIG.CACHE_DURATION / 2,
+      staleTime: PERFORMANCE_CONFIG.CACHE_DURATION / 4,
+      retry: 2,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
     },
   });
 
-  // Optimized balance refresh function
+  // Optimized balance refresh function with debouncing
   const refreshBalances = useCallback(async () => {
     if (!isConnected || !address || !isCorrectNetwork || isRefreshing) return;
 
@@ -339,7 +323,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
     refetchAllowance,
   ]);
 
-  // Auto-refresh balances with performance optimization
+  // Auto-refresh balances with performance optimization and reduced frequency
   useEffect(() => {
     if (!isConnected || !address || !isCorrectNetwork) return;
 
@@ -347,7 +331,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
       if (!isLoadingUSDT && !isRefreshing) {
         refreshBalances();
       }
-    }, PERFORMANCE_CONFIG.CACHE_DURATION);
+    }, PERFORMANCE_CONFIG.CACHE_DURATION * 2); // Reduced frequency
 
     return () => clearInterval(interval);
   }, [

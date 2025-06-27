@@ -144,6 +144,17 @@ export const getChainMetadata = (chainId: number) => {
   return CHAIN_METADATA[chainId as keyof typeof CHAIN_METADATA];
 };
 
+// Performance configuration
+export const PERFORMANCE_CONFIG = {
+  CACHE_DURATION: 30000, // 30 seconds
+  POLLING_INTERVAL: 8000, // 8 seconds (reduced from 4)
+  BATCH_SIZE: 512, // Reduced batch size for better performance
+  BATCH_WAIT: 8, // Reduced wait time
+  RETRY_COUNT: 2, // Reduced retry count
+  RETRY_DELAY: 1000, // Reduced retry delay
+  TIMEOUT: 15000, // Reduced timeout
+} as const;
+
 // Wagmi configuration
 export const wagmiConfig = createConfig({
   chains: SUPPORTED_CHAINS as any,
@@ -191,12 +202,12 @@ export const wagmiConfig = createConfig({
           .map((url) =>
             http(url, {
               batch: {
-                batchSize: 10,
-                wait: 16,
+                batchSize: PERFORMANCE_CONFIG.BATCH_SIZE,
+                wait: PERFORMANCE_CONFIG.BATCH_WAIT,
               },
-              retryCount: 3,
-              retryDelay: 2000,
-              timeout: 30000,
+              retryCount: PERFORMANCE_CONFIG.RETRY_COUNT,
+              retryDelay: PERFORMANCE_CONFIG.RETRY_DELAY,
+              timeout: PERFORMANCE_CONFIG.TIMEOUT,
             })
           )
       ),
@@ -204,11 +215,11 @@ export const wagmiConfig = createConfig({
   ),
   batch: {
     multicall: {
-      batchSize: 1024 * 1024,
-      wait: 16,
+      batchSize: PERFORMANCE_CONFIG.BATCH_SIZE,
+      wait: PERFORMANCE_CONFIG.BATCH_WAIT,
     },
   },
-  pollingInterval: 4000,
+  pollingInterval: PERFORMANCE_CONFIG.POLLING_INTERVAL,
 });
 
 // Gas limits
@@ -269,13 +280,4 @@ export const TIMEOUTS = {
   CROSS_CHAIN_MESSAGE: 600000, // 10 minutes
   BALANCE_REFRESH: 30000, // 30 seconds
   ALLOWANCE_REFRESH: 15000, // 15 seconds
-} as const;
-
-// Performance optimization constants
-export const PERFORMANCE_CONFIG = {
-  DEBOUNCE_DELAY: 300,
-  THROTTLE_DELAY: 1000,
-  CACHE_DURATION: 60000, // 1 minute
-  BATCH_SIZE: 10,
-  MAX_RETRIES: 3,
 } as const;

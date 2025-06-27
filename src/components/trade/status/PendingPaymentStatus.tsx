@@ -420,10 +420,7 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
           try {
             await changeOrderStatus(
               currentOrder?._id || currentOrderId!,
-              {
-                status: "accepted",
-                purchaseId: transaction.purchaseId,
-              },
+              "accepted",
               false // Don't show loading for background update
             );
           } catch (error) {

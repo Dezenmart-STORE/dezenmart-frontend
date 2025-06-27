@@ -456,7 +456,7 @@ const ViewOrderDetail = memo(() => {
             className="text-center"
           >
             <p className="text-lg">Loading order details...</p>
-            {crossChainInfo.isCrossChain && (
+            {/* {crossChainInfo.isCrossChain && (
               <motion.div
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -473,7 +473,7 @@ const ViewOrderDetail = memo(() => {
                   </span>
                 </div>
               </motion.div>
-            )}
+            )} */}
           </motion.div>
         </motion.div>
       </div>

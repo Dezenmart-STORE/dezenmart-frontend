@@ -79,7 +79,9 @@ export const useOrderData = () => {
   }, [orders, formatOrderWithCurrencies]);
 
   const formattedSellerOrders = useMemo(() => {
-    return sellerOrders.map(formatOrderWithCurrencies);
+    return sellerOrders
+      .map(formatOrderWithCurrencies)
+      .filter((order): order is NonNullable<typeof order> => order !== null);
   }, [sellerOrders, formatOrderWithCurrencies]);
 
   const formattedCurrentOrder = useMemo(() => {
@@ -125,6 +127,25 @@ export const useOrderData = () => {
     const fiatSpent = convertPrice(usdtSpent, "USDT", "FIAT");
     const fiatEarned = convertPrice(usdtEarned, "USDT", "FIAT");
 
+    const pendingBuyerCount = orders.filter(
+      (o) => o.status === "pending"
+    ).length;
+    const pendingSellerCount = sellerOrders.filter(
+      (o) => o.status === "pending"
+    ).length;
+    const completedBuyerCount = orders.filter(
+      (o) => o.status === "completed"
+    ).length;
+    const completedSellerCount = sellerOrders.filter(
+      (o) => o.status === "completed"
+    ).length;
+    const disputedBuyerCount = orders.filter(
+      (o) => o.status === "disputed"
+    ).length;
+    const disputedSellerCount = sellerOrders.filter(
+      (o) => o.status === "disputed"
+    ).length;
+
     return {
       totalBuyer: orders.length,
       totalSeller: sellerOrders.length,
@@ -147,17 +168,12 @@ export const useOrderData = () => {
       formattedFiatAmountSpent: formatPrice(fiatSpent, "FIAT"),
       formattedFiatAmountEarned: formatPrice(fiatEarned, "FIAT"),
 
-      pendingBuyerOrders: orders.filter((o) => o.status === "pending").length,
-      pendingSellerOrders: sellerOrders.filter((o) => o.status === "pending")
-        .length,
-      completedBuyerOrders: orders.filter((o) => o.status === "completed")
-        .length,
-      completedSellerOrders: sellerOrders.filter(
-        (o) => o.status === "completed"
-      ).length,
-      disputedBuyerOrders: orders.filter((o) => o.status === "disputed").length,
-      disputedSellerOrders: sellerOrders.filter((o) => o.status === "disputed")
-        .length,
+      pendingBuyerOrders: pendingBuyerCount,
+      pendingSellerOrders: pendingSellerCount,
+      completedBuyerOrders: completedBuyerCount,
+      completedSellerOrders: completedSellerCount,
+      disputedBuyerOrders: disputedBuyerCount,
+      disputedSellerOrders: disputedSellerCount,
     };
   }, [orders, sellerOrders, convertPrice, formatPrice]);
 
@@ -198,7 +214,7 @@ export const useOrderData = () => {
         if (showNotification) {
           showSnackbar((err as string) || "Failed to load orders", "error");
         }
-        return [];
+        return null;
       }
     },
     [dispatch, showSnackbar]
@@ -219,7 +235,7 @@ export const useOrderData = () => {
             "error"
           );
         }
-        return [];
+        return null;
       }
     },
     [dispatch, showSnackbar]
@@ -247,18 +263,10 @@ export const useOrderData = () => {
   );
 
   const changeOrderStatus = useCallback(
-    async (
-      orderId: string,
-      details: {
-        purchaseId?: string;
-        status?: OrderStatus;
-        [key: string]: string | OrderStatus | undefined;
-      },
-      showNotification = true
-    ) => {
+    async (orderId: string, status: OrderStatus, showNotification = true) => {
       try {
         const result = await dispatch(
-          updateOrderStatus({ orderId, details })
+          updateOrderStatus({ orderId, details: { status } })
         ).unwrap();
         if (showNotification) {
           showSnackbar("Order status updated successfully", "success");
@@ -297,16 +305,7 @@ export const useOrderData = () => {
     [dispatch, showSnackbar]
   );
 
-  const getOrdersByStatus = useCallback(
-    (status: string) => {
-      return orders
-        .filter((order) => order.status === status)
-        .map(formatOrderWithCurrencies);
-    },
-    [orders, formatOrderWithCurrencies]
-  );
-
-  const clearOrder = useCallback(() => {
+  const clearOrders = useCallback(() => {
     dispatch(clearOrderState());
   }, [dispatch]);
 
@@ -325,21 +324,17 @@ export const useOrderData = () => {
     nonDisputeOrders,
     activeTrades,
     completedTrades,
-
     orderStats,
-
-    loading: loading || exchangeRatesLoading,
+    loading,
     error,
-
+    exchangeRatesLoading,
     placeOrder,
     fetchBuyerOrders,
     fetchMerchantOrders,
     getOrderById,
     changeOrderStatus,
     raiseDispute,
-    getOrdersByStatus,
-    clearOrder,
-
+    clearOrders,
     secondaryCurrency,
   };
 };
