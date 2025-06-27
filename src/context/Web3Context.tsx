@@ -92,15 +92,15 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
   const { address, isConnected, chain } = useAccount();
   const chainId = useChainId();
 
-  const watchedChainId = useWatchChainId({
-    onChainChanged: (chainId: number) => {
-      console.log("Chain changed to:", chainId);
-      // Trigger immediate state updates
-      setNetworkStatus(
-        chainId === TARGET_CHAIN.id ? "connected" : "wrong-network"
-      );
-    },
-  });
+  // const watchedChainId = useWatchChainId({
+  //   onChainChanged: (chainId: number) => {
+  //     console.log("Chain changed to:", chainId);
+  //     // Trigger immediate state updates
+  //     setNetworkStatus(
+  //       chainId === TARGET_CHAIN.id ? "connected" : "wrong-network"
+  //     );
+  //   },
+  // });
   const {
     connect,
     connectors,
