@@ -14,7 +14,6 @@ const IncomingOrderCard: FC<IncomingOrderCardProps> = ({
   // onAccept,
   onReject,
 }) => {
-  // Memoize expensive calculations
   const imageUrl = useMemo(() => {
     return product.images && product.images.length > 0
       ? product.images[0]
@@ -25,7 +24,6 @@ const IncomingOrderCard: FC<IncomingOrderCardProps> = ({
     return `/trades/sell/${product._id}`;
   }, [product._id]);
 
-  // Memoize motion variants to prevent recreation
   const motionVariants = useMemo(
     () => ({
       initial: { opacity: 0, y: 20 },

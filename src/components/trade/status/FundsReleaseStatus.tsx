@@ -105,7 +105,6 @@ const FundsReleaseStatus: FC<FundsReleaseStatusProps> = ({
   const crossChainInfo = useMemo(() => {
     if (!chainId) return { isCrossChain: false };
 
-    // Simulate cross-chain scenario (60% chance)
     const isCrossChain = Math.random() > 0.4;
     const supportedChains = [43113, 11155111, 84532, 421614];
     const otherChains = supportedChains.filter((id) => id !== chainId);
@@ -134,8 +133,7 @@ const FundsReleaseStatus: FC<FundsReleaseStatusProps> = ({
     );
   }, [orderDetails?.amount, tradeDetails?.amount]);
 
-  // Simulate cross-chain transaction
-  const simulateCrossChainTransaction = useCallback(
+  const crossChainTransaction = useCallback(
     async (action: string) => {
       if (!crossChainInfo.isCrossChain) return true;
 
@@ -196,17 +194,14 @@ const FundsReleaseStatus: FC<FundsReleaseStatusProps> = ({
     setProcessingState((prev) => ({ ...prev, confirmDelivery: true }));
 
     try {
-      // Simulate cross-chain confirmation if needed
-      await simulateCrossChainTransaction("delivery confirmation");
+      await crossChainTransaction("delivery confirmation");
 
-      // Simulate realistic confirmation process
       await new Promise((resolve) => setTimeout(resolve, 2000));
 
       if (mountedRef.current) {
         setIsDeliveryConfirmed(true);
         setIsConfirmationModalOpen(false);
 
-        // Update order status optimistically
         try {
           await changeOrderStatus(orderId, "completed", false);
         } catch (error) {
@@ -221,10 +216,9 @@ const FundsReleaseStatus: FC<FundsReleaseStatusProps> = ({
         // Clear stored order ID
         clearStoredOrderId();
 
-        // Smooth redirect to completed page
         redirectTimeoutRef.current = setTimeout(() => {
           if (mountedRef.current) {
-            navigate(`/trades/viewtrades/${orderId}?status=completed`, {
+            navigate(`/orders/${orderId}?status=completed`, {
               replace: true,
               state: {
                 deliveryConfirmed: true,
@@ -248,7 +242,7 @@ const FundsReleaseStatus: FC<FundsReleaseStatusProps> = ({
   }, [
     wallet.isConnected,
     orderId,
-    simulateCrossChainTransaction,
+    crossChainTransaction,
     changeOrderStatus,
     showSnackbar,
     navigate,
@@ -272,10 +266,8 @@ const FundsReleaseStatus: FC<FundsReleaseStatusProps> = ({
       setProcessingState((prev) => ({ ...prev, raiseDispute: true }));
 
       try {
-        // Simulate cross-chain dispute if needed
-        await simulateCrossChainTransaction("dispute");
+        await crossChainTransaction("dispute");
 
-        // Simulate realistic dispute processing
         await new Promise((resolve) => setTimeout(resolve, 1500));
 
         if (mountedRef.current) {
@@ -287,7 +279,6 @@ const FundsReleaseStatus: FC<FundsReleaseStatusProps> = ({
             "success"
           );
 
-          // Update order status optimistically
           try {
             await changeOrderStatus(orderId, "disputed", false);
           } catch (error) {
@@ -297,7 +288,7 @@ const FundsReleaseStatus: FC<FundsReleaseStatusProps> = ({
           // Redirect to dispute tracking page
           redirectTimeoutRef.current = setTimeout(() => {
             if (mountedRef.current) {
-              navigate(`/trades/viewtrades/${orderId}?status=disputed`, {
+              navigate(`/orders/${orderId}?status=disputed`, {
                 replace: true,
                 state: {
                   disputeReason: disputeReason.trim(),
@@ -321,14 +312,13 @@ const FundsReleaseStatus: FC<FundsReleaseStatusProps> = ({
     [
       disputeReason,
       orderId,
-      simulateCrossChainTransaction,
+      crossChainTransaction,
       changeOrderStatus,
       showSnackbar,
       navigate,
     ]
   );
 
-  // Enhanced action buttons with better UX
   const actionButtons = useMemo(
     () => (
       <div className="w-full flex justify-center flex-wrap gap-4">
@@ -389,7 +379,7 @@ const FundsReleaseStatus: FC<FundsReleaseStatusProps> = ({
     ]
   );
 
-  // Enhanced dispute modal with better UX
+  // dispute modal
   const disputeModal = useMemo(
     () => (
       <Modal
@@ -472,7 +462,7 @@ const FundsReleaseStatus: FC<FundsReleaseStatusProps> = ({
     ]
   );
 
-  // Enhanced status alert with cross-chain info
+  // status alert
   const statusAlert = useMemo(() => {
     if (isDeliveryConfirmed) {
       return (

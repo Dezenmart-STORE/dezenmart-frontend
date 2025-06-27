@@ -57,7 +57,7 @@ const ViewTrade = memo(() => {
     setShowConnectionModal(false);
   }, []);
 
-  // Memoized load orders function
+  // load orders function
   const loadOrders = useCallback(
     async (silent = false) => {
       if (!wallet.isConnected) return;
@@ -95,7 +95,7 @@ const ViewTrade = memo(() => {
     [wallet.isConnected, fetchBuyerOrders, fetchMerchantOrders]
   );
 
-  // Memoized tab configuration
+  // tab configuration
   const tabConfig = useMemo(
     () => [
       {
@@ -119,7 +119,7 @@ const ViewTrade = memo(() => {
     ]
   );
 
-  // Memoized content based on active tab
+  // content based on active tab
   const tabContent = useMemo(() => {
     if (activeTab === "active") {
       return filteredActiveTrades.map((trade) => (

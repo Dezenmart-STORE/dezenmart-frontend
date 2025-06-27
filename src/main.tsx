@@ -50,7 +50,7 @@ const queryClient = new QueryClient({
       refetchOnReconnect: false,
       staleTime: PERFORMANCE_CONFIG.CACHE_DURATION,
       gcTime: PERFORMANCE_CONFIG.CACHE_DURATION * 2,
-      refetchInterval: false, // Disable automatic refetching
+      refetchInterval: false,
     },
     mutations: {
       retry: 1,

@@ -67,7 +67,6 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
   const { usdtBalance, refetch: refetchBalance } = useWalletBalance();
   const { changeOrderStatus, currentOrder } = useOrderData();
 
-  // Enhanced state management for smooth UX
   const [paymentState, setPaymentState] = useState<{
     isProcessing: boolean;
     isCompleted: boolean;
@@ -96,7 +95,6 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
   const [selectedLogisticsProvider, setSelectedLogisticsProvider] =
     useState<any>(null);
 
-  // Memoized order details with performance optimization
   const orderDetails = useMemo(() => {
     if (!details) return details;
     return {
@@ -117,7 +115,6 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
     [txInfo?.buyerName, txInfo?.sellerName]
   );
 
-  // Store order ID for persistence
   useEffect(() => {
     if (orderId) {
       storeOrderId(orderId);
@@ -148,7 +145,7 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
     };
   }, []);
 
-  // Enhanced order validation
+  // order validation
   const orderValidation = useMemo(() => {
     try {
       if (paymentState.isCompleted) {
@@ -184,7 +181,7 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
     paymentState.isCompleted,
   ]);
 
-  // calculations with performance optimization
+  // calculations
   const calculations = useMemo(() => {
     if (!orderValidation.isValid || !orderDetails?.product?.price) {
       return {
@@ -249,7 +246,6 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
     }
   }, []);
 
-  // Enhanced pay button text with state management
   const payButtonText = useMemo(() => {
     if (paymentState.isCompleted) {
       return "Payment Completed ✓";
@@ -311,7 +307,7 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
     return () => clearInterval(timer);
   }, [showTimer, paymentState.isCompleted]);
 
-  // Debounced balance refetch
+  // balance refetch
   const debouncedRefetchBalance = useCallback(() => {
     if (balanceRefetchTimeoutRef.current) {
       clearTimeout(balanceRefetchTimeoutRef.current);
@@ -330,7 +326,7 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
     }, 1000);
   }, [refetchBalance, isLoadingBalance]);
 
-  // Enhanced payment handler with realistic flow
+  // payment handler
   const handlePayNow = useCallback(async () => {
     if (
       !orderValidation.isValid ||
@@ -396,7 +392,7 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
     showSnackbar,
   ]);
 
-  // Enhanced payment success handler with smooth transitions
+  // payment success handler
   const handlePaymentSuccess = useCallback(
     async (transaction: PaymentTransaction) => {
       setIsPaymentModalOpen(false);
@@ -404,35 +400,30 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
       if (!mountedRef.current) return;
 
       try {
-        // Set payment as completed immediately for smooth UX
         setPaymentState({
           isProcessing: false,
           isCompleted: true,
           completedAt: Date.now(),
         });
 
-        // Show success message immediately
         showSnackbar("Payment completed successfully!", "success");
 
-        // Attempt to update order status in background
         const currentOrderId = getStoredOrderId();
         if (currentOrder?._id || currentOrderId) {
           try {
             await changeOrderStatus(
               currentOrder?._id || currentOrderId!,
               "accepted",
-              false // Don't show loading for background update
+              false
             );
           } catch (error) {
             console.warn("Background order status update failed:", error);
-            // Don't show error to user as payment was successful
           }
         }
 
         // Clear stored order ID
         clearStoredOrderId();
 
-        // Smooth redirect with delay for better UX
         if (redirectTimeoutRef.current) {
           clearTimeout(redirectTimeoutRef.current);
         }
@@ -457,7 +448,7 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
         }, 1500);
       } catch (error) {
         console.error("Post-payment processing error:", error);
-        // Still redirect on error since payment was successful
+
         if (redirectTimeoutRef.current) {
           clearTimeout(redirectTimeoutRef.current);
         }
@@ -589,7 +580,6 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
     [paymentState.isCompleted]
   );
 
-  // Memoized components for performance
   const Payment = useMemo(
     () =>
       orderDetails && escrowAddress ? (

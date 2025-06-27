@@ -125,7 +125,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
 
   const networkStatusRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const previousChainIdRef = useRef<number | undefined>(undefined);
-  // Memoize chain state to prevent unnecessary re-renders
+
   const currentChain = useMemo(() => chain, [chain]);
   const currentChainId = useMemo(
     () => chainId || chain?.id,
@@ -136,7 +136,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
     return SUPPORTED_CHAINS.some((chain) => chain.id === currentChainId);
   }, [currentChainId]);
 
-  // Optimized network status management
+  // network status management
   const updateNetworkStatus = useCallback(() => {
     if (!isConnected) {
       setNetworkStatus("disconnected");
@@ -152,7 +152,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
     setNetworkStatus(newStatus);
   }, [isConnected, isSwitchingChain, isCorrectNetwork]);
 
-  // Network status effect with optimized dependencies
+  // Network status effect
   useEffect(() => {
     if (networkStatusRef.current) {
       clearTimeout(networkStatusRef.current);
@@ -201,7 +201,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, [isConnected]);
 
-  // AVAX balance with better error handling and optimized polling
+  // AVAX balance
   const { data: avaxBalance, refetch: refetchAvaxBalance } = useBalance({
     address,
     query: {
@@ -216,7 +216,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
     },
   });
 
-  // Get USDT contract address with memoization
+  // Get USDT contract address
   const usdtContractAddress = useMemo(() => {
     if (!address || !currentChainId || !isCorrectNetwork) return undefined;
 
@@ -225,7 +225,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
     return contractAddr ? (contractAddr as `0x${string}`) : undefined;
   }, [address, currentChainId, isCorrectNetwork]);
 
-  // Get escrow contract address with memoization
+  // Get escrow contract address
   const escrowContractAddress = useMemo(() => {
     if (!currentChainId || !isCorrectNetwork) return undefined;
 
@@ -234,7 +234,6 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
     return contractAddr ? (contractAddr as `0x${string}`) : undefined;
   }, [currentChainId, isCorrectNetwork]);
 
-  // USDT balance with optimized query settings
   const {
     data: usdtBalance,
     refetch: refetchUSDTBalance,
@@ -257,7 +256,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
     },
   });
 
-  // Get USDT decimals with infinite stale time since decimals don't change
+  // Get USDT decimals
   const { data: usdtDecimals } = useReadContract({
     address: usdtContractAddress,
     abi: erc20Abi,
@@ -271,7 +270,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
     },
   });
 
-  // Check current allowance with optimized polling
+  // Check current allowance
   const { data: usdtAllowance, refetch: refetchAllowance } = useReadContract({
     address: usdtContractAddress,
     abi: erc20Abi,
@@ -295,7 +294,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
     },
   });
 
-  // Optimized balance refresh function with debouncing
+  // balance refresh function
   const refreshBalances = useCallback(async () => {
     if (!isConnected || !address || !isCorrectNetwork || isRefreshing) return;
 
@@ -323,7 +322,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
     refetchAllowance,
   ]);
 
-  // Auto-refresh balances with performance optimization and reduced frequency
+  // Auto-refresh balances
   useEffect(() => {
     if (!isConnected || !address || !isCorrectNetwork) return;
 
@@ -331,7 +330,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
       if (!isLoadingUSDT && !isRefreshing) {
         refreshBalances();
       }
-    }, PERFORMANCE_CONFIG.CACHE_DURATION * 2); // Reduced frequency
+    }, PERFORMANCE_CONFIG.CACHE_DURATION * 2);
 
     return () => clearInterval(interval);
   }, [
@@ -444,7 +443,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, [usdtBalance, usdtError, usdtDecimals, convertPrice, formatPrice]);
 
-  // Update wallet state with better error handling
+  // Update wallet state
   useEffect(() => {
     setWallet((prev) => ({
       ...prev,
@@ -571,7 +570,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
         let hash: `0x${string}`;
 
         if (isLocalPurchase) {
-          // Local purchase - same as original implementation
+          // Local purchase
           try {
             const { request } = await simulateContract(wagmiConfig, {
               address: escrowContractAddress,

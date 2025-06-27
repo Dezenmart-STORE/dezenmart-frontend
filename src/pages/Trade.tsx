@@ -148,25 +148,22 @@ const Trade = memo(() => {
   const [showConnectionModal, setShowConnectionModal] = useState(false);
   const { wallet } = useWeb3();
 
-  // Memoized data
   const products = useMemo(() => SAMPLE_PRODUCTS, []);
   const incomingOrders = useMemo(() => SAMPLE_INCOMING_ORDERS, []);
 
-  // Memoized handlers
   const handleTabChange = useCallback((tab: TradeTab) => {
     setActiveTab(tab);
   }, []);
 
   const handleRejectOrder = useCallback((product: Product) => {
     console.log("Order rejected:", product);
-    // Implement actual rejection logic here
   }, []);
 
   const handleCloseConnectionModal = useCallback(() => {
     setShowConnectionModal(false);
   }, []);
 
-  // Memoized content based on active tab
+  // content based on active tab
   const tabContent = useMemo(() => {
     if (activeTab === "buy") {
       return products.map((product) => (
@@ -192,7 +189,7 @@ const Trade = memo(() => {
     }
   }, [activeTab, products, incomingOrders, handleRejectOrder]);
 
-  // Memoized tab configuration
+  // tab configuration
   const tabConfig = useMemo(
     () => [
       {

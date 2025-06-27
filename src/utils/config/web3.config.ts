@@ -146,13 +146,13 @@ export const getChainMetadata = (chainId: number) => {
 
 // Performance configuration
 export const PERFORMANCE_CONFIG = {
-  CACHE_DURATION: 30000, // 30 seconds
-  POLLING_INTERVAL: 8000, // 8 seconds (reduced from 4)
-  BATCH_SIZE: 512, // Reduced batch size for better performance
-  BATCH_WAIT: 8, // Reduced wait time
-  RETRY_COUNT: 2, // Reduced retry count
-  RETRY_DELAY: 1000, // Reduced retry delay
-  TIMEOUT: 15000, // Reduced timeout
+  CACHE_DURATION: 30000,
+  POLLING_INTERVAL: 8000,
+  BATCH_SIZE: 512,
+  BATCH_WAIT: 8,
+  RETRY_COUNT: 2,
+  RETRY_DELAY: 1000,
+  TIMEOUT: 15000,
 } as const;
 
 // Wagmi configuration

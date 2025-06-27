@@ -68,7 +68,7 @@ const NetworkSwitcher: React.FC<NetworkSwitcherProps> = ({
     onError: (error) => {
       setSwitchingToChain(null);
 
-      // Enhanced error handling
+      // error handling
       const errorMessage = error.message.toLowerCase();
       let userMessage = "Failed to switch network";
 
@@ -103,7 +103,7 @@ const NetworkSwitcher: React.FC<NetworkSwitcherProps> = ({
   //   const isOnCorrectNetwork = currentChainId === targetChainId;
   const needsSwitch = !isCorrectNetwork;
 
-  // Enhanced network switch with retry mechanism
+  // network switch
   const handleNetworkSwitch = useCallback(
     async (chainId: number, retryCount = 0) => {
       if (chainId === currentChainId) {
@@ -134,14 +134,14 @@ const NetworkSwitcher: React.FC<NetworkSwitcherProps> = ({
       try {
         setSwitchingToChain(chainId);
 
-        // Add small delay to prevent rapid successive calls
+        // delay to prevent rapid successive calls
         await new Promise((resolve) => setTimeout(resolve, 50));
 
         await switchNetwork(chainId);
       } catch (error: any) {
         console.error("Network switch failed:", error);
 
-        // Implement retry logic for specific errors
+        // retry logic for specific errors
         const shouldRetry =
           retryCount < 2 &&
           (error.message.includes("resource unavailable") ||
@@ -170,7 +170,6 @@ const NetworkSwitcher: React.FC<NetworkSwitcherProps> = ({
     ]
   );
 
-  // Reset switching state when network status changes
   useEffect(() => {
     if (networkStatus === "connected" || networkStatus === "wrong-network") {
       setSwitchingToChain(null);
@@ -186,7 +185,7 @@ const NetworkSwitcher: React.FC<NetworkSwitcherProps> = ({
       }
     }
   }, [wallet.isConnected, networkStatus]);
-  // Enhanced dropdown toggle with better state management
+
   const handleDropdownToggle = useCallback(() => {
     if (disabled || isSwitching || networkStatus === "switching") return;
 
@@ -267,7 +266,7 @@ const NetworkSwitcher: React.FC<NetworkSwitcherProps> = ({
     };
   }, []);
 
-  // Enhanced keyboard navigation
+  // keyboard navigation
   const handleKeyDown = useCallback((event: React.KeyboardEvent) => {
     if (event.key === "Escape") {
       setIsDropdownOpen(false);
