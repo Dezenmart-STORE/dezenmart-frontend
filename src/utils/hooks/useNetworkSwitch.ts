@@ -5,7 +5,6 @@ import {
   SUPPORTED_CHAINS,
   getChainMetadata,
 } from "../../utils/config/web3.config";
-import { useSnackbar } from "../../context/SnackbarContext";
 
 interface UseNetworkSwitchOptions {
   targetChainId?: number;
@@ -16,9 +15,9 @@ interface UseNetworkSwitchOptions {
 export const useNetworkSwitch = (options: UseNetworkSwitchOptions = {}) => {
   const { wallet, chainId } = useWeb3();
   const { switchChain, isPending: isWagmiSwitching } = useSwitchChain();
-  const { showSnackbar } = useSnackbar();
   const [isSwitching, setIsSwitching] = useState(false);
   const switchTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
+  const abortControllerRef = useRef<AbortController | undefined>(undefined);
 
   const switchNetwork = useCallback(
     async (targetChainId?: number) => {
@@ -48,6 +47,15 @@ export const useNetworkSwitch = (options: UseNetworkSwitchOptions = {}) => {
         return { success: true, error: null };
       }
 
+      // Cancel any previous switch attempt
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+
+      // Create new abort controller for this attempt
+      abortControllerRef.current = new AbortController();
+      const signal = abortControllerRef.current.signal;
+
       setIsSwitching(true);
 
       // Clear any existing timeout
@@ -55,22 +63,38 @@ export const useNetworkSwitch = (options: UseNetworkSwitchOptions = {}) => {
         clearTimeout(switchTimeoutRef.current);
       }
 
-      // Set timeout for switch operation
+      // Set timeout for switch operation with cleanup
       switchTimeoutRef.current = setTimeout(() => {
-        setIsSwitching(false);
-        const timeoutError = new Error("Network switch timed out");
-        options.onError?.(timeoutError);
+        if (!signal.aborted) {
+          setIsSwitching(false);
+          abortControllerRef.current?.abort();
+          const timeoutError = new Error("Network switch timed out");
+          options.onError?.(timeoutError);
+        }
       }, 30000); // 30 second timeout
 
       try {
+        // Check if operation was aborted
+        if (signal.aborted) {
+          throw new Error("Operation was cancelled");
+        }
+
+        // Add connection check before switch
+        if (!window.ethereum || !window.ethereum.isConnected?.()) {
+          throw new Error("Wallet connection lost. Please reconnect.");
+        }
+
         await switchChain({ chainId: targetId });
+
+        // Check if operation was aborted after switch
+        if (signal.aborted) {
+          throw new Error("Operation was cancelled");
+        }
 
         // Clear timeout on success
         if (switchTimeoutRef.current) {
           clearTimeout(switchTimeoutRef.current);
         }
-
-        const chainMetadata = getChainMetadata(targetId);
 
         options.onSuccess?.(targetId);
         return { success: true, error: null };
@@ -78,6 +102,11 @@ export const useNetworkSwitch = (options: UseNetworkSwitchOptions = {}) => {
         // Clear timeout on error
         if (switchTimeoutRef.current) {
           clearTimeout(switchTimeoutRef.current);
+        }
+
+        // Don't process errors for aborted operations
+        if (signal.aborted) {
+          return { success: false, error: new Error("Operation cancelled") };
         }
 
         console.error("Network switch failed:", error);
@@ -93,10 +122,24 @@ export const useNetworkSwitch = (options: UseNetworkSwitchOptions = {}) => {
             msg.includes("user denied")
           ) {
             errorMessage = "Network switch cancelled by user";
-          } else if (msg.includes("unsupported")) {
+          } else if (
+            msg.includes("unsupported") ||
+            msg.includes("unrecognized")
+          ) {
             errorMessage = "Network not supported by your wallet";
           } else if (msg.includes("timeout")) {
             errorMessage = "Network switch timed out";
+          } else if (
+            msg.includes("scheme does not have a registered handler")
+          ) {
+            errorMessage = "Wallet connection issue detected";
+          } else if (
+            msg.includes("resource unavailable") ||
+            msg.includes("network error")
+          ) {
+            errorMessage = "Network temporarily unavailable";
+          } else if (msg.includes("connection lost")) {
+            errorMessage = "Wallet connection lost";
           }
         }
 
@@ -105,6 +148,7 @@ export const useNetworkSwitch = (options: UseNetworkSwitchOptions = {}) => {
         throw errorObj;
       } finally {
         setIsSwitching(false);
+        abortControllerRef.current = undefined;
       }
     },
     [
@@ -131,14 +175,27 @@ export const useNetworkSwitch = (options: UseNetworkSwitchOptions = {}) => {
       : false;
   }, [chainId]);
 
-  // Cleanup timeout on unmount
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (switchTimeoutRef.current) {
         clearTimeout(switchTimeoutRef.current);
       }
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
     };
   }, []);
+
+  // Reset switching state if wallet disconnects
+  useEffect(() => {
+    if (!wallet.isConnected && isSwitching) {
+      setIsSwitching(false);
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    }
+  }, [wallet.isConnected, isSwitching]);
 
   return {
     switchNetwork,

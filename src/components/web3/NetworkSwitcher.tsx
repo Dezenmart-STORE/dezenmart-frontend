@@ -1,4 +1,10 @@
-import React, { useState, useCallback, useMemo } from "react";
+import React, {
+  useState,
+  useCallback,
+  useMemo,
+  useEffect,
+  useRef,
+} from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   HiGlobeAlt,
@@ -41,6 +47,8 @@ const NetworkSwitcher: React.FC<NetworkSwitcherProps> = ({
   const { showSnackbar } = useSnackbar();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [switchingToChain, setSwitchingToChain] = useState<number | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const retryTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
   const { switchNetwork, isSwitching, isOnSupportedNetwork } = useNetworkSwitch(
     {
@@ -49,19 +57,38 @@ const NetworkSwitcher: React.FC<NetworkSwitcherProps> = ({
         setIsDropdownOpen(false);
         setSwitchingToChain(null);
         showSnackbar(
-          `Switched to ${getChainMetadata(chainId)?.name}`,
+          `Successfully switched to ${getChainMetadata(chainId)?.name}`,
           "success"
         );
       },
       onError: (error) => {
         setSwitchingToChain(null);
-        const errorMessage =
-          error.message.includes("User rejected") ||
-          error.message.includes("rejected") ||
-          error.message.includes("cancelled")
-            ? "Network switch cancelled"
-            : "Failed to switch network. Please try again.";
-        showSnackbar(errorMessage, "error");
+
+        // Enhanced error handling
+        const errorMessage = error.message.toLowerCase();
+        let userMessage = "Failed to switch network";
+
+        if (
+          errorMessage.includes("user rejected") ||
+          errorMessage.includes("rejected") ||
+          errorMessage.includes("cancelled") ||
+          errorMessage.includes("user denied")
+        ) {
+          userMessage = "Network switch cancelled";
+        } else if (errorMessage.includes("unsupported")) {
+          userMessage = "Network not supported by your wallet";
+        } else if (errorMessage.includes("timeout")) {
+          userMessage = "Network switch timed out. Please try again.";
+        } else if (
+          errorMessage.includes("scheme does not have a registered handler")
+        ) {
+          userMessage =
+            "Wallet connection issue. Please refresh and try again.";
+        } else if (errorMessage.includes("resource unavailable")) {
+          userMessage = "Network temporarily unavailable. Please try again.";
+        }
+
+        showSnackbar(userMessage, "error");
       },
     }
   );
@@ -74,8 +101,9 @@ const NetworkSwitcher: React.FC<NetworkSwitcherProps> = ({
   const isOnCorrectNetwork = currentChainId === targetChainId;
   const needsSwitch = !isOnSupportedNetwork() || !isOnCorrectNetwork;
 
+  // Enhanced network switch with retry mechanism
   const handleNetworkSwitch = useCallback(
-    async (chainId: number) => {
+    async (chainId: number, retryCount = 0) => {
       if (chainId === currentChainId) {
         onChainSelect?.(chainId);
         setIsDropdownOpen(false);
@@ -86,12 +114,42 @@ const NetworkSwitcher: React.FC<NetworkSwitcherProps> = ({
         return;
       }
 
+      // Check wallet connection first
+      if (!wallet.isConnected) {
+        showSnackbar("Please connect your wallet first", "error");
+        return;
+      }
+
+      // Clear any existing retry timeout
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current);
+      }
+
       try {
         setSwitchingToChain(chainId);
+
+        // Add small delay to prevent rapid successive calls
+        await new Promise((resolve) => setTimeout(resolve, 100));
+
         await switchNetwork(chainId);
-      } catch (error) {
-        setSwitchingToChain(null);
+      } catch (error: any) {
         console.error("Network switch failed:", error);
+
+        // Implement retry logic for specific errors
+        const shouldRetry =
+          retryCount < 2 &&
+          (error.message.includes("resource unavailable") ||
+            error.message.includes("timeout") ||
+            error.message.includes("network error"));
+
+        if (shouldRetry) {
+          const retryDelay = Math.pow(2, retryCount) * 1000; // Exponential backoff
+          retryTimeoutRef.current = setTimeout(() => {
+            handleNetworkSwitch(chainId, retryCount + 1);
+          }, retryDelay);
+        } else {
+          setSwitchingToChain(null);
+        }
       }
     },
     [
@@ -100,23 +158,65 @@ const NetworkSwitcher: React.FC<NetworkSwitcherProps> = ({
       onChainSelect,
       switchingToChain,
       isSwitching,
+      wallet.isConnected,
+      showSnackbar,
     ]
   );
 
-  // Close dropdown when clicking outside
+  // Enhanced dropdown toggle with better state management
   const handleDropdownToggle = useCallback(() => {
-    if (!disabled && !isSwitching) {
-      setIsDropdownOpen((prev) => !prev);
-    }
-  }, [disabled, isSwitching]);
+    if (disabled || isSwitching) return;
 
-  // Close dropdown when wallet disconnects
-  React.useEffect(() => {
+    // Check wallet connection before opening dropdown
+    if (!wallet.isConnected) {
+      showSnackbar("Please connect your wallet first", "error");
+      return;
+    }
+
+    setIsDropdownOpen((prev) => !prev);
+  }, [disabled, isSwitching, wallet.isConnected, showSnackbar]);
+
+  // Click outside handler
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsDropdownOpen(false);
+      }
+    };
+
+    if (isDropdownOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () =>
+        document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [isDropdownOpen]);
+
+  // Close dropdown when wallet disconnects or network changes
+  useEffect(() => {
     if (!wallet.isConnected) {
       setIsDropdownOpen(false);
       setSwitchingToChain(null);
     }
   }, [wallet.isConnected]);
+
+  // Cleanup timeouts
+  useEffect(() => {
+    return () => {
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Enhanced keyboard navigation
+  const handleKeyDown = useCallback((event: React.KeyboardEvent) => {
+    if (event.key === "Escape") {
+      setIsDropdownOpen(false);
+    }
+  }, []);
 
   const sizeClasses = {
     sm: "text-xs px-2 py-1",
@@ -202,7 +302,7 @@ const NetworkSwitcher: React.FC<NetworkSwitcherProps> = ({
                     : isPrimary
                     ? "border-Red/30 bg-Red/10 text-Red/80 hover:border-Red/50"
                     : "border-gray-700/50 bg-gray-800/50 text-gray-400 hover:border-gray-600"
-                } disabled:opacity-50 disabled:cursor-not-allowed`}
+                } disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-Red/50`}
               >
                 <div className="flex items-center gap-2">
                   {metadata?.icon ? (
@@ -250,11 +350,15 @@ const NetworkSwitcher: React.FC<NetworkSwitcherProps> = ({
 
   // Dropdown variant (default)
   return (
-    <div className={`relative ${className}`}>
+    <div className={`relative ${className}`} ref={dropdownRef}>
       <button
         onClick={handleDropdownToggle}
+        onKeyDown={handleKeyDown}
         disabled={disabled || isSwitching}
-        className={`flex items-center gap-2 bg-Dark border border-Red/20 rounded-lg hover:border-Red/40 transition-all duration-200 ${sizeClasses[size]} disabled:opacity-50 disabled:cursor-not-allowed w-full justify-between`}
+        className={`flex items-center gap-2 bg-Dark border border-Red/20 rounded-lg hover:border-Red/40 transition-all duration-200 ${sizeClasses[size]} disabled:opacity-50 disabled:cursor-not-allowed w-full justify-between focus:outline-none focus:ring-2 focus:ring-Red/50`}
+        aria-label="Select network"
+        aria-expanded={isDropdownOpen}
+        aria-haspopup="listbox"
       >
         <div className="flex items-center gap-2">
           {currentChain?.icon ? (
@@ -300,8 +404,10 @@ const NetworkSwitcher: React.FC<NetworkSwitcherProps> = ({
             initial={{ opacity: 0, y: -10, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -10, scale: 0.95 }}
-            transition={{ duration: 0.15 }}
+            transition={{ duration: 0.15, ease: "easeOut" }}
             className="absolute top-full mt-2 left-0 right-0 bg-[#1a1c20] border border-Red/30 rounded-lg shadow-xl z-50 overflow-hidden"
+            role="listbox"
+            aria-label="Network options"
           >
             {SUPPORTED_CHAINS.map((chain, index) => {
               const metadata = CHAIN_METADATA[chain.id];
@@ -314,14 +420,16 @@ const NetworkSwitcher: React.FC<NetworkSwitcherProps> = ({
                   key={chain.id}
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.05 }}
+                  transition={{ delay: index * 0.05, ease: "easeOut" }}
                   onClick={() => handleNetworkSwitch(chain.id)}
                   disabled={disabled || isSwitching || isSwitchingToThis}
                   className={`w-full px-3 py-2.5 text-left hover:bg-Red/10 transition-all duration-200 flex items-center gap-3 ${
                     isActive
                       ? "bg-Red/20 text-white border-l-2 border-Red"
                       : "text-gray-300"
-                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                  } disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:bg-Red/10`}
+                  role="option"
+                  aria-selected={isActive}
                 >
                   {metadata?.icon ? (
                     <img
