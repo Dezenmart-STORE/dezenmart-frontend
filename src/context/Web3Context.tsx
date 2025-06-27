@@ -72,6 +72,7 @@ interface ExtendedWeb3ContextType extends Omit<Web3ContextType, "wallet"> {
     destinationChainSelector: string,
     payFeesIn: 0 | 1
   ) => Promise<bigint>;
+  chain: Chain | undefined;
   chainId: number | undefined;
 }
 
@@ -950,6 +951,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
     refreshBalances,
     estimateCrossChainFees,
     isCorrectNetwork,
+    chain: chain,
     chainId: chain?.id,
   };
 

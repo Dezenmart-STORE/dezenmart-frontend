@@ -44,6 +44,7 @@ const WalletDetailsModal: React.FC<WalletDetailsModalProps> = ({
     isCorrectNetwork,
     switchToCorrectNetwork,
     chainId,
+    chain,
   } = useWeb3();
 
   const {
@@ -78,6 +79,7 @@ const WalletDetailsModal: React.FC<WalletDetailsModalProps> = ({
     };
 
     if (isDropdownOpen) {
+      console.log("chain", chain);
       document.addEventListener("mousedown", handleClickOutside);
       return () =>
         document.removeEventListener("mousedown", handleClickOutside);
