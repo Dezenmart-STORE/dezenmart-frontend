@@ -37,24 +37,34 @@ const NetworkSwitcher: React.FC<NetworkSwitcherProps> = ({
   className = "",
   disabled = false,
 }) => {
-  const { wallet } = useWeb3();
+  const { wallet, chainId: currentChainId } = useWeb3();
   const { showSnackbar } = useSnackbar();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [switchingToChain, setSwitchingToChain] = useState<number | null>(null);
 
-  const { switchNetwork, isSwitching, isOnSupportedNetwork, currentChainId } =
-    useNetworkSwitch({
+  const { switchNetwork, isSwitching, isOnSupportedNetwork } = useNetworkSwitch(
+    {
       onSuccess: (chainId) => {
         onChainSelect?.(chainId);
         setIsDropdownOpen(false);
+        setSwitchingToChain(null);
         showSnackbar(
           `Switched to ${getChainMetadata(chainId)?.name}`,
           "success"
         );
       },
       onError: (error) => {
-        showSnackbar(error.message, "error");
+        setSwitchingToChain(null);
+        const errorMessage =
+          error.message.includes("User rejected") ||
+          error.message.includes("rejected") ||
+          error.message.includes("cancelled")
+            ? "Network switch cancelled"
+            : "Failed to switch network. Please try again.";
+        showSnackbar(errorMessage, "error");
       },
-    });
+    }
+  );
 
   const currentChain = useMemo(() => {
     return currentChainId ? getChainMetadata(currentChainId) : null;
@@ -72,10 +82,41 @@ const NetworkSwitcher: React.FC<NetworkSwitcherProps> = ({
         return;
       }
 
-      await switchNetwork(chainId);
+      if (switchingToChain === chainId || isSwitching) {
+        return;
+      }
+
+      try {
+        setSwitchingToChain(chainId);
+        await switchNetwork(chainId);
+      } catch (error) {
+        setSwitchingToChain(null);
+        console.error("Network switch failed:", error);
+      }
     },
-    [currentChainId, switchNetwork, onChainSelect]
+    [
+      currentChainId,
+      switchNetwork,
+      onChainSelect,
+      switchingToChain,
+      isSwitching,
+    ]
   );
+
+  // Close dropdown when clicking outside
+  const handleDropdownToggle = useCallback(() => {
+    if (!disabled && !isSwitching) {
+      setIsDropdownOpen((prev) => !prev);
+    }
+  }, [disabled, isSwitching]);
+
+  // Close dropdown when wallet disconnects
+  React.useEffect(() => {
+    if (!wallet.isConnected) {
+      setIsDropdownOpen(false);
+      setSwitchingToChain(null);
+    }
+  }, [wallet.isConnected]);
 
   const sizeClasses = {
     sm: "text-xs px-2 py-1",
@@ -100,8 +141,10 @@ const NetworkSwitcher: React.FC<NetworkSwitcherProps> = ({
                 alt={currentChain.shortName}
                 className={`${iconSizes[size]} rounded-full`}
                 onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = "none";
+                  const target = e.target as HTMLImageElement;
+                  target.style.display = "none";
                 }}
+                loading="lazy"
               />
             ) : (
               <div
@@ -121,7 +164,9 @@ const NetworkSwitcher: React.FC<NetworkSwitcherProps> = ({
             title="Switch Network"
             icon={<HiArrowsRightLeft className={iconSizes[size]} />}
             onClick={() => handleNetworkSwitch(TARGET_CHAIN.id)}
-            disabled={disabled || isSwitching}
+            disabled={
+              disabled || isSwitching || switchingToChain === TARGET_CHAIN.id
+            }
             className={`bg-Red hover:bg-Red/80 text-white ${sizeClasses[size]} transition-all duration-200`}
           />
         )}
@@ -142,12 +187,13 @@ const NetworkSwitcher: React.FC<NetworkSwitcherProps> = ({
             const isActive = currentChainId === chain.id;
             const isSelected = targetChainId === chain.id;
             const isPrimary = chain.id === TARGET_CHAIN.id;
+            const isSwitchingToThis = switchingToChain === chain.id;
 
             return (
               <button
                 key={chain.id}
                 onClick={() => handleNetworkSwitch(chain.id)}
-                disabled={disabled || isSwitching}
+                disabled={disabled || isSwitching || isSwitchingToThis}
                 className={`p-3 rounded-lg border transition-all duration-200 ${
                   isSelected
                     ? "border-Red bg-Red/20 text-Red"
@@ -165,8 +211,10 @@ const NetworkSwitcher: React.FC<NetworkSwitcherProps> = ({
                       alt={metadata.shortName}
                       className={`${iconSizes[size]} rounded-full`}
                       onError={(e) => {
-                        (e.target as HTMLImageElement).style.display = "none";
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = "none";
                       }}
+                      loading="lazy"
                     />
                   ) : (
                     <div
@@ -186,7 +234,7 @@ const NetworkSwitcher: React.FC<NetworkSwitcherProps> = ({
                       className={`${iconSizes[size]} text-green-500`}
                     />
                   )}
-                  {isSwitching && targetChainId === chain.id && (
+                  {isSwitchingToThis && (
                     <div
                       className={`${iconSizes[size]} border-2 border-Red border-t-transparent rounded-full animate-spin`}
                     />
@@ -204,7 +252,7 @@ const NetworkSwitcher: React.FC<NetworkSwitcherProps> = ({
   return (
     <div className={`relative ${className}`}>
       <button
-        onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+        onClick={handleDropdownToggle}
         disabled={disabled || isSwitching}
         className={`flex items-center gap-2 bg-Dark border border-Red/20 rounded-lg hover:border-Red/40 transition-all duration-200 ${sizeClasses[size]} disabled:opacity-50 disabled:cursor-not-allowed w-full justify-between`}
       >
@@ -215,8 +263,10 @@ const NetworkSwitcher: React.FC<NetworkSwitcherProps> = ({
               alt={currentChain.shortName}
               className={`${iconSizes[size]} rounded-full`}
               onError={(e) => {
-                (e.target as HTMLImageElement).style.display = "none";
+                const target = e.target as HTMLImageElement;
+                target.style.display = "none";
               }}
+              loading="lazy"
             />
           ) : (
             <HiGlobeAlt className={`${iconSizes[size]} text-gray-400`} />
@@ -257,6 +307,7 @@ const NetworkSwitcher: React.FC<NetworkSwitcherProps> = ({
               const metadata = CHAIN_METADATA[chain.id];
               const isActive = currentChainId === chain.id;
               const isPrimary = chain.id === TARGET_CHAIN.id;
+              const isSwitchingToThis = switchingToChain === chain.id;
 
               return (
                 <motion.button
@@ -265,7 +316,7 @@ const NetworkSwitcher: React.FC<NetworkSwitcherProps> = ({
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: index * 0.05 }}
                   onClick={() => handleNetworkSwitch(chain.id)}
-                  disabled={disabled || isSwitching}
+                  disabled={disabled || isSwitching || isSwitchingToThis}
                   className={`w-full px-3 py-2.5 text-left hover:bg-Red/10 transition-all duration-200 flex items-center gap-3 ${
                     isActive
                       ? "bg-Red/20 text-white border-l-2 border-Red"
@@ -278,8 +329,10 @@ const NetworkSwitcher: React.FC<NetworkSwitcherProps> = ({
                       alt={metadata.shortName}
                       className={`${iconSizes[size]} rounded-full flex-shrink-0`}
                       onError={(e) => {
-                        (e.target as HTMLImageElement).style.display = "none";
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = "none";
                       }}
+                      loading="lazy"
                     />
                   ) : (
                     <div
@@ -302,11 +355,15 @@ const NetworkSwitcher: React.FC<NetworkSwitcherProps> = ({
                         PRIMARY
                       </span>
                     )}
-                    {isActive && (
+                    {isSwitchingToThis ? (
+                      <div
+                        className={`${iconSizes[size]} border-2 border-Red border-t-transparent rounded-full animate-spin`}
+                      />
+                    ) : isActive ? (
                       <HiCheckCircle
                         className={`${iconSizes[size]} text-green-500`}
                       />
-                    )}
+                    ) : null}
                   </div>
                 </motion.button>
               );
