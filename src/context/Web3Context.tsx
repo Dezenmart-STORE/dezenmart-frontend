@@ -37,6 +37,7 @@ import {
   GAS_LIMITS,
   PERFORMANCE_CONFIG,
   getChainMetadata,
+  SUPPORTED_CHAINS,
 } from "../utils/config/web3.config";
 import { useSnackbar } from "./SnackbarContext";
 import { useCurrencyConverter } from "../utils/hooks/useCurrencyConverter";
@@ -132,7 +133,9 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   const isCorrectNetwork = useMemo(() => {
-    const correct = currentChainId === TARGET_CHAIN.id;
+    const correct = SUPPORTED_CHAINS.some(
+      (chain) => chain.id === currentChainId
+    );
 
     if (isConnected) {
       const newStatus = correct ? "connected" : "wrong-network";
