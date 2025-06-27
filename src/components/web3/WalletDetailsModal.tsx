@@ -79,7 +79,6 @@ const WalletDetailsModal: React.FC<WalletDetailsModalProps> = ({
     };
 
     if (isDropdownOpen) {
-      console.log("chain", chain);
       document.addEventListener("mousedown", handleClickOutside);
       return () =>
         document.removeEventListener("mousedown", handleClickOutside);
@@ -91,6 +90,8 @@ const WalletDetailsModal: React.FC<WalletDetailsModalProps> = ({
       copyToClipboard(wallet.address);
       showSnackbar("Address copied to clipboard", "success");
     }
+
+    console.log("chain", chain);
   };
 
   const handleDisconnect = () => {
