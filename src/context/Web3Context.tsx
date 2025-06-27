@@ -13,7 +13,7 @@ import {
   useBalance,
   useSwitchChain,
 } from "wagmi";
-import { parseUnits, formatUnits, erc20Abi, decodeEventLog } from "viem";
+import { parseUnits, formatUnits, erc20Abi, decodeEventLog, Chain } from "viem";
 import {
   useReadContract,
   useWriteContract,
