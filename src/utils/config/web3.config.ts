@@ -72,7 +72,7 @@ export const CHAIN_METADATA: ChainMetadata = {
   [avalancheFuji.id]: {
     name: "Avalanche Fuji",
     shortName: "AVAX",
-    icon: "https://cryptologos.cc/logos/avalanche-avax-logo.png",
+    icon: "/images/avalanche-logo.svg",
     color: "#e84142",
     nativeCurrency: "AVAX",
     blockExplorer: "https://testnet.snowtrace.io",
@@ -88,7 +88,7 @@ export const CHAIN_METADATA: ChainMetadata = {
   [sepolia.id]: {
     name: "Ethereum Sepolia",
     shortName: "ETH",
-    icon: "https://ethereum.org/static/655ede01eb7c29458fcd8429c6c6b4fa/71c57/eth-diamond-black.png",
+    icon: "/images/ethereum-logo.svg",
     color: "#627eea",
     nativeCurrency: "ETH",
     blockExplorer: "https://sepolia.etherscan.io",
@@ -96,7 +96,7 @@ export const CHAIN_METADATA: ChainMetadata = {
   [arbitrumSepolia.id]: {
     name: "Arbitrum Sepolia",
     shortName: "ARB",
-    icon: "https://arbitrum.io/wp-content/uploads/2021/01/cropped-Arbitrum_Symbol_-_Full_color_-_White_background-32x32.png",
+    icon: "/images/arbitrum-logo.svg",
     color: "#28a0f0",
     nativeCurrency: "ETH",
     blockExplorer: "https://sepolia.arbiscan.io",
