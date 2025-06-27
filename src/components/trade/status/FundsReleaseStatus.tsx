@@ -208,7 +208,7 @@ const FundsReleaseStatus: FC<FundsReleaseStatusProps> = ({
 
         // Update order status optimistically
         try {
-          await changeOrderStatus(orderId, { status: "completed" }, false);
+          await changeOrderStatus(orderId, "completed", false);
         } catch (error) {
           console.warn("Background status update failed:", error);
         }
@@ -289,7 +289,7 @@ const FundsReleaseStatus: FC<FundsReleaseStatusProps> = ({
 
           // Update order status optimistically
           try {
-            await changeOrderStatus(orderId, { status: "disputed" }, false);
+            await changeOrderStatus(orderId, "disputed", false);
           } catch (error) {
             console.warn("Background dispute update failed:", error);
           }
