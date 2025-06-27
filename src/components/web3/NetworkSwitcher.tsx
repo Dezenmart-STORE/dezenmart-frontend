@@ -43,63 +43,65 @@ const NetworkSwitcher: React.FC<NetworkSwitcherProps> = ({
   className = "",
   disabled = false,
 }) => {
-  const { wallet, chainId: currentChainId } = useWeb3();
+  const {
+    wallet,
+    chainId: currentChainId,
+    isCorrectNetwork,
+    networkStatus,
+  } = useWeb3();
   const { showSnackbar } = useSnackbar();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [switchingToChain, setSwitchingToChain] = useState<number | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const retryTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
-  const { switchNetwork, isSwitching, isOnSupportedNetwork } = useNetworkSwitch(
-    {
-      onSuccess: (chainId) => {
-        onChainSelect?.(chainId);
-        setIsDropdownOpen(false);
-        setSwitchingToChain(null);
-        showSnackbar(
-          `Successfully switched to ${getChainMetadata(chainId)?.name}`,
-          "success"
-        );
-      },
-      onError: (error) => {
-        setSwitchingToChain(null);
+  const { switchNetwork, isSwitching } = useNetworkSwitch({
+    onSuccess: (chainId) => {
+      onChainSelect?.(chainId);
+      setIsDropdownOpen(false);
+      setSwitchingToChain(null);
+      showSnackbar(
+        `Successfully switched to ${getChainMetadata(chainId)?.name}`,
+        "success"
+      );
+    },
+    onError: (error) => {
+      setSwitchingToChain(null);
 
-        // Enhanced error handling
-        const errorMessage = error.message.toLowerCase();
-        let userMessage = "Failed to switch network";
+      // Enhanced error handling
+      const errorMessage = error.message.toLowerCase();
+      let userMessage = "Failed to switch network";
 
-        if (
-          errorMessage.includes("user rejected") ||
-          errorMessage.includes("rejected") ||
-          errorMessage.includes("cancelled") ||
-          errorMessage.includes("user denied")
-        ) {
-          userMessage = "Network switch cancelled";
-        } else if (errorMessage.includes("unsupported")) {
-          userMessage = "Network not supported by your wallet";
-        } else if (errorMessage.includes("timeout")) {
-          userMessage = "Network switch timed out. Please try again.";
-        } else if (
-          errorMessage.includes("scheme does not have a registered handler")
-        ) {
-          userMessage =
-            "Wallet connection issue. Please refresh and try again.";
-        } else if (errorMessage.includes("resource unavailable")) {
-          userMessage = "Network temporarily unavailable. Please try again.";
-        }
+      if (
+        errorMessage.includes("user rejected") ||
+        errorMessage.includes("rejected") ||
+        errorMessage.includes("cancelled") ||
+        errorMessage.includes("user denied")
+      ) {
+        userMessage = "Network switch cancelled";
+      } else if (errorMessage.includes("unsupported")) {
+        userMessage = "Network not supported by your wallet";
+      } else if (errorMessage.includes("timeout")) {
+        userMessage = "Network switch timed out. Please try again.";
+      } else if (
+        errorMessage.includes("scheme does not have a registered handler")
+      ) {
+        userMessage = "Wallet connection issue. Please refresh and try again.";
+      } else if (errorMessage.includes("resource unavailable")) {
+        userMessage = "Network temporarily unavailable. Please try again.";
+      }
 
-        showSnackbar(userMessage, "error");
-      },
-    }
-  );
+      showSnackbar(userMessage, "error");
+    },
+  });
 
   const currentChain = useMemo(() => {
     return currentChainId ? getChainMetadata(currentChainId) : null;
   }, [currentChainId]);
 
   const targetChainId = selectedChainId || currentChainId || TARGET_CHAIN.id;
-  const isOnCorrectNetwork = currentChainId === targetChainId;
-  const needsSwitch = !isOnSupportedNetwork() || !isOnCorrectNetwork;
+  //   const isOnCorrectNetwork = currentChainId === targetChainId;
+  const needsSwitch = !isCorrectNetwork;
 
   // Enhanced network switch with retry mechanism
   const handleNetworkSwitch = useCallback(
@@ -110,7 +112,11 @@ const NetworkSwitcher: React.FC<NetworkSwitcherProps> = ({
         return;
       }
 
-      if (switchingToChain === chainId || isSwitching) {
+      if (
+        switchingToChain === chainId ||
+        isSwitching ||
+        networkStatus === "switching"
+      ) {
         return;
       }
 
@@ -129,7 +135,7 @@ const NetworkSwitcher: React.FC<NetworkSwitcherProps> = ({
         setSwitchingToChain(chainId);
 
         // Add small delay to prevent rapid successive calls
-        await new Promise((resolve) => setTimeout(resolve, 100));
+        await new Promise((resolve) => setTimeout(resolve, 50));
 
         await switchNetwork(chainId);
       } catch (error: any) {
@@ -143,7 +149,7 @@ const NetworkSwitcher: React.FC<NetworkSwitcherProps> = ({
             error.message.includes("network error"));
 
         if (shouldRetry) {
-          const retryDelay = Math.pow(2, retryCount) * 1000; // Exponential backoff
+          const retryDelay = Math.pow(2, retryCount) * 1000;
           retryTimeoutRef.current = setTimeout(() => {
             handleNetworkSwitch(chainId, retryCount + 1);
           }, retryDelay);
@@ -158,14 +164,31 @@ const NetworkSwitcher: React.FC<NetworkSwitcherProps> = ({
       onChainSelect,
       switchingToChain,
       isSwitching,
+      networkStatus,
       wallet.isConnected,
       showSnackbar,
     ]
   );
 
+  // Reset switching state when network status changes
+  useEffect(() => {
+    if (networkStatus === "connected" || networkStatus === "wrong-network") {
+      setSwitchingToChain(null);
+    }
+  }, [networkStatus]);
+
+  // Auto-close dropdown when network changes
+  useEffect(() => {
+    if (!wallet.isConnected || networkStatus === "switching") {
+      setIsDropdownOpen(false);
+      if (networkStatus !== "switching") {
+        setSwitchingToChain(null);
+      }
+    }
+  }, [wallet.isConnected, networkStatus]);
   // Enhanced dropdown toggle with better state management
   const handleDropdownToggle = useCallback(() => {
-    if (disabled || isSwitching) return;
+    if (disabled || isSwitching || networkStatus === "switching") return;
 
     // Check wallet connection before opening dropdown
     if (!wallet.isConnected) {
@@ -174,7 +197,7 @@ const NetworkSwitcher: React.FC<NetworkSwitcherProps> = ({
     }
 
     setIsDropdownOpen((prev) => !prev);
-  }, [disabled, isSwitching, wallet.isConnected, showSnackbar]);
+  }, [disabled, isSwitching, networkStatus, wallet.isConnected, showSnackbar]);
 
   // Click outside handler
   useEffect(() => {
@@ -193,6 +216,39 @@ const NetworkSwitcher: React.FC<NetworkSwitcherProps> = ({
         document.removeEventListener("mousedown", handleClickOutside);
     }
   }, [isDropdownOpen]);
+
+  const getNetworkStatusIndicator = () => {
+    switch (networkStatus) {
+      case "switching":
+        return (
+          <div
+            className={`${iconSizes[size]} border-2 border-Red border-t-transparent rounded-full animate-spin`}
+          />
+        );
+      case "wrong-network":
+        return (
+          <HiExclamationTriangle
+            className={`${iconSizes[size]} text-yellow-400`}
+          />
+        );
+      case "connected":
+        return currentChain?.icon ? (
+          <img
+            src={currentChain.icon}
+            alt={currentChain.shortName}
+            className={`${iconSizes[size]} rounded-full`}
+            onError={(e) => {
+              (e.target as HTMLImageElement).style.display = "none";
+            }}
+            loading="lazy"
+          />
+        ) : (
+          <HiGlobeAlt className={`${iconSizes[size]} text-green-400`} />
+        );
+      default:
+        return <HiGlobeAlt className={`${iconSizes[size]} text-gray-400`} />;
+    }
+  };
 
   // Close dropdown when wallet disconnects or network changes
   useEffect(() => {
@@ -378,7 +434,7 @@ const NetworkSwitcher: React.FC<NetworkSwitcherProps> = ({
           <span className="text-white font-medium">
             {currentChain?.name || "Select Network"}
           </span>
-          {!isOnSupportedNetwork() && (
+          {networkStatus === "wrong-network" && (
             <HiExclamationTriangle
               className={`${iconSizes[size]} text-yellow-400`}
             />
