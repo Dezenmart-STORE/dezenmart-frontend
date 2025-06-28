@@ -59,11 +59,10 @@ const ViewOrderDetail = memo(() => {
   const [crossChainStatus, setCrossChainStatus] = useState<CrossChainStatus>({
     isProcessing: false,
   });
-  // const [statusHistory, setStatusHistory] = useState<OrderStatusTransition[]>(
-  //   []
-  // );
+  const [statusHistory, setStatusHistory] = useState<OrderStatusTransition[]>(
+    []
+  );
   const [networkError, setNetworkError] = useState<string | null>(null);
-
   useEffect(() => {
     if (orderId) {
       storeOrderId(orderId);
@@ -100,7 +99,7 @@ const ViewOrderDetail = memo(() => {
     const paymentCompleted = location.state?.paymentCompleted;
 
     if (paymentCompleted) {
-      return "completed" as TradeStatusType;
+      return "release" as TradeStatusType;
     }
 
     if (
@@ -113,18 +112,18 @@ const ViewOrderDetail = memo(() => {
     return "pending" as TradeStatusType;
   }, [location.search, location.state]);
 
-  // const statusMapping = useMemo(
-  //   () => ({
-  //     pending: "pending" as TradeStatusType,
-  //     accepted: "release" as TradeStatusType,
-  //     rejected: "cancelled" as TradeStatusType,
-  //     completed: "completed" as TradeStatusType,
-  //     disputed: "cancelled" as TradeStatusType,
-  //     refunded: "pending" as TradeStatusType,
-  //     processing: "release" as TradeStatusType,
-  //   }),
-  //   []
-  // );
+  const statusMapping = useMemo(
+    () => ({
+      pending: "pending" as TradeStatusType,
+      accepted: "release" as TradeStatusType,
+      rejected: "cancelled" as TradeStatusType,
+      completed: "completed" as TradeStatusType,
+      disputed: "cancelled" as TradeStatusType,
+      refunded: "pending" as TradeStatusType,
+      processing: "release" as TradeStatusType,
+    }),
+    []
+  );
 
   // Cross-chain detection
 
@@ -216,59 +215,59 @@ const ViewOrderDetail = memo(() => {
   }, [orderId, getOrderById]);
 
   // status synchronization
-  // useEffect(() => {
-  //   if (!orderDetails?.status) return;
+  useEffect(() => {
+    if (!orderDetails?.status) return;
 
-  //   const newStatus =
-  //     statusMapping[
-  //       orderDetails.status.toLowerCase() as keyof typeof statusMapping
-  //     ] || "pending";
+    const newStatus =
+      statusMapping[
+        orderDetails.status.toLowerCase() as keyof typeof statusMapping
+      ] || "pending";
 
-  //   if (newStatus !== orderStatus) {
-  //     setIsTransitioning(true);
+    if (newStatus !== orderStatus) {
+      setIsTransitioning(true);
 
-  //     // Add to status history
-  //     const transition: OrderStatusTransition = {
-  //       from: orderStatus,
-  //       to: newStatus,
-  //       timestamp: Date.now(),
-  //       chainId: chainId,
-  //     };
+      // Add to status history
+      const transition: OrderStatusTransition = {
+        from: orderStatus,
+        to: newStatus,
+        timestamp: Date.now(),
+        chainId: chainId,
+      };
 
-  //     setStatusHistory((prev) => [...prev, transition]);
+      setStatusHistory((prev) => [...prev, transition]);
 
-  //     // Realistic transition timing
-  //     const transitionDelay = crossChainInfo.isCrossChain ? 2000 : 800;
+      // Realistic transition timing
+      const transitionDelay = crossChainInfo.isCrossChain ? 2000 : 800;
 
-  //     if (statusTransitionTimeoutRef.current) {
-  //       clearTimeout(statusTransitionTimeoutRef.current);
-  //     }
+      if (statusTransitionTimeoutRef.current) {
+        clearTimeout(statusTransitionTimeoutRef.current);
+      }
 
-  //     statusTransitionTimeoutRef.current = setTimeout(() => {
-  //       if (mountedRef.current) {
-  //         setOrderStatus(newStatus);
-  //         setIsTransitioning(false);
+      statusTransitionTimeoutRef.current = setTimeout(() => {
+        if (mountedRef.current) {
+          setOrderStatus(newStatus);
+          setIsTransitioning(false);
 
-  //         // Show transition feedback
-  //         if (newStatus === "completed") {
-  //           showSnackbar("🎉 Order completed successfully!", "success");
-  //         } else if (newStatus === "release") {
-  //           showSnackbar(
-  //             "💰 Funds released - waiting for delivery confirmation",
-  //             "info"
-  //           );
-  //         }
-  //       }
-  //     }, transitionDelay);
-  //   }
-  // }, [
-  //   orderDetails?.status,
-  //   statusMapping,
-  //   orderStatus,
-  //   crossChainInfo.isCrossChain,
-  //   chainId,
-  //   showSnackbar,
-  // ]);
+          // Show transition feedback
+          if (newStatus === "completed") {
+            showSnackbar("🎉 Order completed successfully!", "success");
+          } else if (newStatus === "release") {
+            showSnackbar(
+              "💰 Funds released - waiting for delivery confirmation",
+              "info"
+            );
+          }
+        }
+      }, transitionDelay);
+    }
+  }, [
+    orderDetails?.status,
+    statusMapping,
+    orderStatus,
+    crossChainInfo.isCrossChain,
+    chainId,
+    showSnackbar,
+  ]);
 
   const crossChainTransaction = useCallback(
     async (action: string) => {
@@ -561,7 +560,7 @@ const ViewOrderDetail = memo(() => {
             )}
 
             <TradeStatus
-              status={orderStatus}
+              status={initialStatus}
               orderDetails={orderDetails}
               transactionInfo={transactionInfo}
               onContactSeller={
