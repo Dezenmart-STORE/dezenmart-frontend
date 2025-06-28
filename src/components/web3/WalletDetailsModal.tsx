@@ -174,7 +174,7 @@ const WalletDetailsModal: React.FC<WalletDetailsModalProps> = ({
   const nativeNumericValue = wallet.balance ? parseFloat(wallet.balance) : 0;
 
   const fiatUsdtValue = convertPrice(usdtNumericValue, "USDT", "FIAT");
-  const fiatNativeValue = convertPrice(nativeNumericValue, "CELO", "FIAT"); // Will need to be dynamic
+  const fiatNativeValue = convertPrice(nativeNumericValue, "NATIVE", "FIAT");
   const totalFiatValue = fiatUsdtValue + fiatNativeValue;
 
   // Network status component

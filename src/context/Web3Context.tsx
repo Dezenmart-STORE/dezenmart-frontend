@@ -449,7 +449,10 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
       return {
         raw: rawBalance,
         usdt: `${formatWithDecimals(numericBalance, 6)} USDT`,
-        celo: formatPrice(convertPrice(numericBalance, "USDT", "CELO"), "CELO"),
+        celo: formatPrice(
+          convertPrice(numericBalance, "USDT", "NATIVE"),
+          "NATIVE"
+        ),
         fiat: formatPrice(convertPrice(numericBalance, "USDT", "FIAT"), "FIAT"),
       };
     } catch (error) {

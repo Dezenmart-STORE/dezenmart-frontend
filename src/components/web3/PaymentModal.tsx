@@ -101,9 +101,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   const [isProcessing, setIsProcessing] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
   const [isLoadingBalance, setIsLoadingBalance] = useState(false);
-  const [selectedDestinationChain, setSelectedDestinationChain] = useState<
-    number | null
-  >(null);
+  const [selectedChain, setSelectedChain] = useState<number | null>(null);
   const [availableChains, setAvailableChains] = useState<ChainInfo[]>([]);
   const [isLoadingChains, setIsLoadingChains] = useState(true);
   const [crossChainFees, setCrossChainFees] = useState<string>("0");
@@ -113,10 +111,8 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   }, [chainId]);
 
   const destinationChain = useMemo(() => {
-    return selectedDestinationChain
-      ? SUPPORTED_CHAINS[selectedDestinationChain]
-      : null;
-  }, [selectedDestinationChain]);
+    return selectedChain ? SUPPORTED_CHAINS[selectedChain] : null;
+  }, [selectedChain]);
 
   const isCrossChainPayment = useMemo(() => {
     return (
@@ -159,20 +155,20 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
 
         setAvailableChains(mappedChains);
 
-        if (!selectedDestinationChain) {
+        if (!selectedChain) {
           const defaultChain =
             mappedChains.find((chain) => chain.chainId === chainId) ||
             mappedChains.find((chain) => chain.chainId === 43113) ||
             mappedChains[0];
           if (defaultChain) {
-            setSelectedDestinationChain(defaultChain.chainId);
+            setSelectedChain(defaultChain.chainId);
           }
         }
       } catch (error) {
         console.error("Failed to load supported chains:", error);
         setAvailableChains(Object.values(SUPPORTED_CHAINS));
-        if (!selectedDestinationChain) {
-          setSelectedDestinationChain(43113);
+        if (!selectedChain) {
+          setSelectedChain(43113);
         }
       } finally {
         setIsLoadingChains(false);
@@ -180,7 +176,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     };
 
     loadSupportedChains();
-  }, [isOpen, getSupportedChains, chainId, selectedDestinationChain]);
+  }, [isOpen, getSupportedChains, chainId, selectedChain]);
 
   // Estimate cross-chain fees
   useEffect(() => {
@@ -463,12 +459,12 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     return wallet.usdtBalance?.usdt || "0 USDT";
   }, [wallet.usdtBalance?.usdt]);
 
-  const renderDestinationChainSelector = () => (
+  const renderSupportedChainSelector = () => (
     <div className="space-y-3">
-      <h3 className="text-lg font-semibold text-white">Destination Chain</h3>
+      <h3 className="text-lg font-semibold text-white">Supported Networks</h3>
       <NetworkSwitcher
-        selectedChainId={selectedDestinationChain ?? undefined}
-        onChainSelect={setSelectedDestinationChain}
+        selectedChainId={selectedChain ?? undefined}
+        onChainSelect={setSelectedChain}
         variant="grid"
         size="md"
         disabled={isProcessing || step !== "review"}
@@ -481,7 +477,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
       case "review":
         return (
           <div className="space-y-6">
-            {renderDestinationChainSelector()}
+            {renderSupportedChainSelector()}
 
             {isCrossChainPayment && (
               <div className="bg-blue-900/20 border border-blue-500/30 rounded-lg p-4 space-y-2">

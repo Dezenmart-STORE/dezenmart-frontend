@@ -45,7 +45,7 @@ export const useOrderData = () => {
       if (!order || !order._id) return null;
 
       const usdtPrice = order.amount;
-      const celoPrice = convertPrice(usdtPrice, "USDT", "CELO");
+      const celoPrice = convertPrice(usdtPrice, "USDT", "NATIVE");
       const fiatPrice = convertPrice(usdtPrice, "USDT", "FIAT");
       const totalUsdtAmount = usdtPrice * (order.quantity || 1);
       const totalCeloAmount = celoPrice * (order.quantity || 1);
@@ -61,10 +61,10 @@ export const useOrderData = () => {
         fiatPrice,
 
         formattedUsdtPrice: formatPrice(usdtPrice, "USDT"),
-        formattedCeloPrice: formatPrice(celoPrice, "CELO"),
+        formattedCeloPrice: formatPrice(celoPrice, "NATIVE"),
         formattedFiatPrice: formatPrice(fiatPrice, "FIAT"),
         formattedUsdtAmount: formatPrice(totalUsdtAmount, "USDT"),
-        formattedCeloAmount: formatPrice(totalCeloAmount, "CELO"),
+        formattedCeloAmount: formatPrice(totalCeloAmount, "NATIVE"),
         formattedFiatAmount: formatPrice(totalFiatAmount, "FIAT"),
       };
     },
@@ -120,8 +120,8 @@ export const useOrderData = () => {
     const usdtSpent = buyerTotal;
     const usdtEarned = sellerTotal;
 
-    const celoSpent = convertPrice(usdtSpent, "USDT", "CELO");
-    const celoEarned = convertPrice(usdtEarned, "USDT", "CELO");
+    const celoSpent = convertPrice(usdtSpent, "USDT", "NATIVE");
+    const celoEarned = convertPrice(usdtEarned, "USDT", "NATIVE");
 
     const fiatSpent = convertPrice(usdtSpent, "USDT", "FIAT");
     const fiatEarned = convertPrice(usdtEarned, "USDT", "FIAT");
@@ -162,8 +162,8 @@ export const useOrderData = () => {
 
       formattedUsdtAmountSpent: formatPrice(usdtSpent, "USDT"),
       formattedUsdtAmountEarned: formatPrice(usdtEarned, "USDT"),
-      formattedCeloAmountSpent: formatPrice(celoSpent, "CELO"),
-      formattedCeloAmountEarned: formatPrice(celoEarned, "CELO"),
+      formattedCeloAmountSpent: formatPrice(celoSpent, "NATIVE"),
+      formattedCeloAmountEarned: formatPrice(celoEarned, "NATIVE"),
       formattedFiatAmountSpent: formatPrice(fiatSpent, "FIAT"),
       formattedFiatAmountEarned: formatPrice(fiatEarned, "FIAT"),
 
