@@ -354,8 +354,6 @@ const NetworkSwitcher: React.FC<NetworkSwitcherProps> = ({
                     ? "border-Red bg-Red/20 text-Red"
                     : isActive
                     ? "border-green-500 bg-green-500/20 text-green-300"
-                    : isPrimary
-                    ? "border-Red/30 bg-Red/10 text-Red/80 hover:border-Red/50"
                     : "border-gray-700/50 bg-gray-800/50 text-gray-400 hover:border-gray-600"
                 } disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-Red/50`}
               >
