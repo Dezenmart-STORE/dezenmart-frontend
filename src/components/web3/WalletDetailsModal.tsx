@@ -59,7 +59,7 @@ const WalletDetailsModal: React.FC<WalletDetailsModalProps> = ({
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Memoized chain metadata
+  //chain metadata
   const currentChainMetadata = useMemo(() => {
     return chainId ? getChainMetadata(chainId) : null;
   }, [chainId]);

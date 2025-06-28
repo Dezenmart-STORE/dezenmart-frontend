@@ -50,7 +50,7 @@ interface UpdateOrderPayload {
   logisticsProviderWalletAddress?: string;
 }
 
-// Navigation constants for better maintainability
+// Navigation constants
 const NAVIGATION_DELAY = 1500;
 const FALLBACK_NAVIGATION_DELAY = 2000;
 const ORDER_STATUS_UPDATE_TIMEOUT = 5000;
@@ -131,7 +131,7 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
     }
   }, [orderId]);
 
-  // Enhanced cleanup effect
+  // cleanup effect
   useEffect(() => {
     mountedRef.current = true;
 
@@ -159,7 +159,7 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
     };
   }, []);
 
-  // Order validation with memoization
+  // Order validation
   const orderValidation = useMemo(() => {
     try {
       if (paymentState.isCompleted) {
@@ -195,7 +195,7 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
     paymentState.isCompleted,
   ]);
 
-  // Calculations with performance optimization
+  // Calculations
   const calculations = useMemo(() => {
     if (!orderValidation.isValid || !orderDetails?.product?.price) {
       return {
@@ -392,7 +392,7 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
   //   [navigate, navigatePath, onReleaseNow, paymentState.navigationTriggered]
   // );
 
-  // Enhanced payment success handler
+  // payment success handler
   const handlePaymentSuccess = useCallback(
     async (transaction: PaymentTransaction) => {
       if (!mountedRef.current) return;
@@ -420,7 +420,6 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
             false
           );
 
-          // Set timeout for order status update
           if (orderStatusTimeoutRef.current) {
             clearTimeout(orderStatusTimeoutRef.current);
           }
@@ -451,25 +450,34 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
         // Clear stored order ID
         clearStoredOrderId();
 
-        // Trigger navigation
-        // handleNavigation(transaction);
-        if (navigatePath) {
-          navigate(navigatePath, { replace: true });
+        if (navigationTimeoutRef.current) {
+          clearTimeout(navigationTimeoutRef.current);
         }
+
+        navigationTimeoutRef.current = setTimeout(() => {
+          if (mountedRef.current && navigatePath) {
+            navigate(navigatePath, {
+              replace: true,
+              state: {
+                paymentCompleted: true,
+                transaction: transaction,
+                timestamp: Date.now(),
+              },
+            });
+          }
+        }, NAVIGATION_DELAY);
       } catch (error) {
         console.error("Post-payment processing error:", error);
 
+        // Fallback navigation on error
         setTimeout(() => {
-          if (navigatePath) {
+          if (mountedRef.current && navigatePath) {
             navigate(navigatePath, { replace: true });
           }
-          // if (mountedRef.current) {
-          //   handleNavigation(transaction);
-          // }
         }, FALLBACK_NAVIGATION_DELAY);
       }
     },
-    [showSnackbar, changeOrderStatus, currentOrder, navigatePath]
+    [showSnackbar, changeOrderStatus, currentOrder, navigatePath, navigate]
   );
 
   // Payment handler

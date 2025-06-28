@@ -50,7 +50,7 @@ const PurchaseSection = ({
     setQuantity(1);
   }, [selectedVariant]);
 
-  // Memoized network display data
+  // network display data
   const networkDisplay = useMemo(() => {
     if (!wallet.isConnected) return null;
 
@@ -76,7 +76,7 @@ const PurchaseSection = ({
     nativeToken.symbol,
   ]);
 
-  // Memoized balance display
+  // balance display
   const balanceDisplay = useMemo(() => {
     if (!wallet.isConnected || !networkDisplay?.canProceed) return null;
 

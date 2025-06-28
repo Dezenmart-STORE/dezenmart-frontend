@@ -32,7 +32,7 @@ const ViewTrade = memo(() => {
     loading: orderLoading,
   } = useOrderData();
 
-  // Memoized filtered trades
+  // filtered trades
   const filteredActiveTrades = useMemo(() => {
     return activeTrades?.filter((trade) => trade && trade.product) || [];
   }, [activeTrades]);
@@ -41,7 +41,7 @@ const ViewTrade = memo(() => {
     return completedTrades?.filter((trade) => trade && trade.product) || [];
   }, [completedTrades]);
 
-  // Memoized handlers
+  // handlers
   const handleTabChange = useCallback((tab: TradeTab) => {
     setActiveTab(tab);
   }, []);

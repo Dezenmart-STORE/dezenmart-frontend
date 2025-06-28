@@ -102,7 +102,7 @@ const ButtonPlaceholder: FC = memo(() => (
 
 ButtonPlaceholder.displayName = "ButtonPlaceholder";
 
-// Memoized banner data
+// banner data
 const BANNERS_DATA = [
   {
     title: "Special Offers for",
@@ -131,7 +131,7 @@ const BANNERS_DATA = [
   },
 ];
 
-// Memoized motion variants
+// motion variants
 const motionVariants = {
   initial: { opacity: 0, y: 20 },
   animate: { opacity: 1, y: 0 },
