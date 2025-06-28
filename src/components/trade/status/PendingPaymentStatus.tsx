@@ -272,7 +272,7 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
     if (!wallet.isConnected) {
       return "Connect Wallet to Pay";
     }
-
+    if (!calculations.hasSufficientBalance) return "Insufficient Balance";
     return `Pay ${calculations.totalAmount.toFixed(2)} USDT`;
   }, [
     paymentState.isCompleted,
@@ -682,6 +682,7 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
         }`}
         onClick={handlePayNow}
         disabled={
+          !calculations.hasSufficientBalance ||
           paymentState.isCompleted ||
           loading ||
           paymentState.isProcessing ||

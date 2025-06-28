@@ -656,13 +656,13 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                   : `Pay ${formatCurrency(orderAmount)} USDT`
               }
               onClick={handlePayment}
-              // disabled={
-              //   isProcessing ||
-              //   isLoadingBalance ||
-              //   isLoadingChains ||
-              //   (!wallet.isConnected &&
-              //     /* hasInsufficientBalance || */ hasInsufficientGas)
-              // }
+              disabled={
+                isProcessing ||
+                isLoadingBalance ||
+                isLoadingChains ||
+                (!wallet.isConnected &&
+                  /* hasInsufficientBalance || */ hasInsufficientGas)
+              }
               className="flex items-center justify-center w-full bg-Red hover:bg-Red/80 disabled:bg-gray-600 disabled:cursor-not-allowed text-white text-lg py-4 font-semibold transition-all duration-200"
             />
           </div>

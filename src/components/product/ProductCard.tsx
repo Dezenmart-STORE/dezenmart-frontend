@@ -11,7 +11,7 @@ import { useWeb3 } from "../../context/Web3Context";
 import { motion } from "framer-motion";
 interface ProductCardProps {
   product: Product & {
-    formattedCeloPrice: string;
+    formattedNativePrice: string;
     formattedFiatPrice: string;
     formattedUsdtPrice: string;
   };
