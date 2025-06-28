@@ -155,36 +155,36 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
   }, [isConnected, isSwitchingChain, isCorrectNetwork]);
 
   // Network status effect
-  useEffect(() => {
-    if (networkStatusRef.current) {
-      clearTimeout(networkStatusRef.current);
-    }
+  // useEffect(() => {
+  //   if (networkStatusRef.current) {
+  //     clearTimeout(networkStatusRef.current);
+  //   }
 
-    if (previousChainIdRef.current !== currentChainId) {
-      previousChainIdRef.current = currentChainId;
+  //   if (previousChainIdRef.current !== currentChainId) {
+  //     previousChainIdRef.current = currentChainId;
 
-      networkStatusRef.current = setTimeout(() => {
-        updateNetworkStatus();
+  //     networkStatusRef.current = setTimeout(() => {
+  //       updateNetworkStatus();
 
-        if (currentChainId && currentChainId !== TARGET_CHAIN.id) {
-          const currentChainName =
-            getChainMetadata(currentChainId)?.name || "Unknown Network";
-          showSnackbar(
-            `Connected to ${currentChainName}. Switch to ${TARGET_CHAIN.name} for full functionality.`,
-            "error"
-          );
-        } else if (currentChainId === TARGET_CHAIN.id) {
-          showSnackbar(`Connected to ${TARGET_CHAIN.name}`, "success");
-        }
-      }, 100);
-    }
+  //       if (currentChainId && currentChainId !== TARGET_CHAIN.id) {
+  //         const currentChainName =
+  //           getChainMetadata(currentChainId)?.name || "Unknown Network";
+  //         // showSnackbar(
+  //         //   `Connected to ${currentChainName}. Switch to ${TARGET_CHAIN.name} for full functionality.`,
+  //         //   "error"
+  //         // );
+  //       } else if (currentChainId === TARGET_CHAIN.id) {
+  //         showSnackbar(`Connected to ${TARGET_CHAIN.name}`, "success");
+  //       }
+  //     }, 100);
+  //   }
 
-    return () => {
-      if (networkStatusRef.current) {
-        clearTimeout(networkStatusRef.current);
-      }
-    };
-  }, [currentChainId, updateNetworkStatus, showSnackbar]);
+  //   return () => {
+  //     if (networkStatusRef.current) {
+  //       clearTimeout(networkStatusRef.current);
+  //     }
+  //   };
+  // }, [currentChainId, updateNetworkStatus, showSnackbar]);
 
   // Connection status effect
   useEffect(() => {
