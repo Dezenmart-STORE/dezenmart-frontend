@@ -53,9 +53,9 @@ Our project extensively uses **Chainlink CCIP** to enable state changes across m
 ### Frontend Components
 - [`src/context/Web3Context.tsx`](./src/context/Web3Context.tsx) - CCIP transaction handling and fee estimation
 - [`src/components/web3/PaymentModal.tsx`](./src/components/web3/PaymentModal.tsx) - Cross-chain payment processing
-- [`src/components/trade/status/FundsReleaseStatus.tsx`](./src/components/trade/status/FundsReleaseStatus.tsx) - CCIP status tracking
+- [`src/components/trade/status`](./src/components/trade/status) - CCIP status tracking
 - [`src/pages/ViewOrderDetail.tsx`](./src/pages/ViewOrderDetail.tsx) - Cross-chain order management
-- [`src/pages/Trade.tsx`](./src/pages/Trade.tsx) - Multi-chain trade creation and management
+- [`src/pages/Trade.tsx`](./src/pages/Account.tsx) - Multi-chain trade creation and management
 
 ### Configuration Files
 - [`src/utils/config/web3.config.ts`](./src/utils/config/web3.config.ts) - CCIP router addresses, chain selectors, and cross-chain pairs
@@ -138,7 +138,7 @@ VITE_RPC_URL_ARBITRUM_SEPOLIA=your_arbitrum_rpc_url
 
 ## 🔄 Cross-Chain Transaction Flow
 
-1. **User Selection**: Buyer selects source and destination chains
+1. **User Selection**: Buyer connects to any of the supported networks
 2. **Fee Estimation**: System calculates CCIP fees for cross-chain transfer
 3. **Transaction Initiation**: `buyCrossChainTrade()` function called with CCIP parameters
 4. **CCIP Processing**: Chainlink CCIP handles the cross-chain message transfer
@@ -199,7 +199,7 @@ src/
 
 ## 🌐 Live Demo
 
-**Demo URL**: [https://dezenmart-demo.netlify.app](https://dezenmart-demo.netlify.app)
+**Demo URL**: [https://dezentra.netlify.app](https://dezentra.netlify.app)
 
 **Test Networks**:
 - Avalanche Fuji: [https://faucet.avax.network](https://faucet.avax.network)
@@ -221,7 +221,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🏆 Hackathon Submission
 
-This project was built for the **Chainlink Fall 2024 Hackathon** and demonstrates innovative use of Chainlink CCIP for cross-chain e-commerce applications.
+This project was built for the **Chromion: A Chainlink Hackathon** and demonstrates innovative use of Chainlink CCIP for cross-chain e-commerce applications.
 
 ### Chainlink Integration Summary
 - **Primary Service**: CCIP (Cross-Chain Interoperability Protocol)
