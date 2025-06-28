@@ -125,6 +125,8 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
 
   const networkStatusRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const previousChainIdRef = useRef<number | undefined>(undefined);
+  const lastRefreshRef = useRef<number>(0);
+  const autoRefreshIntervalRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
   const currentChain = useMemo(() => chain, [chain]);
   const currentChainId = useMemo(
@@ -158,14 +160,12 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
       clearTimeout(networkStatusRef.current);
     }
 
-    // Only process if chain actually changed
     if (previousChainIdRef.current !== currentChainId) {
       previousChainIdRef.current = currentChainId;
 
       networkStatusRef.current = setTimeout(() => {
         updateNetworkStatus();
 
-        // Show appropriate notifications
         if (currentChainId && currentChainId !== TARGET_CHAIN.id) {
           const currentChainName =
             getChainMetadata(currentChainId)?.name || "Unknown Network";
@@ -206,11 +206,9 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
     address,
     query: {
       enabled: Boolean(address && currentChainId && isCorrectNetwork),
-      refetchInterval: isCorrectNetwork
-        ? PERFORMANCE_CONFIG.CACHE_DURATION
-        : false,
-      staleTime: PERFORMANCE_CONFIG.CACHE_DURATION / 2,
-      retry: isCorrectNetwork ? 2 : 1,
+      refetchInterval: false,
+      staleTime: PERFORMANCE_CONFIG.CACHE_DURATION,
+      retry: 1,
       refetchOnWindowFocus: false,
       refetchOnReconnect: false,
     },
@@ -246,11 +244,9 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
     args: address ? [address] : undefined,
     query: {
       enabled: Boolean(address && usdtContractAddress && isCorrectNetwork),
-      refetchInterval: isCorrectNetwork
-        ? PERFORMANCE_CONFIG.CACHE_DURATION
-        : false,
-      staleTime: PERFORMANCE_CONFIG.CACHE_DURATION / 2,
-      retry: isCorrectNetwork ? 2 : 1,
+      refetchInterval: false,
+      staleTime: PERFORMANCE_CONFIG.CACHE_DURATION,
+      retry: 1,
       refetchOnWindowFocus: false,
       refetchOnReconnect: false,
     },
@@ -264,7 +260,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
     query: {
       enabled: Boolean(usdtContractAddress && isCorrectNetwork),
       staleTime: Infinity,
-      retry: 2,
+      retry: 1,
       refetchOnWindowFocus: false,
       refetchOnReconnect: false,
     },
@@ -286,9 +282,9 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
           escrowContractAddress &&
           isCorrectNetwork
       ),
-      refetchInterval: PERFORMANCE_CONFIG.CACHE_DURATION / 2,
-      staleTime: PERFORMANCE_CONFIG.CACHE_DURATION / 4,
-      retry: 2,
+      refetchInterval: false, // Disable automatic refetching
+      staleTime: PERFORMANCE_CONFIG.CACHE_DURATION / 2,
+      retry: 1,
       refetchOnWindowFocus: false,
       refetchOnReconnect: false,
     },
@@ -298,7 +294,17 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
   const refreshBalances = useCallback(async () => {
     if (!isConnected || !address || !isCorrectNetwork || isRefreshing) return;
 
+    const now = Date.now();
+    const timeSinceLastRefresh = now - lastRefreshRef.current;
+
+    // Throttling to prevent excessive calls (minimum 2 seconds between refreshes)
+    if (timeSinceLastRefresh < 2000) {
+      return;
+    }
+
     setIsRefreshing(true);
+    lastRefreshRef.current = now;
+
     try {
       const promises = [
         refetchUSDTBalance(),
@@ -324,23 +330,32 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
 
   // Auto-refresh balances
   useEffect(() => {
-    if (!isConnected || !address || !isCorrectNetwork) return;
+    if (!isConnected || !address || !isCorrectNetwork) {
+      if (autoRefreshIntervalRef.current) {
+        clearInterval(autoRefreshIntervalRef.current);
+        autoRefreshIntervalRef.current = undefined;
+      }
+      return;
+    }
 
-    const interval = setInterval(() => {
+    // Clear existing interval
+    if (autoRefreshIntervalRef.current) {
+      clearInterval(autoRefreshIntervalRef.current);
+    }
+
+    autoRefreshIntervalRef.current = setInterval(() => {
       if (!isLoadingUSDT && !isRefreshing) {
         refreshBalances();
       }
-    }, PERFORMANCE_CONFIG.CACHE_DURATION * 2);
+    }, 300000); // 5 minutes
 
-    return () => clearInterval(interval);
-  }, [
-    isConnected,
-    address,
-    isCorrectNetwork,
-    isLoadingUSDT,
-    isRefreshing,
-    refreshBalances,
-  ]);
+    return () => {
+      if (autoRefreshIntervalRef.current) {
+        clearInterval(autoRefreshIntervalRef.current);
+        autoRefreshIntervalRef.current = undefined;
+      }
+    };
+  }, [isConnected, address, isCorrectNetwork]);
 
   const connectWallet = useCallback(async () => {
     try {
@@ -445,18 +460,26 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
 
   // Update wallet state
   useEffect(() => {
-    setWallet((prev) => ({
-      ...prev,
-      isConnected,
-      address,
-      chainId: currentChainId,
-      balance: avaxBalance
-        ? formatUnits(avaxBalance.value, avaxBalance.decimals)
-        : undefined,
-      error: connectError?.message || usdtError?.message,
-      isConnecting: isConnecting || isLoadingUSDT || isSwitchingChain,
-      usdtBalance: convertedUSDTBalances,
-    }));
+    setWallet((prev) => {
+      const newWallet = {
+        ...prev,
+        isConnected,
+        address,
+        chainId: currentChainId,
+        balance: avaxBalance
+          ? formatUnits(avaxBalance.value, avaxBalance.decimals)
+          : undefined,
+        error: connectError?.message || usdtError?.message,
+        isConnecting: isConnecting || isLoadingUSDT || isSwitchingChain,
+        usdtBalance: convertedUSDTBalances,
+      };
+
+      // Only update if values actually changed
+      if (JSON.stringify(prev) !== JSON.stringify(newWallet)) {
+        return newWallet;
+      }
+      return prev;
+    });
   }, [
     isConnected,
     address,
@@ -469,6 +492,17 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
     isSwitchingChain,
     convertedUSDTBalances,
   ]);
+
+  useEffect(() => {
+    return () => {
+      if (networkStatusRef.current) {
+        clearTimeout(networkStatusRef.current);
+      }
+      if (autoRefreshIntervalRef.current) {
+        clearInterval(autoRefreshIntervalRef.current);
+      }
+    };
+  }, []);
 
   // Get trade details
   const getTrade = useCallback(

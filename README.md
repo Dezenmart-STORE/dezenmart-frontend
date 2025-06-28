@@ -1,4 +1,4 @@
-# 🌐 Dezenmart - Cross-Chain E-commerce Platform
+# 🌐 Dezentra - Cross-Chain E-commerce Platform
 
 > **A revolutionary decentralized e-commerce platform leveraging Chainlink CCIP for seamless cross-chain transactions and interoperability**
 
