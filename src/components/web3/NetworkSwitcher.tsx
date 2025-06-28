@@ -60,10 +60,10 @@ const NetworkSwitcher: React.FC<NetworkSwitcherProps> = ({
       onChainSelect?.(chainId);
       setIsDropdownOpen(false);
       setSwitchingToChain(null);
-      showSnackbar(
-        `Successfully switched to ${getChainMetadata(chainId)?.name}`,
-        "success"
-      );
+      //   showSnackbar(
+      //     `Successfully switched to ${getChainMetadata(chainId)?.name}`,
+      //     "success"
+      //   );
     },
     onError: (error) => {
       setSwitchingToChain(null);
