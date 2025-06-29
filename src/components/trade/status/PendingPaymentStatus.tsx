@@ -134,10 +134,10 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
     }
   }, [orderId]);
 
-  // Debug: Log navigatePath changes
-  useEffect(() => {
-    console.log("PendingPaymentStatus - navigatePath changed:", navigatePath);
-  }, [navigatePath]);
+  // // Debug: Log navigatePath changes
+  // useEffect(() => {
+  //   console.log("PendingPaymentStatus - navigatePath changed:", navigatePath);
+  // }, [navigatePath]);
 
   // cleanup effect
   useEffect(() => {
@@ -346,7 +346,7 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
   // payment success handler
   const handlePaymentSuccess = useCallback(
     async (transaction: PaymentTransaction) => {
-      if (!mountedRef.current) return;
+      // if (!mountedRef.current) return;
 
       console.log(
         "Payment success handler called with navigatePath:",
