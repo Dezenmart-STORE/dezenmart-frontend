@@ -418,7 +418,7 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
             "navigatePath:",
             navigatePath
           );
-          if (mountedRef.current && navigatePath) {
+          if (navigatePath) {
             console.log("Navigating to:", navigatePath);
             try {
               navigate(navigatePath, {
