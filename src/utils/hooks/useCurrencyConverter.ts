@@ -91,9 +91,9 @@ interface ExchangeRates {
 
 // Improved default rates with better fallbacks
 const DEFAULT_RATES: Omit<ExchangeRates, "lastUpdated"> = {
-  USDT_NATIVE: 0.025, // 1 USDT = 0.025 AVAX (more accurate)
+  USDT_NATIVE: 0.025, // 1 USDT = 0.025 AVAX
   USDT_FIAT: 1,
-  NATIVE_FIAT: 40, // 1 AVAX = ~$40 (more current)
+  NATIVE_FIAT: 40, // 1 AVAX = ~$40
   nativeTokenSymbol: "AVAX",
   nativeTokenName: "Avalanche",
   chainId: DEFAULT_CHAIN_ID,
@@ -101,21 +101,21 @@ const DEFAULT_RATES: Omit<ExchangeRates, "lastUpdated"> = {
 
 // Optimized cache configuration
 const CACHE_CONFIG = {
-  RATE_CACHE_DURATION: 15 * 60 * 1000, // 15 minutes (increased for better rate limit management)
-  GEO_CACHE_DURATION: 24 * 60 * 60 * 1000, // 24 hours
-  STALE_CACHE_DURATION: 60 * 60 * 1000, // 1 hour (increased from 30 minutes)
-  API_TIMEOUT: 10000, // 10 seconds (increased from 8)
-  RETRY_DELAY: 2000, // 2 seconds (increased from 1)
-  MAX_RETRIES: 1, // Reduced from 2 to avoid rate limiting
-  RATE_LIMIT_DELAY: 60000, // 1 minute delay when rate limited
+  RATE_CACHE_DURATION: 15 * 60 * 1000,
+  GEO_CACHE_DURATION: 24 * 60 * 60 * 1000,
+  STALE_CACHE_DURATION: 60 * 60 * 1000,
+  API_TIMEOUT: 10000,
+  RETRY_DELAY: 2000,
+  MAX_RETRIES: 1,
+  RATE_LIMIT_DELAY: 60000,
 } as const;
 
 // API endpoints with fallbacks
 const API_ENDPOINTS = {
-  PRIMARY: "/.netlify/functions/coingecko-proxy", // Netlify Function (primary)
-  COINGECKO: "https://api.coingecko.com/api/v3/simple/price", // Direct CoinGecko (fallback)
-  PROXY: "https://api.allorigins.win/raw?url=", // CORS proxy (fallback)
-  PROXY_ALT: "https://cors-anywhere.herokuapp.com/", // Alternative CORS proxy (fallback)
+  PRIMARY: "/.netlify/functions/coingecko-proxy",
+  COINGECKO: "https://api.coingecko.com/api/v3/simple/price",
+  PROXY: "https://api.allorigins.win/raw?url=",
+  PROXY_ALT: "https://cors-anywhere.herokuapp.com/",
 } as const;
 
 const CACHE_KEYS = {
