@@ -491,7 +491,7 @@ const ViewOrderDetail = memo(() => {
   if (error || !orderDetails) {
     return (
       <div className="bg-Dark min-h-screen flex items-center justify-center">
-        <motion.div
+        {/* <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="flex flex-col items-center text-white text-center px-4 max-w-md"
@@ -516,7 +516,8 @@ const ViewOrderDetail = memo(() => {
               Browse Products
             </button>
           </div>
-        </motion.div>
+        </motion.div> */}
+        <LoadingSpinner />
       </div>
     );
   }

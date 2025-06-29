@@ -290,7 +290,8 @@ const FundsReleaseStatus: FC<FundsReleaseStatusProps> = ({
         // Redirect to dispute tracking page
         redirectTimeoutRef.current = setTimeout(() => {
           // if (mountedRef.current) {
-          navigate(`/orders/${orderId}?status=disputed`, {
+          console;
+          navigate(`/orders/${orderId}?status=cancelled`, {
             replace: true,
             state: {
               disputeReason: disputeReason.trim(),
