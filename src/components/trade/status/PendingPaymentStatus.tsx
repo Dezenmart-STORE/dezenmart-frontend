@@ -227,7 +227,6 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
         const parsed = Number(balanceStr);
         return Number.isFinite(parsed) ? parsed : 0;
       })();
-      console.log(requiredAmount, userBalance, "userBalance");
       return {
         totalAmount,
         requiredAmount,
@@ -283,6 +282,7 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
     loading,
     wallet.isConnected,
     calculations.totalAmount,
+    calculations.hasSufficientBalance,
   ]);
 
   // Set initial quantity
