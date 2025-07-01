@@ -17,8 +17,9 @@ import {
 import { useSnackbar } from "../../context/SnackbarContext";
 import { useEffect } from "react";
 import { api } from "../services/apiService";
-
+import { useAuth } from "../../context/AuthContext";
 export const useReferralData = () => {
+  const { user } = useAuth();
   const dispatch = useAppDispatch();
   const { showSnackbar } = useSnackbar();
 
@@ -88,10 +89,10 @@ export const useReferralData = () => {
 
   // Fetch referral info on mount if not available
   useEffect(() => {
-    if (!referralInfo && loading === false) {
+    if (!referralInfo && loading === false && user) {
       getReferralInfo(false);
     }
-  }, [referralInfo, loading, getReferralInfo]);
+  }, [referralInfo, loading, getReferralInfo, user]);
 
   return {
     referralInfo,
