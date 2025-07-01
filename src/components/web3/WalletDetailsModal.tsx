@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   HiArrowTopRightOnSquare,
   HiClipboardDocument,
@@ -7,30 +7,23 @@ import {
   HiChevronDown,
   HiCurrencyDollar,
   HiBanknotes,
-  HiGlobeAlt,
 } from "react-icons/hi2";
 import { FiLogOut } from "react-icons/fi";
 import Modal from "../common/Modal";
 import Button from "../common/Button";
 import { useWeb3 } from "../../context/Web3Context";
-import {
-  TARGET_CHAIN,
-  SUPPORTED_CHAINS,
-  getChainMetadata,
-  CHAIN_METADATA,
-} from "../../utils/config/web3.config";
+import { TARGET_CHAIN } from "../../utils/config/web3.config";
 import { truncateAddress, copyToClipboard } from "../../utils/web3.utils";
 import { useSnackbar } from "../../context/SnackbarContext";
 import { useCurrencyConverter } from "../../utils/hooks/useCurrencyConverter";
 import { useCurrency } from "../../context/CurrencyContext";
-import NetworkSwitcher from "./NetworkSwitcher";
 
 interface WalletDetailsModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-type BalanceDisplayMode = "USDT" | "NATIVE" | "FIAT";
+type BalanceDisplayMode = "USDT" | "CELO" | "FIAT";
 
 const WalletDetailsModal: React.FC<WalletDetailsModalProps> = ({
   isOpen,
@@ -38,14 +31,8 @@ const WalletDetailsModal: React.FC<WalletDetailsModalProps> = ({
 }) => {
   const { showSnackbar } = useSnackbar();
   const { secondaryCurrency } = useCurrency();
-  const {
-    wallet,
-    disconnectWallet,
-    isCorrectNetwork,
-    switchToCorrectNetwork,
-    chainId,
-    chain,
-  } = useWeb3();
+  const { wallet, disconnectWallet, isCorrectNetwork, switchToCorrectNetwork } =
+    useWeb3();
 
   const {
     userCountry,
@@ -58,14 +45,6 @@ const WalletDetailsModal: React.FC<WalletDetailsModalProps> = ({
   const [balanceMode, setBalanceMode] = useState<BalanceDisplayMode>("FIAT");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-
-  //chain metadata
-  const currentChainMetadata = useMemo(() => {
-    return chainId ? getChainMetadata(chainId) : null;
-  }, [chainId]);
-
-  const nativeCurrency = currentChainMetadata?.nativeCurrency || "ETH";
-  const blockExplorer = currentChainMetadata?.blockExplorer;
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -80,9 +59,9 @@ const WalletDetailsModal: React.FC<WalletDetailsModalProps> = ({
 
     if (isDropdownOpen) {
       document.addEventListener("mousedown", handleClickOutside);
-      return () =>
-        document.removeEventListener("mousedown", handleClickOutside);
     }
+
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isDropdownOpen]);
 
   const handleCopyAddress = () => {
@@ -90,8 +69,6 @@ const WalletDetailsModal: React.FC<WalletDetailsModalProps> = ({
       copyToClipboard(wallet.address);
       showSnackbar("Address copied to clipboard", "success");
     }
-
-    console.log("chain", chain);
   };
 
   const handleDisconnect = () => {
@@ -112,12 +89,12 @@ const WalletDetailsModal: React.FC<WalletDetailsModalProps> = ({
     switch (balanceMode) {
       case "USDT":
         return wallet.usdtBalance.usdt;
-      case "NATIVE":
-        return wallet.usdtBalance.celo; // This will be updated to show native currency
+      case "CELO":
+        return wallet.usdtBalance.celo;
       case "FIAT":
         return wallet.usdtBalance.fiat;
       default:
-        return wallet.usdtBalance.fiat;
+        return wallet.usdtBalance.fiat; // Default to fiat
     }
   };
 
@@ -125,19 +102,10 @@ const WalletDetailsModal: React.FC<WalletDetailsModalProps> = ({
     switch (mode) {
       case "USDT":
         return <HiCurrencyDollar className="w-4 h-4 text-green-500" />;
-      case "NATIVE":
-        return currentChainMetadata?.icon ? (
-          <img
-            src={currentChainMetadata.icon}
-            alt={nativeCurrency}
-            className="w-4 h-4 rounded-full"
-            onError={(e) => {
-              (e.target as HTMLImageElement).style.display = "none";
-            }}
-          />
-        ) : (
-          <div className="w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center text-xs font-bold text-white">
-            {nativeCurrency.charAt(0)}
+      case "CELO":
+        return (
+          <div className="w-4 h-4 rounded-full bg-yellow-500 flex items-center justify-center text-xs font-bold text-black">
+            ◉
           </div>
         );
       case "FIAT":
@@ -147,91 +115,26 @@ const WalletDetailsModal: React.FC<WalletDetailsModalProps> = ({
     }
   };
 
-  const balanceOptions = useMemo(
-    () =>
-      [
-        {
-          mode: "FIAT" as const,
-          label: `${userCountry || "USD"}`,
-          symbol: "💰",
-          priority: 1,
-        },
-        { mode: "USDT" as const, label: "USDT", symbol: "$", priority: 2 },
-        {
-          mode: "NATIVE" as const,
-          label: nativeCurrency,
-          symbol: currentChainMetadata?.shortName || nativeCurrency.charAt(0),
-          priority: 3,
-        },
-      ].sort((a, b) => a.priority - b.priority),
-    [userCountry, nativeCurrency, currentChainMetadata]
-  );
+  const balanceOptions = [
+    {
+      mode: "FIAT" as const,
+      label: `${userCountry || "USD"}`,
+      symbol: "💰",
+      priority: 1,
+    },
+    { mode: "USDT" as const, label: "USDT", symbol: "$", priority: 2 },
+    { mode: "CELO" as const, label: "CELO", symbol: "◉", priority: 3 },
+  ].sort((a, b) => a.priority - b.priority);
 
-  // Calculate fiat values
+  // fiat values
   const usdtNumericValue = wallet.usdtBalance
     ? parseFloat(wallet.usdtBalance.raw || "0")
     : 0;
-  const nativeNumericValue = wallet.balance ? parseFloat(wallet.balance) : 0;
+  const celoNumericValue = wallet.balance ? parseFloat(wallet.balance) : 0;
 
   const fiatUsdtValue = convertPrice(usdtNumericValue, "USDT", "FIAT");
-  const fiatNativeValue = convertPrice(nativeNumericValue, "NATIVE", "FIAT");
-  const totalFiatValue = fiatUsdtValue + fiatNativeValue;
-
-  // Network status component
-  const NetworkStatus = () => {
-    if (!chainId) {
-      return (
-        <div className="p-3 bg-gray-500/10 border border-gray-500/30 rounded-lg">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 bg-gray-500 rounded-full" />
-            <span className="text-gray-400 font-medium">Not Connected</span>
-          </div>
-        </div>
-      );
-    }
-
-    if (!isCorrectNetwork) {
-      return (
-        <div className="space-y-3">
-          <div className="p-3 bg-Red/10 border border-Red/30 rounded-lg">
-            <div className="flex items-start gap-2">
-              <HiExclamationTriangle className="w-5 h-5 text-Red flex-shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <p className="text-Red font-medium">Network Switch Required</p>
-                <p className="text-sm text-Red/80 mt-1">
-                  Switch to a supported network for optimal experience
-                </p>
-              </div>
-            </div>
-          </div>
-          <NetworkSwitcher
-            variant="dropdown"
-            size="md"
-            showCurrentNetwork={false}
-          />
-        </div>
-      );
-    }
-
-    return (
-      <div className="space-y-3">
-        <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
-          <NetworkSwitcher
-            variant="inline"
-            size="md"
-            showCurrentNetwork={true}
-          />
-        </div>
-        <NetworkSwitcher variant="dropdown" size="sm" className="text-xs" />
-      </div>
-    );
-  };
-
-  // Supported chains display
-
-  // const SupportedChains = () => (
-  //   <NetworkSwitcher variant="grid" size="sm" showCurrentNetwork={false} />
-  // );
+  const fiatCeloValue = convertPrice(celoNumericValue, "CELO", "FIAT");
+  const totalFiatValue = fiatUsdtValue + fiatCeloValue;
 
   return (
     <Modal
@@ -261,27 +164,49 @@ const WalletDetailsModal: React.FC<WalletDetailsModalProps> = ({
                 className="bg-[#1a1c20] hover:bg-Red/10 hover:border-Red/30 hover:shadow-md border border-gray-600 text-white p-2 transition-all duration-200"
                 disabled={!wallet.address}
               />
-              {blockExplorer && (
-                <Button
-                  title=""
-                  icon={<HiArrowTopRightOnSquare className="w-4 h-4" />}
-                  path={`${blockExplorer}/address/${wallet.address}`}
-                  className="bg-[#1a1c20] hover:bg-Red/10 hover:border-Red/30 hover:shadow-md border border-gray-600 text-white p-2 transition-all duration-200"
-                  disabled={!wallet.address}
-                />
-              )}
+              <Button
+                title=""
+                icon={<HiArrowTopRightOnSquare className="w-4 h-4" />}
+                path={`https://celo-alfajores.blockscout.com/address/${wallet.address}`}
+                className="bg-[#1a1c20] hover:bg-Red/10 hover:border-Red/30 hover:shadow-md border border-gray-600 text-white p-2 transition-all duration-200"
+                disabled={!wallet.address}
+              />
             </div>
           </div>
         </div>
 
         {/* Network Status */}
         <div className="space-y-3">
-          <h3 className="text-lg font-medium text-white">Network Status</h3>
-          <NetworkStatus />
+          <h3 className="text-lg font-medium text-white">Network</h3>
+          {!isCorrectNetwork ? (
+            <div className="p-3 bg-Red/10 border border-Red/30 rounded-lg">
+              <div className="flex items-start gap-2">
+                <HiExclamationTriangle className="w-5 h-5 text-Red flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-Red font-medium">Wrong Network</p>
+                  <p className="text-sm text-Red/80 mt-1">
+                    Switch to {TARGET_CHAIN.name} to make purchases
+                  </p>
+                  <Button
+                    title={`Switch to ${TARGET_CHAIN.name}`}
+                    icon={<HiArrowsRightLeft className="w-4 h-4" />}
+                    onClick={handleSwitchNetwork}
+                    className="mt-2 bg-Red hover:bg-Red/80 text-white text-sm px-3 py-1.5 transition-all duration-200"
+                  />
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                <span className="text-green-400 font-medium">
+                  {TARGET_CHAIN.name}
+                </span>
+              </div>
+            </div>
+          )}
         </div>
-
-        {/* Supported Networks */}
-        {/* <SupportedChains /> */}
 
         {/* Portfolio Overview */}
         <div className="space-y-3">
@@ -375,40 +300,31 @@ const WalletDetailsModal: React.FC<WalletDetailsModalProps> = ({
               {wallet.usdtBalance && !currencyLoading && (
                 <div className="text-xs text-gray-500 mt-2 space-y-1">
                   <div className="flex justify-between">
-                    <span>
-                      ≈{" "}
-                      {wallet.balance
-                        ? `${parseFloat(wallet.balance).toFixed(
-                            4
-                          )} ${nativeCurrency}`
-                        : `0 ${nativeCurrency}`}
-                    </span>
+                    <span>≈ {wallet.usdtBalance.celo}</span>
                     <span>≈ {formatPrice(fiatUsdtValue, "FIAT")}</span>
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Native Currency Balance */}
+            {/* CELO Balance */}
             <div className="p-3 bg-Dark rounded-lg border border-gray-700/50">
               <div className="flex justify-between items-center">
                 <div className="flex items-center gap-2">
-                  {getBalanceIcon("NATIVE")}
-                  <span className="text-gray-300 font-medium">
-                    {nativeCurrency}
-                  </span>
+                  <div className="w-5 h-5 rounded-full bg-yellow-500 flex items-center justify-center text-xs font-bold text-black">
+                    ◉
+                  </div>
+                  <span className="text-gray-300 font-medium">CELO</span>
                 </div>
                 <div className="text-right">
                   <span className="font-mono text-white">
                     {wallet.balance
-                      ? `${parseFloat(wallet.balance).toFixed(
-                          4
-                        )} ${nativeCurrency}`
-                      : `0.0000 ${nativeCurrency}`}
+                      ? `${parseFloat(wallet.balance).toFixed(4)} CELO`
+                      : "0.0000 CELO"}
                   </span>
                   {!currencyLoading && (
                     <p className="text-xs text-gray-500">
-                      ≈ {formatPrice(fiatNativeValue, "FIAT")}
+                      ≈ {formatPrice(fiatCeloValue, "FIAT")}
                     </p>
                   )}
                 </div>
@@ -421,8 +337,7 @@ const WalletDetailsModal: React.FC<WalletDetailsModalProps> = ({
         {/* Currency Info */}
         {!currencyLoading && (
           <div className="text-xs text-gray-500 text-center p-2 bg-Red/5 rounded-lg border border-Red/10">
-            Prices shown in {userCountry || "USD"} • Cross-chain ready • Updated
-            automatically
+            Prices shown in {userCountry || "USD"} • Updated automatically
           </div>
         )}
 

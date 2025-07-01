@@ -16,7 +16,6 @@ import React, {
 import LoadingSpinner from "../../common/LoadingSpinner";
 import { useOrderData } from "../../../utils/hooks/useOrder";
 import { useWatchlist } from "../../../utils/hooks/useWatchlist";
-import { useWeb3 } from "../../../context/Web3Context";
 
 const ProductContainer = lazy(() => import("./products/Container"));
 
@@ -35,17 +34,13 @@ interface TabContentProps {
 }
 
 const TabContent: React.FC<TabContentProps> = React.memo(({ activeTab }) => {
-  const { wallet, chainId, isCorrectNetwork } = useWeb3();
   const {
     fetchBuyerOrders,
     disputeOrders,
     nonDisputeOrders,
     loading: orderLoading,
     error: orderError,
-  } = useOrderData({
-    chainId,
-    isConnected: wallet.isConnected && isCorrectNetwork,
-  });
+  } = useOrderData();
 
   const {
     watchlistItems,
@@ -69,7 +64,7 @@ const TabContent: React.FC<TabContentProps> = React.memo(({ activeTab }) => {
     }
   }, []);
 
-  // Initialize tab data
+  // Initialize tab data with proper error handling and cleanup
   const initializeTab = useCallback(
     async (tabId: string) => {
       if (tabInitialized[tabId]) return;
@@ -121,6 +116,7 @@ const TabContent: React.FC<TabContentProps> = React.memo(({ activeTab }) => {
     [tabInitialized, retryCount, fetchUserWatchlist, fetchBuyerOrders, cleanup]
   );
 
+  // Effect to handle tab changes
   useEffect(() => {
     if (["1", "3", "4"].includes(activeTab)) {
       initializeTab(activeTab);
@@ -151,7 +147,7 @@ const TabContent: React.FC<TabContentProps> = React.memo(({ activeTab }) => {
     initializeTab(tabId);
   }, [activeTab, initializeTab]);
 
-  // loading state
+  // Enhanced loading state
   const isTabLoading = useCallback(
     (tabId: string) => {
       return (

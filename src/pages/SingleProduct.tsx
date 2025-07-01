@@ -17,7 +17,6 @@ import { useProductData } from "../utils/hooks/useProduct";
 import { useCurrency } from "../context/CurrencyContext";
 import { ProductVariant } from "../utils/types";
 import { useAuth } from "../context/AuthContext";
-import { useWeb3 } from "../context/Web3Context";
 
 type TabType = "details" | "reviews";
 
@@ -25,17 +24,13 @@ const SingleProduct = () => {
   const { user } = useAuth();
   const { productId } = useParams();
   const navigate = useNavigate();
-  const { wallet, chainId, isCorrectNetwork } = useWeb3();
   const {
     formattedProduct,
     loading,
     error,
     fetchProductById,
     relatedProducts,
-  } = useProductData({
-    chainId,
-    isConnected: wallet.isConnected && isCorrectNetwork,
-  });
+  } = useProductData();
   const { secondaryCurrency } = useCurrency();
   const [activeTab, setActiveTab] = useState<TabType>("details");
   const [reviewCount, setReviewCount] = useState(0);
@@ -212,7 +207,7 @@ const SingleProduct = () => {
                   <div className="flex flex-col gap-1 text-right">
                     <div className="flex items-center gap-2">
                       <span className="text-2xl font-bold">
-                        {formattedProduct.formattedNativePrice}
+                        {formattedProduct.formattedCeloPrice}
                       </span>
                     </div>
                     <span className="text-sm text-gray-400 justify-self-start sm:justify-self-end">

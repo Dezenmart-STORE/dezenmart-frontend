@@ -6,7 +6,6 @@ import ProductList from "../components/product/ProductList";
 import { useProductData } from "../utils/hooks/useProduct";
 import { debounce } from "../utils/helpers";
 import ProductCard from "../components/product/ProductCard";
-import { useWeb3 } from "../context/Web3Context";
 
 const categories = [
   "Electronics",
@@ -23,7 +22,6 @@ const Product = () => {
   const location = useLocation();
   const params = useParams();
   const categoryParam = params.categoryName;
-  const { wallet, chainId, isCorrectNetwork } = useWeb3();
 
   const {
     searchProducts,
@@ -31,10 +29,7 @@ const Product = () => {
     loading,
     fetchAllProducts,
     fetchSponsoredProducts,
-  } = useProductData({
-    chainId,
-    isConnected: wallet.isConnected && isCorrectNetwork,
-  });
+  } = useProductData();
 
   const [isSearching, setIsSearching] = useState(false);
   const [activeCategory, setActiveCategory] = useState(categoryParam || "All");
@@ -124,7 +119,7 @@ const Product = () => {
               <IoSearch className="text-white text-xl" />
               <input
                 type="text"
-                placeholder="Search Dezentra"
+                placeholder="Search DezenMart"
                 className="w-full rounded-none bg-[#292B30] outline-none text-white placeholder-gray-400"
                 value={searchQuery}
                 onChange={handleSearch}

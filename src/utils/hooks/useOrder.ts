@@ -1,3 +1,4 @@
+// src/utils/hooks/useOrder.ts
 import { useCallback, useMemo } from "react";
 import { useAppDispatch, useAppSelector } from "./redux";
 import {
@@ -24,15 +25,7 @@ import { OrderStatus, Order } from "../types";
 import { useCurrencyConverter } from "./useCurrencyConverter";
 import { useCurrency } from "../../context/CurrencyContext";
 
-interface UseOrderDataProps {
-  chainId?: number;
-  isConnected?: boolean;
-}
-
-export const useOrderData = ({
-  chainId,
-  isConnected = false,
-}: UseOrderDataProps = {}) => {
+export const useOrderData = () => {
   const { secondaryCurrency } = useCurrency();
   const dispatch = useAppDispatch();
   const { showSnackbar } = useSnackbar();
@@ -40,7 +33,7 @@ export const useOrderData = ({
     loading: exchangeRatesLoading,
     convertPrice,
     formatPrice,
-  } = useCurrencyConverter({ chainId, isConnected });
+  } = useCurrencyConverter();
 
   const orders = useAppSelector(selectAllOrders);
   const sellerOrders = useAppSelector(selectSellerOrders);
@@ -53,7 +46,7 @@ export const useOrderData = ({
       if (!order || !order._id) return null;
 
       const usdtPrice = order.amount;
-      const celoPrice = convertPrice(usdtPrice, "USDT", "NATIVE");
+      const celoPrice = convertPrice(usdtPrice, "USDT", "CELO");
       const fiatPrice = convertPrice(usdtPrice, "USDT", "FIAT");
       const totalUsdtAmount = usdtPrice * (order.quantity || 1);
       const totalCeloAmount = celoPrice * (order.quantity || 1);
@@ -69,10 +62,10 @@ export const useOrderData = ({
         fiatPrice,
 
         formattedUsdtPrice: formatPrice(usdtPrice, "USDT"),
-        formattedCeloPrice: formatPrice(celoPrice, "NATIVE"),
+        formattedCeloPrice: formatPrice(celoPrice, "CELO"),
         formattedFiatPrice: formatPrice(fiatPrice, "FIAT"),
         formattedUsdtAmount: formatPrice(totalUsdtAmount, "USDT"),
-        formattedCeloAmount: formatPrice(totalCeloAmount, "NATIVE"),
+        formattedCeloAmount: formatPrice(totalCeloAmount, "CELO"),
         formattedFiatAmount: formatPrice(totalFiatAmount, "FIAT"),
       };
     },
@@ -86,9 +79,7 @@ export const useOrderData = ({
   }, [orders, formatOrderWithCurrencies]);
 
   const formattedSellerOrders = useMemo(() => {
-    return sellerOrders
-      .map(formatOrderWithCurrencies)
-      .filter((order): order is NonNullable<typeof order> => order !== null);
+    return sellerOrders.map(formatOrderWithCurrencies);
   }, [sellerOrders, formatOrderWithCurrencies]);
 
   const formattedCurrentOrder = useMemo(() => {
@@ -128,30 +119,11 @@ export const useOrderData = ({
     const usdtSpent = buyerTotal;
     const usdtEarned = sellerTotal;
 
-    const celoSpent = convertPrice(usdtSpent, "USDT", "NATIVE");
-    const celoEarned = convertPrice(usdtEarned, "USDT", "NATIVE");
+    const celoSpent = convertPrice(usdtSpent, "USDT", "CELO");
+    const celoEarned = convertPrice(usdtEarned, "USDT", "CELO");
 
     const fiatSpent = convertPrice(usdtSpent, "USDT", "FIAT");
     const fiatEarned = convertPrice(usdtEarned, "USDT", "FIAT");
-
-    const pendingBuyerCount = orders.filter(
-      (o) => o.status === "pending"
-    ).length;
-    const pendingSellerCount = sellerOrders.filter(
-      (o) => o.status === "pending"
-    ).length;
-    const completedBuyerCount = orders.filter(
-      (o) => o.status === "completed"
-    ).length;
-    const completedSellerCount = sellerOrders.filter(
-      (o) => o.status === "completed"
-    ).length;
-    const disputedBuyerCount = orders.filter(
-      (o) => o.status === "disputed"
-    ).length;
-    const disputedSellerCount = sellerOrders.filter(
-      (o) => o.status === "disputed"
-    ).length;
 
     return {
       totalBuyer: orders.length,
@@ -170,17 +142,22 @@ export const useOrderData = ({
 
       formattedUsdtAmountSpent: formatPrice(usdtSpent, "USDT"),
       formattedUsdtAmountEarned: formatPrice(usdtEarned, "USDT"),
-      formattedCeloAmountSpent: formatPrice(celoSpent, "NATIVE"),
-      formattedCeloAmountEarned: formatPrice(celoEarned, "NATIVE"),
+      formattedCeloAmountSpent: formatPrice(celoSpent, "CELO"),
+      formattedCeloAmountEarned: formatPrice(celoEarned, "CELO"),
       formattedFiatAmountSpent: formatPrice(fiatSpent, "FIAT"),
       formattedFiatAmountEarned: formatPrice(fiatEarned, "FIAT"),
 
-      pendingBuyerOrders: pendingBuyerCount,
-      pendingSellerOrders: pendingSellerCount,
-      completedBuyerOrders: completedBuyerCount,
-      completedSellerOrders: completedSellerCount,
-      disputedBuyerOrders: disputedBuyerCount,
-      disputedSellerOrders: disputedSellerCount,
+      pendingBuyerOrders: orders.filter((o) => o.status === "pending").length,
+      pendingSellerOrders: sellerOrders.filter((o) => o.status === "pending")
+        .length,
+      completedBuyerOrders: orders.filter((o) => o.status === "completed")
+        .length,
+      completedSellerOrders: sellerOrders.filter(
+        (o) => o.status === "completed"
+      ).length,
+      disputedBuyerOrders: orders.filter((o) => o.status === "disputed").length,
+      disputedSellerOrders: sellerOrders.filter((o) => o.status === "disputed")
+        .length,
     };
   }, [orders, sellerOrders, convertPrice, formatPrice]);
 
@@ -221,7 +198,7 @@ export const useOrderData = ({
         if (showNotification) {
           showSnackbar((err as string) || "Failed to load orders", "error");
         }
-        return null;
+        return [];
       }
     },
     [dispatch, showSnackbar]
@@ -242,7 +219,7 @@ export const useOrderData = ({
             "error"
           );
         }
-        return null;
+        return [];
       }
     },
     [dispatch, showSnackbar]
@@ -270,10 +247,18 @@ export const useOrderData = ({
   );
 
   const changeOrderStatus = useCallback(
-    async (orderId: string, status: OrderStatus, showNotification = true) => {
+    async (
+      orderId: string,
+      details: {
+        purchaseId?: string;
+        status?: OrderStatus;
+        [key: string]: string | OrderStatus | undefined;
+      },
+      showNotification = true
+    ) => {
       try {
         const result = await dispatch(
-          updateOrderStatus({ orderId, details: { status } })
+          updateOrderStatus({ orderId, details })
         ).unwrap();
         if (showNotification) {
           showSnackbar("Order status updated successfully", "success");
@@ -312,7 +297,16 @@ export const useOrderData = ({
     [dispatch, showSnackbar]
   );
 
-  const clearOrders = useCallback(() => {
+  const getOrdersByStatus = useCallback(
+    (status: string) => {
+      return orders
+        .filter((order) => order.status === status)
+        .map(formatOrderWithCurrencies);
+    },
+    [orders, formatOrderWithCurrencies]
+  );
+
+  const clearOrder = useCallback(() => {
     dispatch(clearOrderState());
   }, [dispatch]);
 
@@ -331,17 +325,21 @@ export const useOrderData = ({
     nonDisputeOrders,
     activeTrades,
     completedTrades,
+
     orderStats,
-    loading,
+
+    loading: loading || exchangeRatesLoading,
     error,
-    exchangeRatesLoading,
+
     placeOrder,
     fetchBuyerOrders,
     fetchMerchantOrders,
     getOrderById,
     changeOrderStatus,
     raiseDispute,
-    clearOrders,
+    getOrdersByStatus,
+    clearOrder,
+
     secondaryCurrency,
   };
 };

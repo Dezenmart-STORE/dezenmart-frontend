@@ -18,8 +18,6 @@ export interface PaymentTransaction {
   gasUsed?: string;
   gasPrice?: string;
   purchaseId?: string;
-  messageId?: string;
-  crossChain?: boolean;
 }
 
 export interface EscrowPayment {
@@ -69,8 +67,8 @@ export interface TradeDetails {
   totalQuantity: bigint;
   remainingQuantity: bigint;
   active: boolean;
-  // logisticsProviders: string[];
-  // logisticsCosts: bigint[];
+  logisticsProviders: string[];
+  logisticsCosts: bigint[];
 }
 
 export interface PaymentOrderDetails {
@@ -87,29 +85,4 @@ export interface PaymentOrderDetails {
   quantity: number;
   logisticsProviderWalletAddress: string;
   escrowAddress?: string;
-}
-
-export interface ChainMetadata {
-  [key: string]: {
-    name: string;
-    shortName: string;
-    icon: string;
-    color: string;
-    nativeCurrency: string;
-    blockExplorer: string;
-  };
-}
-
-export interface CrossChainPurchaseParams extends BuyTradeParams {
-  destinationChainSelector: string;
-  destinationContract: string;
-  payFeesIn?: 0 | 1; // 0 for LINK, 1 for native token
-}
-
-export interface UnifiedBuyTradeParams extends BuyTradeParams {
-  crossChain?: {
-    destinationChainSelector: string;
-    destinationContract: string;
-    payFeesIn?: 0 | 1;
-  };
 }

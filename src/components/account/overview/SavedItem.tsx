@@ -23,11 +23,11 @@ const SavedItem: React.FC<SavedItemProps> = React.memo(
       const price = item.product?.price;
       if (!price) return null;
 
-      const celoPrice = convertPrice(price, "USDT", "NATIVE");
+      const celoPrice = convertPrice(price, "USDT", "CELO");
       const fiatPrice = convertPrice(price, "USDT", "FIAT");
 
       return {
-        celo: formatPrice(celoPrice, "NATIVE"),
+        celo: formatPrice(celoPrice, "CELO"),
         secondary:
           secondaryCurrency === "USDT"
             ? formatPrice(price, "USDT")

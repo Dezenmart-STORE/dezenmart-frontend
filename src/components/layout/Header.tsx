@@ -132,24 +132,24 @@ const Header = () => {
         <Link
           to="/"
           className="flex items-center group transition-transform hover:scale-105"
-          aria-label="Dezentra Home"
+          aria-label="DezenMart Home"
         >
           <div className="w-8 h-8 md:w-9 md:h-9 relative overflow-hidden">
-            {/* <img
+            <img
               src={FullLogo}
               className="w-full md:hidden transition-transform group-hover:scale-110 object-cover object-[25%_25%]"
-              alt="dezentra logo"
+              alt="dezenmart logo"
               loading="eager"
-            /> */}
+            />
             <img
               src={Logo}
-              className="w-full transition-transform group-hover:scale-110 object-cover object-[25%_25%]"
-              alt="dezentra logo"
+              className="w-full hidden md:block transition-transform group-hover:scale-110 object-cover object-[25%_25%]"
+              alt="dezenmart logo"
               loading="eager"
             />
           </div>
           <span className="ml-2 text-white font-medium hidden md:inline transition-opacity group-hover:opacity-90">
-            Dezentra
+            DezenMart
           </span>
         </Link>
 

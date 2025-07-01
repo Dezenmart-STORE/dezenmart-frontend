@@ -27,15 +27,7 @@ import { Product } from "../types";
 import { useCurrency } from "../../context/CurrencyContext";
 import { useAuth } from "../../context/AuthContext";
 
-interface UseProductDataProps {
-  chainId?: number;
-  isConnected?: boolean;
-}
-
-export const useProductData = ({
-  chainId,
-  isConnected = false,
-}: UseProductDataProps = {}) => {
+export const useProductData = () => {
   const { user } = useAuth();
   const { secondaryCurrency } = useCurrency();
   const dispatch = useAppDispatch();
@@ -44,7 +36,7 @@ export const useProductData = ({
     loading: exchangeRatesLoading,
     convertPrice,
     formatPrice,
-  } = useCurrencyConverter({ chainId, isConnected });
+  } = useCurrencyConverter();
 
   const products = useAppSelector(selectAllProducts);
   const product = useAppSelector(selectCurrentProduct);
@@ -59,15 +51,15 @@ export const useProductData = ({
     (product: Product) => {
       if (!product) return null;
 
-      const nativePrice = convertPrice(product.price, "USDT", "NATIVE");
+      const celoPrice = convertPrice(product.price, "USDT", "CELO");
       const fiatPrice = convertPrice(product.price, "USDT", "FIAT");
 
       return {
         ...product,
-        nativePrice,
+        celoPrice,
         fiatPrice,
         formattedUsdtPrice: formatPrice(product.price, "USDT"),
-        formattedNativePrice: formatPrice(nativePrice, "NATIVE"),
+        formattedCeloPrice: formatPrice(celoPrice, "CELO"),
         formattedFiatPrice: formatPrice(fiatPrice, "FIAT"),
       };
     },

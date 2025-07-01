@@ -1,7 +1,7 @@
+// src/components/ProductForm.tsx
 import React, { useState, useRef } from "react";
 import { useProductData } from "../../utils/hooks/useProduct";
 import { Product } from "../../utils/types";
-import { useWeb3 } from "../../context/Web3Context";
 
 interface ProductFormProps {
   existingProduct?: Product;
@@ -12,11 +12,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
   existingProduct,
   onSuccess,
 }) => {
-  const { wallet, chainId, isCorrectNetwork } = useWeb3();
-  const { createProduct, updateProduct } = useProductData({
-    chainId,
-    isConnected: wallet.isConnected && isCorrectNetwork,
-  });
+  const { createProduct, updateProduct } = useProductData();
   const [loading, setLoading] = useState(false);
   const [name, setName] = useState(existingProduct?.name || "");
   const [description, setDescription] = useState(

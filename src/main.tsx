@@ -1,4 +1,4 @@
-import { lazy, StrictMode, Suspense, memo } from "react";
+import { lazy, StrictMode, Suspense } from "react";
 import "./index.css";
 import { createBrowserRouter, Outlet, RouterProvider } from "react-router-dom";
 import { createRoot } from "react-dom/client";
@@ -20,7 +20,6 @@ import { CurrencyProvider } from "./context/CurrencyContext.tsx";
 import { WagmiProvider } from "wagmi";
 import { Web3Provider } from "./context/Web3Context.tsx";
 import { wagmiConfig } from "./utils/config/web3.config.ts";
-import { PERFORMANCE_CONFIG } from "./utils/config/web3.config.ts";
 
 // import GoogleCallback from "./pages/GoogleCallback.tsx";
 
@@ -45,22 +44,15 @@ const NotFound = lazy(() => import("./pages/NotFound.tsx"));
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: 2,
-      refetchOnWindowFocus: false,
-      refetchOnReconnect: false,
-      staleTime: PERFORMANCE_CONFIG.CACHE_DURATION,
-      gcTime: PERFORMANCE_CONFIG.CACHE_DURATION * 2,
-      refetchInterval: false,
-    },
-    mutations: {
       retry: 1,
+      refetchOnWindowFocus: false,
+      staleTime: 30000,
     },
   },
 });
-
 setupGlobalErrorHandling();
 
-const RouterLayout = memo(() => {
+const RouterLayout = () => {
   return (
     <Configuration>
       <SnackbarProvider>
@@ -85,9 +77,7 @@ const RouterLayout = memo(() => {
       </SnackbarProvider>
     </Configuration>
   );
-});
-
-RouterLayout.displayName = "RouterLayout";
+};
 
 const router = createBrowserRouter([
   {

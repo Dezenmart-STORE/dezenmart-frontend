@@ -8,7 +8,6 @@ import { Product } from "../../utils/types";
 import LoadingSpinner from "../common/LoadingSpinner";
 import { useIntersectionObserver } from "../../utils/hooks/useIntersectionObserver";
 import { useAuth } from "../../context/AuthContext";
-import { useWeb3 } from "../../context/Web3Context";
 
 interface Props {
   title: string;
@@ -23,9 +22,9 @@ interface Props {
 }
 
 interface FormattedProductProp extends Product {
-  nativePrice: number;
+  celoPrice: number;
   fiatPrice: number;
-  formattedNativePrice: string;
+  formattedCeloPrice: string;
   formattedFiatPrice: string;
   formattedUsdtPrice: string;
 }
@@ -46,7 +45,6 @@ const ProductList = ({
   isUserProducts = false,
 }: Props) => {
   const { user } = useAuth();
-  const { wallet, chainId, isCorrectNetwork } = useWeb3();
   const {
     products,
     sponsoredProducts,
@@ -56,10 +54,7 @@ const ProductList = ({
     fetchSponsoredProducts,
     getProductsByCategory,
     productsByUser,
-  } = useProductData({
-    chainId,
-    isConnected: wallet.isConnected && isCorrectNetwork,
-  });
+  } = useProductData();
 
   const [displayProducts, setDisplayProducts] = useState<
     FormattedProductProp[]

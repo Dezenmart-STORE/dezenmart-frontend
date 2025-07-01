@@ -6,7 +6,6 @@ import {
   lazy,
   useCallback,
   useMemo,
-  memo,
 } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { FaExchangeAlt } from "react-icons/fa";
@@ -91,19 +90,16 @@ const SAMPLE_INCOMING_ORDERS: Product[] = [
   },
 ];
 
-// Loading placeholder component
-const ButtonPlaceholder: FC = memo(() => (
-  <motion.div
-    className="fixed bottom-20 right-4 z-50 w-12 h-12 rounded-full bg-[#292B30]"
-    animate={{ opacity: [0.5, 1, 0.5] }}
-    transition={{ repeat: Infinity, duration: 1.5 }}
-  />
-));
-
-ButtonPlaceholder.displayName = "ButtonPlaceholder";
-
-// banner data
 const BANNERS_DATA = [
+  {
+    title: "Smart Ecommerce for",
+    subtitle: "creators",
+    primaryImage: Pen,
+    secondaryImage: Pen2,
+    backgroundColor: "#ff3b3b",
+    textColor: "white",
+    isUppercase: true,
+  },
   {
     title: "Special Offers for",
     subtitle: "new users",
@@ -129,84 +125,72 @@ const BANNERS_DATA = [
     textColor: "white",
     isUppercase: true,
   },
-];
+  {
+    title: "Smart Ecommerce for",
+    subtitle: "creators",
+    primaryImage: Pen,
+    secondaryImage: Pen2,
+    backgroundColor: "#ff3b3b",
+    textColor: "white",
+    isUppercase: true,
+  },
+  {
+    title: "Special Offers for",
+    subtitle: "new users",
+    primaryImage: Pen,
+    backgroundColor: "#ff3b3b",
+    textColor: "white",
+    isUppercase: true,
+  },
+  {
+    title: "Smart Ecommerce for",
+    subtitle: "creators",
+    primaryImage: Pen,
+    secondaryImage: Pen2,
+    backgroundColor: "#ff3b3b",
+    textColor: "white",
+    isUppercase: true,
+  },
+  {
+    title: "Special Offers for",
+    subtitle: "new users",
+    primaryImage: Pen,
+    backgroundColor: "#ff3b3b",
+    textColor: "white",
+    isUppercase: true,
+  },
+] as const;
 
-// motion variants
-const motionVariants = {
-  initial: { opacity: 0, y: 20 },
-  animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: -10 },
-  tabInitial: { opacity: 0, y: 10 },
-  tabAnimate: { opacity: 1, y: 0 },
-  tabExit: { opacity: 0, y: -10 },
-};
+// Loading placeholder component
+const ButtonPlaceholder: FC = () => (
+  <motion.div
+    className="fixed bottom-20 right-4 z-50 w-12 h-12 rounded-full bg-[#292B30]"
+    animate={{ opacity: [0.5, 1, 0.5] }}
+    transition={{ repeat: Infinity, duration: 1.5 }}
+  />
+);
 
-const Trade = memo(() => {
+const Trade = () => {
   const [activeTab, setActiveTab] = useState<TradeTab>("buy");
   const [isLoading, setIsLoading] = useState(true);
   const [isComponentMounted, setIsComponentMounted] = useState(false);
   const [showConnectionModal, setShowConnectionModal] = useState(false);
   const { wallet } = useWeb3();
 
+  // products data
   const products = useMemo(() => SAMPLE_PRODUCTS, []);
   const incomingOrders = useMemo(() => SAMPLE_INCOMING_ORDERS, []);
 
+  // Tab change handler
   const handleTabChange = useCallback((tab: TradeTab) => {
     setActiveTab(tab);
   }, []);
 
+  // Order rejection handler
   const handleRejectOrder = useCallback((product: Product) => {
     console.log("Order rejected:", product);
+    // Implement actual rejection logic here
   }, []);
-
-  const handleCloseConnectionModal = useCallback(() => {
-    setShowConnectionModal(false);
-  }, []);
-
-  // content based on active tab
-  const tabContent = useMemo(() => {
-    if (activeTab === "buy") {
-      return products.map((product) => (
-        <Suspense
-          key={product._id}
-          fallback={<div className="h-32 bg-[#292B30] rounded animate-pulse" />}
-        >
-          <ProductCard product={product} actionType="buy" isSellTab={false} />
-        </Suspense>
-      ));
-    } else {
-      return incomingOrders.map((order) => (
-        <Suspense
-          key={order._id}
-          fallback={<div className="h-32 bg-[#292B30] rounded animate-pulse" />}
-        >
-          <IncomingOrderCard
-            product={order}
-            onReject={() => handleRejectOrder(order)}
-          />
-        </Suspense>
-      ));
-    }
-  }, [activeTab, products, incomingOrders, handleRejectOrder]);
-
-  // tab configuration
-  const tabConfig = useMemo(
-    () => [
-      {
-        text: "Buy",
-        isActive: activeTab === "buy",
-        onClick: () => handleTabChange("buy"),
-        count: products.length,
-      },
-      {
-        text: "Sell",
-        isActive: activeTab === "sell",
-        onClick: () => handleTabChange("sell"),
-        count: incomingOrders.length,
-      },
-    ],
-    [activeTab, products.length, incomingOrders.length, handleTabChange]
-  );
 
   // Component mount and loading effect
   useEffect(() => {
@@ -229,6 +213,13 @@ const Trade = memo(() => {
     };
   }, []);
 
+  // Clear wallet errors when component mounts
+  // useEffect(() => {
+  //   if (error) {
+  //     clearError();
+  //   }
+  // }, [error, clearError]);
+
   // Show wallet connection UI if not connected
   if (!wallet.isConnected && !wallet.isConnecting) {
     return (
@@ -236,7 +227,7 @@ const Trade = memo(() => {
         <Container>
           <WalletConnectionModal
             isOpen={showConnectionModal}
-            onClose={handleCloseConnectionModal}
+            onClose={() => setShowConnectionModal(false)}
           />
         </Container>
       </div>
@@ -247,15 +238,15 @@ const Trade = memo(() => {
     <div className="bg-Dark min-h-screen text-white relative">
       <Container className="relative pb-20 md:pb-6">
         <motion.div
-          initial={motionVariants.initial}
-          animate={motionVariants.animate}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: "easeOut" }}
         >
           <Title text="P2P Trading" className="text-center my-8 text-3xl" />
         </motion.div>
 
         <BannerCarousel
-          banners={BANNERS_DATA}
+          banners={[...BANNERS_DATA]}
           autoRotate={true}
           className="mb-8"
           rotationInterval={6000}
@@ -263,15 +254,18 @@ const Trade = memo(() => {
 
         <div className="max-w-screen-lg mx-auto bg-[#212428] rounded-lg overflow-hidden">
           <div className="flex flex-wrap border-b border-[#292B30]">
-            {tabConfig.map((tab) => (
-              <Tab
-                key={tab.text}
-                text={tab.text}
-                isActive={tab.isActive}
-                onClick={tab.onClick}
-                count={tab.count}
-              />
-            ))}
+            <Tab
+              text="Buy"
+              isActive={activeTab === "buy"}
+              onClick={() => handleTabChange("buy")}
+              count={products.length}
+            />
+            <Tab
+              text="Sell"
+              isActive={activeTab === "sell"}
+              onClick={() => handleTabChange("sell")}
+              count={incomingOrders.length}
+            />
           </div>
 
           <div className="p-4">
@@ -281,13 +275,42 @@ const Trade = memo(() => {
               ) : (
                 <motion.div
                   key={activeTab}
-                  initial={motionVariants.tabInitial}
-                  animate={motionVariants.tabAnimate}
-                  exit={motionVariants.tabExit}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
                   transition={{ duration: 0.3 }}
                   className="space-y-6"
                 >
-                  {tabContent}
+                  {activeTab === "buy" &&
+                    products.map((product) => (
+                      <Suspense
+                        key={product._id}
+                        fallback={
+                          <div className="h-32 bg-[#292B30] rounded animate-pulse" />
+                        }
+                      >
+                        <ProductCard
+                          product={product}
+                          actionType="buy"
+                          isSellTab={false}
+                        />
+                      </Suspense>
+                    ))}
+
+                  {activeTab === "sell" &&
+                    incomingOrders.map((order) => (
+                      <Suspense
+                        key={order._id}
+                        fallback={
+                          <div className="h-32 bg-[#292B30] rounded animate-pulse" />
+                        }
+                      >
+                        <IncomingOrderCard
+                          product={order}
+                          onReject={() => handleRejectOrder(order)}
+                        />
+                      </Suspense>
+                    ))}
                 </motion.div>
               )}
             </AnimatePresence>
@@ -295,6 +318,7 @@ const Trade = memo(() => {
         </div>
       </Container>
 
+      {/* Floating action button */}
       {/* Floating action button */}
       {isComponentMounted && (
         <LazyFloatingButton
@@ -307,8 +331,6 @@ const Trade = memo(() => {
       )}
     </div>
   );
-});
-
-Trade.displayName = "Trade";
+};
 
 export default Trade;
