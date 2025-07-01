@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useChat } from "./useChat";
+import { useAuth } from "../../context/AuthContext";
 
 export const useChatEffect = (userId?: string, autoRefresh = true) => {
   const {
@@ -8,15 +9,18 @@ export const useChatEffect = (userId?: string, autoRefresh = true) => {
     selectRecipient,
     currentRecipient,
   } = useChat();
+  const { isAuthenticated } = useAuth();
 
   useEffect(() => {
     // Initial load of conversations
-    loadConversations(false, true);
+    if (isAuthenticated) {
+      loadConversations(false, true);
+    }
 
     // Set up polling for new messages
     let intervalId: NodeJS.Timeout | null = null;
 
-    if (autoRefresh) {
+    if (autoRefresh && isAuthenticated) {
       intervalId = setInterval(() => {
         loadConversations(false, true);
 
@@ -30,6 +34,7 @@ export const useChatEffect = (userId?: string, autoRefresh = true) => {
       if (intervalId) clearInterval(intervalId);
     };
   }, [
+    isAuthenticated,
     loadConversations,
     loadConversation,
     userId,
@@ -39,9 +44,15 @@ export const useChatEffect = (userId?: string, autoRefresh = true) => {
 
   // Effect for setting active conversation
   useEffect(() => {
-    if (userId && userId !== currentRecipient) {
+    if (isAuthenticated && userId && userId !== currentRecipient) {
       selectRecipient(userId);
       loadConversation(userId, false);
     }
-  }, [userId, currentRecipient, selectRecipient, loadConversation]);
+  }, [
+    isAuthenticated,
+    userId,
+    currentRecipient,
+    selectRecipient,
+    loadConversation,
+  ]);
 };

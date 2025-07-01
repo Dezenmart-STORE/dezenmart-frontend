@@ -16,10 +16,12 @@ import {
   selectHasUnreadNotifications,
 } from "../../store/selectors/notificationsSelectors";
 import { useSnackbar } from "../../context/SnackbarContext";
+import { useAuth } from "../../context/AuthContext";
 
 export const useNotifications = () => {
   const dispatch = useAppDispatch();
   const { showSnackbar } = useSnackbar();
+  const { isAuthenticated } = useAuth();
 
   const notifications = useAppSelector(selectNotifications);
   const unreadCount = useAppSelector(selectUnreadCount);
@@ -35,6 +37,7 @@ export const useNotifications = () => {
 
   const fetchUserNotifications = useCallback(
     async (showNotifications = false, forceRefresh = false) => {
+      if (!isAuthenticated) return false;
       try {
         await dispatch(fetchNotifications(forceRefresh)).unwrap();
         if (showNotifications) {
@@ -51,11 +54,12 @@ export const useNotifications = () => {
         return false;
       }
     },
-    [dispatch, showSnackbar]
+    [dispatch, showSnackbar, isAuthenticated]
   );
 
   const fetchUserUnreadCount = useCallback(
     async (showNotifications = false, forceRefresh = false) => {
+      if (!isAuthenticated) return false;
       try {
         await dispatch(fetchUnreadCount(forceRefresh)).unwrap();
         return true;
@@ -69,7 +73,7 @@ export const useNotifications = () => {
         return false;
       }
     },
-    [dispatch, showSnackbar]
+    [dispatch, showSnackbar, isAuthenticated]
   );
 
   const markAsRead = useCallback(
