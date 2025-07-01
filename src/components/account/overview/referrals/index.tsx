@@ -7,7 +7,6 @@ import ReferralSkeleton from "./Skeleton";
 import { RewardItem } from "../../../../utils/types";
 import { useReferralData } from "../../../../utils/hooks/useReferral";
 import { useRewards } from "../../../../utils/hooks/useRewards";
-import { useAuth } from "../../../../context/AuthContext";
 
 const ReferralsTab = () => {
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
@@ -30,8 +29,6 @@ const ReferralsTab = () => {
     fetchRewards,
     fetchSummary,
   } = useRewards();
-
-  const { isAuthenticated } = useAuth();
 
   const loading = referralLoading || rewardsLoading;
   const error = referralError || rewardsError;
@@ -77,7 +74,6 @@ const ReferralsTab = () => {
 
   useEffect(() => {
     const loadData = async () => {
-      if (!isAuthenticated) return;
       try {
         await Promise.all([
           getReferralInfo(false, true),
@@ -90,7 +86,7 @@ const ReferralsTab = () => {
     };
 
     loadData();
-  }, [isAuthenticated, getReferralInfo, fetchRewards, fetchSummary]);
+  }, [getReferralInfo, fetchRewards, fetchSummary]);
 
   if (loading) {
     return <ReferralSkeleton />;
@@ -107,7 +103,6 @@ const ReferralsTab = () => {
         <button
           className="mt-4 bg-Red text-white py-2 px-4 rounded"
           onClick={() => {
-            if (!isAuthenticated) return;
             getReferralInfo(false, true);
             fetchRewards(false, true);
             fetchSummary(false, true);

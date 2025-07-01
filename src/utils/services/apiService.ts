@@ -346,30 +346,9 @@ export const api = {
     }
     const controller = new AbortController();
     abortControllers.set(key, controller);
-
-    const fetchWithRetry = async (retries = 2) => {
-      let lastResult;
-      for (let attempt = 0; attempt <= retries; attempt++) {
-        lastResult = await fetchWithAuth("/referral/info", {
-          signal: controller.signal,
-        });
-        if (
-          lastResult.ok ||
-          (lastResult.status >= 400 && lastResult.status < 500)
-        ) {
-          break;
-        }
-        // if (lastResult.error === "AbortError") {
-        //   break;
-        // }
-        if (attempt < retries) {
-          await new Promise((res) => setTimeout(res, 500));
-        }
-      }
-      return lastResult;
-    };
-
-    const result = (await fetchWithRetry(2)) || { ok: false };
+    const result = await fetchWithAuth("/referral/info", {
+      signal: controller.signal,
+    });
     if (result.ok) {
       requestCache.set(key, result);
     }
@@ -664,30 +643,9 @@ export const api = {
     }
     const controller = new AbortController();
     abortControllers.set(key, controller);
-
-    const fetchWithRetry = async (retries = 2) => {
-      let lastResult;
-      for (let attempt = 0; attempt <= retries; attempt++) {
-        lastResult = await fetchWithAuth("/notifications/unread-count", {
-          signal: controller.signal,
-        });
-        if (
-          lastResult.ok ||
-          (lastResult.status >= 400 && lastResult.status < 500)
-        ) {
-          break;
-        }
-        // if (lastResult.error === "AbortError") {
-        //   break;
-        // }
-        if (attempt < retries) {
-          await new Promise((res) => setTimeout(res, 500));
-        }
-      }
-      return lastResult;
-    };
-
-    const result = (await fetchWithRetry(2)) || { ok: false };
+    const result = await fetchWithAuth("/notifications/unread-count", {
+      signal: controller.signal,
+    });
     if (result.ok) {
       requestCache.set(key, result);
     }
@@ -741,30 +699,9 @@ export const api = {
     if (!preventAbort) {
       abortControllers.set(key, controller);
     }
-
-    const fetchWithRetry = async (retries = 2) => {
-      let lastResult;
-      for (let attempt = 0; attempt <= retries; attempt++) {
-        lastResult = await fetchWithAuth("/messages", {
-          signal: controller.signal,
-        });
-        if (
-          lastResult.ok ||
-          (lastResult.status >= 400 && lastResult.status < 500)
-        ) {
-          break;
-        }
-        // if (lastResult.error === "AbortError") {
-        //   break;
-        // }
-        if (attempt < retries) {
-          await new Promise((res) => setTimeout(res, 500));
-        }
-      }
-      return lastResult;
-    };
-
-    const result = (await fetchWithRetry(2)) || { ok: false };
+    const result = await fetchWithAuth("/messages", {
+      signal: controller.signal,
+    });
     if (result.ok) {
       requestCache.set(key, result);
     }
