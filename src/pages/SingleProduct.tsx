@@ -207,14 +207,17 @@ const SingleProduct = () => {
                   <div className="flex flex-col gap-1 text-right">
                     <div className="flex items-center gap-2">
                       <span className="text-2xl font-bold">
-                        {formattedProduct.formattedCeloPrice}
+                        {/* {formattedProduct.formattedCeloPrice} */}
+                        {secondaryCurrency === "USDT"
+                          ? formattedProduct.formattedUsdtPrice
+                          : formattedProduct.formattedFiatPrice}
                       </span>
                     </div>
-                    <span className="text-sm text-gray-400 justify-self-start sm:justify-self-end">
+                    {/* <span className="text-sm text-gray-400 justify-self-start sm:justify-self-end">
                       {secondaryCurrency === "USDT"
                         ? formattedProduct.formattedUsdtPrice
                         : formattedProduct.formattedFiatPrice}
-                    </span>
+                    </span> */}
                   </div>
                 </div>
               </div>

@@ -108,11 +108,12 @@ const DisputeItem: React.FC<DisputeItemProps> = React.memo(
             <span>Unit Price:</span>
             <div className="text-right">
               <div className="text-white font-medium">
-                {order.formattedCeloPrice}
-              </div>
-              <div className="text-[#AEAEB2] text-xs">
+                {/* {order.formattedCeloPrice} */}
                 {secondaryPrice.unit}
               </div>
+              {/* <div className="text-[#AEAEB2] text-xs">
+                {secondaryPrice.unit}
+              </div> */}
             </div>
           </div>
 
@@ -121,11 +122,12 @@ const DisputeItem: React.FC<DisputeItemProps> = React.memo(
               <span>Total ({order?.quantity} items):</span>
               <div className="text-right">
                 <div className="text-white font-medium">
-                  {order.formattedCeloAmount}
-                </div>
-                <div className="text-[#AEAEB2] text-xs">
+                  {/* {order.formattedCeloAmount} */}
                   {secondaryPrice.total}
                 </div>
+                {/* <div className="text-[#AEAEB2] text-xs">
+                  {secondaryPrice.total}
+                </div> */}
               </div>
             </div>
           )}

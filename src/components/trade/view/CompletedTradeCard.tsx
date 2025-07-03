@@ -125,9 +125,10 @@ const CompletedTradeCard: FC<CompletedTradeCardProps> = ({ trade }) => {
             <span className="text-gray-400 text-sm">Amount</span>
             <span className="flex flex-col gap-2 text-right">
               <span className="text-red-500 text-xl font-bold">
-                {trade.formattedCeloAmount || "0.00"}
+                {/* {trade.formattedCeloAmount || "0.00"} */}
+                {secondaryPrice}
               </span>
-              <span className="text-gray-400 text-sm">{secondaryPrice}</span>
+              {/* <span className="text-gray-400 text-sm">{secondaryPrice}</span> */}
             </span>
           </div>
 

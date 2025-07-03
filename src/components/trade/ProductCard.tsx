@@ -59,7 +59,7 @@ const ProductCard: FC<ProductCardProps> = ({
         </span>
 
         <p className="text-xl font-bold text-white mb-2">
-          {product.price} cUSD
+          {product.price} USDT
         </p>
 
         <div className="text-right text-sm text-[rgb(174, 174, 178)] mb-3">

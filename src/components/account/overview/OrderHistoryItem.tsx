@@ -119,11 +119,12 @@ const OrderHistoryItem: React.FC<EnhancedOrder> = React.memo((item) => {
             <span>Unit Price:</span>
             <div className="text-right">
               <div className="text-white font-medium">
-                {item.formattedCeloPrice}
-              </div>
-              <div className="text-[#AEAEB2] text-xs">
+                {/* {item.formattedCeloPrice} */}
                 {secondaryPrice.unit}
               </div>
+              {/* <div className="text-[#AEAEB2] text-xs">
+                {secondaryPrice.unit}
+              </div> */}
             </div>
           </div>
 
@@ -131,11 +132,12 @@ const OrderHistoryItem: React.FC<EnhancedOrder> = React.memo((item) => {
             <span>Total:</span>
             <div className="text-right">
               <div className="text-white font-medium">
-                {item.formattedCeloAmount}
-              </div>
-              <div className="text-[#AEAEB2] text-xs">
+                {/* {item.formattedCeloAmount} */}
                 {secondaryPrice.total}
               </div>
+              {/* <div className="text-[#AEAEB2] text-xs">
+                {secondaryPrice.total}
+              </div> */}
             </div>
           </div>
 

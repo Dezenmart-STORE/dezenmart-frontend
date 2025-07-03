@@ -129,11 +129,12 @@ const ProductCard = React.memo(
             <div className="mt-auto pt-1 sm:pt-2">
               <div className="flex flex-col">
                 <span className="text-white text-sm md:text-base font-semibold">
-                  {product.formattedCeloPrice}
-                </span>
-                <span className="text-[#AEAEB2] text-xs md:text-sm">
+                  {/* {product.formattedCeloPrice} */}
                   {secondaryPrice}
                 </span>
+                {/* <span className="text-[#AEAEB2] text-xs md:text-sm">
+                  {secondaryPrice}
+                </span> */}
               </div>
 
               {/* <motion.button

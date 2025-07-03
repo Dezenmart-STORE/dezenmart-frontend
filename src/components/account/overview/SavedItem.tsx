@@ -87,11 +87,12 @@ const SavedItem: React.FC<SavedItemProps> = React.memo(
             {formattedPrices ? (
               <div className="text-right">
                 <div className="text-white font-medium">
-                  {formattedPrices.celo}
-                </div>
-                <div className="text-[#AEAEB2] text-xs">
+                  {/* {formattedPrices.celo} */}
                   {formattedPrices.secondary}
                 </div>
+                {/* <div className="text-[#AEAEB2] text-xs">
+                  {formattedPrices.secondary}
+                </div> */}
               </div>
             ) : (
               <span>N/A</span>
