@@ -156,7 +156,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const logout = () => {
-    // console.log("Logging out");
+    const keys = Object.keys(localStorage);
+    keys.forEach((key) => {
+      if (
+        key.startsWith("terms_status_") ||
+        key.startsWith("terms_timestamp_")
+      ) {
+        localStorage.removeItem(key);
+      }
+    });
     clearAuthState();
   };
 

@@ -20,6 +20,8 @@ import { CurrencyProvider } from "./context/CurrencyContext.tsx";
 import { WagmiProvider } from "wagmi";
 import { Web3Provider } from "./context/Web3Context.tsx";
 import { wagmiConfig } from "./utils/config/web3.config.ts";
+import TermsModal from "./components/common/TermsModal.tsx";
+import { TermsProvider } from "./context/TermsContext.tsx";
 
 // import GoogleCallback from "./pages/GoogleCallback.tsx";
 
@@ -61,14 +63,17 @@ const RouterLayout = () => {
             <QueryClientProvider client={queryClient}>
               <Web3Provider>
                 <AuthProvider>
-                  <CurrencyProvider>
-                    <Layout>
-                      <Suspense fallback={<Loadscreen />}>
-                        <Outlet />
-                      </Suspense>
-                      <ReferralHandler />
-                    </Layout>
-                  </CurrencyProvider>
+                  <TermsProvider>
+                    <CurrencyProvider>
+                      <Layout>
+                        <Suspense fallback={<Loadscreen />}>
+                          <Outlet />
+                        </Suspense>
+                        <ReferralHandler />
+                        <TermsModal />
+                      </Layout>
+                    </CurrencyProvider>
+                  </TermsProvider>
                 </AuthProvider>
               </Web3Provider>
             </QueryClientProvider>
