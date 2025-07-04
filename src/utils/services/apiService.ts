@@ -136,7 +136,42 @@ export const api = {
       method: "DELETE",
     });
   },
+  acceptTerms: async (isNewUser: boolean = true) => {
+    const endpoint = isNewUser
+      ? "/users/accept-terms"
+      : "/users/accept-terms-existing";
+    // Clear profile cache since terms acceptance updates user profile
+    requestCache.delete(cacheKey("/users/profile"));
 
+    return fetchWithAuth(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    });
+  },
+
+  getTermsStatus: async (skipCache = false) => {
+    const key = cacheKey("/users/terms-status");
+    if (!skipCache && requestCache.has(key)) {
+      return requestCache.get(key);
+    }
+
+    if (abortControllers.has(key)) {
+      abortControllers.get(key).abort();
+    }
+
+    const controller = new AbortController();
+    abortControllers.set(key, controller);
+
+    const result = await fetchWithAuth("/users/terms-status", {
+      signal: controller.signal,
+    });
+
+    if (result.ok) {
+      requestCache.set(key, result);
+    }
+
+    return result;
+  },
   verifySelfIdentity: async (verificationData: {
     proof: {
       pi_a: string[];

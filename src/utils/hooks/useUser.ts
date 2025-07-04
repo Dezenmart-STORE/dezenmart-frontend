@@ -13,6 +13,8 @@ import {
   verifySelfIdentity,
   getSelfVerificationStatus,
   revokeSelfVerification,
+  acceptTermsAndConditions,
+  getTermsStatus,
 } from "../../store/slices/userSlice";
 import {
   selectAllUsers,
@@ -21,6 +23,8 @@ import {
   selectUserError,
   selectFormattedSelectedUser,
   selectUserProfile,
+  selectUserTermsStatus,
+  selectHasAcceptedTerms,
 } from "../../store/selectors/userSelectors";
 import { useSnackbar } from "../../context/SnackbarContext";
 import { useAuth } from "../../context/AuthContext";
@@ -35,6 +39,8 @@ export const useUserManagement = () => {
   const selectedUser = useAppSelector(selectSelectedUser);
   const profile = useAppSelector(selectUserProfile);
   const formattedSelectedUser = useAppSelector(selectFormattedSelectedUser);
+  const termsStatus = useAppSelector(selectUserTermsStatus);
+  const hasAcceptedTerms = useAppSelector(selectHasAcceptedTerms);
   const loading = useAppSelector(selectUserLoading);
   const error = useAppSelector(selectUserError);
 
@@ -158,6 +164,53 @@ export const useUserManagement = () => {
     [dispatch, showSnackbar]
   );
 
+  const acceptTerms = useCallback(
+    async (isNewUser = true, showNotifications = true) => {
+      try {
+        const updatedProfile = await dispatch(
+          acceptTermsAndConditions({ isNewUser })
+        ).unwrap();
+
+        handleUserUpdate(updatedProfile);
+
+        if (showNotifications) {
+          showSnackbar("Terms and conditions accepted successfully", "success");
+        }
+        return true;
+      } catch (err) {
+        if (showNotifications) {
+          showSnackbar(
+            (err as string) || "Failed to accept terms and conditions",
+            "error"
+          );
+        }
+        return false;
+      }
+    },
+    [dispatch, showSnackbar, handleUserUpdate]
+  );
+
+  const checkTermsStatus = useCallback(
+    async (showNotifications = false, forceRefresh = false) => {
+      try {
+        await dispatch(getTermsStatus(forceRefresh)).unwrap();
+        if (showNotifications) {
+          showSnackbar("Terms status updated", "success");
+        }
+        return true;
+      } catch (err) {
+        if (showNotifications) {
+          showSnackbar(
+            (err as string) || "Failed to get terms status",
+            "error"
+          );
+        }
+        return false;
+      }
+    },
+    [dispatch, showSnackbar]
+  );
+
   const verifySelf = useCallback(
     async (
       verificationData: {
@@ -256,6 +309,10 @@ export const useUserManagement = () => {
     fetchUserByEmail,
     fetchAllUsers,
     deleteUser,
+    termsStatus,
+    hasAcceptedTerms,
+    acceptTerms,
+    checkTermsStatus,
     verifySelf,
     checkVerificationStatus,
     revokeVerification,

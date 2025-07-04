@@ -25,6 +25,8 @@ export interface UserProfile {
   isVerified?: boolean;
   verificationDate?: string | null;
   verificationMethod?: string | null;
+  hasAcceptedTerms: boolean;
+  termsAcceptedDate: string;
 }
 
 //product

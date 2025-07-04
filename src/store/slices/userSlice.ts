@@ -159,6 +159,46 @@ export const deleteUserProfile = createAsyncThunk<
   }
 });
 
+export const acceptTermsAndConditions = createAsyncThunk<
+  UserProfile,
+  { isNewUser: boolean },
+  { rejectValue: string }
+>("user/acceptTerms", async ({ isNewUser = true }, { rejectWithValue }) => {
+  try {
+    const response = await api.acceptTerms(isNewUser);
+
+    if (!response.ok) {
+      return rejectWithValue(response.error || "Failed to accept terms");
+    }
+
+    return response.data;
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "An unknown error occurred";
+    return rejectWithValue(message);
+  }
+});
+
+export const getTermsStatus = createAsyncThunk<
+  { hasAcceptedTerms: boolean; termsAcceptedDate?: string },
+  boolean | undefined,
+  { rejectValue: string }
+>("user/getTermsStatus", async (forceRefresh = false, { rejectWithValue }) => {
+  try {
+    const response = await api.getTermsStatus(!forceRefresh);
+
+    if (!response.ok) {
+      return rejectWithValue(response.error || "Failed to get terms status");
+    }
+
+    return response.data;
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "An unknown error occurred";
+    return rejectWithValue(message);
+  }
+});
+
 export const verifySelfIdentity = createAsyncThunk<
   UserProfile,
   {
@@ -352,6 +392,34 @@ const userSlice = createSlice({
         }
       )
       .addCase(deleteUserProfile.rejected, (state, action) => {
+        state.loading = "failed";
+        state.error = (action.payload as string) || "Unknown error occurred";
+      })
+      .addCase(acceptTermsAndConditions.pending, (state) => {
+        state.loading = "pending";
+        state.error = null;
+      })
+      .addCase(
+        acceptTermsAndConditions.fulfilled,
+        (state, action: PayloadAction<UserProfile>) => {
+          state.profile = action.payload;
+          state.selectedUser = action.payload;
+          state.loading = "succeeded";
+          state.lastFetched = Date.now();
+        }
+      )
+      .addCase(acceptTermsAndConditions.rejected, (state, action) => {
+        state.loading = "failed";
+        state.error = (action.payload as string) || "Unknown error occurred";
+      })
+      .addCase(getTermsStatus.pending, (state) => {
+        state.loading = "pending";
+        state.error = null;
+      })
+      .addCase(getTermsStatus.fulfilled, (state) => {
+        state.loading = "succeeded";
+      })
+      .addCase(getTermsStatus.rejected, (state, action) => {
         state.loading = "failed";
         state.error = (action.payload as string) || "Unknown error occurred";
       })

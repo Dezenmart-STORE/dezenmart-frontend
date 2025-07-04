@@ -91,3 +91,16 @@ export const selectUserVerificationDetails = createSelector(
     verificationMethod: selectedUser?.verificationMethod || null,
   })
 );
+
+export const selectUserTermsStatus = createSelector(
+  [selectUserProfile],
+  (profile) => ({
+    hasAcceptedTerms: profile?.hasAcceptedTerms || false,
+    termsAcceptedDate: profile?.termsAcceptedDate || null,
+  })
+);
+
+export const selectHasAcceptedTerms = createSelector(
+  [selectUserProfile],
+  (profile) => profile?.hasAcceptedTerms || false
+);
