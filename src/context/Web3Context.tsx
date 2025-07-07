@@ -96,7 +96,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
     address,
     query: {
       enabled: !!address && isCorrectNetwork,
-      refetchInterval: 30000,
+      refetchInterval: 300000,
     },
   });
 
@@ -120,12 +120,13 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
     args: address ? [address] : undefined,
     query: {
       enabled: !!address && !!usdtContractAddress && isCorrectNetwork,
-      refetchInterval: 60000,
-      staleTime: 30000,
+      refetchInterval: 300000,
+      staleTime: 150000,
     },
   });
 
   // Auto-refresh balances
+
   useEffect(() => {
     if (isConnected && address && isCorrectNetwork) {
       const interval = setInterval(() => {
@@ -133,7 +134,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
           refetchUSDTBalance();
           refetchCeloBalance();
         }
-      }, 60000);
+      }, 300000);
 
       return () => clearInterval(interval);
     }
@@ -488,7 +489,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
         : undefined,
     query: {
       enabled: !!address && !!usdtContractAddress && isCorrectNetwork,
-      refetchInterval: 15000,
+      refetchInterval: 300000,
     },
   });
 
