@@ -568,6 +568,11 @@ const Trade = () => {
       setIsComponentMounted(false);
     };
   }, []);
+  useEffect(() => {
+    if (!wallet.isConnected && !wallet.isConnecting) {
+      setShowConnectionModal(true);
+    }
+  }, [wallet.isConnected, wallet.isConnecting]);
 
   if (!wallet.isConnected && !wallet.isConnecting) {
     return (
