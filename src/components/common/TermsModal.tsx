@@ -33,13 +33,14 @@ const TermsModal: React.FC = () => {
         scrollHeight - scrollTop <= clientHeight + threshold;
 
       setHasScrolledToBottom(isScrolledToBottom);
-    }, 100); // Debounce scroll events
+    }, 100);
   }, []);
 
   // Accept handler
   const handleAccept = useCallback(async () => {
-    if (isLoading || isAccepting || !isAuthenticated || !hasScrolledToBottom)
+    if (isLoading || isAccepting || !isAuthenticated || !hasScrolledToBottom) {
       return;
+    }
 
     setIsAccepting(true);
     try {
@@ -60,12 +61,23 @@ const TermsModal: React.FC = () => {
     showSnackbar,
   ]);
 
+  // Reset scroll state when modal opens
+  useEffect(() => {
+    if (showTermsModal) {
+      setHasScrolledToBottom(false);
+      setTimeout(() => {
+        if (scrollContainerRef.current) {
+          scrollContainerRef.current.scrollTop = 0;
+        }
+      }, 0);
+    }
+  }, [showTermsModal]);
+
   // Body scroll effect
   useEffect(() => {
-    if (showTermsModal && isAuthenticated) {
+    if (showTermsModal) {
       const originalOverflow = document.body.style.overflow;
       const originalPaddingRight = document.body.style.paddingRight;
-
       const scrollbarWidth =
         window.innerWidth - document.documentElement.clientWidth;
 
@@ -77,7 +89,7 @@ const TermsModal: React.FC = () => {
         document.body.style.paddingRight = originalPaddingRight;
       };
     }
-  }, [showTermsModal, isAuthenticated]);
+  }, [showTermsModal]);
 
   // Keyboard event handler
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
@@ -89,7 +101,7 @@ const TermsModal: React.FC = () => {
 
   // Escape key prevention
   useEffect(() => {
-    if (showTermsModal && isAuthenticated) {
+    if (showTermsModal) {
       document.addEventListener("keydown", handleKeyDown, {
         capture: true,
         passive: false,
@@ -101,7 +113,7 @@ const TermsModal: React.FC = () => {
         });
       };
     }
-  }, [showTermsModal, isAuthenticated, handleKeyDown]);
+  }, [showTermsModal, handleKeyDown]);
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -118,7 +130,9 @@ const TermsModal: React.FC = () => {
     [hasScrolledToBottom, isLoading, isAccepting, isAuthenticated]
   );
 
-  if (!showTermsModal || !isAuthenticated) return null;
+  if (!showTermsModal) {
+    return null;
+  }
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black bg-opacity-80 p-2 sm:p-4">
