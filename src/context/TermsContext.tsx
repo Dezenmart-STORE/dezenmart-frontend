@@ -21,9 +21,18 @@ interface TermsContextType {
 const TermsContext = createContext<TermsContextType | undefined>(undefined);
 
 export const TermsProvider = ({ children }: { children: ReactNode }) => {
-  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
-  const { acceptTerms: acceptUserTerms, isLoading: userLoading } =
-    useUserManagement();
+  const {
+    user,
+    isAuthenticated,
+    isLoading: authLoading,
+    handleUserUpdate,
+  } = useAuth();
+  const {
+    acceptTerms: acceptUserTerms,
+    isLoading: userLoading,
+    fetchProfile,
+    selectedUser,
+  } = useUserManagement();
 
   const [isLoading, setIsLoading] = useState(false);
 
@@ -43,6 +52,8 @@ export const TermsProvider = ({ children }: { children: ReactNode }) => {
     setIsLoading(true);
     try {
       await acceptUserTerms(false);
+      await fetchProfile();
+      handleUserUpdate(selectedUser);
     } catch (error) {
       console.error("Failed to accept terms:", error);
       throw error;
