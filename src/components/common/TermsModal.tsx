@@ -1,66 +1,82 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useTerms } from "../../context/TermsContext";
 import { useSnackbar } from "../../context/SnackbarContext";
+import { useAuth } from "../../context/AuthContext";
 
 const TermsModal: React.FC = () => {
   const { showTermsModal, acceptTerms, isLoading } = useTerms();
   const { showSnackbar } = useSnackbar();
+  const { isAuthenticated } = useAuth();
   const [isAccepting, setIsAccepting] = useState(false);
   const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
 
-  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+  // scroll handler
+  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
     const element = e.currentTarget;
     const isScrolledToBottom =
       element.scrollHeight - element.scrollTop <= element.clientHeight + 10;
     setHasScrolledToBottom(isScrolledToBottom);
-  };
+  }, []);
 
-  const handleAccept = async () => {
-    if (isLoading || isAccepting) return;
+  // accept handler
+  const handleAccept = useCallback(async () => {
+    if (isLoading || isAccepting || !isAuthenticated) return;
 
     setIsAccepting(true);
     try {
       await acceptTerms();
       showSnackbar("Terms and conditions accepted successfully", "success");
     } catch (error) {
+      console.error("Failed to accept terms:", error);
       showSnackbar("Failed to accept terms and conditions", "error");
     } finally {
       setIsAccepting(false);
     }
-  };
+  }, [isLoading, isAccepting, isAuthenticated, acceptTerms, showSnackbar]);
 
-  // Prevent body scroll when modal is open
+  // body scroll effect
   useEffect(() => {
-    if (showTermsModal) {
+    if (showTermsModal && isAuthenticated) {
+      const originalOverflow = document.body.style.overflow;
       document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "unset";
+
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
     }
+  }, [showTermsModal, isAuthenticated]);
 
-    return () => {
-      document.body.style.overflow = "unset";
-    };
-  }, [showTermsModal]);
+  // keyboard event handler
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  }, []);
 
-  // Prevent closing modal with escape key
+  // escape key prevention
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && showTermsModal) {
-        e.preventDefault();
-        e.stopPropagation();
-      }
-    };
+    if (showTermsModal && isAuthenticated) {
+      document.addEventListener("keydown", handleKeyDown, {
+        capture: true,
+        passive: false,
+      });
 
-    if (showTermsModal) {
-      document.addEventListener("keydown", handleKeyDown, true);
+      return () => {
+        document.removeEventListener("keydown", handleKeyDown, {
+          capture: true,
+        });
+      };
     }
+  }, [showTermsModal, isAuthenticated, handleKeyDown]);
 
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown, true);
-    };
-  }, [showTermsModal]);
+  // button disabled state
+  const isButtonDisabled = useMemo(
+    () => !hasScrolledToBottom || isLoading || isAccepting || !isAuthenticated,
+    [hasScrolledToBottom, isLoading, isAccepting, isAuthenticated]
+  );
 
-  if (!showTermsModal) return null;
+  if (!showTermsModal || !isAuthenticated) return null;
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black bg-opacity-80 p-4">
@@ -413,9 +429,9 @@ const TermsModal: React.FC = () => {
 
             <button
               onClick={handleAccept}
-              disabled={!hasScrolledToBottom || isLoading || isAccepting}
+              disabled={isButtonDisabled}
               className={`w-full py-3 px-6 rounded-lg font-semibold text-white transition-all duration-300 ${
-                !hasScrolledToBottom || isLoading || isAccepting
+                isButtonDisabled
                   ? "bg-gray-600 cursor-not-allowed"
                   : "bg-Red hover:bg-red-600 hover:scale-[1.02] active:scale-[0.98]"
               }`}

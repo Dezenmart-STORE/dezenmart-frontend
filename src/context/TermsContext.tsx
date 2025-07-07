@@ -4,6 +4,8 @@ import {
   useState,
   useEffect,
   ReactNode,
+  useCallback,
+  useMemo,
 } from "react";
 import { useAuth } from "./AuthContext";
 import { useUserManagement } from "../utils/hooks/useUser";
@@ -23,11 +25,12 @@ const TERMS_TIMESTAMP_KEY = "terms_timestamp";
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 export const TermsProvider = ({ children }: { children: ReactNode }) => {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const {
     hasAcceptedTerms: userHasAcceptedTerms,
     acceptTerms: acceptUserTerms,
     checkTermsStatus: checkUserTermsStatus,
+    isLoading: userLoading,
   } = useUserManagement();
 
   const [showTermsModal, setShowTermsModal] = useState(false);
@@ -36,49 +39,72 @@ export const TermsProvider = ({ children }: { children: ReactNode }) => {
   );
   const [isLoading, setIsLoading] = useState(false);
 
-  // Load cached terms status
-  const loadCachedTermsStatus = (): boolean | null => {
-    if (!isAuthenticated || !user) return null;
+  const cacheKey = useMemo(
+    () => (user?._id ? `${TERMS_STATUS_KEY}_${user._id}` : null),
+    [user?._id]
+  );
 
-    const cached = localStorage.getItem(`${TERMS_STATUS_KEY}_${user._id}`);
-    const timestamp = localStorage.getItem(
-      `${TERMS_TIMESTAMP_KEY}_${user._id}`
-    );
+  const timestampKey = useMemo(
+    () => (user?._id ? `${TERMS_TIMESTAMP_KEY}_${user._id}` : null),
+    [user?._id]
+  );
 
-    if (cached && timestamp) {
-      const now = Date.now();
-      const cachedTime = parseInt(timestamp);
+  // cache loading
+  const loadCachedTermsStatus = useCallback((): boolean | null => {
+    if (!isAuthenticated || !user || !cacheKey || !timestampKey) return null;
 
-      if (now - cachedTime < CACHE_DURATION) {
-        return cached === "true";
+    try {
+      const cached = localStorage.getItem(cacheKey);
+      const timestamp = localStorage.getItem(timestampKey);
+
+      if (cached && timestamp) {
+        const now = Date.now();
+        const cachedTime = parseInt(timestamp, 10);
+
+        if (!isNaN(cachedTime) && now - cachedTime < CACHE_DURATION) {
+          return cached === "true";
+        }
       }
+    } catch (error) {
+      console.warn("Failed to load cached terms status:", error);
     }
 
     return null;
-  };
+  }, [isAuthenticated, user, cacheKey, timestampKey]);
 
-  // Cache terms status
-  const cacheTermsStatus = (status: boolean) => {
-    if (!user) return;
+  // cache storage
+  const cacheTermsStatus = useCallback(
+    (status: boolean) => {
+      if (!user || !cacheKey || !timestampKey) return;
 
-    localStorage.setItem(`${TERMS_STATUS_KEY}_${user._id}`, status.toString());
-    localStorage.setItem(
-      `${TERMS_TIMESTAMP_KEY}_${user._id}`,
-      Date.now().toString()
-    );
-  };
+      try {
+        localStorage.setItem(cacheKey, status.toString());
+        localStorage.setItem(timestampKey, Date.now().toString());
+      } catch (error) {
+        console.warn("Failed to cache terms status:", error);
+      }
+    },
+    [user, cacheKey, timestampKey]
+  );
 
   // Clear terms cache
-  const clearTermsCache = () => {
-    if (!user) return;
+  const clearTermsCache = useCallback(() => {
+    if (!user || !cacheKey || !timestampKey) return;
 
-    localStorage.removeItem(`${TERMS_STATUS_KEY}_${user._id}`);
-    localStorage.removeItem(`${TERMS_TIMESTAMP_KEY}_${user._id}`);
-  };
+    try {
+      localStorage.removeItem(cacheKey);
+      localStorage.removeItem(timestampKey);
+    } catch (error) {
+      console.warn("Failed to clear terms cache:", error);
+    }
+  }, [user, cacheKey, timestampKey]);
 
-  // Check terms status
-  const checkTermsStatus = async () => {
-    if (!isAuthenticated || !user || isLoading) return;
+  // terms status check
+  const checkTermsStatus = useCallback(async () => {
+    // Only check terms for authenticated users
+    if (!isAuthenticated || !user || authLoading || userLoading) {
+      return;
+    }
 
     // Try cache first
     const cachedStatus = loadCachedTermsStatus();
@@ -87,6 +113,9 @@ export const TermsProvider = ({ children }: { children: ReactNode }) => {
       setShowTermsModal(!cachedStatus);
       return;
     }
+
+    // Prevent multiple simultaneous requests
+    if (isLoading) return;
 
     setIsLoading(true);
     try {
@@ -97,15 +126,26 @@ export const TermsProvider = ({ children }: { children: ReactNode }) => {
       cacheTermsStatus(status);
     } catch (error) {
       console.error("Failed to check terms status:", error);
+
       setHasAcceptedTerms(false);
       setShowTermsModal(true);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [
+    isAuthenticated,
+    user,
+    authLoading,
+    userLoading,
+    isLoading,
+    loadCachedTermsStatus,
+    checkUserTermsStatus,
+    userHasAcceptedTerms,
+    cacheTermsStatus,
+  ]);
 
-  // Accept terms
-  const acceptTerms = async () => {
+  // accept terms
+  const acceptTerms = useCallback(async () => {
     if (!isAuthenticated || isLoading) return;
 
     setIsLoading(true);
@@ -120,25 +160,33 @@ export const TermsProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [isAuthenticated, isLoading, acceptUserTerms, cacheTermsStatus]);
 
-  // check terms status when user changes
+  // Handle authentication state changes
   useEffect(() => {
-    if (isAuthenticated && user) {
-      checkTermsStatus();
-    } else {
-      // Clear state when user logs out
-      setHasAcceptedTerms(null);
-      setShowTermsModal(false);
-      if (user) {
-        clearTermsCache();
+    if (!authLoading) {
+      if (isAuthenticated && user) {
+        checkTermsStatus();
+      } else {
+        setHasAcceptedTerms(null);
+        setShowTermsModal(false);
+        if (user) {
+          clearTermsCache();
+        }
       }
     }
-  }, [isAuthenticated, user?._id]);
+  }, [
+    isAuthenticated,
+    user?._id,
+    authLoading,
+    checkTermsStatus,
+    clearTermsCache,
+  ]);
 
   // Sync with user management hook
   useEffect(() => {
     if (
+      isAuthenticated &&
       userHasAcceptedTerms !== undefined &&
       userHasAcceptedTerms !== hasAcceptedTerms
     ) {
@@ -148,18 +196,29 @@ export const TermsProvider = ({ children }: { children: ReactNode }) => {
         cacheTermsStatus(userHasAcceptedTerms);
       }
     }
-  }, [userHasAcceptedTerms, hasAcceptedTerms, user]);
-
-  const value = {
-    showTermsModal,
+  }, [
+    isAuthenticated,
+    userHasAcceptedTerms,
     hasAcceptedTerms,
-    isLoading,
-    acceptTerms,
-    checkTermsStatus,
-  };
+    user,
+    cacheTermsStatus,
+  ]);
+
+  const contextValue = useMemo(
+    () => ({
+      showTermsModal,
+      hasAcceptedTerms,
+      isLoading,
+      acceptTerms,
+      checkTermsStatus,
+    }),
+    [showTermsModal, hasAcceptedTerms, isLoading, acceptTerms, checkTermsStatus]
+  );
 
   return (
-    <TermsContext.Provider value={value}>{children}</TermsContext.Provider>
+    <TermsContext.Provider value={contextValue}>
+      {children}
+    </TermsContext.Provider>
   );
 };
 
