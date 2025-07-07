@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+} from "react";
 import { useTerms } from "../../context/TermsContext";
 import { useSnackbar } from "../../context/SnackbarContext";
 import { useAuth } from "../../context/AuthContext";
@@ -9,18 +15,31 @@ const TermsModal: React.FC = () => {
   const { isAuthenticated } = useAuth();
   const [isAccepting, setIsAccepting] = useState(false);
   const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // scroll handler
-  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
-    const element = e.currentTarget;
-    const isScrolledToBottom =
-      element.scrollHeight - element.scrollTop <= element.clientHeight + 10;
-    setHasScrolledToBottom(isScrolledToBottom);
+  const handleScroll = useCallback(() => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+
+    timeoutRef.current = setTimeout(() => {
+      const element = scrollContainerRef.current;
+      if (!element) return;
+
+      const { scrollTop, scrollHeight, clientHeight } = element;
+      const threshold = 20;
+      const isScrolledToBottom =
+        scrollHeight - scrollTop <= clientHeight + threshold;
+
+      setHasScrolledToBottom(isScrolledToBottom);
+    }, 100); // Debounce scroll events
   }, []);
 
-  // accept handler
+  // Accept handler
   const handleAccept = useCallback(async () => {
-    if (isLoading || isAccepting || !isAuthenticated) return;
+    if (isLoading || isAccepting || !isAuthenticated || !hasScrolledToBottom)
+      return;
 
     setIsAccepting(true);
     try {
@@ -32,21 +51,35 @@ const TermsModal: React.FC = () => {
     } finally {
       setIsAccepting(false);
     }
-  }, [isLoading, isAccepting, isAuthenticated, acceptTerms, showSnackbar]);
+  }, [
+    isLoading,
+    isAccepting,
+    isAuthenticated,
+    hasScrolledToBottom,
+    acceptTerms,
+    showSnackbar,
+  ]);
 
-  // body scroll effect
+  // Body scroll effect
   useEffect(() => {
     if (showTermsModal && isAuthenticated) {
       const originalOverflow = document.body.style.overflow;
+      const originalPaddingRight = document.body.style.paddingRight;
+
+      const scrollbarWidth =
+        window.innerWidth - document.documentElement.clientWidth;
+
       document.body.style.overflow = "hidden";
+      document.body.style.paddingRight = `${scrollbarWidth}px`;
 
       return () => {
         document.body.style.overflow = originalOverflow;
+        document.body.style.paddingRight = originalPaddingRight;
       };
     }
   }, [showTermsModal, isAuthenticated]);
 
-  // keyboard event handler
+  // Keyboard event handler
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.key === "Escape") {
       e.preventDefault();
@@ -54,7 +87,7 @@ const TermsModal: React.FC = () => {
     }
   }, []);
 
-  // escape key prevention
+  // Escape key prevention
   useEffect(() => {
     if (showTermsModal && isAuthenticated) {
       document.addEventListener("keydown", handleKeyDown, {
@@ -70,7 +103,16 @@ const TermsModal: React.FC = () => {
     }
   }, [showTermsModal, isAuthenticated, handleKeyDown]);
 
-  // button disabled state
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Button disabled state
   const isButtonDisabled = useMemo(
     () => !hasScrolledToBottom || isLoading || isAccepting || !isAuthenticated,
     [hasScrolledToBottom, isLoading, isAccepting, isAuthenticated]
@@ -79,30 +121,32 @@ const TermsModal: React.FC = () => {
   if (!showTermsModal || !isAuthenticated) return null;
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black bg-opacity-80 p-4">
-      <div className="relative w-full max-w-7xl max-h-[90vh] bg-[#292B30] rounded-lg shadow-2xl overflow-hidden">
-        {/* Header */}
-        <div className="sticky top-0 z-10 bg-[#292B30] border-b border-gray-600 p-6">
-          <h2 className="text-2xl font-bold text-white">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black bg-opacity-80 p-2 sm:p-4">
+      <div className="relative w-full max-w-4xl lg:max-w-6xl xl:max-w-7xl h-[95vh] sm:h-[90vh] bg-[#292B30] rounded-lg shadow-2xl overflow-hidden flex flex-col">
+        {/* Header - Fixed */}
+        <div className="flex-shrink-0 bg-[#292B30] border-b border-gray-600 p-4 sm:p-6">
+          <h2 className="text-xl sm:text-2xl font-bold text-white">
             📜 Dezenmart Terms & Conditions
           </h2>
-          <p className="text-gray-300 mt-2">
+          <p className="text-gray-300 mt-2 text-sm sm:text-base">
             For Buyers, Vendors & Logistics Partners
           </p>
         </div>
 
-        {/* Terms Content */}
+        {/* Terms Content - Scrollable */}
         <div
-          className="p-6 overflow-y-auto max-h-[60vh] text-gray-300 leading-relaxed"
+          ref={scrollContainerRef}
+          className="flex-1 overflow-y-auto p-4 sm:p-6 text-gray-300 leading-relaxed"
           onScroll={handleScroll}
+          style={{ scrollBehavior: "smooth" }}
         >
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             {/* About Dezenmart */}
             <section>
-              <h3 className="text-xl font-semibold text-white mb-3 flex items-center gap-2">
+              <h3 className="text-lg sm:text-xl font-semibold text-white mb-3 flex items-center gap-2">
                 👑 About Dezenmart
               </h3>
-              <p>
+              <p className="text-sm sm:text-base">
                 Dezenmart is a DeFi-powered e-commerce platform built on
                 blockchain to deliver trust, transparency, and top-quality
                 products across Africa and beyond. Our escrow system ensures
@@ -114,16 +158,16 @@ const TermsModal: React.FC = () => {
 
             {/* Section A: Buyer Terms */}
             <section>
-              <h3 className="text-xl font-semibold text-white mb-3">
+              <h3 className="text-lg sm:text-xl font-semibold text-white mb-3">
                 SECTION A: BUYER TERMS
               </h3>
 
               <div className="space-y-4">
                 <div>
-                  <h4 className="text-lg font-semibold text-white mb-2 flex items-center gap-2">
+                  <h4 className="text-base sm:text-lg font-semibold text-white mb-2 flex items-center gap-2">
                     🛍 Buyer Responsibilities & Escrow Release
                   </h4>
-                  <ul className="list-disc ml-6 space-y-1">
+                  <ul className="list-disc ml-4 sm:ml-6 space-y-1 text-sm sm:text-base">
                     <li>
                       All payments are held in Dezenmart's escrow until you
                       confirm that the item received matches the order.
@@ -144,10 +188,10 @@ const TermsModal: React.FC = () => {
                 </div>
 
                 <div>
-                  <h4 className="text-lg font-semibold text-white mb-2 flex items-center gap-2">
+                  <h4 className="text-base sm:text-lg font-semibold text-white mb-2 flex items-center gap-2">
                     🚚 Pickup & Delivery Window
                   </h4>
-                  <ul className="list-disc ml-6 space-y-1">
+                  <ul className="list-disc ml-4 sm:ml-6 space-y-1 text-sm sm:text-base">
                     <li>
                       By default, all orders are delivered via Dezenmart's
                       verified logistics partners to your provided address.
@@ -165,15 +209,15 @@ const TermsModal: React.FC = () => {
                 </div>
 
                 <div>
-                  <h4 className="text-lg font-semibold text-white mb-2 flex items-center gap-2">
+                  <h4 className="text-base sm:text-lg font-semibold text-white mb-2 flex items-center gap-2">
                     🔁 Refunds & Complaints
                   </h4>
-                  <p className="mb-2">
+                  <p className="mb-2 text-sm sm:text-base">
                     If you are not satisfied with your purchase, Dezenmart
                     offers a hassle-free refund via escrow provided the
                     following conditions are met:
                   </p>
-                  <ol className="list-decimal ml-6 space-y-1 mb-3">
+                  <ol className="list-decimal ml-4 sm:ml-6 space-y-1 mb-3 text-sm sm:text-base">
                     <li>
                       The issue is reported within 24 hours of receiving the
                       item.
@@ -187,11 +231,11 @@ const TermsModal: React.FC = () => {
                     </li>
                   </ol>
                   <div className="bg-red-900/20 border border-red-500/30 rounded-lg p-3 mt-3">
-                    <p className="text-red-300">
+                    <p className="text-red-300 text-sm sm:text-base">
                       <strong>Important:</strong> After you approve the product
                       and payment is released:
                     </p>
-                    <ul className="list-disc ml-6 mt-2 space-y-1">
+                    <ul className="list-disc ml-4 sm:ml-6 mt-2 space-y-1 text-sm sm:text-base">
                       <li>Dezenmart will not be liable for any complaints.</li>
                       <li>
                         All post-payment issues must be directed to the seller.
@@ -204,16 +248,16 @@ const TermsModal: React.FC = () => {
 
             {/* Section B: Vendor Terms */}
             <section>
-              <h3 className="text-xl font-semibold text-white mb-3">
+              <h3 className="text-lg sm:text-xl font-semibold text-white mb-3">
                 SECTION B: VENDOR TERMS
               </h3>
 
               <div className="space-y-4">
                 <div>
-                  <h4 className="text-lg font-semibold text-white mb-2 flex items-center gap-2">
+                  <h4 className="text-base sm:text-lg font-semibold text-white mb-2 flex items-center gap-2">
                     🛒 Vendor Registration & Responsibility
                   </h4>
-                  <ul className="list-disc ml-6 space-y-1">
+                  <ul className="list-disc ml-4 sm:ml-6 space-y-1 text-sm sm:text-base">
                     <li>
                       Vendors must register with valid business information and
                       connect a verified wallet to receive stablecoin payments.
@@ -227,10 +271,10 @@ const TermsModal: React.FC = () => {
                 </div>
 
                 <div>
-                  <h4 className="text-lg font-semibold text-white mb-2 flex items-center gap-2">
+                  <h4 className="text-base sm:text-lg font-semibold text-white mb-2 flex items-center gap-2">
                     📦 Fulfillment & Quality Control
                   </h4>
-                  <ul className="list-disc ml-6 space-y-1">
+                  <ul className="list-disc ml-4 sm:ml-6 space-y-1 text-sm sm:text-base">
                     <li>
                       Vendors are responsible for timely and quality fulfillment
                       of orders.
@@ -248,10 +292,10 @@ const TermsModal: React.FC = () => {
                 </div>
 
                 <div>
-                  <h4 className="text-lg font-semibold text-white mb-2 flex items-center gap-2">
+                  <h4 className="text-base sm:text-lg font-semibold text-white mb-2 flex items-center gap-2">
                     💼 Earnings & Payouts
                   </h4>
-                  <ul className="list-disc ml-6 space-y-1">
+                  <ul className="list-disc ml-4 sm:ml-6 space-y-1 text-sm sm:text-base">
                     <li>
                       Payouts are settled in stablecoins (e.g., cUSD) directly
                       to your wallet after buyer approval.
@@ -264,10 +308,10 @@ const TermsModal: React.FC = () => {
                 </div>
 
                 <div>
-                  <h4 className="text-lg font-semibold text-white mb-2 flex items-center gap-2">
+                  <h4 className="text-base sm:text-lg font-semibold text-white mb-2 flex items-center gap-2">
                     🚫 Policy Violations
                   </h4>
-                  <ul className="list-disc ml-6 space-y-1">
+                  <ul className="list-disc ml-4 sm:ml-6 space-y-1 text-sm sm:text-base">
                     <li>
                       Fake, substandard, or misleading product listings will
                       result in delisting and possible suspension.
@@ -283,16 +327,16 @@ const TermsModal: React.FC = () => {
 
             {/* Section C: Logistics Partner Terms */}
             <section>
-              <h3 className="text-xl font-semibold text-white mb-3">
+              <h3 className="text-lg sm:text-xl font-semibold text-white mb-3">
                 SECTION C: LOGISTICS PARTNER TERMS
               </h3>
 
               <div className="space-y-4">
                 <div>
-                  <h4 className="text-lg font-semibold text-white mb-2 flex items-center gap-2">
+                  <h4 className="text-base sm:text-lg font-semibold text-white mb-2 flex items-center gap-2">
                     🚚 Delivery Obligations
                   </h4>
-                  <ul className="list-disc ml-6 space-y-1">
+                  <ul className="list-disc ml-4 sm:ml-6 space-y-1 text-sm sm:text-base">
                     <li>
                       Dezenmart logistics partners are responsible for safe,
                       timely, and accurate deliveries.
@@ -305,10 +349,10 @@ const TermsModal: React.FC = () => {
                 </div>
 
                 <div>
-                  <h4 className="text-lg font-semibold text-white mb-2 flex items-center gap-2">
+                  <h4 className="text-base sm:text-lg font-semibold text-white mb-2 flex items-center gap-2">
                     🛡 Handling & Responsibility
                   </h4>
-                  <ul className="list-disc ml-6 space-y-1">
+                  <ul className="list-disc ml-4 sm:ml-6 space-y-1 text-sm sm:text-base">
                     <li>
                       If damage occurs during transit, the logistics provider
                       may be held partially or fully accountable after
@@ -322,10 +366,10 @@ const TermsModal: React.FC = () => {
                 </div>
 
                 <div>
-                  <h4 className="text-lg font-semibold text-white mb-2 flex items-center gap-2">
+                  <h4 className="text-base sm:text-lg font-semibold text-white mb-2 flex items-center gap-2">
                     💰 Payouts
                   </h4>
-                  <ul className="list-disc ml-6 space-y-1">
+                  <ul className="list-disc ml-4 sm:ml-6 space-y-1 text-sm sm:text-base">
                     <li>
                       Delivery fees are settled in stablecoins upon confirmation
                       of successful delivery.
@@ -341,16 +385,16 @@ const TermsModal: React.FC = () => {
 
             {/* Section D: General Provisions */}
             <section>
-              <h3 className="text-xl font-semibold text-white mb-3">
+              <h3 className="text-lg sm:text-xl font-semibold text-white mb-3">
                 SECTION D: GENERAL PROVISIONS
               </h3>
 
               <div className="space-y-4">
                 <div>
-                  <h4 className="text-lg font-semibold text-white mb-2 flex items-center gap-2">
+                  <h4 className="text-base sm:text-lg font-semibold text-white mb-2 flex items-center gap-2">
                     ⚖ Platform Protection & Escrow Function
                   </h4>
-                  <ul className="list-disc ml-6 space-y-1">
+                  <ul className="list-disc ml-4 sm:ml-6 space-y-1 text-sm sm:text-base">
                     <li>
                       Dezenmart is a non-custodial platform. Funds are held in
                       smart contract-powered escrow for buyer protection and
@@ -364,10 +408,10 @@ const TermsModal: React.FC = () => {
                 </div>
 
                 <div>
-                  <h4 className="text-lg font-semibold text-white mb-2 flex items-center gap-2">
+                  <h4 className="text-base sm:text-lg font-semibold text-white mb-2 flex items-center gap-2">
                     ✨ Early Supporter Program
                   </h4>
-                  <p>
+                  <p className="text-sm sm:text-base">
                     Buyers, Vendors, and Logistics Partners who join Dezenmart
                     in its early phase will earn Dezenmart Supporter Points
                     (DSPs) — a utility-based reputation and reward system that
@@ -377,19 +421,19 @@ const TermsModal: React.FC = () => {
                 </div>
 
                 <div>
-                  <h4 className="text-lg font-semibold text-white mb-2 flex items-center gap-2">
+                  <h4 className="text-base sm:text-lg font-semibold text-white mb-2 flex items-center gap-2">
                     📬 Contact & Dispute Resolution
                   </h4>
-                  <p className="mb-2">
+                  <p className="mb-2 text-sm sm:text-base">
                     For questions, support, or to initiate a dispute:
                   </p>
-                  <ul className="list-disc ml-6 space-y-1">
+                  <ul className="list-disc ml-4 sm:ml-6 space-y-1 text-sm sm:text-base">
                     <li>📩 support@dezenmart.com</li>
                     <li>
                       🌐{" "}
                       <a
                         href="https://dezenmart.netlify.app"
-                        className="text-blue-400 hover:text-blue-300 underline"
+                        className="text-blue-400 hover:text-blue-300 underline break-all"
                       >
                         https://dezenmart.netlify.app
                       </a>
@@ -398,31 +442,36 @@ const TermsModal: React.FC = () => {
                 </div>
               </div>
             </section>
+
+            <div className="h-4"></div>
           </div>
         </div>
 
         {/* Scroll Indicator */}
         {!hasScrolledToBottom && (
-          <div className="sticky bottom-20 left-0 right-0 flex justify-center">
-            <div className="bg-Red text-white px-4 py-2 rounded-full text-sm animate-pulse">
+          <div className="absolute bottom-24 sm:bottom-28 left-1/2 transform -translate-x-1/2 z-10">
+            <div className="bg-Red text-white px-3 py-2 rounded-full text-xs sm:text-sm animate-pulse shadow-lg">
               Please scroll down to read all terms
             </div>
           </div>
         )}
 
-        {/* Footer */}
-        <div className="sticky bottom-0 bg-[#292B30] border-t border-gray-600 p-6">
-          <div className="flex flex-col space-y-4">
-            <div className="flex items-center space-x-3">
+        {/* Footer - Fixed */}
+        <div className="flex-shrink-0 bg-[#292B30] border-t border-gray-600 p-4 sm:p-6">
+          <div className="flex flex-col space-y-3 sm:space-y-4">
+            <div className="flex items-start sm:items-center space-x-3">
               <input
                 type="checkbox"
                 id="terms-checkbox"
                 checked={hasScrolledToBottom}
                 onChange={() => {}}
-                className="w-5 h-5 text-Red bg-gray-700 border-gray-600 rounded focus:ring-Red focus:ring-2"
+                className="w-4 h-4 sm:w-5 sm:h-5 text-Red bg-gray-700 border-gray-600 rounded focus:ring-Red focus:ring-2 mt-1 sm:mt-0 flex-shrink-0"
                 disabled={!hasScrolledToBottom}
               />
-              <label htmlFor="terms-checkbox" className="text-gray-300">
+              <label
+                htmlFor="terms-checkbox"
+                className="text-gray-300 text-sm sm:text-base leading-tight"
+              >
                 I have read and agree to the Terms and Conditions
               </label>
             </div>
@@ -430,15 +479,15 @@ const TermsModal: React.FC = () => {
             <button
               onClick={handleAccept}
               disabled={isButtonDisabled}
-              className={`w-full py-3 px-6 rounded-lg font-semibold text-white transition-all duration-300 ${
+              className={`w-full py-3 px-4 sm:px-6 rounded-lg font-semibold text-white text-sm sm:text-base transition-all duration-300 ${
                 isButtonDisabled
-                  ? "bg-gray-600 cursor-not-allowed"
-                  : "bg-Red hover:bg-red-600 hover:scale-[1.02] active:scale-[0.98]"
+                  ? "bg-gray-600 cursor-not-allowed opacity-50"
+                  : "bg-Red hover:bg-red-600 hover:scale-[1.02] active:scale-[0.98] shadow-lg"
               }`}
             >
               {isAccepting ? (
                 <div className="flex items-center justify-center space-x-2">
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                   <span>Accepting...</span>
                 </div>
               ) : (

@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
-import { UserProfile } from "../../utils/types";
+import { terms, UserProfile } from "../../utils/types";
 import { api } from "../../utils/services/apiService";
 
 interface UserState {
@@ -160,7 +160,7 @@ export const deleteUserProfile = createAsyncThunk<
 });
 
 export const acceptTermsAndConditions = createAsyncThunk<
-  UserProfile,
+  terms,
   void,
   { rejectValue: string }
 >("user/acceptTerms", async (_, { rejectWithValue }) => {
@@ -399,15 +399,13 @@ const userSlice = createSlice({
         state.loading = "pending";
         state.error = null;
       })
-      .addCase(
-        acceptTermsAndConditions.fulfilled,
-        (state, action: PayloadAction<UserProfile>) => {
-          state.profile = action.payload;
-          state.selectedUser = action.payload;
-          state.loading = "succeeded";
-          state.lastFetched = Date.now();
-        }
-      )
+      .addCase(acceptTermsAndConditions.fulfilled, (state) => {
+        // state.profile = action.payload;
+        // state.selectedUser = action.payload;
+        // state.loading = "succeeded";
+        // state.lastFetched = Date.now();
+        state.loading = "succeeded";
+      })
       .addCase(acceptTermsAndConditions.rejected, (state, action) => {
         state.loading = "failed";
         state.error = (action.payload as string) || "Unknown error occurred";

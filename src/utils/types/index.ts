@@ -29,6 +29,17 @@ export interface UserProfile {
   termsAcceptedDate: string;
 }
 
+export interface terms {
+  status: "success" | string;
+  message: string;
+  data: {
+    user: {
+      id: string;
+      hasAcceptedTerms: boolean;
+    };
+  };
+}
+
 //product
 export interface ProductVariant {
   quantity: number;

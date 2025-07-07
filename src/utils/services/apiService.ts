@@ -141,11 +141,19 @@ export const api = {
     // : "/users/accept-terms-existing";
     // Clear profile cache since terms acceptance updates user profile
     requestCache.delete(cacheKey("/users/profile"));
-
-    return fetchWithAuth(endpoint, {
+    requestCache.delete(cacheKey("/users/terms-status"));
+    const result = await fetchWithAuth(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
     });
+
+    if (result.ok && result.data?.data?.user) {
+      return {
+        ...result,
+        data: result.data.data.user,
+      };
+    }
+    return result;
   },
 
   getTermsStatus: async (skipCache = false) => {

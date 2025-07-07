@@ -167,12 +167,11 @@ export const useUserManagement = () => {
   const acceptTerms = useCallback(
     async (showNotifications = true) => {
       try {
-        const updatedProfile = await dispatch(
-          acceptTermsAndConditions()
-        ).unwrap();
-
-        handleUserUpdate(updatedProfile);
-
+        const response = await dispatch(acceptTermsAndConditions()).unwrap();
+        await fetchProfile();
+        if (response.data?.user) {
+          handleUserUpdate(profile);
+        }
         if (showNotifications) {
           showSnackbar("Terms and conditions accepted successfully", "success");
         }

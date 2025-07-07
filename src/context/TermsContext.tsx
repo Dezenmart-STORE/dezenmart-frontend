@@ -49,7 +49,7 @@ export const TermsProvider = ({ children }: { children: ReactNode }) => {
     [user?._id]
   );
 
-  // cache loading
+  // Cache loading
   const loadCachedTermsStatus = useCallback((): boolean | null => {
     if (!isAuthenticated || !user || !cacheKey || !timestampKey) return null;
 
@@ -72,7 +72,7 @@ export const TermsProvider = ({ children }: { children: ReactNode }) => {
     return null;
   }, [isAuthenticated, user, cacheKey, timestampKey]);
 
-  // cache storage
+  // Cache storage
   const cacheTermsStatus = useCallback(
     (status: boolean) => {
       if (!user || !cacheKey || !timestampKey) return;
@@ -99,9 +99,7 @@ export const TermsProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [user, cacheKey, timestampKey]);
 
-  // terms status check
   const checkTermsStatus = useCallback(async () => {
-    // Only check terms for authenticated users
     if (!isAuthenticated || !user || authLoading || userLoading) {
       return;
     }
@@ -114,7 +112,6 @@ export const TermsProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
 
-    // Prevent multiple simultaneous requests
     if (isLoading) return;
 
     setIsLoading(true);
@@ -126,7 +123,6 @@ export const TermsProvider = ({ children }: { children: ReactNode }) => {
       cacheTermsStatus(status);
     } catch (error) {
       console.error("Failed to check terms status:", error);
-
       setHasAcceptedTerms(false);
       setShowTermsModal(true);
     } finally {
@@ -144,7 +140,7 @@ export const TermsProvider = ({ children }: { children: ReactNode }) => {
     cacheTermsStatus,
   ]);
 
-  // accept terms
+  // Accept terms
   const acceptTerms = useCallback(async () => {
     if (!isAuthenticated || isLoading) return;
 
@@ -166,7 +162,12 @@ export const TermsProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (!authLoading) {
       if (isAuthenticated && user) {
-        checkTermsStatus();
+        // Debounce
+        const timeoutId = setTimeout(() => {
+          checkTermsStatus();
+        }, 100);
+
+        return () => clearTimeout(timeoutId);
       } else {
         setHasAcceptedTerms(null);
         setShowTermsModal(false);
