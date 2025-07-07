@@ -81,14 +81,14 @@ export const selectUserPoints = createSelector([selectUserProfile], (profile) =>
 );
 
 export const selectSelfVerificationStatus = (state: RootState) =>
-  state.user.selectedUser?.isVerified || false;
+  state.user.selectedUser?.selfVerification.isVerified || false;
 
 export const selectUserVerificationDetails = createSelector(
   [selectSelectedUser],
   (selectedUser) => ({
-    isVerified: selectedUser?.isVerified || false,
-    verificationDate: selectedUser?.verificationDate || null,
-    verificationMethod: selectedUser?.verificationMethod || null,
+    isVerified: selectedUser?.selfVerification.isVerified || false,
+    // verificationDate: selectedUser?.verificationDate || null,
+    // verificationMethod: selectedUser?.verificationMethod || null,
   })
 );
 
@@ -96,7 +96,7 @@ export const selectUserTermsStatus = createSelector(
   [selectUserProfile],
   (profile) => ({
     hasAcceptedTerms: profile?.hasAcceptedTerms || false,
-    termsAcceptedDate: profile?.termsAcceptedDate || null,
+    // termsAcceptedDate: profile?.termsAcceptedDate || null,
   })
 );
 

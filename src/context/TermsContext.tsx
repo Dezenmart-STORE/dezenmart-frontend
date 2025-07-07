@@ -26,12 +26,8 @@ const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 export const TermsProvider = ({ children }: { children: ReactNode }) => {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
-  const {
-    hasAcceptedTerms: userHasAcceptedTerms,
-    acceptTerms: acceptUserTerms,
-    checkTermsStatus: checkUserTermsStatus,
-    isLoading: userLoading,
-  } = useUserManagement();
+  const { acceptTerms: acceptUserTerms, isLoading: userLoading } =
+    useUserManagement();
 
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [hasAcceptedTerms, setHasAcceptedTerms] = useState<boolean | null>(
@@ -72,21 +68,6 @@ export const TermsProvider = ({ children }: { children: ReactNode }) => {
     return null;
   }, [isAuthenticated, user, cacheKey, timestampKey]);
 
-  // Cache storage
-  const cacheTermsStatus = useCallback(
-    (status: boolean) => {
-      if (!user || !cacheKey || !timestampKey) return;
-
-      try {
-        localStorage.setItem(cacheKey, status.toString());
-        localStorage.setItem(timestampKey, Date.now().toString());
-      } catch (error) {
-        console.warn("Failed to cache terms status:", error);
-      }
-    },
-    [user, cacheKey, timestampKey]
-  );
-
   // Clear terms cache
   const clearTermsCache = useCallback(() => {
     if (!user || !cacheKey || !timestampKey) return;
@@ -116,11 +97,10 @@ export const TermsProvider = ({ children }: { children: ReactNode }) => {
 
     setIsLoading(true);
     try {
-      await checkUserTermsStatus(false, true);
-      const status = userHasAcceptedTerms ?? false;
+      // await checkUserTermsStatus(false, true);
+      const status = user.hasAcceptedTerms ?? false;
       setHasAcceptedTerms(status);
       setShowTermsModal(!status);
-      cacheTermsStatus(status);
     } catch (error) {
       console.error("Failed to check terms status:", error);
       setHasAcceptedTerms(false);
@@ -135,9 +115,6 @@ export const TermsProvider = ({ children }: { children: ReactNode }) => {
     userLoading,
     isLoading,
     loadCachedTermsStatus,
-    checkUserTermsStatus,
-    userHasAcceptedTerms,
-    cacheTermsStatus,
   ]);
 
   // Accept terms
@@ -149,14 +126,13 @@ export const TermsProvider = ({ children }: { children: ReactNode }) => {
       await acceptUserTerms(false);
       setHasAcceptedTerms(true);
       setShowTermsModal(false);
-      cacheTermsStatus(true);
     } catch (error) {
       console.error("Failed to accept terms:", error);
       throw error;
     } finally {
       setIsLoading(false);
     }
-  }, [isAuthenticated, isLoading, acceptUserTerms, cacheTermsStatus]);
+  }, [isAuthenticated, isLoading, acceptUserTerms]);
 
   // Handle authentication state changes
   useEffect(() => {
@@ -186,24 +162,11 @@ export const TermsProvider = ({ children }: { children: ReactNode }) => {
 
   // Sync with user management hook
   useEffect(() => {
-    if (
-      isAuthenticated &&
-      userHasAcceptedTerms !== undefined &&
-      userHasAcceptedTerms !== hasAcceptedTerms
-    ) {
-      setHasAcceptedTerms(userHasAcceptedTerms);
-      setShowTermsModal(!userHasAcceptedTerms);
-      if (user) {
-        cacheTermsStatus(userHasAcceptedTerms);
-      }
+    if (isAuthenticated && user?.hasAcceptedTerms) {
+      setHasAcceptedTerms(user.hasAcceptedTerms);
+      setShowTermsModal(!user.hasAcceptedTerms);
     }
-  }, [
-    isAuthenticated,
-    userHasAcceptedTerms,
-    hasAcceptedTerms,
-    user,
-    cacheTermsStatus,
-  ]);
+  }, [isAuthenticated, hasAcceptedTerms, user]);
 
   const contextValue = useMemo(
     () => ({

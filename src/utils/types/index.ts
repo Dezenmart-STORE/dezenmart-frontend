@@ -22,11 +22,12 @@ export interface UserProfile {
   address?: string;
   dateOfBirth?: string;
   phoneNumber?: string;
-  isVerified?: boolean;
-  verificationDate?: string | null;
-  verificationMethod?: string | null;
+  selfVerification: {
+    isVerified: boolean;
+  };
   hasAcceptedTerms: boolean;
-  termsAcceptedDate: string;
+  lastRewardCalculation: string;
+  // termsAcceptedDate: string;
 }
 
 export interface terms {
