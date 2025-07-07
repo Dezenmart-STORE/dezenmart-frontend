@@ -154,7 +154,7 @@ const TermsModal: React.FC = () => {
                   </h4>
                   <p className="mb-2">
                     If you are not satisfied with your purchase, Dezenmart
-                    offers a hassle-free refund via escrow—provided the
+                    offers a hassle-free refund via escrow provided the
                     following conditions are met:
                   </p>
                   <ol className="list-decimal ml-6 space-y-1 mb-3">
