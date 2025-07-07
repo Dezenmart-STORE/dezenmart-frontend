@@ -169,6 +169,10 @@ export const useUserManagement = () => {
       try {
         await dispatch(acceptTermsAndConditions()).unwrap();
 
+        const updatedProfile = await dispatch(fetchUserProfile(true)).unwrap();
+
+        handleUserUpdate(updatedProfile);
+
         if (showNotifications) {
           showSnackbar("Terms and conditions accepted successfully", "success");
         }

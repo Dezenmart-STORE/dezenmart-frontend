@@ -2,7 +2,6 @@ import {
   createContext,
   useContext,
   useState,
-  useEffect,
   ReactNode,
   useCallback,
   useMemo,
@@ -15,7 +14,6 @@ interface TermsContextType {
   hasAcceptedTerms: boolean;
   isLoading: boolean;
   acceptTerms: () => Promise<void>;
-  // checkTermsStatus: () => void;
 }
 
 const TermsContext = createContext<TermsContextType | undefined>(undefined);
@@ -52,15 +50,29 @@ export const TermsProvider = ({ children }: { children: ReactNode }) => {
     setIsLoading(true);
     try {
       await acceptUserTerms(false);
-      await fetchProfile();
-      handleUserUpdate(selectedUser);
+
+      await fetchProfile(false, true);
+
+      if (selectedUser) {
+        handleUserUpdate(selectedUser);
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 100));
     } catch (error) {
       console.error("Failed to accept terms:", error);
       throw error;
     } finally {
       setIsLoading(false);
     }
-  }, [isAuthenticated, isLoading, userLoading, acceptUserTerms]);
+  }, [
+    isAuthenticated,
+    isLoading,
+    userLoading,
+    acceptUserTerms,
+    fetchProfile,
+    selectedUser,
+    handleUserUpdate,
+  ]);
 
   const contextValue = useMemo(
     () => ({
@@ -68,16 +80,8 @@ export const TermsProvider = ({ children }: { children: ReactNode }) => {
       hasAcceptedTerms,
       isLoading: isLoading || userLoading,
       acceptTerms,
-      // checkTermsStatus,
     }),
-    [
-      showTermsModal,
-      hasAcceptedTerms,
-      isLoading,
-      userLoading,
-      acceptTerms,
-      // checkTermsStatus,
-    ]
+    [showTermsModal, hasAcceptedTerms, isLoading, userLoading, acceptTerms]
   );
 
   return (
