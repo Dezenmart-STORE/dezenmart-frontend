@@ -161,11 +161,11 @@ export const deleteUserProfile = createAsyncThunk<
 
 export const acceptTermsAndConditions = createAsyncThunk<
   UserProfile,
-  { isNewUser: boolean },
+  void,
   { rejectValue: string }
->("user/acceptTerms", async ({ isNewUser = true }, { rejectWithValue }) => {
+>("user/acceptTerms", async (_, { rejectWithValue }) => {
   try {
-    const response = await api.acceptTerms(isNewUser);
+    const response = await api.acceptTerms();
 
     if (!response.ok) {
       return rejectWithValue(response.error || "Failed to accept terms");

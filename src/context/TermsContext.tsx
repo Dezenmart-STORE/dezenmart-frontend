@@ -150,7 +150,7 @@ export const TermsProvider = ({ children }: { children: ReactNode }) => {
 
     setIsLoading(true);
     try {
-      await acceptUserTerms(false, false);
+      await acceptUserTerms(false);
       setHasAcceptedTerms(true);
       setShowTermsModal(false);
       cacheTermsStatus(true);

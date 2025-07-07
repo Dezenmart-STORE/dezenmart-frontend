@@ -136,10 +136,9 @@ export const api = {
       method: "DELETE",
     });
   },
-  acceptTerms: async (isNewUser: boolean = true) => {
-    const endpoint = isNewUser
-      ? "/users/accept-terms"
-      : "/users/accept-terms-existing";
+  acceptTerms: async () => {
+    const endpoint = "/users/accept-terms";
+    // : "/users/accept-terms-existing";
     // Clear profile cache since terms acceptance updates user profile
     requestCache.delete(cacheKey("/users/profile"));
 

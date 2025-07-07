@@ -165,10 +165,10 @@ export const useUserManagement = () => {
   );
 
   const acceptTerms = useCallback(
-    async (isNewUser = true, showNotifications = true) => {
+    async (showNotifications = true) => {
       try {
         const updatedProfile = await dispatch(
-          acceptTermsAndConditions({ isNewUser })
+          acceptTermsAndConditions()
         ).unwrap();
 
         handleUserUpdate(updatedProfile);
