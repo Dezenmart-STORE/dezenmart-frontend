@@ -163,7 +163,7 @@ const Home = () => {
                   <span className="max-xs:hidden">{userGreeting}</span>
                   <span className="xs:hidden inline-block">{displayName}</span>
                   &nbsp;
-                  {user?.isVerified ? (
+                  {user?.selfVerification.isVerified ? (
                     <div className="relative group inline-block">
                       <GoVerified className="text-green-500 text-2xl cursor-help" />
                       <div className="absolute md:bottom-full md:top-auto top-full left-1/2 transform -translate-x-1/2 md:mb-2 mt-2 px-3 py-2 bg-gray-800 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10">

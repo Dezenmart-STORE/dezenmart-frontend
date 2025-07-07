@@ -161,7 +161,7 @@ const Account = () => {
               id={selectedUser._id}
               email={selectedUser.email}
               showSettings={handleShowSettings}
-              isVerified={selectedUser.isVerified || false}
+              isVerified={selectedUser.selfVerification.isVerified || false}
             />
             {/* {selfApp && (
               <div className="my-6">
@@ -185,7 +185,7 @@ const Account = () => {
                 className="bg-white text-black text-lg font-bold h-11 rounded-none flex justify-center w-full border-none outline-none text-center my-2 hover:bg-gray-100 transition-colors"
               />
             </motion.div>
-            {!selectedUser.isVerified && (
+            {!selectedUser.selfVerification.isVerified && (
               <motion.div
                 className="w-full max-w-[650px] mx-auto"
                 initial={{ opacity: 0, y: 20 }}

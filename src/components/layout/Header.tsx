@@ -220,7 +220,7 @@ const Header = () => {
                     className="w-8 h-8 rounded-full ring-2 ring-[#292B30] hover:ring-Red transition-all"
                     loading="lazy"
                   />
-                  {!user?.isVerified && (
+                  {!user?.selfVerification.isVerified && (
                     <div className="absolute -top-1 -right-1">
                       <div className="relative group">
                         <div className="w-3 h-3 bg-yellow-500 rounded-full flex items-center justify-center">
@@ -254,7 +254,7 @@ const Header = () => {
                     >
                       My Account
                     </button>
-                    {!user?.isVerified && (
+                    {!user?.selfVerification.isVerified && (
                       <button
                         onClick={() => setShowVerifyModal(true)}
                         className="block w-full text-left px-4 py-2 text-sm text-white hover:bg-[#292B30] transition-colors"
