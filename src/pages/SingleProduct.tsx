@@ -208,7 +208,7 @@ const SingleProduct = () => {
                     <div className="flex items-center gap-2">
                       <span className="text-2xl font-bold">
                         {/* {formattedProduct.formattedCeloPrice} */}
-                        {secondaryCurrency === "USDT"
+                        {secondaryCurrency === "TOKEN"
                           ? formattedProduct.formattedUsdtPrice
                           : formattedProduct.formattedFiatPrice}
                       </span>

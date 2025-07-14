@@ -187,13 +187,14 @@ const PurchaseSection = ({
               </div>
               <div className="flex items-center gap-3">
                 <span className="text-white">
-                  {wallet.usdtBalance?.usdt || "Loading..."}
+                  {wallet.tokenBalances[wallet.selectedToken.symbol]
+                    ?.formatted || "Loading..."}
                 </span>
-                <span className="text-gray-300">
+                {/* <span className="text-gray-300">
                   {wallet.balance
                     ? `${parseFloat(wallet.balance).toFixed(2)} CELO`
                     : "0 CELO"}
-                </span>
+                </span> */}
               </div>
             </div>
 

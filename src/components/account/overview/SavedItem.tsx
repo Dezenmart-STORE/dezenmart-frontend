@@ -29,7 +29,7 @@ const SavedItem: React.FC<SavedItemProps> = React.memo(
       return {
         celo: formatPrice(celoPrice, "CELO"),
         secondary:
-          secondaryCurrency === "USDT"
+          secondaryCurrency === "TOKEN"
             ? formatPrice(price, "USDT")
             : formatPrice(fiatPrice, "FIAT"),
       };

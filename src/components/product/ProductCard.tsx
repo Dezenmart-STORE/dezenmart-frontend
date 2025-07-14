@@ -26,7 +26,7 @@ const ProductCard = React.memo(
     const isFavorite = isProductInWatchlist(_id);
 
     const secondaryPrice =
-      secondaryCurrency === "USDT"
+      secondaryCurrency === "TOKEN"
         ? product.formattedUsdtPrice
         : product.formattedFiatPrice;
 

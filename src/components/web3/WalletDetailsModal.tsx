@@ -332,13 +332,13 @@ const WalletDetailsModal: React.FC<WalletDetailsModalProps> = ({
                 </div>
               ) : (
                 <p className="text-2xl font-bold text-white">
-                  {secondaryCurrency === "USDT"
+                  {secondaryCurrency === "TOKEN"
                     ? convertPrice(portfolioValue, "FIAT", "USDT").toFixed(2)
                     : formatPrice(portfolioValue, "FIAT")}
                 </p>
               )}
               <p className="text-xs text-gray-500 mt-1">
-                in {secondaryCurrency === "USDT" ? "USDT" : userCountry}
+                in {secondaryCurrency === "TOKEN" ? "USDT" : userCountry}
               </p>
             </div>
           </div>

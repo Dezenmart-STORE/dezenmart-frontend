@@ -28,7 +28,7 @@ const DisputeItem: React.FC<DisputeItemProps> = React.memo(
 
     const secondaryPrice = useMemo(() => {
       switch (secondaryCurrency) {
-        case "USDT":
+        case "TOKEN":
           return {
             unit: order.formattedUsdtPrice,
             total: order.formattedUsdtAmount,

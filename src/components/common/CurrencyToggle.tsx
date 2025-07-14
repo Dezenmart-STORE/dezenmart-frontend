@@ -1,20 +1,32 @@
-import { memo } from "react";
+import { memo, useMemo } from "react";
 import { IoMdSwap } from "react-icons/io";
 import { useCurrency } from "../../context/CurrencyContext";
-import { useCurrencyConverter } from "../../utils/hooks/useCurrencyConverter";
 
 const CurrencyToggle = () => {
-  const { secondaryCurrency, toggleSecondaryCurrency } = useCurrency();
-  const { userCountry } = useCurrencyConverter();
+  const {
+    secondaryCurrency,
+    toggleSecondaryCurrency,
+    selectedTokenSymbol,
+    fiatCurrency,
+  } = useCurrency();
 
-  const displayText = secondaryCurrency === "USDT" ? "USD" : userCountry;
+  const displayText = useMemo(() => {
+    if (secondaryCurrency === "TOKEN") {
+      return selectedTokenSymbol;
+    }
+    // If fiatCurrency is USD and selectedTokenSymbol is cUSD, show "USD"
+    if (fiatCurrency === "USD" && selectedTokenSymbol === "cUSD") {
+      return "USD";
+    }
+    return fiatCurrency;
+  }, [secondaryCurrency, selectedTokenSymbol, fiatCurrency]);
 
   return (
     <button
       onClick={toggleSecondaryCurrency}
       className="flex items-center gap-1 px-1.5 md:px-2 py-1 rounded bg-[#373A3F] hover:bg-[#42464d] transition-colors focus:outline-none focus:ring-2 focus:ring-Red focus:ring-opacity-50"
       aria-label={`Toggle currency display to ${
-        secondaryCurrency === "USDT" ? userCountry : "USD"
+        secondaryCurrency === "TOKEN" ? fiatCurrency : selectedTokenSymbol
       }`}
     >
       <span className="text-xs text-white">{displayText}</span>

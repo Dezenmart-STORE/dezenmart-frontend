@@ -33,7 +33,7 @@ const ActiveTradeCard: FC<ActiveTradeCardProps> = ({ trade }) => {
 
   const secondaryPrice = useMemo(() => {
     switch (secondaryCurrency) {
-      case "USDT":
+      case "TOKEN":
         return trade.formattedUsdtAmount || "0.00";
       default:
         return trade.formattedFiatAmount || "0.00";

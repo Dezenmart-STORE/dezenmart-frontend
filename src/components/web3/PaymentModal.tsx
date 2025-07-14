@@ -7,6 +7,8 @@ import {
   HiCheckCircle,
   HiXCircle,
   HiCurrencyDollar,
+  HiChevronDown,
+  HiStar,
 } from "react-icons/hi2";
 import Modal from "../common/Modal";
 import Button from "../common/Button";
@@ -16,6 +18,7 @@ import { formatCurrency } from "../../utils/web3.utils";
 import { useSnackbar } from "../../context/SnackbarContext";
 import { Order } from "../../utils/types";
 import { parseWeb3Error } from "../../utils/errorParser";
+import { StableToken } from "../../utils/config/web3.config";
 
 interface PaymentModalProps {
   isOpen: boolean;
@@ -36,13 +39,15 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   const {
     wallet,
     buyTrade,
-    approveUSDT,
-    getUSDTBalance,
+    approveToken,
+    getTokenAllowance,
     isCorrectNetwork,
     switchToCorrectNetwork,
-    getCurrentAllowance,
     connectWallet,
     validateTradeBeforePurchase,
+    setSelectedToken,
+    refreshTokenBalance,
+    availableTokens,
   } = useWeb3();
 
   const [step, setStep] = useState<PaymentStep>("review");
@@ -51,12 +56,16 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   const [transaction, setTransaction] = useState<PaymentTransaction | null>(
     null
   );
-  const [usdtBalance, setUsdtBalance] = useState<string>("0");
   const [error, setError] = useState<string>("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
   const [isLoadingBalance, setIsLoadingBalance] = useState(false);
+  const [isTokenSelectorOpen, setIsTokenSelectorOpen] = useState(false);
+  const [refreshingToken, setRefreshingToken] = useState<string | null>(null);
 
+  // Get selected token and its balance
+  const selectedToken = wallet.selectedToken;
+  const selectedTokenBalance = wallet.tokenBalances[selectedToken.symbol];
   const orderAmount = useMemo(() => {
     return (
       orderDetails?.amount ||
@@ -65,9 +74,9 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   }, [orderDetails]);
 
   const balanceNumber = useMemo(() => {
-    if (!wallet.usdtBalance?.raw) return 0;
-    return parseFloat(wallet.usdtBalance.raw);
-  }, [wallet.usdtBalance?.raw]);
+    if (!selectedTokenBalance?.raw) return 0;
+    return parseFloat(selectedTokenBalance.raw);
+  }, [selectedTokenBalance?.raw]);
 
   const gasBalance = useMemo(
     () => parseFloat(wallet.balance || "0"),
@@ -81,34 +90,44 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
 
   const hasInsufficientGas = useMemo(() => gasBalance < 0.01, [gasBalance]);
 
+  // Fetch balance for selected token
   const loadBalance = useCallback(async () => {
     if (!wallet.isConnected) return;
-
     setIsLoadingBalance(true);
+    setRefreshingToken(selectedToken.symbol);
     try {
-      const balance = await getUSDTBalance();
-      setUsdtBalance(balance);
+      await refreshTokenBalance(selectedToken.symbol);
     } catch (error) {
       console.error("Failed to load balance:", error);
-      setUsdtBalance("0");
       showSnackbar("Failed to load balance", "error");
     } finally {
       setIsLoadingBalance(false);
+      setRefreshingToken(null);
     }
-  }, [wallet.isConnected, getUSDTBalance, showSnackbar]);
+  }, [
+    wallet.isConnected,
+    selectedToken.symbol,
+    refreshTokenBalance,
+    showSnackbar,
+  ]);
 
-  // Check approval requirements
+  // Check approval requirements for selected token
   const checkApprovalNeeds = useCallback(async () => {
     if (!wallet.isConnected || !isCorrectNetwork) return;
-
     try {
-      const allowance = await getCurrentAllowance();
+      const allowance = await getTokenAllowance(selectedToken.symbol);
       setNeedsApproval(allowance < orderAmount);
     } catch (error) {
       console.error("Failed to check allowance:", error);
       setNeedsApproval(true);
     }
-  }, [wallet.isConnected, isCorrectNetwork, getCurrentAllowance, orderAmount]);
+  }, [
+    wallet.isConnected,
+    isCorrectNetwork,
+    getTokenAllowance,
+    selectedToken.symbol,
+    orderAmount,
+  ]);
 
   // Initialize modal state
   useEffect(() => {
@@ -129,6 +148,23 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
       setIsProcessing(false);
     }
   }, [isOpen]);
+
+  // Handle token selection
+  const handleTokenSelect = useCallback(
+    async (token: StableToken) => {
+      setSelectedToken(token);
+      setIsTokenSelectorOpen(false);
+      setRefreshingToken(token.symbol);
+      try {
+        await refreshTokenBalance(token.symbol);
+        showSnackbar(`Switched to ${token.symbol}`, "success");
+        checkApprovalNeeds();
+      } finally {
+        setRefreshingToken(null);
+      }
+    },
+    [setSelectedToken, refreshTokenBalance, showSnackbar, checkApprovalNeeds]
+  );
 
   const handlePayment = useCallback(async () => {
     if (!wallet.isConnected) {
@@ -159,9 +195,11 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
 
     if (hasInsufficientBalance) {
       setError(
-        `Insufficient USDT balance. Required: ${formatCurrency(
-          orderAmount
-        )} USDT`
+        `Insufficient ${
+          selectedToken.symbol
+        } balance. Required: ${formatCurrency(orderAmount)} ${
+          selectedToken.symbol
+        }`
       );
       setStep("error");
       return;
@@ -193,27 +231,30 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
       }
 
       if (needsApproval) {
-        showSnackbar("Requesting USDT spending approval...", "info");
-
+        showSnackbar(
+          `Requesting ${selectedToken.symbol} spending approval...`,
+          "info"
+        );
         try {
-          const approvalTx = await approveUSDT(orderAmount.toString());
-
+          const approvalTx = await approveToken(
+            selectedToken.symbol,
+            orderAmount.toString()
+          );
           if (approvalTx !== "0x0") {
             setApprovalHash(approvalTx);
             showSnackbar(
-              "USDT approval submitted. Waiting for confirmation...",
+              `${selectedToken.symbol} approval submitted. Waiting for confirmation...`,
               "info"
             );
-
             let confirmed = false;
             let attempts = 0;
             const maxAttempts = 20; // 40 seconds total
-
             while (!confirmed && attempts < maxAttempts) {
               await new Promise((resolve) => setTimeout(resolve, 2000));
-
               try {
-                const newAllowance = await getCurrentAllowance();
+                const newAllowance = await getTokenAllowance(
+                  selectedToken.symbol
+                );
                 if (newAllowance >= orderAmount) {
                   confirmed = true;
                   break;
@@ -221,18 +262,15 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
               } catch (checkError) {
                 console.warn("Allowance check failed:", checkError);
               }
-
               attempts++;
             }
-
             if (!confirmed) {
               throw new Error(
                 "Approval confirmation timeout. Please try again."
               );
             }
           }
-
-          showSnackbar("USDT spending approved!", "success");
+          showSnackbar(`${selectedToken.symbol} spending approved!`, "success");
           if (onPaymentSuccess && transaction) {
             onPaymentSuccess(transaction);
           }
@@ -241,36 +279,30 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
           throw new Error(`Approval failed: ${parseWeb3Error(approvalError)}`);
         }
       }
-
       await new Promise((resolve) => setTimeout(resolve, 1000));
       let retryAttempts = 0;
       const maxRetries = 3;
-
       while (retryAttempts < maxRetries) {
         try {
           showSnackbar("Processing purchase transaction...", "info");
-
           const paymentTransaction = await buyTrade({
             tradeId: orderDetails.product.tradeId,
             quantity: orderDetails.quantity.toString(),
             logisticsProvider: orderDetails.logisticsProviderWalletAddress[0],
+            paymentToken: selectedToken.symbol,
           });
-
           setTransaction(paymentTransaction);
           setStep("success");
           onPaymentSuccess(paymentTransaction);
           showSnackbar("Purchase completed successfully!", "success");
-
           setTimeout(() => loadBalance(), 3000);
           break;
         } catch (txError: any) {
           retryAttempts++;
           const errorMsg = txError.message || "Transaction failed";
-
           if (retryAttempts >= maxRetries) {
             throw txError;
           }
-
           if (
             errorMsg.includes("Network error") ||
             errorMsg.includes("JSON-RPC")
@@ -302,7 +334,6 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
         errorDetail =
           "Not enough stock available. Please reduce quantity or try later.";
       }
-
       setError(errorDetail);
       setStep("error");
       showSnackbar(errorDetail, "error");
@@ -319,12 +350,15 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     orderAmount,
     connectWallet,
     switchToCorrectNetwork,
-    approveUSDT,
+    approveToken,
     buyTrade,
-    getCurrentAllowance,
+    getTokenAllowance,
     onPaymentSuccess,
     showSnackbar,
     loadBalance,
+    selectedToken.symbol,
+    validateTradeBeforePurchase,
+    transaction,
   ]);
 
   const handleRetry = useCallback(() => {
@@ -333,8 +367,6 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     setError("");
     setIsProcessing(false);
     setApprovalHash("");
-
-    // Refresh all necessary data
     loadBalance();
     checkApprovalNeeds();
   }, [loadBalance, checkApprovalNeeds]);
@@ -351,8 +383,15 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   }, [step, isProcessing, onClose, showSnackbar]);
 
   const displayBalance = useMemo(() => {
-    return wallet.usdtBalance?.usdt || `${usdtBalance} USDT`;
-  }, [wallet.usdtBalance?.usdt, usdtBalance]);
+    if (isLoadingBalance || refreshingToken === selectedToken.symbol)
+      return "Loading...";
+    return selectedTokenBalance?.formatted || `0 ${selectedToken.symbol}`;
+  }, [
+    isLoadingBalance,
+    refreshingToken,
+    selectedToken.symbol,
+    selectedTokenBalance,
+  ]);
 
   const renderStepContent = () => {
     switch (step) {
@@ -370,14 +409,14 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                     {orderDetails.product?.name} × {orderDetails.quantity}
                   </span>
                   <span className="text-white font-medium">
-                    {formatCurrency(orderAmount)} USDT
+                    {formatCurrency(orderAmount)} {selectedToken.symbol}
                   </span>
                 </div>
                 <div className="border-t border-Red/20 pt-3">
                   <div className="flex justify-between text-lg font-bold">
                     <span className="text-white">Total</span>
                     <span className="text-Red">
-                      {formatCurrency(orderAmount)} USDT
+                      {formatCurrency(orderAmount)} {selectedToken.symbol}
                     </span>
                   </div>
                 </div>
@@ -396,9 +435,54 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                       <HiCurrencyDollar className="w-5 h-5 text-Red" />
                     </div>
                     <div>
-                      <p className="text-white font-medium">
-                        USDT (Celo Network)
-                      </p>
+                      {/* Token Selector Dropdown */}
+                      <div className="relative">
+                        <button
+                          onClick={() => setIsTokenSelectorOpen((v) => !v)}
+                          className="flex items-center gap-2 text-white font-medium focus:outline-none"
+                          disabled={isProcessing}
+                        >
+                          <span className="text-white font-medium">
+                            {selectedToken.icon || "💰"} {selectedToken.symbol}
+                          </span>
+                          <HiChevronDown
+                            className={`w-4 h-4 text-gray-400 transition-transform ${
+                              isTokenSelectorOpen ? "rotate-180" : ""
+                            }`}
+                          />
+                        </button>
+                        {isTokenSelectorOpen && (
+                          <div className="absolute z-30 mt-2 left-0 bg-[#1a1c20] border border-Red/30 rounded-lg shadow-xl max-h-64 overflow-y-auto min-w-[140px]">
+                            {availableTokens.map((token) => (
+                              <button
+                                key={token.symbol}
+                                onClick={() => handleTokenSelect(token)}
+                                className={`w-full flex items-center justify-between p-3 hover:bg-Red/10 transition-colors ${
+                                  token.symbol === selectedToken.symbol
+                                    ? "bg-Red/20 border-l-2 border-Red"
+                                    : ""
+                                }`}
+                                disabled={
+                                  refreshingToken === token.symbol ||
+                                  isProcessing
+                                }
+                              >
+                                <div className="flex items-center gap-2">
+                                  <span className="text-lg">
+                                    {token.icon || "💰"}
+                                  </span>
+                                  <span className="text-white font-medium">
+                                    {token.symbol}
+                                  </span>
+                                </div>
+                                {token.symbol === selectedToken.symbol && (
+                                  <HiStar className="w-4 h-4 text-Red" />
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                       <p className="text-sm text-gray-400">
                         {!wallet.isConnected
                           ? "Connect wallet to continue"
@@ -409,9 +493,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-white font-medium">
-                      {isLoadingBalance ? "Loading..." : displayBalance}
-                    </p>
+                    <p className="text-white font-medium">{displayBalance}</p>
                     <p className="text-xs text-gray-400">Available</p>
                   </div>
                 </div>
@@ -437,7 +519,8 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                 <div className="flex items-center gap-2">
                   <HiExclamationTriangle className="w-4 h-4 text-yellow-400" />
                   <span className="text-yellow-400 text-sm">
-                    USDT spending approval required for this transaction
+                    {selectedToken.symbol} spending approval required for this
+                    transaction
                   </span>
                 </div>
               </div>
@@ -465,8 +548,8 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                     <div className="flex items-center gap-2">
                       <HiExclamationTriangle className="w-4 h-4 text-red-400" />
                       <span className="text-red-400 text-sm">
-                        Insufficient USDT balance. Need{" "}
-                        {formatCurrency(orderAmount)} USDT
+                        Insufficient {selectedToken.symbol} balance. Need{" "}
+                        {formatCurrency(orderAmount)} {selectedToken.symbol}
                       </span>
                     </div>
                   </div>
@@ -512,7 +595,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
               title={
                 !wallet.isConnected
                   ? "Connect Wallet"
-                  : `Pay ${formatCurrency(orderAmount)} USDT`
+                  : `Pay ${formatCurrency(orderAmount)} ${selectedToken.symbol}`
               }
               onClick={handlePayment}
               disabled={

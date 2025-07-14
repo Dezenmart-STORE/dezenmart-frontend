@@ -27,7 +27,7 @@ const OrderHistoryItem: React.FC<EnhancedOrder> = React.memo((item) => {
 
   const secondaryPrice = useMemo(() => {
     switch (secondaryCurrency) {
-      case "USDT":
+      case "TOKEN":
         return {
           unit: item.formattedUsdtPrice,
           total: item.formattedUsdtAmount,
