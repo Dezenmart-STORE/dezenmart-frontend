@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  useMemo,
+} from "react";
 import {
   HiArrowTopRightOnSquare,
   HiClipboardDocument,
@@ -7,12 +13,14 @@ import {
   HiChevronDown,
   HiCurrencyDollar,
   HiBanknotes,
+  HiStar,
+  HiOutlineStar,
 } from "react-icons/hi2";
 import { FiLogOut } from "react-icons/fi";
 import Modal from "../common/Modal";
 import Button from "../common/Button";
 import { useWeb3 } from "../../context/Web3Context";
-import { TARGET_CHAIN } from "../../utils/config/web3.config";
+import { TARGET_CHAIN, StableToken } from "../../utils/config/web3.config";
 import { truncateAddress, copyToClipboard } from "../../utils/web3.utils";
 import { useSnackbar } from "../../context/SnackbarContext";
 import { useCurrencyConverter } from "../../utils/hooks/useCurrencyConverter";
@@ -23,7 +31,7 @@ interface WalletDetailsModalProps {
   onClose: () => void;
 }
 
-type BalanceDisplayMode = "USDT" | "CELO" | "FIAT";
+type BalanceDisplayMode = "TOKEN" | "CELO" | "FIAT";
 
 const WalletDetailsModal: React.FC<WalletDetailsModalProps> = ({
   isOpen,
@@ -31,8 +39,15 @@ const WalletDetailsModal: React.FC<WalletDetailsModalProps> = ({
 }) => {
   const { showSnackbar } = useSnackbar();
   const { secondaryCurrency } = useCurrency();
-  const { wallet, disconnectWallet, isCorrectNetwork, switchToCorrectNetwork } =
-    useWeb3();
+  const {
+    wallet,
+    disconnectWallet,
+    isCorrectNetwork,
+    switchToCorrectNetwork,
+    setSelectedToken,
+    refreshTokenBalance,
+    availableTokens,
+  } = useWeb3();
 
   const {
     userCountry,
@@ -44,9 +59,13 @@ const WalletDetailsModal: React.FC<WalletDetailsModalProps> = ({
 
   const [balanceMode, setBalanceMode] = useState<BalanceDisplayMode>("FIAT");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [isTokenSelectorOpen, setIsTokenSelectorOpen] = useState(false);
+  const [refreshingToken, setRefreshingToken] = useState<string | null>(null);
 
-  // Close dropdown on outside click
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const tokenSelectorRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdowns on outside click
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -55,86 +74,178 @@ const WalletDetailsModal: React.FC<WalletDetailsModalProps> = ({
       ) {
         setIsDropdownOpen(false);
       }
+      if (
+        tokenSelectorRef.current &&
+        !tokenSelectorRef.current.contains(event.target as Node)
+      ) {
+        setIsTokenSelectorOpen(false);
+      }
     };
 
-    if (isDropdownOpen) {
+    if (isDropdownOpen || isTokenSelectorOpen) {
       document.addEventListener("mousedown", handleClickOutside);
     }
 
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [isDropdownOpen]);
+  }, [isDropdownOpen, isTokenSelectorOpen]);
 
-  const handleCopyAddress = () => {
+  // Get current token balance
+  const currentTokenBalance = useMemo(() => {
+    return wallet.tokenBalances[wallet.selectedToken.symbol];
+  }, [wallet.tokenBalances, wallet.selectedToken.symbol]);
+
+  // Get portfolio value
+  const portfolioValue = useMemo(() => {
+    const celoValue = wallet.balance ? parseFloat(wallet.balance) : 0;
+    const fiatCeloValue = convertPrice(celoValue, "CELO", "FIAT");
+
+    let totalTokenValue = 0;
+    Object.values(wallet.tokenBalances).forEach((balance) => {
+      if (balance?.raw) {
+        totalTokenValue += parseFloat(balance.raw);
+      }
+    });
+
+    const fiatTokenValue = convertPrice(
+      totalTokenValue,
+      wallet.selectedToken.symbol,
+      "FIAT"
+    );
+    return fiatCeloValue + fiatTokenValue;
+  }, [
+    wallet.balance,
+    wallet.tokenBalances,
+    wallet.selectedToken.symbol,
+    convertPrice,
+  ]);
+
+  const handleCopyAddress = useCallback(() => {
     if (wallet.address) {
       copyToClipboard(wallet.address);
       showSnackbar("Address copied to clipboard", "success");
     }
-  };
+  }, [wallet.address, showSnackbar]);
 
-  const handleDisconnect = () => {
+  const handleDisconnect = useCallback(() => {
     disconnectWallet();
     onClose();
-  };
+  }, [disconnectWallet, onClose]);
 
-  const handleSwitchNetwork = async () => {
+  const handleSwitchNetwork = useCallback(async () => {
     try {
       await switchToCorrectNetwork();
     } catch (error) {
       // Error handled in context
     }
-  };
+  }, [switchToCorrectNetwork]);
 
-  const getBalanceDisplay = () => {
-    if (!wallet.usdtBalance) return "$0.00";
-    switch (balanceMode) {
-      case "USDT":
-        return wallet.usdtBalance.usdt;
-      case "CELO":
-        return wallet.usdtBalance.celo;
-      case "FIAT":
-        return wallet.usdtBalance.fiat;
-      default:
-        return wallet.usdtBalance.fiat; // Default to fiat
-    }
-  };
+  const handleTokenSelect = useCallback(
+    async (token: StableToken) => {
+      setSelectedToken(token);
+      setIsTokenSelectorOpen(false);
+      showSnackbar(`Switched to ${token.symbol}`, "success");
 
-  const getBalanceIcon = (mode: BalanceDisplayMode) => {
-    switch (mode) {
-      case "USDT":
-        return <HiCurrencyDollar className="w-4 h-4 text-green-500" />;
-      case "CELO":
-        return (
-          <div className="w-4 h-4 rounded-full bg-yellow-500 flex items-center justify-center text-xs font-bold text-black">
-            ◉
-          </div>
-        );
-      case "FIAT":
-        return <HiBanknotes className="w-4 h-4 text-Red" />;
-      default:
-        return <HiBanknotes className="w-4 h-4 text-Red" />;
-    }
-  };
-
-  const balanceOptions = [
-    {
-      mode: "FIAT" as const,
-      label: `${userCountry || "USD"}`,
-      symbol: "💰",
-      priority: 1,
+      // Refresh balance for new token
+      setRefreshingToken(token.symbol);
+      try {
+        await refreshTokenBalance(token.symbol);
+      } finally {
+        setRefreshingToken(null);
+      }
     },
-    { mode: "USDT" as const, label: "USDT", symbol: "$", priority: 2 },
-    { mode: "CELO" as const, label: "CELO", symbol: "◉", priority: 3 },
-  ].sort((a, b) => a.priority - b.priority);
+    [setSelectedToken, showSnackbar, refreshTokenBalance]
+  );
 
-  // fiat values
-  const usdtNumericValue = wallet.usdtBalance
-    ? parseFloat(wallet.usdtBalance.raw || "0")
-    : 0;
-  const celoNumericValue = wallet.balance ? parseFloat(wallet.balance) : 0;
+  const handleRefreshBalance = useCallback(async () => {
+    if (!currentTokenBalance) return;
 
-  const fiatUsdtValue = convertPrice(usdtNumericValue, "USDT", "FIAT");
-  const fiatCeloValue = convertPrice(celoNumericValue, "CELO", "FIAT");
-  const totalFiatValue = fiatUsdtValue + fiatCeloValue;
+    setRefreshingToken(wallet.selectedToken.symbol);
+    try {
+      await refreshTokenBalance(wallet.selectedToken.symbol);
+      showSnackbar("Balance refreshed", "success");
+    } catch (error) {
+      showSnackbar("Failed to refresh balance", "error");
+    } finally {
+      setRefreshingToken(null);
+    }
+  }, [
+    currentTokenBalance,
+    wallet.selectedToken.symbol,
+    refreshTokenBalance,
+    showSnackbar,
+  ]);
+
+  const getBalanceDisplay = useCallback(() => {
+    if (!currentTokenBalance) return "0.00";
+
+    switch (balanceMode) {
+      case "TOKEN":
+        return currentTokenBalance.formatted;
+      case "CELO":
+        const celoAmount = convertPrice(
+          parseFloat(currentTokenBalance.raw),
+          wallet.selectedToken.symbol,
+          "CELO"
+        );
+        return formatPrice(celoAmount, "CELO");
+      case "FIAT":
+        return currentTokenBalance.fiat;
+      default:
+        return currentTokenBalance.fiat;
+    }
+  }, [
+    currentTokenBalance,
+    balanceMode,
+    convertPrice,
+    formatPrice,
+    wallet.selectedToken.symbol,
+  ]);
+
+  const getBalanceIcon = useCallback(
+    (mode: BalanceDisplayMode) => {
+      switch (mode) {
+        case "TOKEN":
+          return (
+            <span className="w-4 h-4 flex items-center justify-center text-sm">
+              {wallet.selectedToken.icon || "💰"}
+            </span>
+          );
+        case "CELO":
+          return (
+            <div className="w-4 h-4 rounded-full bg-yellow-500 flex items-center justify-center text-xs font-bold text-black">
+              ◉
+            </div>
+          );
+        case "FIAT":
+          return <HiBanknotes className="w-4 h-4 text-Red" />;
+        default:
+          return <HiBanknotes className="w-4 h-4 text-Red" />;
+      }
+    },
+    [wallet.selectedToken.icon]
+  );
+
+  const balanceOptions = useMemo(
+    () =>
+      [
+        {
+          mode: "FIAT" as const,
+          label: userCountry || "USD",
+          priority: 1,
+        },
+        {
+          mode: "TOKEN" as const,
+          label: wallet.selectedToken.symbol,
+          priority: 2,
+        },
+        {
+          mode: "CELO" as const,
+          label: "CELO",
+          priority: 3,
+        },
+      ].sort((a, b) => a.priority - b.priority),
+    [userCountry, wallet.selectedToken.symbol]
+  );
 
   return (
     <Modal
@@ -222,8 +333,8 @@ const WalletDetailsModal: React.FC<WalletDetailsModalProps> = ({
               ) : (
                 <p className="text-2xl font-bold text-white">
                   {secondaryCurrency === "USDT"
-                    ? convertPrice(totalFiatValue, "FIAT", "USDT").toFixed(2)
-                    : formatPrice(totalFiatValue, "FIAT")}
+                    ? convertPrice(portfolioValue, "FIAT", "USDT").toFixed(2)
+                    : formatPrice(portfolioValue, "FIAT")}
                 </p>
               )}
               <p className="text-xs text-gray-500 mt-1">
@@ -233,111 +344,202 @@ const WalletDetailsModal: React.FC<WalletDetailsModalProps> = ({
           </div>
         </div>
 
-        {/* Balances */}
+        {/* Token Selection */}
         <div className="space-y-3">
-          <h3 className="text-lg font-medium text-white">Asset Balances</h3>
-          <div className="space-y-3">
-            {/* USDT Balance with dropdown */}
-            <div className="p-3 bg-Dark rounded-lg border border-gray-700/50">
-              <div className="flex flex-wrap gap-2 justify-between items-center">
-                <div className="flex items-center gap-2">
-                  <HiCurrencyDollar className="w-5 h-5 text-green-500" />
-                  <span className="text-gray-300 font-medium">USDT</span>
-                </div>
-                <div className="relative" ref={dropdownRef}>
-                  {wallet.isConnecting ? (
-                    <div className="flex items-center gap-2">
-                      <div className="w-4 h-4 border-2 border-Red border-t-transparent rounded-full animate-spin" />
-                      <span className="text-gray-400">Loading...</span>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                      className="flex items-center gap-2 font-mono text-white hover:text-gray-300 transition-colors bg-[#1a1c20] hover:bg-Red/10 hover:border-Red/30 border border-gray-600 px-3 py-1.5 rounded-md transition-all duration-200"
-                      disabled={!wallet.usdtBalance}
-                    >
-                      {getBalanceIcon(balanceMode)}
-                      <span className="min-w-0">{getBalanceDisplay()}</span>
-                      <HiChevronDown
-                        className={`w-4 h-4 transition-transform flex-shrink-0 ${
-                          isDropdownOpen ? "rotate-180" : ""
-                        }`}
-                      />
-                    </button>
-                  )}
-
-                  {isDropdownOpen && wallet.usdtBalance && (
-                    <div className="absolute right-0 top-full mt-1 bg-[#1a1c20] border border-Red/30 rounded-lg shadow-xl z-20 min-w-[160px] overflow-hidden">
-                      {balanceOptions.map((option) => (
-                        <button
-                          key={option.mode}
-                          onClick={() => {
-                            setBalanceMode(option.mode);
-                            setIsDropdownOpen(false);
-                          }}
-                          className={`w-full px-3 py-2.5 text-left hover:bg-Red/10 transition-colors ${
-                            balanceMode === option.mode
-                              ? "bg-Red/20 text-white border-l-2 border-Red"
-                              : "text-gray-300"
-                          }`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <span className="flex items-center gap-2">
-                              {getBalanceIcon(option.mode)}
-                              {option.label}
-                            </span>
-                            {balanceMode === option.mode && (
-                              <div className="w-1.5 h-1.5 bg-Red rounded-full" />
-                            )}
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
+          <h3 className="text-lg font-medium text-white">Selected Token</h3>
+          <div className="relative" ref={tokenSelectorRef}>
+            <button
+              onClick={() => setIsTokenSelectorOpen(!isTokenSelectorOpen)}
+              className="w-full flex items-center justify-between p-3 bg-Dark rounded-lg border border-gray-700/50 hover:border-Red/30 hover:bg-Red/5 transition-all duration-200"
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-xl">
+                  {wallet.selectedToken.icon || "💰"}
+                </span>
+                <div className="text-left">
+                  <p className="text-white font-medium">
+                    {wallet.selectedToken.symbol}
+                  </p>
+                  <p className="text-sm text-gray-400">
+                    {wallet.selectedToken.name}
+                  </p>
                 </div>
               </div>
+              <HiChevronDown
+                className={`w-5 h-5 text-gray-400 transition-transform ${
+                  isTokenSelectorOpen ? "rotate-180" : ""
+                }`}
+              />
+            </button>
 
-              {wallet.usdtBalance && !currencyLoading && (
-                <div className="text-xs text-gray-500 mt-2 space-y-1">
-                  <div className="flex justify-between">
-                    <span>≈ {wallet.usdtBalance.celo}</span>
-                    <span>≈ {formatPrice(fiatUsdtValue, "FIAT")}</span>
-                  </div>
-                </div>
+            {isTokenSelectorOpen && (
+              <div className="absolute top-full left-0 right-0 mt-2 bg-[#1a1c20] border border-Red/30 rounded-lg shadow-xl z-30 max-h-64 overflow-y-auto">
+                {availableTokens.map((token) => (
+                  <button
+                    key={token.symbol}
+                    onClick={() => handleTokenSelect(token)}
+                    className={`w-full flex items-center justify-between p-3 hover:bg-Red/10 transition-colors ${
+                      token.symbol === wallet.selectedToken.symbol
+                        ? "bg-Red/20 border-l-2 border-Red"
+                        : ""
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-lg">{token.icon || "💰"}</span>
+                      <div className="text-left">
+                        <p className="text-white font-medium">{token.symbol}</p>
+                        <p className="text-sm text-gray-400">{token.name}</p>
+                      </div>
+                    </div>
+                    {token.symbol === wallet.selectedToken.symbol && (
+                      <HiStar className="w-4 h-4 text-Red" />
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Token Balance */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-medium text-white">Token Balance</h3>
+            <button
+              onClick={handleRefreshBalance}
+              disabled={refreshingToken === wallet.selectedToken.symbol}
+              className="text-sm text-gray-400 hover:text-white transition-colors disabled:opacity-50"
+            >
+              {refreshingToken === wallet.selectedToken.symbol ? (
+                <div className="w-4 h-4 border-2 border-Red border-t-transparent rounded-full animate-spin" />
+              ) : (
+                "Refresh"
               )}
+            </button>
+          </div>
+
+          <div className="p-3 bg-Dark rounded-lg border border-gray-700/50">
+            <div className="flex flex-wrap gap-2 justify-between items-center">
+              <div className="flex items-center gap-2">
+                <span className="text-xl">
+                  {wallet.selectedToken.icon || "💰"}
+                </span>
+                <span className="text-gray-300 font-medium">
+                  {wallet.selectedToken.symbol}
+                </span>
+              </div>
+
+              <div className="relative" ref={dropdownRef}>
+                {wallet.isLoadingTokenBalance ||
+                refreshingToken === wallet.selectedToken.symbol ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-Red border-t-transparent rounded-full animate-spin" />
+                    <span className="text-gray-400">Loading...</span>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                    className="flex items-center gap-2 font-mono text-white hover:text-gray-300 transition-colors bg-[#1a1c20] hover:bg-Red/10 hover:border-Red/30 border border-gray-600 px-3 py-1.5 rounded-md transition-all duration-200"
+                    disabled={!currentTokenBalance}
+                  >
+                    {getBalanceIcon(balanceMode)}
+                    <span className="min-w-0">{getBalanceDisplay()}</span>
+                    <HiChevronDown
+                      className={`w-4 h-4 transition-transform flex-shrink-0 ${
+                        isDropdownOpen ? "rotate-180" : ""
+                      }`}
+                    />
+                  </button>
+                )}
+
+                {isDropdownOpen && currentTokenBalance && (
+                  <div className="absolute right-0 top-full mt-1 bg-[#1a1c20] border border-Red/30 rounded-lg shadow-xl z-20 min-w-[160px] overflow-hidden">
+                    {balanceOptions.map((option) => (
+                      <button
+                        key={option.mode}
+                        onClick={() => {
+                          setBalanceMode(option.mode);
+                          setIsDropdownOpen(false);
+                        }}
+                        className={`w-full px-3 py-2.5 text-left hover:bg-Red/10 transition-colors ${
+                          balanceMode === option.mode
+                            ? "bg-Red/20 text-white border-l-2 border-Red"
+                            : "text-gray-300"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="flex items-center gap-2">
+                            {getBalanceIcon(option.mode)}
+                            {option.label}
+                          </span>
+                          {balanceMode === option.mode && (
+                            <div className="w-1.5 h-1.5 bg-Red rounded-full" />
+                          )}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* CELO Balance */}
-            <div className="p-3 bg-Dark rounded-lg border border-gray-700/50">
-              <div className="flex justify-between items-center">
-                <div className="flex items-center gap-2">
-                  <div className="w-5 h-5 rounded-full bg-yellow-500 flex items-center justify-center text-xs font-bold text-black">
-                    ◉
-                  </div>
-                  <span className="text-gray-300 font-medium">CELO</span>
-                </div>
-                <div className="text-right">
-                  <span className="font-mono text-white">
-                    {wallet.balance
-                      ? `${parseFloat(wallet.balance).toFixed(4)} CELO`
-                      : "0.0000 CELO"}
+            {currentTokenBalance && !currencyLoading && (
+              <div className="text-xs text-gray-500 mt-2 space-y-1">
+                <div className="flex justify-between">
+                  <span>
+                    ≈{" "}
+                    {formatPrice(
+                      convertPrice(
+                        parseFloat(currentTokenBalance.raw),
+                        wallet.selectedToken.symbol,
+                        "CELO"
+                      ),
+                      "CELO"
+                    )}
                   </span>
-                  {!currencyLoading && (
-                    <p className="text-xs text-gray-500">
-                      ≈ {formatPrice(fiatCeloValue, "FIAT")}
-                    </p>
-                  )}
+                  <span>≈ {currentTokenBalance.fiat}</span>
                 </div>
               </div>
-              <p className="text-xs text-gray-500 mt-1">For transaction fees</p>
+            )}
+          </div>
+        </div>
+
+        {/* CELO Balance */}
+        <div className="space-y-3">
+          <h3 className="text-lg font-medium text-white">Gas Balance</h3>
+          <div className="p-3 bg-Dark rounded-lg border border-gray-700/50">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <div className="w-5 h-5 rounded-full bg-yellow-500 flex items-center justify-center text-xs font-bold text-black">
+                  ◉
+                </div>
+                <span className="text-gray-300 font-medium">CELO</span>
+              </div>
+              <div className="text-right">
+                <span className="font-mono text-white">
+                  {wallet.balance
+                    ? `${parseFloat(wallet.balance).toFixed(4)} CELO`
+                    : "0.0000 CELO"}
+                </span>
+                {!currencyLoading && wallet.balance && (
+                  <p className="text-xs text-gray-500">
+                    ≈{" "}
+                    {formatPrice(
+                      convertPrice(parseFloat(wallet.balance), "CELO", "FIAT"),
+                      "FIAT"
+                    )}
+                  </p>
+                )}
+              </div>
             </div>
+            <p className="text-xs text-gray-500 mt-1">For transaction fees</p>
           </div>
         </div>
 
         {/* Currency Info */}
         {!currencyLoading && (
           <div className="text-xs text-gray-500 text-center p-2 bg-Red/5 rounded-lg border border-Red/10">
-            Prices shown in {userCountry || "USD"} • Updated automatically
+            Prices shown in {userCountry || "USD"} • Updated every 5 minutes
           </div>
         )}
 

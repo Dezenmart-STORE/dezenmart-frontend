@@ -1,3 +1,4 @@
+// src/context/Web3Context.tsx
 import React, {
   createContext,
   useContext,
@@ -5,6 +6,7 @@ import React, {
   useState,
   useCallback,
   useMemo,
+  useRef,
 } from "react";
 import {
   useAccount,
@@ -30,6 +32,11 @@ import {
   TARGET_CHAIN,
   USDT_ADDRESSES,
   wagmiConfig,
+  STABLE_TOKENS,
+  DEFAULT_STABLE_TOKEN,
+  StableToken,
+  getTokenAddress,
+  getTokenBySymbol,
 } from "../utils/config/web3.config";
 import { useSnackbar } from "./SnackbarContext";
 import { useCurrencyConverter } from "../utils/hooks/useCurrencyConverter";
@@ -42,24 +49,35 @@ import {
   waitForTransactionReceipt,
 } from "@wagmi/core";
 
+interface TokenBalance {
+  raw: string;
+  formatted: string;
+  fiat: string;
+}
+
 interface ExtendedWalletState extends WalletState {
-  usdtBalance?: {
-    raw: string;
-    usdt: string;
-    celo: string;
-    fiat: string;
-  };
+  selectedToken: StableToken;
+  tokenBalances: Record<string, TokenBalance>;
+  isLoadingTokenBalance: boolean;
+}
+
+interface ExtendedBuyTradeParams extends BuyTradeParams {
+  paymentToken: string; // token symbol
 }
 
 interface ExtendedWeb3ContextType extends Omit<Web3ContextType, "wallet"> {
   wallet: ExtendedWalletState;
-  buyTrade: (params: BuyTradeParams) => Promise<PaymentTransaction>;
+  buyTrade: (params: ExtendedBuyTradeParams) => Promise<PaymentTransaction>;
   validateTradeBeforePurchase: (
     tradeId: string,
     quantity: string,
     logisticsProvider: string
   ) => Promise<any>;
-  approveUSDT: (amount: string) => Promise<string>;
+  approveToken: (tokenSymbol: string, amount: string) => Promise<string>;
+  getTokenAllowance: (tokenSymbol: string) => Promise<number>;
+  setSelectedToken: (token: StableToken) => void;
+  refreshTokenBalance: (tokenSymbol?: string) => Promise<void>;
+  availableTokens: StableToken[];
   usdtAllowance: bigint | undefined;
   usdtDecimals: number | undefined;
 }
@@ -84,23 +102,83 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
   const { writeContractAsync } = useWriteContract();
   const { convertPrice, formatPrice } = useCurrencyConverter();
 
+  // State for selected token and balances
+  const [selectedToken, setSelectedTokenState] = useState<StableToken>(() => {
+    const saved = localStorage.getItem("selectedToken");
+    return saved ? JSON.parse(saved) : DEFAULT_STABLE_TOKEN;
+  });
+
+  const [tokenBalances, setTokenBalances] = useState<
+    Record<string, TokenBalance>
+  >({});
+  const [isLoadingTokenBalance, setIsLoadingTokenBalance] = useState(false);
+
+  // Refs for interval management
+  const balanceIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const lastFetchRef = useRef<Record<string, number>>({});
+
   const [wallet, setWallet] = useState<ExtendedWalletState>({
     isConnected: false,
     isConnecting: false,
+    selectedToken,
+    tokenBalances,
+    isLoadingTokenBalance,
   });
 
   const isCorrectNetwork = chain?.id === TARGET_CHAIN.id;
+
+  // Available tokens for the current chain
+  const availableTokens = useMemo(() => {
+    if (!chain?.id) return STABLE_TOKENS;
+    return STABLE_TOKENS.filter((token) => token.address[chain.id]);
+  }, [chain?.id]);
+
+  // Get current token address
+  const currentTokenAddress = useMemo(() => {
+    if (!chain?.id || !selectedToken) return undefined;
+    return getTokenAddress(selectedToken, chain.id) as
+      | `0x${string}`
+      | undefined;
+  }, [selectedToken, chain?.id]);
 
   // CELO balance for gas fees
   const { data: celoBalance, refetch: refetchCeloBalance } = useBalance({
     address,
     query: {
       enabled: !!address && isCorrectNetwork,
-      refetchInterval: 300000,
+      refetchInterval: 300000, // 5 minutes
     },
   });
 
-  // Get USDT contract address
+  // Token balance hook for selected token
+  const {
+    data: currentTokenBalance,
+    refetch: refetchCurrentTokenBalance,
+    isLoading: isLoadingCurrentToken,
+  } = useReadContract({
+    address: currentTokenAddress,
+    abi: erc20Abi,
+    functionName: "balanceOf",
+    args: address ? [address] : undefined,
+    query: {
+      enabled: !!address && !!currentTokenAddress && isCorrectNetwork,
+      refetchInterval: 300000, // 5 minutes
+      staleTime: 150000, // 2.5 minutes
+    },
+  });
+
+  // Token decimals
+  const { data: tokenDecimals } = useReadContract({
+    address: currentTokenAddress,
+    abi: erc20Abi,
+    functionName: "decimals",
+    query: {
+      enabled: !!currentTokenAddress && isCorrectNetwork,
+      staleTime: Infinity,
+    },
+  });
+
+  // Legacy USDT support
   const usdtContractAddress = useMemo(() => {
     if (!address || !chain?.id) return undefined;
     const contractAddr =
@@ -108,68 +186,25 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
     return contractAddr as `0x${string}` | undefined;
   }, [address, chain?.id]);
 
-  const {
-    data: usdtBalance,
-    refetch: refetchUSDTBalance,
-    isLoading: isLoadingUSDT,
-    error: usdtError,
-  } = useReadContract({
+  const { data: usdtAllowance } = useReadContract({
     address: usdtContractAddress,
     abi: erc20Abi,
-    functionName: "balanceOf",
-    args: address ? [address] : undefined,
+    functionName: "allowance",
+    args:
+      address && chain?.id
+        ? [
+            address,
+            ESCROW_ADDRESSES[
+              chain.id as keyof typeof ESCROW_ADDRESSES
+            ] as `0x${string}`,
+          ]
+        : undefined,
     query: {
       enabled: !!address && !!usdtContractAddress && isCorrectNetwork,
       refetchInterval: 300000,
-      staleTime: 150000,
     },
   });
 
-  // Auto-refresh balances
-
-  useEffect(() => {
-    if (isConnected && address && isCorrectNetwork) {
-      const interval = setInterval(() => {
-        if (!isLoadingUSDT) {
-          refetchUSDTBalance();
-          refetchCeloBalance();
-        }
-      }, 300000);
-
-      return () => clearInterval(interval);
-    }
-  }, [isConnected, address, isCorrectNetwork, isLoadingUSDT]);
-
-  const connectWallet = useCallback(async () => {
-    try {
-      const connector =
-        connectors.find((c) => c.name === "MetaMask") || connectors[0];
-      if (connector) {
-        connect({ connector });
-      }
-    } catch (error) {
-      console.error("Failed to connect wallet:", error);
-      showSnackbar("Failed to connect wallet. Please try again.", "error");
-    }
-  }, [connect, connectors, showSnackbar]);
-
-  const disconnectWallet = useCallback(() => {
-    disconnect();
-    showSnackbar("Wallet disconnected", "success");
-  }, [disconnect, showSnackbar]);
-
-  const switchToCorrectNetwork = useCallback(async () => {
-    try {
-      await switchChain({ chainId: TARGET_CHAIN.id });
-      showSnackbar(`Switched to ${TARGET_CHAIN.name}`, "success");
-    } catch (error) {
-      console.error("Failed to switch network:", error);
-      showSnackbar(`Failed to switch to ${TARGET_CHAIN.name}`, "error");
-      throw error;
-    }
-  }, [switchChain, showSnackbar]);
-
-  // get USDT decimals
   const { data: usdtDecimals } = useReadContract({
     address: usdtContractAddress,
     abi: erc20Abi,
@@ -180,61 +215,166 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
     },
   });
 
-  const getUSDTBalance = useCallback(async (): Promise<string> => {
-    try {
-      const result = await refetchUSDTBalance();
-      if (result.data && usdtDecimals !== undefined) {
-        const balanceBigInt = result.data as bigint;
-        const decimals = Number(usdtDecimals);
+  // Optimized token balance fetching
+  const fetchTokenBalance = useCallback(
+    async (token: StableToken): Promise<TokenBalance | null> => {
+      if (!address || !chain?.id || !isCorrectNetwork) return null;
 
-        const formattedBalance = formatUnits(balanceBigInt, decimals);
-        const numericBalance = parseFloat(formattedBalance);
+      const tokenAddress = getTokenAddress(token, chain.id);
+      if (!tokenAddress) return null;
 
-        const cleanBalance = numericBalance.toLocaleString("en-US", {
+      // Check if we fetched recently (within 4 minutes)
+      const now = Date.now();
+      const lastFetch = lastFetchRef.current[token.symbol] || 0;
+      if (now - lastFetch < 240000) {
+        // 4 minutes
+        return tokenBalances[token.symbol] || null;
+      }
+
+      try {
+        const balance = await readContract(wagmiConfig, {
+          address: tokenAddress as `0x${string}`,
+          abi: erc20Abi,
+          functionName: "balanceOf",
+          args: [address],
+        });
+
+        const decimals = token.decimals;
+        const raw = formatUnits(balance as bigint, decimals);
+        const numericBalance = parseFloat(raw);
+
+        const formatted = `${numericBalance.toLocaleString("en-US", {
           minimumFractionDigits: 0,
           maximumFractionDigits: Math.min(decimals, 6),
-        });
+        })} ${token.symbol}`;
 
-        return cleanBalance;
+        const fiat = formatPrice(
+          convertPrice(numericBalance, token.symbol, "FIAT"),
+          "FIAT"
+        );
+
+        lastFetchRef.current[token.symbol] = now;
+
+        return { raw, formatted, fiat };
+      } catch (error) {
+        console.error(`Failed to fetch ${token.symbol} balance:`, error);
+        return null;
       }
-      return "0";
-    } catch (error) {
-      console.error("Failed to fetch USDT balance:", error);
-      return "0";
+    },
+    [
+      address,
+      chain?.id,
+      isCorrectNetwork,
+      tokenBalances,
+      convertPrice,
+      formatPrice,
+    ]
+  );
+
+  // Refresh token balance
+  const refreshTokenBalance = useCallback(
+    async (tokenSymbol?: string) => {
+      if (!address || !isCorrectNetwork) return;
+
+      setIsLoadingTokenBalance(true);
+
+      try {
+        if (tokenSymbol) {
+          const token = getTokenBySymbol(tokenSymbol);
+          if (token) {
+            const balance = await fetchTokenBalance(token);
+            if (balance) {
+              setTokenBalances((prev) => ({
+                ...prev,
+                [token.symbol]: balance,
+              }));
+            }
+          }
+        } else {
+          // Refresh selected token balance
+          const balance = await fetchTokenBalance(selectedToken);
+          if (balance) {
+            setTokenBalances((prev) => ({
+              ...prev,
+              [selectedToken.symbol]: balance,
+            }));
+          }
+        }
+      } catch (error) {
+        console.error("Failed to refresh token balance:", error);
+      } finally {
+        setIsLoadingTokenBalance(false);
+      }
+    },
+    [address, isCorrectNetwork, selectedToken, fetchTokenBalance]
+  );
+
+  // Set selected token with persistence
+  const setSelectedToken = useCallback((token: StableToken) => {
+    setSelectedTokenState(token);
+    localStorage.setItem("selectedToken", JSON.stringify(token));
+  }, []);
+
+  // Update current token balance when it changes
+  useEffect(() => {
+    if (currentTokenBalance && tokenDecimals !== undefined) {
+      const raw = formatUnits(currentTokenBalance as bigint, tokenDecimals);
+      const numericBalance = parseFloat(raw);
+
+      const formatted = `${numericBalance.toLocaleString("en-US", {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: Math.min(tokenDecimals, 6),
+      })} ${selectedToken.symbol}`;
+
+      const fiat = formatPrice(
+        convertPrice(numericBalance, selectedToken.symbol, "FIAT"),
+        "FIAT"
+      );
+
+      setTokenBalances((prev) => ({
+        ...prev,
+        [selectedToken.symbol]: { raw, formatted, fiat },
+      }));
     }
-  }, [refetchUSDTBalance, usdtDecimals]);
+  }, [
+    currentTokenBalance,
+    tokenDecimals,
+    selectedToken,
+    convertPrice,
+    formatPrice,
+  ]);
 
-  // converted USDT balances
-  const convertedUSDTBalances = useMemo(() => {
-    if (!usdtBalance || usdtError || usdtDecimals === undefined)
-      return undefined;
+  // Setup balance refresh interval
+  useEffect(() => {
+    if (isConnected && address && isCorrectNetwork) {
+      // Clear existing interval
+      if (balanceIntervalRef.current) {
+        clearInterval(balanceIntervalRef.current);
+      }
 
-    try {
-      const decimals = Number(usdtDecimals);
-      const rawBalance = formatUnits(usdtBalance as bigint, decimals);
-      const numericBalance = parseFloat(rawBalance);
+      // Set new interval for 5 minutes
+      balanceIntervalRef.current = setInterval(() => {
+        refreshTokenBalance();
+        refetchCeloBalance();
+      }, 300000);
 
-      if (isNaN(numericBalance)) return undefined;
+      // Initial fetch
+      refreshTokenBalance();
 
-      const formatWithDecimals = (value: number, maxDecimals: number = 2) => {
-        return value.toLocaleString("en-US", {
-          minimumFractionDigits: 0,
-          maximumFractionDigits: maxDecimals,
-          useGrouping: true,
-        });
+      return () => {
+        if (balanceIntervalRef.current) {
+          clearInterval(balanceIntervalRef.current);
+        }
       };
-
-      return {
-        raw: rawBalance,
-        usdt: `${formatWithDecimals(numericBalance, 6)} USDT`,
-        celo: formatPrice(convertPrice(numericBalance, "USDT", "CELO"), "CELO"),
-        fiat: formatPrice(convertPrice(numericBalance, "USDT", "FIAT"), "FIAT"),
-      };
-    } catch (error) {
-      console.error("Error formatting USDT balance:", error);
-      return undefined;
     }
-  }, [usdtBalance, usdtError, usdtDecimals, convertPrice, formatPrice]);
+  }, [isConnected, address, isCorrectNetwork, refreshTokenBalance]);
+
+  // Fetch balance when selected token changes
+  useEffect(() => {
+    if (selectedToken && address && isCorrectNetwork) {
+      refreshTokenBalance();
+    }
+  }, [selectedToken, address, isCorrectNetwork]);
 
   // Update wallet state
   useEffect(() => {
@@ -246,9 +386,11 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
       balance: celoBalance
         ? formatUnits(celoBalance.value, celoBalance.decimals)
         : undefined,
-      error: connectError?.message || usdtError?.message,
-      isConnecting: isConnecting || isLoadingUSDT,
-      usdtBalance: convertedUSDTBalances,
+      error: connectError?.message,
+      isConnecting: isConnecting || isLoadingCurrentToken,
+      selectedToken,
+      tokenBalances,
+      isLoadingTokenBalance,
     }));
   }, [
     isConnected,
@@ -256,14 +398,108 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
     chain,
     celoBalance,
     connectError,
-    usdtError,
     isConnecting,
-    isLoadingUSDT,
-    convertedUSDTBalances,
+    isLoadingCurrentToken,
+    selectedToken,
+    tokenBalances,
+    isLoadingTokenBalance,
   ]);
 
+  // Get token allowance
+  const getTokenAllowance = useCallback(
+    async (tokenSymbol: string): Promise<number> => {
+      if (!address || !chain?.id || !isCorrectNetwork) return 0;
+
+      const token = getTokenBySymbol(tokenSymbol);
+      if (!token) return 0;
+
+      const tokenAddress = getTokenAddress(token, chain.id);
+      const escrowAddress =
+        ESCROW_ADDRESSES[chain.id as keyof typeof ESCROW_ADDRESSES];
+
+      if (!tokenAddress || !escrowAddress) return 0;
+
+      try {
+        const allowance = await readContract(wagmiConfig, {
+          address: tokenAddress as `0x${string}`,
+          abi: erc20Abi,
+          functionName: "allowance",
+          args: [address, escrowAddress as `0x${string}`],
+        });
+
+        const formattedAllowance = formatUnits(
+          allowance as bigint,
+          token.decimals
+        );
+        return parseFloat(formattedAllowance);
+      } catch (error) {
+        console.error(`Failed to get ${tokenSymbol} allowance:`, error);
+        return 0;
+      }
+    },
+    [address, chain?.id, isCorrectNetwork]
+  );
+
+  // Approve token
+  const approveToken = useCallback(
+    async (tokenSymbol: string, amount: string): Promise<string> => {
+      if (!address || !chain?.id) {
+        throw new Error("Wallet not connected");
+      }
+
+      const token = getTokenBySymbol(tokenSymbol);
+      if (!token) {
+        throw new Error(`Token ${tokenSymbol} not found`);
+      }
+
+      const tokenAddress = getTokenAddress(token, chain.id);
+      const escrowAddress =
+        ESCROW_ADDRESSES[chain.id as keyof typeof ESCROW_ADDRESSES];
+
+      if (!tokenAddress || !escrowAddress) {
+        throw new Error("Contracts not available on this network");
+      }
+
+      try {
+        const currentAllowance = await getTokenAllowance(tokenSymbol);
+        const requiredAmount = parseFloat(amount);
+
+        if (currentAllowance >= requiredAmount) {
+          return "0x0"; // Already approved
+        }
+
+        const maxApproval = BigInt(
+          "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+        );
+
+        const hash = await writeContractAsync({
+          address: tokenAddress as `0x${string}`,
+          abi: erc20Abi,
+          functionName: "approve",
+          args: [escrowAddress as `0x${string}`, maxApproval],
+          gas: BigInt(150000),
+        });
+
+        return hash;
+      } catch (error: any) {
+        console.error(`${tokenSymbol} approval failed:`, error);
+
+        if (error?.message?.includes("User rejected")) {
+          throw new Error("Approval was rejected by user");
+        }
+        if (error?.message?.includes("insufficient funds")) {
+          throw new Error("Insufficient CELO for gas fees");
+        }
+
+        throw new Error(`Approval failed: ${parseWeb3Error(error)}`);
+      }
+    },
+    [address, chain, writeContractAsync, getTokenAllowance]
+  );
+
+  // Updated buy trade function
   const buyTrade = useCallback(
-    async (params: BuyTradeParams): Promise<PaymentTransaction> => {
+    async (params: ExtendedBuyTradeParams): Promise<PaymentTransaction> => {
       if (!address || !chain?.id) {
         throw new Error("Wallet not connected");
       }
@@ -276,6 +512,11 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
         ESCROW_ADDRESSES[chain.id as keyof typeof ESCROW_ADDRESSES];
       if (!escrowAddress) {
         throw new Error("Escrow contract not available on this network");
+      }
+
+      const paymentToken = getTokenBySymbol(params.paymentToken);
+      if (!paymentToken) {
+        throw new Error(`Payment token ${params.paymentToken} not found`);
       }
 
       try {
@@ -357,10 +598,15 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
           }
         }
 
+        // Refresh balance after successful purchase
+        setTimeout(() => {
+          refreshTokenBalance(params.paymentToken);
+        }, 2000);
+
         return {
           hash,
           amount: "0",
-          token: "USDT",
+          token: params.paymentToken,
           to: escrowAddress,
           from: address,
           status: "pending",
@@ -370,15 +616,20 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
       } catch (error: any) {
         console.error("Buy trade failed:", error);
 
-        // Enhanced error parsing
         const errorMessage = error?.message || error?.toString() || "";
 
-        if (errorMessage.includes("InsufficientUSDTBalance")) {
-          throw new Error("Insufficient USDT balance for this purchase");
-        }
-        if (errorMessage.includes("InsufficientUSDTAllowance")) {
+        if (
+          errorMessage.includes(`Insufficient${params.paymentToken}Balance`)
+        ) {
           throw new Error(
-            "USDT allowance insufficient. Please approve the amount first"
+            `Insufficient ${params.paymentToken} balance for this purchase`
+          );
+        }
+        if (
+          errorMessage.includes(`Insufficient${params.paymentToken}Allowance`)
+        ) {
+          throw new Error(
+            `${params.paymentToken} allowance insufficient. Please approve the amount first`
           );
         }
         if (
@@ -412,8 +663,44 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
         throw new Error("Transaction failed. Please try again.");
       }
     },
-    [address, chain, isCorrectNetwork, writeContractAsync]
+    [address, chain, isCorrectNetwork, writeContractAsync, refreshTokenBalance]
   );
+
+  // Legacy functions for backward compatibility
+  const connectWallet = useCallback(async () => {
+    try {
+      const connector =
+        connectors.find((c) => c.name === "MetaMask") || connectors[0];
+      if (connector) {
+        connect({ connector });
+      }
+    } catch (error) {
+      console.error("Failed to connect wallet:", error);
+      showSnackbar("Failed to connect wallet. Please try again.", "error");
+    }
+  }, [connect, connectors, showSnackbar]);
+
+  const disconnectWallet = useCallback(() => {
+    disconnect();
+    // Clear intervals on disconnect
+    if (balanceIntervalRef.current) {
+      clearInterval(balanceIntervalRef.current);
+    }
+    // Clear cached fetch times
+    lastFetchRef.current = {};
+    showSnackbar("Wallet disconnected", "success");
+  }, [disconnect, showSnackbar]);
+
+  const switchToCorrectNetwork = useCallback(async () => {
+    try {
+      await switchChain({ chainId: TARGET_CHAIN.id });
+      showSnackbar(`Switched to ${TARGET_CHAIN.name}`, "success");
+    } catch (error) {
+      console.error("Failed to switch network:", error);
+      showSnackbar(`Failed to switch to ${TARGET_CHAIN.name}`, "error");
+      throw error;
+    }
+  }, [switchChain, showSnackbar]);
 
   const validateTradeBeforePurchase = useCallback(
     async (tradeId: string, quantity: string, logisticsProvider: string) => {
@@ -441,7 +728,6 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
           logisticsProviders: string[];
         };
 
-        // More detailed validation
         if (!tradeDetails.active) {
           console.warn(`Trade ${tradeId} is not active`);
           return false;
@@ -473,96 +759,22 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
     },
     [address, chain]
   );
-  // Check current allowance
-  const { data: usdtAllowance, refetch: refetchAllowance } = useReadContract({
-    address: usdtContractAddress,
-    abi: erc20Abi,
-    functionName: "allowance",
-    args:
-      address && chain?.id
-        ? [
-            address,
-            ESCROW_ADDRESSES[
-              chain.id as keyof typeof ESCROW_ADDRESSES
-            ] as `0x${string}`,
-          ]
-        : undefined,
-    query: {
-      enabled: !!address && !!usdtContractAddress && isCorrectNetwork,
-      refetchInterval: 300000,
-    },
-  });
+
+  // Legacy USDT functions for backward compatibility
+  const getUSDTBalance = useCallback(async (): Promise<string> => {
+    const usdtBalance = tokenBalances["USDT"];
+    return usdtBalance?.raw || "0";
+  }, [tokenBalances]);
 
   const getCurrentAllowance = useCallback(async (): Promise<number> => {
-    if (!address || !chain?.id || !usdtContractAddress) {
-      return 0;
-    }
-
-    try {
-      const result = await refetchAllowance();
-      if (result.data && usdtDecimals !== undefined) {
-        const allowanceBigInt = result.data as bigint;
-        const decimals = Number(usdtDecimals);
-        const formattedAllowance = formatUnits(allowanceBigInt, decimals);
-        return parseFloat(formattedAllowance);
-      }
-      return 0;
-    } catch (error) {
-      console.error("Failed to fetch allowance:", error);
-      return 0;
-    }
-  }, [address, chain?.id, usdtContractAddress, refetchAllowance, usdtDecimals]);
+    return getTokenAllowance("USDT");
+  }, [getTokenAllowance]);
 
   const approveUSDT = useCallback(
     async (amount: string): Promise<string> => {
-      if (!address || !chain?.id) {
-        throw new Error("Wallet not connected");
-      }
-
-      const usdtAddress =
-        USDT_ADDRESSES[chain.id as keyof typeof USDT_ADDRESSES];
-      const escrowAddress =
-        ESCROW_ADDRESSES[chain.id as keyof typeof ESCROW_ADDRESSES];
-
-      if (!usdtAddress || !escrowAddress) {
-        throw new Error("Contracts not available on this network");
-      }
-
-      try {
-        const currentAllowance = await getCurrentAllowance();
-        const requiredAmount = parseFloat(amount);
-
-        if (currentAllowance >= requiredAmount) {
-          return "0x0"; // Already approved
-        }
-
-        const maxApproval = BigInt(
-          "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
-        );
-
-        const hash = await writeContractAsync({
-          address: usdtAddress as `0x${string}`,
-          abi: erc20Abi,
-          functionName: "approve",
-          args: [escrowAddress as `0x${string}`, maxApproval],
-          gas: BigInt(150000),
-        });
-
-        return hash;
-      } catch (error: any) {
-        console.error("USDT approval failed:", error);
-
-        if (error?.message?.includes("User rejected")) {
-          throw new Error("Approval was rejected by user");
-        }
-        if (error?.message?.includes("insufficient funds")) {
-          throw new Error("Insufficient CELO for gas fees");
-        }
-
-        throw new Error(`Approval failed: ${parseWeb3Error(error)}`);
-      }
+      return approveToken("USDT", amount);
     },
-    [address, chain, writeContractAsync, getCurrentAllowance]
+    [approveToken]
   );
 
   const sendPayment = useCallback(
@@ -580,17 +792,23 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
         }
       }
 
-      const usdtAddress =
-        USDT_ADDRESSES[chain.id as keyof typeof USDT_ADDRESSES];
-      if (!usdtAddress) {
-        throw new Error("USDT not supported on this network");
+      const token = getTokenBySymbol(selectedToken.symbol);
+      if (!token) {
+        throw new Error(`Selected token ${selectedToken.symbol} not found`);
+      }
+
+      const tokenAddress = getTokenAddress(token, chain.id);
+      if (!tokenAddress) {
+        throw new Error(
+          `${selectedToken.symbol} not supported on this network`
+        );
       }
 
       try {
-        const amount = parseUnits(params.amount, 6);
+        const amount = parseUnits(params.amount, token.decimals);
 
         const hash = await writeContractAsync({
-          address: usdtAddress as `0x${string}`,
+          address: tokenAddress as `0x${string}`,
           abi: erc20Abi,
           functionName: "transfer",
           args: [params.to as `0x${string}`, amount],
@@ -599,7 +817,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
         const transaction: PaymentTransaction = {
           hash,
           amount: params.amount,
-          token: "USDT",
+          token: selectedToken.symbol,
           to: params.to,
           from: address,
           status: "pending",
@@ -607,6 +825,12 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
         };
 
         showSnackbar("Payment sent! Waiting for confirmation...", "success");
+
+        // Refresh balance after payment
+        setTimeout(() => {
+          refreshTokenBalance(selectedToken.symbol);
+        }, 2000);
+
         return transaction;
       } catch (error) {
         console.error("Payment failed:", error);
@@ -618,11 +842,22 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
       address,
       chain,
       isCorrectNetwork,
+      selectedToken,
       switchToCorrectNetwork,
       writeContractAsync,
       showSnackbar,
+      refreshTokenBalance,
     ]
   );
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (balanceIntervalRef.current) {
+        clearInterval(balanceIntervalRef.current);
+      }
+    };
+  }, []);
 
   const value: ExtendedWeb3ContextType = {
     wallet,
@@ -638,6 +873,12 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
     approveUSDT,
     validateTradeBeforePurchase,
     isCorrectNetwork,
+    // New token-specific functions
+    setSelectedToken,
+    refreshTokenBalance,
+    availableTokens,
+    approveToken,
+    getTokenAllowance,
   };
 
   return <Web3Context.Provider value={value}>{children}</Web3Context.Provider>;
