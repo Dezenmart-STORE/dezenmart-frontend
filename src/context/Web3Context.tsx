@@ -80,6 +80,7 @@ interface ExtendedWeb3ContextType extends Omit<Web3ContextType, "wallet"> {
   availableTokens: StableToken[];
   usdtAllowance: bigint | undefined;
   usdtDecimals: number | undefined;
+  approveUSDT: (amount: string) => Promise<string>;
 }
 
 const Web3Context = createContext<ExtendedWeb3ContextType | undefined>(
@@ -873,7 +874,6 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
     approveUSDT,
     validateTradeBeforePurchase,
     isCorrectNetwork,
-    // New token-specific functions
     setSelectedToken,
     refreshTokenBalance,
     availableTokens,
