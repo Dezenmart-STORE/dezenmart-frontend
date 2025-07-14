@@ -18,7 +18,7 @@ import { useWeb3 } from "../../../context/Web3Context";
 import { useWalletBalance } from "../../../utils/hooks/useWalletBalance";
 import { useOrderData } from "../../../utils/hooks/useOrder";
 import { ESCROW_ADDRESSES } from "../../../utils/config/web3.config";
-import PaymentModal from "../../web3/PaymentModal";
+// import PaymentModal from "../../web3/PaymentModal";
 import WalletConnectionModal from "../../web3/WalletConnectionModal";
 import {
   clearStoredOrderId,
@@ -568,13 +568,14 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
   const Payment = useMemo(
     () =>
       orderDetails && escrowAddress ? (
-        <PaymentModal
-          isOpen={isPaymentModalOpen}
-          onClose={handlePaymentModalClose}
-          orderDetails={orderDetails}
-          onPaymentSuccess={handlePaymentSuccess}
-        />
-      ) : null,
+        <>payment modal</>
+      ) : // <PaymentModal
+      //   isOpen={isPaymentModalOpen}
+      //   onClose={handlePaymentModalClose}
+      //   orderDetails={orderDetails}
+      //   onPaymentSuccess={handlePaymentSuccess}
+      // />
+      null,
     [
       isPaymentModalOpen,
       orderDetails?._id,
