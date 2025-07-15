@@ -60,7 +60,7 @@ export const useProductData = () => {
         "USDT",
         `${wallet.selectedToken.symbol}`
       );
-
+      console.log(tokenPrice);
       return {
         ...product,
         celoPrice,
