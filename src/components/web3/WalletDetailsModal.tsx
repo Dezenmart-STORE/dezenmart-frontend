@@ -471,29 +471,37 @@ const WalletDetailsModal: React.FC<WalletDetailsModalProps> = ({
               </div>
 
               <div className="relative" ref={dropdownRef}>
-                {wallet.isLoadingTokenBalance ||
-                refreshingToken === wallet.selectedToken.symbol ? (
+                {refreshingToken === wallet.selectedToken.symbol ? (
                   <div className="flex items-center gap-2">
                     <div className="w-4 h-4 border-2 border-Red border-t-transparent rounded-full animate-spin" />
                     <span className="text-gray-400">Loading...</span>
                   </div>
                 ) : (
-                  <button
-                    onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                    className="flex items-center gap-2 font-mono text-white hover:text-gray-300 transition-colors bg-[#1a1c20] hover:bg-Red/10 hover:border-Red/30 border border-gray-600 px-3 py-1.5 rounded-md transition-all duration-200"
-                    disabled={!currentTokenBalance}
+                  <span
+                    className={
+                      wallet.isLoadingTokenBalance
+                        ? "opacity-60 animate-pulse transition-opacity duration-300"
+                        : ""
+                    }
                   >
-                    {getBalanceIcon(balanceMode)}
-                    <span className="min-w-0">{getBalanceDisplay()}</span>
-                    <HiChevronDown
-                      className={`w-4 h-4 transition-transform flex-shrink-0 ${
-                        isDropdownOpen ? "rotate-180" : ""
-                      }`}
-                    />
-                  </button>
+                    {`${wallet.tokenBalances[wallet.selectedToken.symbol]}`}
+                  </span>
+                  // <button
+                  //   onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                  //   className="flex items-center gap-2 font-mono text-white hover:text-gray-300 transition-colors bg-[#1a1c20] hover:bg-Red/10 hover:border-Red/30 border border-gray-600 px-3 py-1.5 rounded-md transition-all duration-200"
+                  //   disabled={!currentTokenBalance}
+                  // >
+                  //   {getBalanceIcon(balanceMode)}
+                  //   <span className="min-w-0">{getBalanceDisplay()}</span>
+                  //   <HiChevronDown
+                  //     className={`w-4 h-4 transition-transform flex-shrink-0 ${
+                  //       isDropdownOpen ? "rotate-180" : ""
+                  //     }`}
+                  //   />
+                  // </button>
                 )}
 
-                {isDropdownOpen && currentTokenBalance && (
+                {/* {isDropdownOpen && currentTokenBalance && (
                   <div className="absolute right-0 top-full mt-1 bg-[#1a1c20] border border-Red/30 rounded-lg shadow-xl z-20 min-w-[160px] overflow-hidden">
                     {balanceOptions.map((option) => (
                       <button
@@ -520,7 +528,7 @@ const WalletDetailsModal: React.FC<WalletDetailsModalProps> = ({
                       </button>
                     ))}
                   </div>
-                )}
+                )} */}
               </div>
             </div>
 
