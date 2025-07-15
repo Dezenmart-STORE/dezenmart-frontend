@@ -33,6 +33,63 @@ interface WalletDetailsModalProps {
 
 type BalanceDisplayMode = "TOKEN" | "CELO" | "FIAT";
 
+// Optimized loading state hook
+const useStableLoadingState = (isLoading: boolean, delay: number = 200) => {
+  const [stableLoading, setStableLoading] = useState(isLoading);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+
+    if (isLoading) {
+      setStableLoading(true);
+    } else {
+      timeoutRef.current = setTimeout(() => {
+        setStableLoading(false);
+      }, delay);
+    }
+
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, [isLoading, delay]);
+
+  return stableLoading;
+};
+
+// Memoized balance display component
+const BalanceDisplay = React.memo<{
+  isLoading: boolean;
+  balance: string | null;
+  symbol: string;
+  showFullBalance?: boolean;
+}>(({ isLoading, balance, symbol, showFullBalance = false }) => {
+  if (isLoading) {
+    return (
+      <div className="flex items-center gap-2 min-h-[24px]">
+        <div className="w-4 h-4 border-2 border-Red border-t-transparent rounded-full animate-spin" />
+        <span className="text-gray-400">Loading...</span>
+      </div>
+    );
+  }
+
+  if (!balance) {
+    return <span className="text-gray-400 font-mono">0.00 {symbol}</span>;
+  }
+
+  return (
+    <span className="text-white font-mono transition-opacity duration-200">
+      {showFullBalance ? balance : balance}
+    </span>
+  );
+});
+
+BalanceDisplay.displayName = "BalanceDisplay";
+
 const WalletDetailsModal: React.FC<WalletDetailsModalProps> = ({
   isOpen,
   onClose,
@@ -54,24 +111,83 @@ const WalletDetailsModal: React.FC<WalletDetailsModalProps> = ({
     convertPrice,
     formatPrice,
     loading: currencyLoading,
-    error: currencyError,
   } = useCurrencyConverter();
 
   const [balanceMode, setBalanceMode] = useState<BalanceDisplayMode>("FIAT");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isTokenSelectorOpen, setIsTokenSelectorOpen] = useState(false);
 
-  // Consolidated loading state with debouncing
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const refreshTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // Optimized loading state with stable transitions
+  const stableTokenLoading = useStableLoadingState(
+    wallet.isLoadingTokenBalance,
+    300
+  );
+  const stableCurrencyLoading = useStableLoadingState(currencyLoading, 200);
 
+  // Refs for dropdown management
   const dropdownRef = useRef<HTMLDivElement>(null);
   const tokenSelectorRef = useRef<HTMLDivElement>(null);
+  const refreshTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Debounced loading state to prevent flickering
-  const debouncedIsLoading = useMemo(() => {
-    return wallet.isLoadingTokenBalance || isRefreshing;
-  }, [wallet.isLoadingTokenBalance, isRefreshing]);
+  // Memoized current token balance
+  const currentTokenBalance = useMemo(() => {
+    return wallet.tokenBalances[wallet.selectedToken.symbol];
+  }, [wallet.tokenBalances, wallet.selectedToken.symbol]);
+
+  // Memoized portfolio value calculation
+  const portfolioValue = useMemo(() => {
+    if (stableCurrencyLoading) return 0;
+
+    const celoValue = wallet.balance ? parseFloat(wallet.balance) : 0;
+    const fiatCeloValue = convertPrice(celoValue, "CELO", "FIAT");
+
+    let totalTokenValue = 0;
+    Object.values(wallet.tokenBalances).forEach((balance) => {
+      if (balance?.raw) {
+        totalTokenValue += parseFloat(balance.raw);
+      }
+    });
+
+    const fiatTokenValue = convertPrice(
+      totalTokenValue,
+      wallet.selectedToken.symbol,
+      "FIAT"
+    );
+    return fiatCeloValue + fiatTokenValue;
+  }, [
+    wallet.balance,
+    wallet.tokenBalances,
+    wallet.selectedToken.symbol,
+    convertPrice,
+    stableCurrencyLoading,
+  ]);
+
+  // Optimized balance display formatting
+  const formattedBalance = useMemo(() => {
+    if (!currentTokenBalance) return null;
+
+    switch (balanceMode) {
+      case "TOKEN":
+        return currentTokenBalance.formatted;
+      case "CELO":
+        const celoAmount = convertPrice(
+          parseFloat(currentTokenBalance.raw),
+          wallet.selectedToken.symbol,
+          "CELO"
+        );
+        return formatPrice(celoAmount, "CELO");
+      case "FIAT":
+        return currentTokenBalance.fiat;
+      default:
+        return currentTokenBalance.fiat;
+    }
+  }, [
+    currentTokenBalance,
+    balanceMode,
+    convertPrice,
+    formatPrice,
+    wallet.selectedToken.symbol,
+  ]);
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -97,39 +213,7 @@ const WalletDetailsModal: React.FC<WalletDetailsModalProps> = ({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isDropdownOpen, isTokenSelectorOpen]);
 
-  // Get current token balance with memoization
-  const currentTokenBalance = useMemo(() => {
-    return wallet.tokenBalances[wallet.selectedToken.symbol];
-  }, [wallet.tokenBalances, wallet.selectedToken.symbol]);
-
-  // Get portfolio value with memoization
-  const portfolioValue = useMemo(() => {
-    if (currencyLoading) return 0;
-
-    const celoValue = wallet.balance ? parseFloat(wallet.balance) : 0;
-    const fiatCeloValue = convertPrice(celoValue, "CELO", "FIAT");
-
-    let totalTokenValue = 0;
-    Object.values(wallet.tokenBalances).forEach((balance) => {
-      if (balance?.raw) {
-        totalTokenValue += parseFloat(balance.raw);
-      }
-    });
-
-    const fiatTokenValue = convertPrice(
-      totalTokenValue,
-      wallet.selectedToken.symbol,
-      "FIAT"
-    );
-    return fiatCeloValue + fiatTokenValue;
-  }, [
-    wallet.balance,
-    wallet.tokenBalances,
-    wallet.selectedToken.symbol,
-    convertPrice,
-    currencyLoading,
-  ]);
-
+  // Optimized event handlers
   const handleCopyAddress = useCallback(() => {
     if (wallet.address) {
       copyToClipboard(wallet.address);
@@ -161,22 +245,18 @@ const WalletDetailsModal: React.FC<WalletDetailsModalProps> = ({
       setIsTokenSelectorOpen(false);
       showSnackbar(`Switched to ${token.symbol}`, "success");
 
-      // Set loading state with debouncing
-      setIsRefreshing(true);
-
-      // Clear previous timeout
+      // Debounced refresh
       if (refreshTimeoutRef.current) {
         clearTimeout(refreshTimeoutRef.current);
       }
 
-      try {
-        await refreshTokenBalance(token.symbol);
-      } finally {
-        // Debounce the loading state reset
-        refreshTimeoutRef.current = setTimeout(() => {
-          setIsRefreshing(false);
-        }, 300);
-      }
+      refreshTimeoutRef.current = setTimeout(async () => {
+        try {
+          await refreshTokenBalance(token.symbol);
+        } catch (error) {
+          console.error("Failed to refresh balance after token switch:", error);
+        }
+      }, 100);
     },
     [
       setSelectedToken,
@@ -187,35 +267,23 @@ const WalletDetailsModal: React.FC<WalletDetailsModalProps> = ({
   );
 
   const handleRefreshBalance = useCallback(async () => {
-    if (!currentTokenBalance || debouncedIsLoading) return;
-
-    setIsRefreshing(true);
-
-    // Clear previous timeout
-    if (refreshTimeoutRef.current) {
-      clearTimeout(refreshTimeoutRef.current);
-    }
+    if (!currentTokenBalance || stableTokenLoading) return;
 
     try {
       await refreshTokenBalance(wallet.selectedToken.symbol);
       showSnackbar("Balance refreshed", "success");
     } catch (error) {
       showSnackbar("Failed to refresh balance", "error");
-    } finally {
-      // Debounce the loading state reset
-      refreshTimeoutRef.current = setTimeout(() => {
-        setIsRefreshing(false);
-      }, 300);
     }
   }, [
     currentTokenBalance,
-    debouncedIsLoading,
+    stableTokenLoading,
     wallet.selectedToken.symbol,
     refreshTokenBalance,
     showSnackbar,
   ]);
 
-  // Cleanup timeout on unmount
+  // Cleanup
   useEffect(() => {
     return () => {
       if (refreshTimeoutRef.current) {
@@ -224,66 +292,7 @@ const WalletDetailsModal: React.FC<WalletDetailsModalProps> = ({
     };
   }, []);
 
-  const getBalanceDisplay = useCallback(() => {
-    if (!currentTokenBalance) return "0.00";
-
-    switch (balanceMode) {
-      case "TOKEN":
-        return currentTokenBalance.formatted;
-      case "CELO":
-        const celoAmount = convertPrice(
-          parseFloat(currentTokenBalance.raw),
-          wallet.selectedToken.symbol,
-          "CELO"
-        );
-        return formatPrice(celoAmount, "CELO");
-      case "FIAT":
-        return currentTokenBalance.fiat;
-      default:
-        return currentTokenBalance.fiat;
-    }
-  }, [
-    currentTokenBalance,
-    balanceMode,
-    convertPrice,
-    formatPrice,
-    wallet.selectedToken.symbol,
-  ]);
-
-  const getBalanceIcon = useCallback(
-    (mode: BalanceDisplayMode) => {
-      switch (mode) {
-        case "TOKEN":
-          return (
-            <span className="w-4 h-4 flex items-center justify-center text-sm">
-              {typeof wallet.selectedToken.icon === "string" &&
-              wallet.selectedToken.icon ? (
-                <img
-                  src={wallet.selectedToken.icon}
-                  alt={wallet.selectedToken.symbol}
-                  width={20}
-                  height={20}
-                />
-              ) : (
-                "💰"
-              )}
-            </span>
-          );
-        case "CELO":
-          return (
-            <div className="w-4 h-4 rounded-full bg-yellow-500 flex items-center justify-center text-xs font-bold text-black">
-              ◉
-            </div>
-          );
-        case "FIAT":
-          return <HiBanknotes className="w-4 h-4 text-Red" />;
-        default:
-          return <HiBanknotes className="w-4 h-4 text-Red" />;
-      }
-    },
-    [wallet.selectedToken.icon]
-  );
-
+  // Memoized balance options
   const balanceOptions = useMemo(
     () =>
       [
@@ -305,32 +314,6 @@ const WalletDetailsModal: React.FC<WalletDetailsModalProps> = ({
       ].sort((a, b) => a.priority - b.priority),
     [userCountry, wallet.selectedToken.symbol]
   );
-
-  // Optimized balance display component
-  const BalanceDisplay = useMemo(() => {
-    if (debouncedIsLoading) {
-      return (
-        <div className="flex items-center gap-2 min-h-[24px]">
-          <div className="w-4 h-4 border-2 border-Red border-t-transparent rounded-full animate-spin" />
-          <span className="text-gray-400">Loading...</span>
-        </div>
-      );
-    }
-
-    if (!currentTokenBalance) {
-      return (
-        <span className="text-gray-400 font-mono">
-          0.00 {wallet.selectedToken.symbol}
-        </span>
-      );
-    }
-
-    return (
-      <span className="text-white font-mono transition-opacity duration-200">
-        {currentTokenBalance.formatted}
-      </span>
-    );
-  }, [debouncedIsLoading, currentTokenBalance, wallet.selectedToken.symbol]);
 
   return (
     <Modal
@@ -410,18 +393,18 @@ const WalletDetailsModal: React.FC<WalletDetailsModalProps> = ({
           <div className="p-4 bg-gradient-to-r from-Red/10 to-Red/5 border border-Red/20 rounded-lg">
             <div className="text-center">
               <p className="text-sm text-gray-400 mb-1">Total Balance</p>
-              {currencyLoading ? (
-                <div className="flex items-center justify-center gap-2 min-h-[32px]">
-                  <div className="w-4 h-4 border-2 border-Red border-t-transparent rounded-full animate-spin" />
-                  <span className="text-gray-400">Loading...</span>
-                </div>
-              ) : (
-                <p className="text-2xl font-bold text-white transition-opacity duration-200">
-                  {secondaryCurrency === "TOKEN"
+              <BalanceDisplay
+                isLoading={stableCurrencyLoading}
+                balance={
+                  secondaryCurrency === "TOKEN"
                     ? convertPrice(portfolioValue, "FIAT", "USDT").toFixed(2)
-                    : formatPrice(portfolioValue, "FIAT")}
-                </p>
-              )}
+                    : formatPrice(portfolioValue, "FIAT")
+                }
+                symbol={
+                  secondaryCurrency === "TOKEN" ? "USDT" : userCountry || "USD"
+                }
+                showFullBalance={true}
+              />
               <p className="text-xs text-gray-500 mt-1">
                 in {secondaryCurrency === "TOKEN" ? "USDT" : userCountry}
               </p>
@@ -513,10 +496,10 @@ const WalletDetailsModal: React.FC<WalletDetailsModalProps> = ({
             <h3 className="text-lg font-medium text-white">Token Balance</h3>
             <button
               onClick={handleRefreshBalance}
-              disabled={debouncedIsLoading}
+              disabled={stableTokenLoading}
               className="text-sm text-gray-400 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {debouncedIsLoading ? (
+              {stableTokenLoading ? (
                 <div className="w-4 h-4 border-2 border-Red border-t-transparent rounded-full animate-spin" />
               ) : (
                 "Refresh"
@@ -547,29 +530,35 @@ const WalletDetailsModal: React.FC<WalletDetailsModalProps> = ({
 
               <div className="relative" ref={dropdownRef}>
                 <div className="min-h-[24px] flex items-center">
-                  {BalanceDisplay}
+                  <BalanceDisplay
+                    isLoading={stableTokenLoading}
+                    balance={formattedBalance}
+                    symbol={wallet.selectedToken.symbol}
+                  />
                 </div>
               </div>
             </div>
 
-            {currentTokenBalance && !currencyLoading && !debouncedIsLoading && (
-              <div className="text-xs text-gray-500 mt-2 space-y-1 transition-opacity duration-200">
-                <div className="flex justify-between">
-                  <span>
-                    ≈{" "}
-                    {formatPrice(
-                      convertPrice(
-                        parseFloat(currentTokenBalance.raw),
-                        wallet.selectedToken.symbol,
+            {currentTokenBalance &&
+              !stableCurrencyLoading &&
+              !stableTokenLoading && (
+                <div className="text-xs text-gray-500 mt-2 space-y-1 transition-opacity duration-200">
+                  <div className="flex justify-between">
+                    <span>
+                      ≈{" "}
+                      {formatPrice(
+                        convertPrice(
+                          parseFloat(currentTokenBalance.raw),
+                          wallet.selectedToken.symbol,
+                          "CELO"
+                        ),
                         "CELO"
-                      ),
-                      "CELO"
-                    )}
-                  </span>
-                  <span>≈ {currentTokenBalance.fiat}</span>
+                      )}
+                    </span>
+                    <span>≈ {currentTokenBalance.fiat}</span>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
           </div>
         </div>
 
@@ -590,7 +579,7 @@ const WalletDetailsModal: React.FC<WalletDetailsModalProps> = ({
                     ? `${parseFloat(wallet.balance).toFixed(4)} CELO`
                     : "0.0000 CELO"}
                 </span>
-                {!currencyLoading && wallet.balance && (
+                {!stableCurrencyLoading && wallet.balance && (
                   <p className="text-xs text-gray-500">
                     ≈{" "}
                     {formatPrice(
@@ -606,7 +595,7 @@ const WalletDetailsModal: React.FC<WalletDetailsModalProps> = ({
         </div>
 
         {/* Currency Info */}
-        {!currencyLoading && (
+        {!stableCurrencyLoading && (
           <div className="text-xs text-gray-500 text-center p-2 bg-Red/5 rounded-lg border border-Red/10">
             Prices shown in {userCountry || "USD"} • Updated every 5 minutes
           </div>

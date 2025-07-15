@@ -26,6 +26,7 @@
     "ethers": "^6.13.7",
     "framer-motion": "^12.15.0",
     "jwt-decode": "^4.0.0",
+    "lodash-es": "^4.17.21",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-error-boundary": "^5.0.0",
@@ -45,6 +46,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.19.0",
+    "@types/lodash-es": "^4.17.12",
     "@types/react": "^19.0.8",
     "@types/react-dom": "^19.0.3",
     "@types/trusted-types": "^2.0.7",

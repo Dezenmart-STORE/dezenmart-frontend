@@ -1,4 +1,3 @@
-// src/context/Web3Context.tsx
 import React, {
   createContext,
   useContext,
@@ -8,6 +7,7 @@ import React, {
   useMemo,
   useRef,
 } from "react";
+import { debounce } from "lodash-es";
 import {
   useAccount,
   useConnect,
@@ -83,6 +83,16 @@ interface ExtendedWeb3ContextType extends Omit<Web3ContextType, "wallet"> {
   approveUSDT: (amount: string) => Promise<string>;
 }
 
+const CACHE_DURATION = 240000; // 4 minutes
+const BALANCE_FETCH_INTERVAL = 300000; // 5 minutes
+
+interface BalanceCache {
+  [key: string]: {
+    data: TokenBalance;
+    timestamp: number;
+  };
+}
+
 const Web3Context = createContext<ExtendedWeb3ContextType | undefined>(
   undefined
 );
@@ -102,7 +112,9 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
   const { switchChain } = useSwitchChain();
   const { writeContractAsync } = useWriteContract();
   const { convertPrice, formatPrice } = useCurrencyConverter();
-
+  //balance cache
+  const balanceCacheRef = useRef<BalanceCache>({});
+  const refreshInProgressRef = useRef<Set<string>>(new Set());
   // State for selected token and balances
   const [selectedToken, setSelectedTokenState] = useState<StableToken>(() => {
     const saved = localStorage.getItem("selectedToken");
@@ -216,21 +228,19 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
     },
   });
 
-  // Optimized token balance fetching
+  // token balance fetching
   const fetchTokenBalance = useCallback(
     async (token: StableToken): Promise<TokenBalance | null> => {
       if (!address || !chain?.id || !isCorrectNetwork) return null;
 
+      // Check cache first
+      const cached = balanceCacheRef.current[token.symbol];
+      if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+        return cached.data;
+      }
+
       const tokenAddress = getTokenAddress(token, chain.id);
       if (!tokenAddress) return null;
-
-      // Check if we fetched recently (within 4 minutes)
-      const now = Date.now();
-      const lastFetch = lastFetchRef.current[token.symbol] || 0;
-      if (now - lastFetch < 240000) {
-        // 4 minutes
-        return tokenBalances[token.symbol] || null;
-      }
 
       try {
         const balance = await readContract(wagmiConfig, {
@@ -254,72 +264,71 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
           "FIAT"
         );
 
-        lastFetchRef.current[token.symbol] = now;
+        const balanceData = { raw, formatted, fiat };
 
-        return { raw, formatted, fiat };
+        // Update cache
+        balanceCacheRef.current[token.symbol] = {
+          data: balanceData,
+          timestamp: Date.now(),
+        };
+
+        return balanceData;
       } catch (error) {
         console.error(`Failed to fetch ${token.symbol} balance:`, error);
         return null;
       }
     },
-    [
-      address,
-      chain?.id,
-      isCorrectNetwork,
-      tokenBalances,
-      convertPrice,
-      formatPrice,
-    ]
+    [address, chain?.id, isCorrectNetwork, convertPrice, formatPrice]
   );
+  // Debounced balance fetching
+  const debouncedFetchBalance = useCallback(
+    debounce(async (tokenSymbol: string) => {
+      if (refreshInProgressRef.current.has(tokenSymbol)) {
+        return;
+      }
 
+      refreshInProgressRef.current.add(tokenSymbol);
+
+      try {
+        const token = getTokenBySymbol(tokenSymbol);
+        if (!token) return;
+
+        const balance = await fetchTokenBalance(token);
+        if (balance) {
+          setTokenBalances((prev) => ({
+            ...prev,
+            [token.symbol]: balance,
+          }));
+
+          // Update cache
+          balanceCacheRef.current[tokenSymbol] = {
+            data: balance,
+            timestamp: Date.now(),
+          };
+        }
+      } finally {
+        refreshInProgressRef.current.delete(tokenSymbol);
+        setIsLoadingTokenBalance(false);
+      }
+    }, 300),
+    [fetchTokenBalance]
+  );
   // Refresh token balance
   const refreshTokenBalance = useCallback(
     async (tokenSymbol?: string) => {
       if (!address || !isCorrectNetwork) return;
 
-      // Prevent multiple simultaneous refreshes
-      if (isLoadingTokenBalance) return;
+      const targetSymbol = tokenSymbol || selectedToken.symbol;
+
+      // Check if already refreshing
+      if (refreshInProgressRef.current.has(targetSymbol)) {
+        return;
+      }
 
       setIsLoadingTokenBalance(true);
-
-      try {
-        if (tokenSymbol) {
-          const token = getTokenBySymbol(tokenSymbol);
-          if (token) {
-            const balance = await fetchTokenBalance(token);
-            if (balance) {
-              setTokenBalances((prev) => ({
-                ...prev,
-                [token.symbol]: balance,
-              }));
-            }
-          }
-        } else {
-          // Refresh selected token balance
-          const balance = await fetchTokenBalance(selectedToken);
-          if (balance) {
-            setTokenBalances((prev) => ({
-              ...prev,
-              [selectedToken.symbol]: balance,
-            }));
-          }
-        }
-      } catch (error) {
-        console.error("Failed to refresh token balance:", error);
-      } finally {
-        // Add a minimum delay to prevent flickering
-        setTimeout(() => {
-          setIsLoadingTokenBalance(false);
-        }, 200);
-      }
+      debouncedFetchBalance(targetSymbol);
     },
-    [
-      address,
-      isCorrectNetwork,
-      selectedToken,
-      fetchTokenBalance,
-      isLoadingTokenBalance,
-    ]
+    [address, isCorrectNetwork, selectedToken.symbol, debouncedFetchBalance]
   );
 
   // Set selected token with persistence
@@ -884,6 +893,12 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
       }
     };
   }, []);
+  useEffect(() => {
+    return () => {
+      debouncedFetchBalance.cancel();
+      refreshInProgressRef.current.clear();
+    };
+  }, [debouncedFetchBalance]);
 
   const value: ExtendedWeb3ContextType = {
     wallet,
