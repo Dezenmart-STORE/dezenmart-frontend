@@ -443,7 +443,8 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                           disabled={isProcessing}
                         >
                           <span className="text-white font-medium">
-                            {selectedToken.icon ? (
+                            {typeof selectedToken.icon === "string" &&
+                            selectedToken.icon ? (
                               <img
                                 src={selectedToken.icon}
                                 alt={selectedToken.symbol}
@@ -479,7 +480,8 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                               >
                                 <div className="flex items-center gap-2">
                                   <span className="text-lg">
-                                    {token.icon ? (
+                                    {typeof token.icon === "string" &&
+                                    token.icon ? (
                                       <img
                                         src={token.icon}
                                         alt={token.symbol}

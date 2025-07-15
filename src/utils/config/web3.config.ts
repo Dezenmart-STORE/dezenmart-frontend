@@ -1,6 +1,21 @@
 import { http, createConfig, fallback } from "wagmi";
 import { celo, celoAlfajores } from "wagmi/chains";
 import { coinbaseWallet, metaMask, walletConnect } from "wagmi/connectors";
+import cUSDIcon from "../../assets/icons/cUSD.svg";
+import cEURIcon from "../../assets/icons/cEUR.svg";
+import cREALIcon from "../../assets/icons/cREAL.svg";
+import cKESIcon from "../../assets/icons/cKES.svg";
+import PUSOIcon from "../../assets/icons/PUSO.svg";
+import cCOPIcon from "../../assets/icons/cCOP.svg";
+import eXOFIcon from "../../assets/icons/eXOF.svg";
+import cNGNIcon from "../../assets/icons/cNGN.svg";
+import cJPYIcon from "../../assets/icons/cJPY.svg";
+import cCHFIcon from "../../assets/icons/cCHF.svg";
+import cZARIcon from "../../assets/icons/cZAR.svg";
+import cGBPIcon from "../../assets/icons/cGBP.svg";
+import cAUDIcon from "../../assets/icons/cAUD.svg";
+import cCADIcon from "../../assets/icons/cCAD.svg";
+import cGHSIcon from "../../assets/icons/cGHS.svg";
 
 const rpcEndpoints = {
   [celo.id]: ["https://forno.celo.org", "https://rpc.ankr.com/celo"],
@@ -24,7 +39,7 @@ export const STABLE_TOKENS: StableToken[] = [
       [celo.id]: import.meta.env.VITE_USDT_CONTRACT_ADDRESS_MAINNET!,
       [celoAlfajores.id]: import.meta.env.VITE_USDT_CONTRACT_ADDRESS_TESTNET!,
     },
-    icon: require("../../assets/icons/cUSD.svg"),
+    icon: cUSDIcon,
   },
   {
     name: "Celo Euro",
@@ -34,7 +49,7 @@ export const STABLE_TOKENS: StableToken[] = [
       [celo.id]: "0xD8763CBa276a3738E6DE85b4b3bF5FDed6D6cA73",
       [celoAlfajores.id]: "0x10c892A6EC43a53E45D0B916B4b7D383B1b78C0F",
     },
-    icon: require("../../assets/icons/cEUR.svg"),
+    icon: cEURIcon,
   },
   {
     name: "Celo Brazilian Real",
@@ -44,7 +59,7 @@ export const STABLE_TOKENS: StableToken[] = [
       [celo.id]: "0xe8537a3d056DA446677B9E9d6c5dB704EaAb4787",
       [celoAlfajores.id]: "0xE4D517785D091D3c54818832dB6094bcc2744545",
     },
-    icon: require("../../assets/icons/cREAL.svg"),
+    icon: cREALIcon,
   },
   {
     name: "Celo Kenyan Shilling",
@@ -54,7 +69,7 @@ export const STABLE_TOKENS: StableToken[] = [
       [celo.id]: "0x456a3D042C0DbD3db53D5489e98dFb038553B0d0",
       [celoAlfajores.id]: "0x02De4766C272abc10Bc88c220D214A26960a7e92",
     },
-    icon: require("../../assets/icons/cKES.svg"),
+    icon: cKESIcon,
   },
   {
     name: "Philippine Peso",
@@ -64,7 +79,7 @@ export const STABLE_TOKENS: StableToken[] = [
       [celo.id]: "0x46c9757C5497c5B1f2eb73aE79b6B67D119B0B58",
       [celoAlfajores.id]: "0x02De4766C272abc10Bc88c220D214A26960a7e92",
     },
-    icon: require("../../assets/icons/PUSO.svg"),
+    icon: PUSOIcon,
   },
   {
     name: "Colombian Peso",
@@ -74,7 +89,7 @@ export const STABLE_TOKENS: StableToken[] = [
       [celo.id]: "0x62492A644A588FD904270BeD06ad52B9abfEA1aE",
       [celoAlfajores.id]: "0x02De4766C272abc10Bc88c220D214A26960a7e92",
     },
-    icon: require("../../assets/icons/cCOP.svg"),
+    icon: cCOPIcon,
   },
   {
     name: "CFA Franc",
@@ -84,7 +99,7 @@ export const STABLE_TOKENS: StableToken[] = [
       [celo.id]: "0x73F93dcc49cB8A239e2032663e9475dd5ef29A08",
       [celoAlfajores.id]: "0x02De4766C272abc10Bc88c220D214A26960a7e92",
     },
-    icon: require("../../assets/icons/eXOF.svg"),
+    icon: eXOFIcon,
   },
   {
     name: "Nigerian Naira",
@@ -94,7 +109,7 @@ export const STABLE_TOKENS: StableToken[] = [
       [celo.id]: "0x17700282592D6917F6A73D0bF8AcCf4D578c131e",
       [celoAlfajores.id]: "0x02De4766C272abc10Bc88c220D214A26960a7e92",
     },
-    icon: require("../../assets/icons/cNGN.svg"),
+    icon: cNGNIcon,
   },
   {
     name: "Japanese Yen",
@@ -104,7 +119,7 @@ export const STABLE_TOKENS: StableToken[] = [
       [celo.id]: "0x39049C02A56C3e0b3E4df5bb3e7b65AaC9A24D4F",
       [celoAlfajores.id]: "0x02De4766C272abc10Bc88c220D214A26960a7e92",
     },
-    icon: require("../../assets/icons/cJPY.svg"),
+    icon: cJPYIcon,
   },
   {
     name: "Swiss Franc",
@@ -114,7 +129,7 @@ export const STABLE_TOKENS: StableToken[] = [
       [celo.id]: "0x2F25deB3848C207fc8E0c34035B3Ba7fC157602B",
       [celoAlfajores.id]: "0x02De4766C272abc10Bc88c220D214A26960a7e92",
     },
-    icon: require("../../assets/icons/cCHF.svg"),
+    icon: cCHFIcon,
   },
   {
     name: "South African Rand",
@@ -124,7 +139,7 @@ export const STABLE_TOKENS: StableToken[] = [
       [celo.id]: "0x02De4766C272abc10Bc88c220D214A26960a7e92",
       [celoAlfajores.id]: "0x02De4766C272abc10Bc88c220D214A26960a7e92",
     },
-    icon: require("../../assets/icons/cZAR.svg"),
+    icon: cZARIcon,
   },
   {
     name: "British Pound",
@@ -134,7 +149,7 @@ export const STABLE_TOKENS: StableToken[] = [
       [celo.id]: "0x5d71876f56681de70c75366b64b80B7f043c7A87",
       [celoAlfajores.id]: "0x02De4766C272abc10Bc88c220D214A26960a7e92",
     },
-    icon: require("../../assets/icons/cGBP.svg"),
+    icon: cGBPIcon,
   },
   {
     name: "Australian Dollar",
@@ -144,7 +159,7 @@ export const STABLE_TOKENS: StableToken[] = [
       [celo.id]: "0x02De4766C272abc10Bc88c220D214A26960a7e92",
       [celoAlfajores.id]: "0x02De4766C272abc10Bc88c220D214A26960a7e92",
     },
-    icon: require("../../assets/icons/cAUD.svg"),
+    icon: cAUDIcon,
   },
   {
     name: "Canadian Dollar",
@@ -154,7 +169,7 @@ export const STABLE_TOKENS: StableToken[] = [
       [celo.id]: "0x02De4766C272abc10Bc88c220D214A26960a7e92",
       [celoAlfajores.id]: "0x02De4766C272abc10Bc88c220D214A26960a7e92",
     },
-    icon: require("../../assets/icons/cCAD.svg"),
+    icon: cCADIcon,
   },
   {
     name: "Ghanaian Cedi",
@@ -164,7 +179,7 @@ export const STABLE_TOKENS: StableToken[] = [
       [celo.id]: "0x02De4766C272abc10Bc88c220D214A26960a7e92",
       [celoAlfajores.id]: "0x02De4766C272abc10Bc88c220D214A26960a7e92",
     },
-    icon: require("../../assets/icons/cGHS.svg"),
+    icon: cGHSIcon,
   },
 ];
 
