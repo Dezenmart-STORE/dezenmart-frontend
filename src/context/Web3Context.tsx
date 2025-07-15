@@ -277,6 +277,9 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
     async (tokenSymbol?: string) => {
       if (!address || !isCorrectNetwork) return;
 
+      // Prevent multiple simultaneous refreshes
+      if (isLoadingTokenBalance) return;
+
       setIsLoadingTokenBalance(true);
 
       try {
@@ -304,10 +307,19 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
       } catch (error) {
         console.error("Failed to refresh token balance:", error);
       } finally {
-        setIsLoadingTokenBalance(false);
+        // Add a minimum delay to prevent flickering
+        setTimeout(() => {
+          setIsLoadingTokenBalance(false);
+        }, 200);
       }
     },
-    [address, isCorrectNetwork, selectedToken, fetchTokenBalance]
+    [
+      address,
+      isCorrectNetwork,
+      selectedToken,
+      fetchTokenBalance,
+      isLoadingTokenBalance,
+    ]
   );
 
   // Set selected token with persistence
@@ -379,8 +391,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
 
   // Update wallet state
   useEffect(() => {
-    setWallet((prev) => ({
-      ...prev,
+    const newWalletState: ExtendedWalletState = {
       isConnected,
       address,
       chainId: chain?.id,
@@ -388,11 +399,26 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
         ? formatUnits(celoBalance.value, celoBalance.decimals)
         : undefined,
       error: connectError?.message,
-      isConnecting: isConnecting || isLoadingCurrentToken,
+      isConnecting: isConnecting,
       selectedToken,
       tokenBalances,
       isLoadingTokenBalance,
-    }));
+    };
+    setWallet((prev) => {
+      const hasChanged =
+        prev.isConnected !== newWalletState.isConnected ||
+        prev.address !== newWalletState.address ||
+        prev.chainId !== newWalletState.chainId ||
+        prev.balance !== newWalletState.balance ||
+        prev.error !== newWalletState.error ||
+        prev.isConnecting !== newWalletState.isConnecting ||
+        prev.selectedToken.symbol !== newWalletState.selectedToken.symbol ||
+        prev.isLoadingTokenBalance !== newWalletState.isLoadingTokenBalance ||
+        Object.keys(prev.tokenBalances).length !==
+          Object.keys(newWalletState.tokenBalances).length;
+
+      return hasChanged ? newWalletState : prev;
+    });
   }, [
     isConnected,
     address,
@@ -400,7 +426,6 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
     celoBalance,
     connectError,
     isConnecting,
-    isLoadingCurrentToken,
     selectedToken,
     tokenBalances,
     isLoadingTokenBalance,
