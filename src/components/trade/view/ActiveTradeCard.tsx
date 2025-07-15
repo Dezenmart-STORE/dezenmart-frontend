@@ -13,13 +13,15 @@ interface ActiveTradeCardProps {
     formattedUsdtAmount: string;
     formattedCeloAmount: string;
     formattedFiatAmount: string;
+    formattedTokenAmount: string;
     formattedDate: string;
   };
 }
 
 const ActiveTradeCard: FC<ActiveTradeCardProps> = ({ trade }) => {
   const [copied, setCopied] = useState(false);
-  const { secondaryCurrency } = useCurrency();
+  const { secondaryCurrency, fiatCurrency, selectedTokenSymbol } =
+    useCurrency();
 
   // if (!trade || !trade.product) {
   //   return (
@@ -34,9 +36,13 @@ const ActiveTradeCard: FC<ActiveTradeCardProps> = ({ trade }) => {
   const secondaryPrice = useMemo(() => {
     switch (secondaryCurrency) {
       case "TOKEN":
-        return trade.formattedUsdtAmount || "0.00";
+        return trade.formattedTokenAmount || "0.00";
       default:
-        return trade.formattedFiatAmount || "0.00";
+        if (fiatCurrency === selectedTokenSymbol.replace(/^c/, "")) {
+          return trade.formattedUsdtAmount || "0.00";
+        } else {
+          return trade.formattedFiatAmount || "0.00";
+        }
     }
   }, [secondaryCurrency, trade]);
 

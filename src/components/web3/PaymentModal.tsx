@@ -443,7 +443,17 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                           disabled={isProcessing}
                         >
                           <span className="text-white font-medium">
-                            {selectedToken.icon || "💰"} {selectedToken.symbol}
+                            {selectedToken.icon ? (
+                              <img
+                                src={selectedToken.icon}
+                                alt={selectedToken.symbol}
+                                width={24}
+                                height={24}
+                              />
+                            ) : (
+                              "💰"
+                            )}{" "}
+                            {selectedToken.symbol}
                           </span>
                           <HiChevronDown
                             className={`w-4 h-4 text-gray-400 transition-transform ${
@@ -469,7 +479,16 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                               >
                                 <div className="flex items-center gap-2">
                                   <span className="text-lg">
-                                    {token.icon || "💰"}
+                                    {token.icon ? (
+                                      <img
+                                        src={token.icon}
+                                        alt={token.symbol}
+                                        width={24}
+                                        height={24}
+                                      />
+                                    ) : (
+                                      "💰"
+                                    )}
                                   </span>
                                   <span className="text-white font-medium">
                                     {token.symbol}

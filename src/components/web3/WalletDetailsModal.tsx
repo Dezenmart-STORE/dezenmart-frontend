@@ -207,7 +207,16 @@ const WalletDetailsModal: React.FC<WalletDetailsModalProps> = ({
         case "TOKEN":
           return (
             <span className="w-4 h-4 flex items-center justify-center text-sm">
-              {wallet.selectedToken.icon || "💰"}
+              {wallet.selectedToken.icon ? (
+                <img
+                  src={wallet.selectedToken.icon}
+                  alt={wallet.selectedToken.symbol}
+                  width={20}
+                  height={20}
+                />
+              ) : (
+                "💰"
+              )}
             </span>
           );
         case "CELO":
@@ -354,7 +363,16 @@ const WalletDetailsModal: React.FC<WalletDetailsModalProps> = ({
             >
               <div className="flex items-center gap-3">
                 <span className="text-xl">
-                  {wallet.selectedToken.icon || "💰"}
+                  {wallet.selectedToken.icon ? (
+                    <img
+                      src={wallet.selectedToken.icon}
+                      alt={wallet.selectedToken.symbol}
+                      width={24}
+                      height={24}
+                    />
+                  ) : (
+                    "💰"
+                  )}
                 </span>
                 <div className="text-left">
                   <p className="text-white font-medium">
@@ -385,7 +403,18 @@ const WalletDetailsModal: React.FC<WalletDetailsModalProps> = ({
                     }`}
                   >
                     <div className="flex items-center gap-3">
-                      <span className="text-lg">{token.icon || "💰"}</span>
+                      <span className="text-lg">
+                        {token.icon ? (
+                          <img
+                            src={token.icon}
+                            alt={token.symbol}
+                            width={24}
+                            height={24}
+                          />
+                        ) : (
+                          "💰"
+                        )}
+                      </span>
                       <div className="text-left">
                         <p className="text-white font-medium">{token.symbol}</p>
                         <p className="text-sm text-gray-400">{token.name}</p>
@@ -422,7 +451,16 @@ const WalletDetailsModal: React.FC<WalletDetailsModalProps> = ({
             <div className="flex flex-wrap gap-2 justify-between items-center">
               <div className="flex items-center gap-2">
                 <span className="text-xl">
-                  {wallet.selectedToken.icon || "💰"}
+                  {wallet.selectedToken.icon ? (
+                    <img
+                      src={wallet.selectedToken.icon}
+                      alt={wallet.selectedToken.symbol}
+                      width={24}
+                      height={24}
+                    />
+                  ) : (
+                    "💰"
+                  )}
                 </span>
                 <span className="text-gray-300 font-medium">
                   {wallet.selectedToken.symbol}

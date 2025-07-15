@@ -12,6 +12,7 @@ interface CompletedTradeCardProps {
   trade: Order & {
     formattedUsdtAmount: string;
     formattedCeloAmount: string;
+    formattedTokenAmount: string;
     formattedFiatAmount: string;
     formattedDate: string;
   };
@@ -19,7 +20,8 @@ interface CompletedTradeCardProps {
 
 const CompletedTradeCard: FC<CompletedTradeCardProps> = ({ trade }) => {
   const [copied, setCopied] = useState(false);
-  const { secondaryCurrency } = useCurrency();
+  const { secondaryCurrency, fiatCurrency, selectedTokenSymbol } =
+    useCurrency();
 
   // Early return if trade data is incomplete
   // if (!trade || !trade.product) {
@@ -35,9 +37,13 @@ const CompletedTradeCard: FC<CompletedTradeCardProps> = ({ trade }) => {
   const secondaryPrice = useMemo(() => {
     switch (secondaryCurrency) {
       case "TOKEN":
-        return trade.formattedUsdtAmount || "0.00";
+        return trade.formattedTokenAmount || "0.00";
       default:
-        return trade.formattedFiatAmount || "0.00";
+        if (fiatCurrency === selectedTokenSymbol.replace(/^c/, "")) {
+          return trade.formattedUsdtAmount || "0.00";
+        } else {
+          return trade.formattedFiatAmount || "0.00";
+        }
     }
   }, [secondaryCurrency, trade]);
 

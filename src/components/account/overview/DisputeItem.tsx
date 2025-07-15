@@ -12,6 +12,8 @@ interface DisputeItemProps {
     formattedUsdtPrice?: string;
     formattedCeloPrice?: string;
     formattedFiatPrice?: string;
+    formattedTokenPrice?: string;
+    formattedTokenAmount?: string;
     formattedUsdtAmount?: string;
     formattedCeloAmount?: string;
     formattedFiatAmount?: string;
@@ -24,20 +26,28 @@ interface DisputeItemProps {
 
 const DisputeItem: React.FC<DisputeItemProps> = React.memo(
   ({ order, disputeStatus }) => {
-    const { secondaryCurrency } = useCurrency();
+    const { secondaryCurrency, fiatCurrency, selectedTokenSymbol } =
+      useCurrency();
 
     const secondaryPrice = useMemo(() => {
       switch (secondaryCurrency) {
         case "TOKEN":
           return {
-            unit: order.formattedUsdtPrice,
-            total: order.formattedUsdtAmount,
+            unit: order.formattedTokenPrice,
+            total: order.formattedTokenAmount,
           };
         default:
-          return {
-            unit: order.formattedFiatPrice,
-            total: order.formattedFiatAmount,
-          };
+          if (fiatCurrency === selectedTokenSymbol.replace(/^c/, "")) {
+            return {
+              unit: order.formattedUsdtPrice,
+              total: order.formattedUsdtAmount,
+            };
+          } else {
+            return {
+              unit: order.formattedFiatPrice,
+              total: order.formattedFiatAmount,
+            };
+          }
       }
     }, [secondaryCurrency, order]);
 

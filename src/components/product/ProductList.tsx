@@ -27,6 +27,7 @@ interface FormattedProductProp extends Product {
   formattedCeloPrice: string;
   formattedFiatPrice: string;
   formattedUsdtPrice: string;
+  formattedTokenPrice: string;
 }
 
 // const ITEMS_PER_PAGE = window.innerWidth < 768 ? 6 : 12;

@@ -13,6 +13,7 @@ interface ProductCardProps {
     formattedCeloPrice: string;
     formattedFiatPrice: string;
     formattedUsdtPrice: string;
+    formattedTokenPrice: string;
   };
   isNew?: boolean;
 }
@@ -22,11 +23,14 @@ const ProductCard = React.memo(
     const navigate = useNavigate();
     const { _id, name, description, images, isSponsored } = product;
     const { isProductInWatchlist, toggleWatchlist } = useWatchlist();
-    const { secondaryCurrency } = useCurrency();
+    const { secondaryCurrency, fiatCurrency, selectedTokenSymbol } =
+      useCurrency();
     const isFavorite = isProductInWatchlist(_id);
 
     const secondaryPrice =
       secondaryCurrency === "TOKEN"
+        ? product.formattedTokenPrice
+        : fiatCurrency === selectedTokenSymbol.replace(/^c/, "")
         ? product.formattedUsdtPrice
         : product.formattedFiatPrice;
 

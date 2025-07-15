@@ -10,8 +10,10 @@ import { useCurrency } from "../../../context/CurrencyContext";
 interface EnhancedOrder extends Order {
   formattedDate?: string;
   formattedUsdtPrice?: string;
+  formattedTokenPrice?: string;
   formattedCeloPrice?: string;
   formattedFiatPrice?: string;
+  formattedTokenAmount?: string;
   formattedUsdtAmount?: string;
   formattedCeloAmount?: string;
   formattedFiatAmount?: string;
@@ -23,20 +25,28 @@ interface EnhancedOrder extends Order {
 
 const OrderHistoryItem: React.FC<EnhancedOrder> = React.memo((item) => {
   const navigate = useNavigate();
-  const { secondaryCurrency } = useCurrency();
+  const { secondaryCurrency, fiatCurrency, selectedTokenSymbol } =
+    useCurrency();
 
   const secondaryPrice = useMemo(() => {
     switch (secondaryCurrency) {
       case "TOKEN":
         return {
-          unit: item.formattedUsdtPrice,
-          total: item.formattedUsdtAmount,
+          unit: item.formattedTokenPrice,
+          total: item.formattedTokenAmount,
         };
       default:
-        return {
-          unit: item.formattedFiatPrice,
-          total: item.formattedFiatAmount,
-        };
+        if (fiatCurrency === selectedTokenSymbol.replace(/^c/, "")) {
+          return {
+            unit: item.formattedUsdtPrice,
+            total: item.formattedUsdtAmount,
+          };
+        } else {
+          return {
+            unit: item.formattedFiatPrice,
+            total: item.formattedFiatAmount,
+          };
+        }
     }
   }, [secondaryCurrency, item]);
 

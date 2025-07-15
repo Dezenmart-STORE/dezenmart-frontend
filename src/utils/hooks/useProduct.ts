@@ -26,9 +26,11 @@ import { useCurrencyConverter } from "./useCurrencyConverter";
 import { Product } from "../types";
 import { useCurrency } from "../../context/CurrencyContext";
 import { useAuth } from "../../context/AuthContext";
+import { useWeb3 } from "../../context/Web3Context";
 
 export const useProductData = () => {
   const { user } = useAuth();
+  const { wallet } = useWeb3();
   const { secondaryCurrency } = useCurrency();
   const dispatch = useAppDispatch();
   const { showSnackbar } = useSnackbar();
@@ -53,11 +55,20 @@ export const useProductData = () => {
 
       const celoPrice = convertPrice(product.price, "USDT", "CELO");
       const fiatPrice = convertPrice(product.price, "USDT", "FIAT");
+      const tokenPrice = convertPrice(
+        product.price,
+        "USDT",
+        `${wallet.selectedToken.symbol}`
+      );
 
       return {
         ...product,
         celoPrice,
         fiatPrice,
+        formattedTokenPrice: formatPrice(
+          tokenPrice,
+          `${wallet.selectedToken.symbol}`
+        ),
         formattedUsdtPrice: formatPrice(product.price, "USDT"),
         formattedCeloPrice: formatPrice(celoPrice, "CELO"),
         formattedFiatPrice: formatPrice(fiatPrice, "FIAT"),

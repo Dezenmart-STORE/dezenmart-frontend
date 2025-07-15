@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { WatchlistItem } from "../../../utils/types";
 import { useCurrency } from "../../../context/CurrencyContext";
 import { useCurrencyConverter } from "../../../utils/hooks/useCurrencyConverter";
+import { useWeb3 } from "../../../context/Web3Context";
 
 interface SavedItemProps {
   item: WatchlistItem;
@@ -16,8 +17,10 @@ interface SavedItemProps {
 const SavedItem: React.FC<SavedItemProps> = React.memo(
   ({ item, index, onRemove }) => {
     const navigate = useNavigate();
-    const { secondaryCurrency } = useCurrency();
+    const { secondaryCurrency, fiatCurrency, selectedTokenSymbol } =
+      useCurrency();
     const { convertPrice, formatPrice } = useCurrencyConverter();
+    const { wallet } = useWeb3();
 
     const formattedPrices = useMemo(() => {
       const price = item.product?.price;
@@ -25,11 +28,18 @@ const SavedItem: React.FC<SavedItemProps> = React.memo(
 
       const celoPrice = convertPrice(price, "USDT", "CELO");
       const fiatPrice = convertPrice(price, "USDT", "FIAT");
+      const tokenPrice = convertPrice(
+        price,
+        "USDT",
+        `${wallet.selectedToken.symbol}`
+      );
 
       return {
         celo: formatPrice(celoPrice, "CELO"),
         secondary:
           secondaryCurrency === "TOKEN"
+            ? formatPrice(tokenPrice, `${wallet.selectedToken.symbol}`)
+            : fiatCurrency === selectedTokenSymbol.replace(/^c/, "")
             ? formatPrice(price, "USDT")
             : formatPrice(fiatPrice, "FIAT"),
       };

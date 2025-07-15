@@ -24,8 +24,10 @@ import { api } from "../services/apiService";
 import { OrderStatus, Order } from "../types";
 import { useCurrencyConverter } from "./useCurrencyConverter";
 import { useCurrency } from "../../context/CurrencyContext";
+import { useWeb3 } from "../../context/Web3Context";
 
 export const useOrderData = () => {
+  const { wallet } = useWeb3();
   const { secondaryCurrency } = useCurrency();
   const dispatch = useAppDispatch();
   const { showSnackbar } = useSnackbar();
@@ -48,9 +50,15 @@ export const useOrderData = () => {
       const usdtPrice = order.amount;
       const celoPrice = convertPrice(usdtPrice, "USDT", "CELO");
       const fiatPrice = convertPrice(usdtPrice, "USDT", "FIAT");
+      const tokenPrice = convertPrice(
+        usdtPrice,
+        "USDT",
+        `${wallet.selectedToken.symbol}`
+      );
       const totalUsdtAmount = usdtPrice * (order.quantity || 1);
       const totalCeloAmount = celoPrice * (order.quantity || 1);
       const totalFiatAmount = fiatPrice * (order.quantity || 1);
+      const totalTokenAmount = tokenPrice * (order.quantity || 1);
 
       return {
         ...order,
@@ -60,10 +68,19 @@ export const useOrderData = () => {
         usdtPrice,
         celoPrice,
         fiatPrice,
+        tokenPrice,
 
+        formattedTokenPrice: formatPrice(
+          tokenPrice,
+          `${wallet.selectedToken.symbol}`
+        ),
         formattedUsdtPrice: formatPrice(usdtPrice, "USDT"),
         formattedCeloPrice: formatPrice(celoPrice, "CELO"),
         formattedFiatPrice: formatPrice(fiatPrice, "FIAT"),
+        formattedTokenAmount: formatPrice(
+          totalTokenAmount,
+          `${wallet.selectedToken.symbol}`
+        ),
         formattedUsdtAmount: formatPrice(totalUsdtAmount, "USDT"),
         formattedCeloAmount: formatPrice(totalCeloAmount, "CELO"),
         formattedFiatAmount: formatPrice(totalFiatAmount, "FIAT"),

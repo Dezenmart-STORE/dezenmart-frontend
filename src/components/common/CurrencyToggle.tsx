@@ -8,28 +8,20 @@ const CurrencyToggle = () => {
     toggleSecondaryCurrency,
     selectedTokenSymbol,
     fiatCurrency,
+    displayCurrency,
   } = useCurrency();
 
-  const displayText = useMemo(() => {
-    if (secondaryCurrency === "TOKEN") {
-      return selectedTokenSymbol;
-    }
-    // If fiatCurrency is USD and selectedTokenSymbol is cUSD, show "USD"
-    if (fiatCurrency === "USD" && selectedTokenSymbol === "cUSD") {
-      return "USD";
-    }
-    return fiatCurrency;
+  const nextCurrency = useMemo(() => {
+    return secondaryCurrency === "FIAT" ? selectedTokenSymbol : fiatCurrency;
   }, [secondaryCurrency, selectedTokenSymbol, fiatCurrency]);
 
   return (
     <button
       onClick={toggleSecondaryCurrency}
       className="flex items-center gap-1 px-1.5 md:px-2 py-1 rounded bg-[#373A3F] hover:bg-[#42464d] transition-colors focus:outline-none focus:ring-2 focus:ring-Red focus:ring-opacity-50"
-      aria-label={`Toggle currency display to ${
-        secondaryCurrency === "TOKEN" ? fiatCurrency : selectedTokenSymbol
-      }`}
+      aria-label={`Toggle currency display to ${nextCurrency}`}
     >
-      <span className="text-xs text-white">{displayText}</span>
+      <span className="text-xs text-white">{displayCurrency}</span>
       <IoMdSwap className="text-white text-xs" />
     </button>
   );

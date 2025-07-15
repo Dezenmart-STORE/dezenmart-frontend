@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useState, ReactNode, useMemo } from "react";
 import { useWeb3 } from "./Web3Context";
 import { useCurrencyConverter } from "../utils/hooks/useCurrencyConverter";
 
@@ -9,6 +9,7 @@ interface CurrencyContextType {
   toggleSecondaryCurrency: () => void;
   selectedTokenSymbol: string;
   fiatCurrency: string;
+  displayCurrency: string;
 }
 
 const CurrencyContext = createContext<CurrencyContextType | undefined>(
@@ -31,23 +32,34 @@ export const CurrencyProvider = ({ children }: CurrencyProviderProps) => {
   const { wallet } = useWeb3();
   const { userCountry } = useCurrencyConverter();
   const [secondaryCurrency, setSecondaryCurrency] =
-    useState<SecondaryCurrency>("TOKEN");
+    useState<SecondaryCurrency>("FIAT");
 
   const toggleSecondaryCurrency = () => {
-    setSecondaryCurrency((prev) => (prev === "TOKEN" ? "FIAT" : "TOKEN"));
+    setSecondaryCurrency((prev) => (prev === "FIAT" ? "TOKEN" : "FIAT"));
   };
 
-  // If fiat currency matches the stable token, display USD as fallback
-  const fiatCurrency =
-    userCountry === wallet.selectedToken.symbol.replace(/^c/, "")
-      ? "USD"
-      : userCountry;
+  const selectedTokenSymbol = wallet.selectedToken.symbol;
+
+  // Check if fiat currency matches the stable token
+  const fiatCurrency = useMemo(() => {
+    const tokenWithoutPrefix = selectedTokenSymbol.replace(/^c/, "");
+    return userCountry === tokenWithoutPrefix ? "USD" : userCountry;
+  }, [userCountry, selectedTokenSymbol]);
+
+  // Display currency for UI
+  const displayCurrency = useMemo(() => {
+    if (secondaryCurrency === "TOKEN") {
+      return selectedTokenSymbol;
+    }
+    return fiatCurrency;
+  }, [secondaryCurrency, selectedTokenSymbol, fiatCurrency]);
 
   const value = {
     secondaryCurrency,
     toggleSecondaryCurrency,
-    selectedTokenSymbol: wallet.selectedToken.symbol,
+    selectedTokenSymbol,
     fiatCurrency,
+    displayCurrency,
   };
 
   return (

@@ -31,7 +31,8 @@ const SingleProduct = () => {
     fetchProductById,
     relatedProducts,
   } = useProductData();
-  const { secondaryCurrency } = useCurrency();
+  const { secondaryCurrency, fiatCurrency, selectedTokenSymbol } =
+    useCurrency();
   const [activeTab, setActiveTab] = useState<TabType>("details");
   const [reviewCount, setReviewCount] = useState(0);
   const { isProductInWatchlist, toggleWatchlist, checkProductWatchlist } =
@@ -209,6 +210,9 @@ const SingleProduct = () => {
                       <span className="text-2xl font-bold">
                         {/* {formattedProduct.formattedCeloPrice} */}
                         {secondaryCurrency === "TOKEN"
+                          ? formattedProduct.formattedTokenPrice
+                          : fiatCurrency ===
+                            selectedTokenSymbol.replace(/^c/, "")
                           ? formattedProduct.formattedUsdtPrice
                           : formattedProduct.formattedFiatPrice}
                       </span>
