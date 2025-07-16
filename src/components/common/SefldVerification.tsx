@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Modal from "./Modal";
 import { FullLogo } from "../../pages";
 import { v4 as uuidv4 } from "uuid";
@@ -49,18 +49,20 @@ function SefldVerification({ isOpen, onClose }: props) {
     setSelfApp(
       new SelfAppBuilder({
         appName: "Dezenmart",
-        scope: "dezenmart-scope",
+        scope: "dezenmart",
         endpoint: `${API_URL}/users/verify-self`,
         endpointType: "https",
-        logoBase64: FullLogo,
+        logoBase64: "https://dezenmart.netlify.app/images/logo.png",
         userId: id,
         disclosures: {
           name: true,
+          // ofac: true,
           nationality: true,
-          passport_number: true,
-          expiry_date: true,
-          issuing_state: true,
-          minimumAge: 18,
+          // passport_number: true,
+          // expiry_date: true,
+          // issuing_state: true,
+          minimumAge: 15,
+          date_of_birth: true,
         },
       }).build() as SelfApp
     );
