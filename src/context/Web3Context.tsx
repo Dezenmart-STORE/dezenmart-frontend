@@ -61,13 +61,9 @@ interface ExtendedWalletState extends WalletState {
   isLoadingTokenBalance: boolean;
 }
 
-interface ExtendedBuyTradeParams extends BuyTradeParams {
-  paymentToken: string; // token symbol
-}
-
 interface ExtendedWeb3ContextType extends Omit<Web3ContextType, "wallet"> {
   wallet: ExtendedWalletState;
-  buyTrade: (params: ExtendedBuyTradeParams) => Promise<PaymentTransaction>;
+  buyTrade: (params: BuyTradeParams) => Promise<PaymentTransaction>;
   validateTradeBeforePurchase: (
     tradeId: string,
     quantity: string,
@@ -534,7 +530,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
 
   // Updated buy trade function
   const buyTrade = useCallback(
-    async (params: ExtendedBuyTradeParams): Promise<PaymentTransaction> => {
+    async (params: BuyTradeParams): Promise<PaymentTransaction> => {
       if (!address || !chain?.id) {
         throw new Error("Wallet not connected");
       }
@@ -549,10 +545,10 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
         throw new Error("Escrow contract not available on this network");
       }
 
-      const paymentToken = getTokenBySymbol(params.paymentToken);
-      if (!paymentToken) {
-        throw new Error(`Payment token ${params.paymentToken} not found`);
-      }
+      // const paymentToken = getTokenBySymbol(params.paymentToken);
+      // if (!paymentToken) {
+      //   throw new Error(`Payment token ${params.paymentToken} not found`);
+      // }
 
       try {
         const tradeId = BigInt(params.tradeId);
@@ -635,15 +631,15 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
 
         // Refresh balance after successful purchase
         setTimeout(() => {
-          refreshTokenBalance(params.paymentToken);
+          refreshTokenBalance(selectedToken.symbol);
         }, 2000);
 
         return {
           hash,
           amount: "0",
-          token: params.paymentToken,
           to: escrowAddress,
           from: address,
+          token: selectedToken.symbol,
           status: "pending",
           timestamp: Date.now(),
           purchaseId,
@@ -654,17 +650,17 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
         const errorMessage = error?.message || error?.toString() || "";
 
         if (
-          errorMessage.includes(`Insufficient${params.paymentToken}Balance`)
+          errorMessage.includes(`Insufficient${selectedToken.symbol}Balance`)
         ) {
           throw new Error(
-            `Insufficient ${params.paymentToken} balance for this purchase`
+            `Insufficient ${selectedToken.symbol} balance for this purchase`
           );
         }
         if (
-          errorMessage.includes(`Insufficient${params.paymentToken}Allowance`)
+          errorMessage.includes(`Insufficient${selectedToken.symbol}Allowance`)
         ) {
           throw new Error(
-            `${params.paymentToken} allowance insufficient. Please approve the amount first`
+            `${selectedToken.symbol} allowance insufficient. Please approve the amount first`
           );
         }
         if (

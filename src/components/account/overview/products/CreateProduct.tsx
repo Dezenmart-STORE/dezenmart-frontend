@@ -10,14 +10,23 @@ import {
   Suspense,
 } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { FiImage, FiX, FiPlus, FiVideo, FiTag } from "react-icons/fi";
-import { useNavigate } from "react-router-dom";
+import {
+  FiImage,
+  FiX,
+  FiPlus,
+  FiVideo,
+  FiTag,
+  FiCheck,
+  FiChevronDown,
+} from "react-icons/fi";
+// import { useNavigate } from "react-router-dom";
 import { useProductData } from "../../../../utils/hooks/useProduct";
 import Button from "../../../common/Button";
 import { useCurrencyConverter } from "../../../../utils/hooks/useCurrencyConverter";
 import { LogisticsProvider } from "../../../../utils/types";
 import { useSnackbar } from "../../../../context/SnackbarContext";
 import { useContract } from "../../../../utils/hooks/useContract";
+import { useWeb3 } from "../../../../context/Web3Context";
 
 const LoadingSpinner = lazy(() => import("../../../common/LoadingSpinner"));
 
@@ -121,7 +130,8 @@ const fadeInAnimation = {
 };
 
 const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
-  const navigate = useNavigate();
+  // const navigate = useNavigate();
+  const { wallet, availableTokens } = useWeb3();
   const { createProduct, loading } = useProductData();
   const { showSnackbar } = useSnackbar();
   const { convertPrice, userCountry } = useCurrencyConverter();
@@ -130,11 +140,30 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
     logisticsProviders: apiResponse,
     logisticsProviderLoading,
   } = useContract();
-
+  const [isTokenSelectorOpen, setIsTokenSelectorOpen] = useState(false);
+  const [paymentToken, setPaymentToken] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
 
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        isTokenSelectorOpen &&
+        !(event.target as Element)?.closest('[aria-haspopup="listbox"]')
+      ) {
+        setIsTokenSelectorOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isTokenSelectorOpen]);
+  useEffect(() => {
+    if (wallet?.selectedToken?.symbol) {
+      setPaymentToken(wallet.selectedToken.symbol);
+    }
+  }, [wallet?.selectedToken]);
   const [formState, setFormState] = useState({
     name: "",
     description: "",
@@ -476,7 +505,10 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
 
     return {
       address,
-      name: `${randomPrefix} ${randomSuffix}`,
+      name:
+        address === "0xCeaD78F9Cf39Aba45Ea39E297bC0771cF28f3bb4"
+          ? "default"
+          : `${randomPrefix} ${randomSuffix}`,
       location: `${randomCity}, Nigeria`,
       cost: randomCost,
     };
@@ -574,6 +606,9 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
     if (nonEmptyVariants.length > 0 && totalVariantQuantity !== stockQuantity) {
       newErrors.variants = `Total variant quantity (${totalVariantQuantity}) exceeds available stock (${stockQuantity})`;
     }
+    if (!paymentToken && !wallet?.selectedToken?.symbol) {
+      newErrors.submit = "Please select a payment token";
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -612,6 +647,10 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
       formData.append("stock", stock);
       formData.append("sellerWalletAddress", sellerWalletAddress);
       formData.append("useUSDT", "true");
+      formData.append(
+        "paymentToken",
+        paymentToken || wallet?.selectedToken?.symbol || "USDT"
+      );
 
       if (selectedLogistics.length > 0) {
         // const addresses = selectedLogistics.map((provider) => provider.address);
@@ -1295,6 +1334,117 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
               Enter the price in either USDT or your local currency. The
               conversion will happen automatically.
             </p>
+          </section>
+
+          {/* Payment Token Selection */}
+          <section aria-labelledby="payment-token-section">
+            <h3 id="payment-token-section" className="block text-white mb-2">
+              Payment Token <span className="text-Red">*</span>
+            </h3>
+
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setIsTokenSelectorOpen(!isTokenSelectorOpen)}
+                className="w-full flex items-center justify-between p-3 bg-[#333] rounded-lg border border-gray-600 hover:border-Red/30 hover:bg-Red/5 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-Red"
+                aria-expanded={isTokenSelectorOpen}
+                aria-haspopup="listbox"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="text-lg">
+                    {typeof wallet?.selectedToken?.icon === "string" &&
+                    wallet.selectedToken.icon ? (
+                      <img
+                        src={wallet.selectedToken.icon}
+                        alt={wallet.selectedToken.symbol}
+                        className="w-6 h-6 rounded-full"
+                      />
+                    ) : (
+                      "💰"
+                    )}
+                  </div>
+
+                  <div className="flex flex-col items-start">
+                    <div className="text-white font-medium">
+                      {wallet?.selectedToken?.symbol || "USDT"}
+                    </div>
+                    <div className="text-gray-400 text-sm">
+                      {wallet?.selectedToken?.name || "Tether USD"}
+                    </div>
+                  </div>
+                </div>
+
+                <FiChevronDown
+                  className={`text-gray-400 transition-transform duration-200 ${
+                    isTokenSelectorOpen ? "rotate-180" : ""
+                  }`}
+                  size={20}
+                />
+              </button>
+
+              <AnimatePresence>
+                {isTokenSelectorOpen && (
+                  <motion.div
+                    className="absolute top-full left-0 right-0 mt-1 bg-[#333] rounded-lg border border-gray-600 shadow-lg z-50 max-h-60 overflow-y-auto"
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.2 }}
+                    role="listbox"
+                  >
+                    {availableTokens.map((token) => (
+                      <button
+                        key={token.symbol}
+                        type="button"
+                        onClick={() => {
+                          setPaymentToken(token.symbol);
+                          setIsTokenSelectorOpen(false);
+                        }}
+                        className={`w-full flex items-center justify-between p-3 hover:bg-Red/10 transition-colors ${
+                          token.symbol ===
+                          (wallet?.selectedToken?.symbol || paymentToken)
+                            ? "bg-Red/20 border-l-2 border-Red"
+                            : ""
+                        }`}
+                        role="option"
+                        aria-selected={
+                          token.symbol ===
+                          (wallet?.selectedToken?.symbol || paymentToken)
+                        }
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="text-lg">
+                            {typeof token.icon === "string" && token.icon ? (
+                              <img
+                                src={token.icon}
+                                alt={token.symbol}
+                                className="w-6 h-6 rounded-full"
+                              />
+                            ) : (
+                              "💰"
+                            )}
+                          </div>
+
+                          <div className="flex flex-col items-start">
+                            <div className="text-white font-medium">
+                              {token.symbol}
+                            </div>
+                            <div className="text-gray-400 text-sm">
+                              {token.name}
+                            </div>
+                          </div>
+                        </div>
+
+                        {token.symbol ===
+                          (wallet?.selectedToken?.symbol || paymentToken) && (
+                          <FiCheck className="text-Red" size={16} />
+                        )}
+                      </button>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </section>
 
           {/* Logistics Providers */}

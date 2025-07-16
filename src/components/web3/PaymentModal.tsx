@@ -289,7 +289,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
             tradeId: orderDetails.product.tradeId,
             quantity: orderDetails.quantity.toString(),
             logisticsProvider: orderDetails.logisticsProviderWalletAddress[0],
-            paymentToken: selectedToken.symbol,
+            // paymentToken: selectedToken.symbol,
           });
           setTransaction(paymentTransaction);
           setStep("success");
