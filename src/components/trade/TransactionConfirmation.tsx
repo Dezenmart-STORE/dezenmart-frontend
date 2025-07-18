@@ -2,7 +2,7 @@ import { FC, useState, useEffect } from "react";
 import { FaSpinner, FaCheckCircle, FaTimesCircle } from "react-icons/fa";
 import { motion } from "framer-motion";
 import { useWeb3 } from "../../context/Web3Context";
-import { useWalletBalance } from "../../utils/hooks/useWalletBalance";
+// import { useWalletBalance } from "../../utils/hooks/useWalletBalance";
 import { useCurrencyConverter } from "../../utils/hooks/useCurrencyConverter";
 import { PaymentTransaction } from "../../utils/types/web3.types";
 
@@ -28,7 +28,7 @@ const TransactionConfirmation: FC<TransactionConfirmationProps> = ({
 }) => {
   const { wallet, sendPayment, isCorrectNetwork, switchToCorrectNetwork } =
     useWeb3();
-  const { usdtBalance, celoBalance } = useWalletBalance();
+  // const { usdtBalance, celoBalance } = useWalletBalance();
   const { formatPrice } = useCurrencyConverter();
 
   const [status, setStatus] = useState<"pending" | "success" | "error">(
@@ -56,23 +56,28 @@ const TransactionConfirmation: FC<TransactionConfirmationProps> = ({
         }
 
         // Validate balances
-        const userUSDTBalance = parseFloat(usdtBalance || "0");
+        const userTokenBalance = parseFloat(
+          wallet.tokenBalances[wallet.selectedToken.symbol].formatted || "0"
+        );
         const requiredAmount = parseFloat(amount);
         const requiredWithBuffer = requiredAmount * 1.02; // 2% buffer
 
-        if (userUSDTBalance < requiredWithBuffer) {
+        if (userTokenBalance < requiredWithBuffer) {
           setStatus("error");
           setErrorMessage(
             `Insufficient USDT balance. You need ${formatPrice(
               requiredAmount,
               "USDT"
-            )} but only have ${formatPrice(userUSDTBalance, "USDT")} available.`
+            )} but only have ${formatPrice(
+              userTokenBalance,
+              "USDT"
+            )} available.`
           );
           onComplete(false);
           return;
         }
 
-        const userCELOBalance = parseFloat(celoBalance || "0");
+        const userCELOBalance = parseFloat(wallet.balance || "0");
         if (userCELOBalance < 0.001) {
           console.warn("Low CELO balance for gas fees");
         }
@@ -110,8 +115,7 @@ const TransactionConfirmation: FC<TransactionConfirmationProps> = ({
     amount,
     tradeId,
     isCorrectNetwork,
-    usdtBalance,
-    celoBalance,
+    wallet,
   ]);
 
   return (

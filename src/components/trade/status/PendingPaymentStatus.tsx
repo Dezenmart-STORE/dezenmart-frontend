@@ -15,7 +15,7 @@ import { FiEdit2 } from "react-icons/fi";
 import LogisticsSelector from "../../product/singleProduct/LogisticsSelector";
 import { useSnackbar } from "../../../context/SnackbarContext";
 import { useWeb3 } from "../../../context/Web3Context";
-import { useWalletBalance } from "../../../utils/hooks/useWalletBalance";
+// import { useWalletBalance } from "../../../utils/hooks/useWalletBalance";
 import { useOrderData } from "../../../utils/hooks/useOrder";
 import { ESCROW_ADDRESSES } from "../../../utils/config/web3.config";
 import PaymentModal from "../../web3/PaymentModal";
@@ -63,8 +63,13 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
   const navigate = useNavigate();
   const { showSnackbar } = useSnackbar();
   const [isLoadingBalance, setIsLoadingBalance] = useState(false);
-  const { wallet, connectWallet, validateTradeBeforePurchase } = useWeb3();
-  const { usdtBalance, refetch: refetchBalance } = useWalletBalance();
+  const {
+    wallet,
+    connectWallet,
+    validateTradeBeforePurchase,
+    refreshTokenBalance,
+  } = useWeb3();
+  // const { usdtBalance, refetch: refetchBalance } = useWalletBalance();
   const { changeOrderStatus, currentOrder } = useOrderData();
   const [tradeValidation, setTradeValidation] = useState<{
     isValid: boolean;
@@ -259,7 +264,9 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
         selectedLogistics && selectedLogistics !== currentLogistics;
 
       const userBalance = (() => {
-        const balanceStr = String(usdtBalance || 0).replace(/[,\s]/g, "");
+        const balanceStr = String(
+          wallet.tokenBalances[wallet.selectedToken.symbol].formatted || 0
+        ).replace(/[,\s]/g, "");
         const parsed = Number(balanceStr);
         return Number.isFinite(parsed) ? parsed : 0;
       })();
@@ -288,7 +295,7 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
     orderDetails?.logisticsProviderWalletAddress?.[0],
     quantity,
     selectedLogisticsProvider?.walletAddress,
-    usdtBalance,
+    wallet,
   ]);
 
   const escrowAddress = useMemo(() => {
@@ -369,7 +376,7 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
       if (mountedRef.current && !isLoadingBalance) {
         setIsLoadingBalance(true);
         try {
-          await refetchBalance();
+          await refreshTokenBalance(wallet.selectedToken.symbol);
         } finally {
           if (mountedRef.current) {
             setIsLoadingBalance(false);
@@ -377,7 +384,7 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
         }
       }
     }, 1000);
-  }, [refetchBalance, isLoadingBalance]);
+  }, [refreshTokenBalance, isLoadingBalance]);
 
   const handlePayNow = useCallback(async () => {
     if (!orderValidation.isValid || loading) return;
