@@ -243,7 +243,7 @@ const WalletDetailsModal: React.FC<WalletDetailsModalProps> = ({
 
       setSelectedToken(token);
       setIsTokenSelectorOpen(false);
-      showSnackbar(`Switched to ${token.symbol}`, "success");
+      // showSnackbar(`Switched to ${token.symbol}`, "success");
 
       // Debounced refresh
       if (refreshTimeoutRef.current) {

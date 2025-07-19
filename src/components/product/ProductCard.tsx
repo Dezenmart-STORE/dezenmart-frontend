@@ -33,7 +33,7 @@ const ProductCard = React.memo(
         : fiatCurrency === selectedTokenSymbol.replace(/^c/, "")
         ? product.formattedUsdtPrice
         : product.formattedFiatPrice;
-    }, [secondaryCurrency]);
+    }, [secondaryCurrency, selectedTokenSymbol, fiatCurrency]);
     const imageUrl =
       images && images.length > 0
         ? images[0]

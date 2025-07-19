@@ -295,7 +295,8 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
     orderDetails?.logisticsProviderWalletAddress?.[0],
     quantity,
     selectedLogisticsProvider?.walletAddress,
-    wallet,
+    // wallet.tokenBalances,
+    wallet.selectedToken.symbol,
   ]);
 
   const escrowAddress = useMemo(() => {
@@ -554,7 +555,10 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
   const handleEditModalOpen = useCallback(() => {
     if (!loading) {
       setIsEditModalOpen(true);
-      console.log(calculations);
+      console.log(
+        calculations,
+        wallet.tokenBalances[wallet.selectedToken.symbol]
+      );
     }
   }, [loading]);
 

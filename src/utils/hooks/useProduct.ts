@@ -74,7 +74,7 @@ export const useProductData = () => {
         formattedFiatPrice: formatPrice(fiatPrice, "FIAT"),
       };
     },
-    [convertPrice, formatPrice]
+    [convertPrice, formatPrice, wallet.selectedToken.symbol]
   );
   const shouldExcludeSeller = useCallback(
     (productSeller: string | { _id: string; name: string }) => {
