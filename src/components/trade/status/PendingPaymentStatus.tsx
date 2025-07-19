@@ -554,6 +554,7 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
   const handleEditModalOpen = useCallback(() => {
     if (!loading) {
       setIsEditModalOpen(true);
+      console.log(calculations);
     }
   }, [loading]);
 

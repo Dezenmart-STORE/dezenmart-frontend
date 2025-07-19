@@ -10,6 +10,8 @@ import { LuMessageSquare } from "react-icons/lu";
 import Button from "../../common/Button";
 import { IoChevronBack } from "react-icons/io5";
 import TradeDetailRow from "../view/TradeDetailRow";
+import { useCurrencyConverter } from "../../../utils/hooks/useCurrencyConverter";
+import { useWeb3 } from "../../../context/Web3Context";
 
 interface BaseStatusProps {
   statusTitle: string;
@@ -40,7 +42,12 @@ const BaseStatus: FC<BaseStatusProps> = memo(
     timeRemaining,
   }) => {
     const [copied, setCopied] = useState(false);
-
+    const {
+      loading: exchangeRatesLoading,
+      convertPrice,
+      formatPrice,
+    } = useCurrencyConverter();
+    const { wallet } = useWeb3();
     const derivedData = useMemo(() => {
       const productName =
         tradeDetails?.productName ||
@@ -49,8 +56,11 @@ const BaseStatus: FC<BaseStatusProps> = memo(
 
       const orderId = tradeDetails?.orderNo || orderDetails?._id || "";
 
-      const amount =
-        tradeDetails?.amount || orderDetails?.product?.price || "0";
+      const amount = tradeDetails?.amount || orderDetails?.product?.price || 0;
+      const formattedAmount = formatPrice(
+        convertPrice(amount, "USDT", `${wallet.selectedToken.symbol}`),
+        `${wallet.selectedToken.symbol}`
+      );
 
       const quantity = (() => {
         const qty = tradeDetails?.quantity || orderDetails?.quantity;
@@ -67,7 +77,7 @@ const BaseStatus: FC<BaseStatusProps> = memo(
       return {
         productName,
         orderId,
-        amount,
+        amount: formattedAmount,
         quantity,
         orderTime,
         tradeType,

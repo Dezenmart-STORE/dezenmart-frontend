@@ -1,4 +1,11 @@
-import { createContext, useContext, useState, ReactNode, useMemo } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  ReactNode,
+  useMemo,
+  useEffect,
+} from "react";
 import { useWeb3 } from "./Web3Context";
 import { useCurrencyConverter } from "../utils/hooks/useCurrencyConverter";
 
@@ -28,11 +35,36 @@ interface CurrencyProviderProps {
   children: ReactNode;
 }
 
+const STORAGE_KEY = "dezenmart_secondary_currency";
+
 export const CurrencyProvider = ({ children }: CurrencyProviderProps) => {
   const { wallet } = useWeb3();
   const { userCountry } = useCurrencyConverter();
-  const [secondaryCurrency, setSecondaryCurrency] =
-    useState<SecondaryCurrency>("FIAT");
+
+  // Initialize state from localStorage or default to "FIAT"
+  const [secondaryCurrency, setSecondaryCurrency] = useState<SecondaryCurrency>(
+    () => {
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        return (stored as SecondaryCurrency) || "FIAT";
+      } catch (error) {
+        console.warn(
+          "Failed to load secondary currency from localStorage:",
+          error
+        );
+        return "FIAT";
+      }
+    }
+  );
+
+  // Persist to localStorage whenever secondaryCurrency changes
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, secondaryCurrency);
+    } catch (error) {
+      console.warn("Failed to save secondary currency to localStorage:", error);
+    }
+  }, [secondaryCurrency]);
 
   const toggleSecondaryCurrency = () => {
     setSecondaryCurrency((prev) => (prev === "FIAT" ? "TOKEN" : "FIAT"));

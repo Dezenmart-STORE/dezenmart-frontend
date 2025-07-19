@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { FaRegHeart, FaHeart } from "react-icons/fa";
 // import { RiVerifiedBadgeFill } from "react-icons/ri";
 import { Link, useNavigate } from "react-router-dom";
@@ -27,13 +27,13 @@ const ProductCard = React.memo(
       useCurrency();
     const isFavorite = isProductInWatchlist(_id);
 
-    const secondaryPrice =
-      secondaryCurrency === "TOKEN"
+    const secondaryPrice = useMemo(() => {
+      return secondaryCurrency === "TOKEN"
         ? product.formattedTokenPrice
         : fiatCurrency === selectedTokenSymbol.replace(/^c/, "")
         ? product.formattedUsdtPrice
         : product.formattedFiatPrice;
-
+    }, [secondaryCurrency]);
     const imageUrl =
       images && images.length > 0
         ? images[0]
