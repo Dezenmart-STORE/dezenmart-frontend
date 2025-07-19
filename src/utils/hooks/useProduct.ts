@@ -31,7 +31,7 @@ import { useWeb3 } from "../../context/Web3Context";
 export const useProductData = () => {
   const { user } = useAuth();
   const { wallet } = useWeb3();
-  const { secondaryCurrency } = useCurrency();
+  const { secondaryCurrency, selectedTokenSymbol } = useCurrency();
   const dispatch = useAppDispatch();
   const { showSnackbar } = useSnackbar();
   const {

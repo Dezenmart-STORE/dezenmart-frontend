@@ -27,13 +27,13 @@ const ProductCard = React.memo(
       useCurrency();
     const isFavorite = isProductInWatchlist(_id);
 
-    const secondaryPrice = useMemo(() => {
-      return secondaryCurrency === "TOKEN"
+    const secondaryPrice =
+      secondaryCurrency === "TOKEN"
         ? product.formattedTokenPrice
         : fiatCurrency === selectedTokenSymbol.replace(/^c/, "")
         ? product.formattedUsdtPrice
         : product.formattedFiatPrice;
-    }, [secondaryCurrency, selectedTokenSymbol, fiatCurrency]);
+    // }, [secondaryCurrency, selectedTokenSymbol, fiatCurrency]);
     const imageUrl =
       images && images.length > 0
         ? images[0]

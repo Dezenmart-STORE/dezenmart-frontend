@@ -26,6 +26,7 @@ import {
   storeOrderId,
 } from "../../../utils/helpers";
 import { PaymentTransaction } from "../../../utils/types/web3.types";
+import { useCurrencyConverter } from "../../../utils/hooks/useCurrencyConverter";
 
 interface PendingPaymentStatusProps {
   tradeDetails?: TradeDetails;
@@ -69,6 +70,7 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
     validateTradeBeforePurchase,
     refreshTokenBalance,
   } = useWeb3();
+  const { convertPrice } = useCurrencyConverter();
   // const { usdtBalance, refetch: refetchBalance } = useWalletBalance();
   const { changeOrderStatus, currentOrder } = useOrderData();
   const [tradeValidation, setTradeValidation] = useState<{
@@ -265,7 +267,7 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
 
       const userBalance = (() => {
         const balanceStr = String(
-          wallet.tokenBalances[wallet.selectedToken.symbol].formatted || 0
+          wallet.tokenBalances[wallet.selectedToken.symbol].raw || 0
         ).replace(/[,\s]/g, "");
         const parsed = Number(balanceStr);
         return Number.isFinite(parsed) ? parsed : 0;
@@ -276,7 +278,13 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
         requiredAmount,
         hasChanges: hasQuantityChanged || Boolean(hasLogisticsChanged),
         userBalance,
-        hasSufficientBalance: userBalance >= requiredAmount,
+        hasSufficientBalance:
+          userBalance >=
+          convertPrice(
+            requiredAmount,
+            "USDT",
+            `${wallet.selectedToken.symbol}`
+          ),
       };
     } catch (error) {
       console.error("Calculation error:", error);
