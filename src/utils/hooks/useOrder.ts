@@ -85,7 +85,7 @@ export const useOrderData = () => {
         formattedFiatAmount: formatPrice(totalFiatAmount, "FIAT"),
       };
     },
-    [convertPrice, formatPrice]
+    [convertPrice, formatPrice, wallet.selectedToken.symbol]
   );
 
   const formattedOrders = useMemo(() => {

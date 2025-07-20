@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { useAppDispatch, useAppSelector } from "./redux";
 import {
   fetchWatchlist,
@@ -14,10 +14,20 @@ import {
   selectIsWatchlistMap,
 } from "../../store/selectors/watchlistSelectors";
 import { useSnackbar } from "../../context/SnackbarContext";
+import { WatchlistItem } from "../types";
+import { useWeb3 } from "../../context/Web3Context";
+import { useCurrencyConverter } from "./useCurrencyConverter";
 
 export const useWatchlist = () => {
   const dispatch = useAppDispatch();
   const { showSnackbar } = useSnackbar();
+  const { wallet } = useWeb3();
+
+  const {
+    loading: exchangeRatesLoading,
+    convertPrice,
+    formatPrice,
+  } = useCurrencyConverter();
 
   const watchlistItems = useAppSelector(selectWatchlistItems);
   const loading = useAppSelector(selectWatchlistLoading);
@@ -32,6 +42,53 @@ export const useWatchlist = () => {
     }
   }, [dispatch, watchlistItems.length, loading]);
 
+  const formatWatchlistWithCurrencies = useCallback(
+    (watchlistItem: WatchlistItem) => {
+      if (!watchlistItem) return null;
+
+      const celoPrice = convertPrice(
+        watchlistItem.product.price,
+        "USDT",
+        "CELO"
+      );
+      const fiatPrice = convertPrice(
+        watchlistItem.product.price,
+        "USDT",
+        "FIAT"
+      );
+      const tokenPrice = convertPrice(
+        watchlistItem.product.price,
+        "USDT",
+        `${wallet.selectedToken.symbol}`
+      );
+
+      return {
+        ...watchlistItem,
+        product: {
+          ...watchlistItem.product,
+          celoPrice,
+          fiatPrice,
+          formattedTokenPrice: formatPrice(
+            tokenPrice,
+            `${wallet.selectedToken.symbol}`
+          ),
+          formattedUsdtPrice: formatPrice(watchlistItem.product.price, "USDT"),
+          formattedCeloPrice: formatPrice(celoPrice, "CELO"),
+          formattedFiatPrice: formatPrice(fiatPrice, "FIAT"),
+        },
+      };
+    },
+    [convertPrice, formatPrice, wallet.selectedToken.symbol]
+  );
+
+  const formattedWatchlistItems = useMemo(() => {
+    return watchlistItems
+      .map(formatWatchlistWithCurrencies)
+      .filter((item): item is NonNullable<typeof item> => {
+        if (!item) return false;
+        return true;
+      });
+  }, [watchlistItems, formatWatchlistWithCurrencies]);
   const isProductInWatchlist = useCallback(
     (productId: string) => {
       return !!isWatchlistMap[productId];
@@ -125,7 +182,7 @@ export const useWatchlist = () => {
   );
 
   return {
-    watchlistItems,
+    watchlistItems: formattedWatchlistItems,
     isLoading: loading === "pending",
     error,
     watchlistCount,
