@@ -39,6 +39,7 @@ const SellCheckout = () => {
           stock: 100,
           logisticsCost: [],
           logisticsProviders: [],
+          paymentToken: "cUSD",
         };
 
         setProduct(productData);

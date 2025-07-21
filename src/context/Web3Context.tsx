@@ -76,7 +76,6 @@ interface ExtendedWeb3ContextType extends Omit<Web3ContextType, "wallet"> {
   availableTokens: StableToken[];
   usdtAllowance: bigint | undefined;
   usdtDecimals: number | undefined;
-  writeContractAsync: WriteContractMutateAsync<Config, unknown>;
   approveUSDT: (amount: string) => Promise<string>;
 }
 
@@ -901,7 +900,6 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
     wallet,
     connectWallet,
     disconnectWallet,
-    writeContractAsync,
     switchToCorrectNetwork,
     sendPayment,
     usdtAllowance,

@@ -380,6 +380,7 @@ const SAMPLE_PRODUCTS: Product[] = [
     stock: 100,
     logisticsCost: [],
     logisticsProviders: [],
+    paymentToken: "cUSD",
   },
   {
     _id: "68082f7a7d3f057ab0fafd5c",
@@ -400,6 +401,7 @@ const SAMPLE_PRODUCTS: Product[] = [
     stock: 100,
     logisticsCost: [],
     logisticsProviders: [],
+    paymentToken: "cUSD",
   },
 ];
 
@@ -423,6 +425,7 @@ const SAMPLE_INCOMING_ORDERS: Product[] = [
     stock: 100,
     logisticsCost: [],
     logisticsProviders: [],
+    paymentToken: "cUSD",
   },
 ];
 
