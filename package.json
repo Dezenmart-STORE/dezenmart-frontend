@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^5.0.1",
+    "@mento-protocol/mento-sdk": "^1.10.3",
     "@rainbow-me/rainbowkit": "^2.2.5",
     "@react-md/app-bar": "^5.1.6",
     "@react-md/form": "^5.1.6",

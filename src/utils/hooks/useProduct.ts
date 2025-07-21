@@ -65,6 +65,7 @@ export const useProductData = () => {
         ...product,
         celoPrice,
         fiatPrice,
+        tokenPrice,
         formattedTokenPrice: formatPrice(
           tokenPrice,
           `${wallet.selectedToken.symbol}`

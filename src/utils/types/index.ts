@@ -61,6 +61,7 @@ export interface Product {
   stock: number | string;
   type: ProductVariant[];
   logisticsCost: string[];
+  paymentToken: string;
   logisticsProviders: string[];
 }
 //review
