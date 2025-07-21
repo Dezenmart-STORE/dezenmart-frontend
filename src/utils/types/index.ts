@@ -104,6 +104,7 @@ export interface Order {
     tradeId: string;
     logisticsCost: string[];
     logisticsProviders: string[];
+    paymentToken: string;
   };
   buyer:
     | {

@@ -55,11 +55,11 @@ const BaseStatus: FC<BaseStatusProps> = memo(
         "Unknown Product";
 
       const orderId = tradeDetails?.orderNo || orderDetails?._id || "";
-
+      const paymentToken = orderDetails?.product.paymentToken || "cUSD";
       const amount = tradeDetails?.amount || orderDetails?.product?.price || 0;
       const formattedAmount = formatPrice(
-        convertPrice(amount, "USDT", `${wallet.selectedToken.symbol}`),
-        `${wallet.selectedToken.symbol}`
+        convertPrice(amount, "USDT", `${paymentToken}`),
+        `${paymentToken}`
       );
 
       const quantity = (() => {
@@ -74,6 +74,11 @@ const BaseStatus: FC<BaseStatusProps> = memo(
 
       const paymentMethod = tradeDetails?.paymentMethod || "CRYPTO";
 
+      // Calculate total amount: subtotal + fee + fixed charge
+      const subtotal = amount * Number(quantity);
+      const escrowFeeRate = 0.025; // 2.5%
+      const fixedCharge = 2;
+      const totalAmount = subtotal + subtotal * escrowFeeRate + fixedCharge;
       return {
         productName,
         orderId,
@@ -82,6 +87,7 @@ const BaseStatus: FC<BaseStatusProps> = memo(
         orderTime,
         tradeType,
         paymentMethod,
+        totalAmount,
       };
     }, [
       tradeDetails?.productName,
@@ -299,7 +305,7 @@ const BaseStatus: FC<BaseStatusProps> = memo(
                 <div className="flex justify-between items-center">
                   <span className="text-gray-400 text-sm">Amount</span>
                   <span className="text-red-500 text-xl font-bold">
-                    {derivedData.amount}
+                    {derivedData.totalAmount}
                   </span>
                 </div>
 

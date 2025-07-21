@@ -70,7 +70,7 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
     validateTradeBeforePurchase,
     refreshTokenBalance,
   } = useWeb3();
-  const { convertPrice } = useCurrencyConverter();
+  const { convertPrice, formatPrice } = useCurrencyConverter();
   // const { usdtBalance, refetch: refetchBalance } = useWalletBalance();
   const { changeOrderStatus, currentOrder } = useOrderData();
   const [tradeValidation, setTradeValidation] = useState<{
@@ -133,7 +133,7 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
       if (balanceRefetchTimeoutRef.current)
         clearTimeout(balanceRefetchTimeoutRef.current);
       if (tradeValidationTimeoutRef.current)
-        clearTimeout(tradeValidationTimeoutRef.current); // Add this
+        clearTimeout(tradeValidationTimeoutRef.current);
     };
   }, []);
 
@@ -254,9 +254,13 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
     }
 
     try {
-      const totalAmount = Number(
-        (orderDetails.product.price * quantity).toFixed(6)
-      );
+      // const totalAmount = Number(
+      //   (orderDetails.product.price * quantity).toFixed(6)
+      // );
+      const subtotal = orderDetails.product.price * quantity;
+      const escrowFeeRate = 0.025; // 2.5%
+      const fixedCharge = 2;
+      const totalAmount = subtotal + subtotal * escrowFeeRate + fixedCharge;
       const requiredAmount = Number((totalAmount * 1.02).toFixed(6));
 
       const hasQuantityChanged = quantity !== orderDetails.quantity;
@@ -324,7 +328,10 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
     if (!wallet.isConnected) return "Connect Wallet to Pay";
 
     if (!calculations.hasSufficientBalance) return "Insufficient Balance";
-    return `Pay ${calculations.totalAmount.toFixed(2)} USDT`;
+    return `Pay ${formatPrice(
+      calculations.totalAmount,
+      `${orderDetails?.product.paymentToken}`
+    )}`;
   }, [
     loading,
     tradeValidation.isLoading,
