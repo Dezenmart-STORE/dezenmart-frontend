@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+// PurchaseSection.tsx
+import { useState, useEffect, useCallback } from "react";
 import { FaWallet, FaSpinner } from "react-icons/fa";
 import { HiCurrencyDollar, HiSignal } from "react-icons/hi2";
 import { Product, ProductVariant } from "../../../utils/types";
@@ -6,10 +7,12 @@ import { useWeb3 } from "../../../context/Web3Context";
 import { useOrderData } from "../../../utils/hooks/useOrder";
 import { useNavigate } from "react-router-dom";
 import QuantitySelector from "./QuantitySelector";
-import { useCurrency } from "../../../context/CurrencyContext";
 import LogisticsSelector, { LogisticsProvider } from "./LogisticsSelector";
 import { useAuth } from "../../../context/AuthContext";
 import WalletConnectionModal from "../../web3/WalletConnectionModal";
+import SwapConfirmationModal from "./../../common/SwapConfirmationModal";
+import { useCurrencyConverter } from "../../../utils/hooks/useCurrencyConverter";
+import { STABLE_TOKENS } from "../../../utils/config/web3.config";
 
 interface FormattedProduct extends Product {
   celoPrice: number;
@@ -26,197 +29,188 @@ interface PurchaseSectionProps {
   selectedVariant?: ProductVariant;
 }
 
-const PurchaseSection = ({
+const PurchaseSection: React.FC<PurchaseSectionProps> = ({
   product,
   selectedVariant,
-}: PurchaseSectionProps) => {
+}) => {
   const navigate = useNavigate();
   const { placeOrder } = useOrderData();
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [quantity, setQuantity] = useState(1);
-  const [showWalletModal, setShowWalletModal] = useState(false);
-  // const { secondaryCurrency } = useCurrency();
+  const { convertPrice } = useCurrencyConverter();
+  const { wallet, performSwap, setSelectedToken } = useWeb3();
   const { isAuthenticated } = useAuth();
-  const { wallet } = useWeb3();
+
+  const [quantity, setQuantity] = useState(1);
   const [selectedLogistics, setSelectedLogistics] =
     useState<LogisticsProvider | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [isSwapping, setIsSwapping] = useState(false);
+  const [swapError, setSwapError] = useState<string | null>(null);
+  const [showWalletModal, setShowWalletModal] = useState(false);
+  const [showSwapModal, setShowSwapModal] = useState(false);
+  const [swapAmount, setSwapAmount] = useState(0);
 
   useEffect(() => {
     setQuantity(1);
   }, [selectedVariant]);
 
-  // const handleConnectWallet = async () => {
-  //   setIsProcessing(true);
-  //   setError(null);
+  const computeTotals = useCallback(() => {
+    if (!product || !selectedLogistics)
+      return { grandTotalUsd: 0, totalInSel: 0, totalInPay: 0 };
+    const totalUsd = product.price * quantity;
+    const fee = totalUsd * 0.025;
+    const logistics = selectedLogistics.cost;
+    const grandTotalUsd = totalUsd + fee + logistics;
+    const sel = wallet.selectedToken.symbol;
+    const pay = product.paymentToken;
+    const totalInSel = convertPrice(grandTotalUsd, "USDT", sel);
+    const totalInPay = convertPrice(grandTotalUsd, "USDT", pay);
+    return { grandTotalUsd, totalInSel, totalInPay };
+  }, [
+    product,
+    selectedLogistics,
+    quantity,
+    wallet.selectedToken,
+    convertPrice,
+  ]);
 
-  //   try {
-  //     await connectWallet();
-  //   } catch (err: any) {
-  //     console.error("Error connecting wallet:", err);
-  //     setError(`Failed to connect wallet: ${err.message || "Unknown error"}`);
-  //   } finally {
-  //     setIsProcessing(false);
-  //   }
-  // };
+  const handleButtonClick = async () => {
+    if (!isAuthenticated) return navigate("/login");
+    if (!product || !selectedLogistics) {
+      setSwapError("Please select delivery method");
+      return;
+    }
+    if (!wallet.isConnected) return setShowWalletModal(true);
 
-  const handleLogisticsSelect = (provider: LogisticsProvider) => {
-    setSelectedLogistics(provider);
+    const { totalInSel } = computeTotals();
+    if (wallet.selectedToken.symbol !== product.paymentToken) {
+      setSwapAmount(totalInSel);
+      setShowSwapModal(true);
+      return;
+    }
+    await doPlaceOrder();
   };
 
-  const handlePurchase = async () => {
-    if (!isAuthenticated) {
-      navigate("/login");
-      return;
-    }
-
-    if (!product) return;
-    if (!selectedLogistics) {
-      setError("Please select a delivery method");
-      return;
-    }
-
+  const doPlaceOrder = async () => {
     setIsProcessing(true);
-    setError(null);
-
+    setSwapError(null);
     try {
       const order = await placeOrder({
-        product: product._id,
-        quantity: quantity,
-        logisticsProviderWalletAddress: selectedLogistics.walletAddress,
+        product: product!._id,
+        quantity,
+        logisticsProviderWalletAddress: selectedLogistics!.walletAddress,
       });
-
-      if (order && order._id) {
-        navigate(`/orders/${order._id}?status=pending`);
-      } else {
-        setError("Failed to create order. Please try again.");
-      }
-    } catch (err) {
-      setError(`Transaction failed: ${(err as string) || "Please try again"}`);
+      if (!order?._id) throw new Error("Order creation failed");
+      navigate(`/orders/${order._id}?status=pending`);
+    } catch (err: any) {
+      setSwapError(err.message || "Purchase failed");
     } finally {
       setIsProcessing(false);
     }
   };
 
-  const handleQuantityChange = (newQuantity: number) => {
-    setQuantity(newQuantity);
+  const handleConfirmSwap = async () => {
+    setSwapError(null);
+    setIsSwapping(true);
+    try {
+      const balRaw = wallet.tokenBalances[wallet.selectedToken.symbol]?.raw;
+      if (!balRaw || parseFloat(balRaw) < swapAmount)
+        throw new Error("Insufficient balance for swap");
+      await performSwap(
+        wallet.selectedToken.symbol,
+        product!.paymentToken,
+        swapAmount
+      );
+
+      const tokenObj = STABLE_TOKENS.find(
+        (t) => t.symbol === product!.paymentToken
+      );
+      if (tokenObj) setSelectedToken(tokenObj);
+      setShowSwapModal(false);
+      await doPlaceOrder();
+    } catch (err: any) {
+      setSwapError(err.message);
+    } finally {
+      setIsSwapping(false);
+    }
   };
 
-  const isOutOfStock = selectedVariant && selectedVariant.quantity <= 0;
-  const availableQuantity = selectedVariant
+  const availableQty = selectedVariant
     ? selectedVariant.quantity
-    : product?.stock || 99;
-
-  const handleButtonClick = () => {
-    if (!isAuthenticated) {
-      navigate("/login");
-      return;
-    }
-
-    if (wallet.isConnected) {
-      handlePurchase();
-    } else {
-      setShowWalletModal(true);
-    }
-  };
+    : product?.logisticsCost.length
+    ? parseFloat(product.logisticsCost[0])
+    : 0;
+  const isOutOfStock = availableQty <= 0;
 
   return (
     <>
       <div className="bg-[#212428] p-4 md:p-6 space-y-4">
-        {error && (
-          <div className="bg-red-500/10 border border-red-500/30 text-red-400 p-3 rounded-md text-sm mb-3 flex items-center gap-2">
-            <HiSignal className="w-4 h-4 flex-shrink-0" />
-            {error}
+        {swapError && (
+          <div className="bg-red-500/10 border border-red-500/30 text-red-400 p-3 rounded-md text-sm flex items-center gap-2">
+            <HiSignal className="w-4 h-4" />
+            {swapError}
           </div>
         )}
 
-        {/* Quantity Selector */}
         <div className="flex justify-between items-center">
           <QuantitySelector
             min={1}
             max={99}
-            onChange={handleQuantityChange}
-            availableQuantity={availableQuantity as number}
+            availableQuantity={availableQty}
+            onChange={setQuantity}
           />
-
           {isOutOfStock ? (
-            <span className="text-xs text-red-500 font-medium">
-              Out of stock
-            </span>
-          ) : availableQuantity && Number(availableQuantity) < 10 ? (
-            <span className="text-xs text-yellow-500 font-medium">
-              Only {availableQuantity} left
+            <span className="text-xs text-red-500">Out of stock</span>
+          ) : availableQty < 10 ? (
+            <span className="text-xs text-yellow-500">
+              Only {availableQty} left
             </span>
           ) : null}
         </div>
 
-        {/* Logistics Selector */}
         <LogisticsSelector
-          logisticsCost={product?.logisticsCost ?? []}
-          logisticsProviders={product?.logisticsProviders ?? []}
-          onSelect={handleLogisticsSelect}
+          logisticsCost={product?.logisticsCost || []}
+          logisticsProviders={product?.logisticsProviders || []}
           selectedProvider={selectedLogistics}
+          onSelect={setSelectedLogistics}
         />
 
-        {/* Purchase Button */}
-        <div className="flex gap-3 w-full">
-          <button
-            className="bg-Red text-white py-3 px-6 md:px-10 font-bold flex-1 rounded-md transition-all duration-200 hover:bg-Red/80 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-Red flex items-center justify-center gap-2 shadow-lg"
-            onClick={handleButtonClick}
-            disabled={isProcessing || !product || isOutOfStock}
-          >
-            {isProcessing ? (
-              <span className="flex items-center justify-center gap-2">
-                <FaSpinner className="animate-spin text-lg" />
-                Processing...
-              </span>
-            ) : (
-              <>
-                <FaWallet className="text-lg" />
-                <span>
-                  {isOutOfStock
-                    ? "Out of Stock"
-                    : !isAuthenticated
-                    ? "Login to buy"
-                    : wallet.isConnected
-                    ? "Buy Now"
-                    : "Connect wallet to buy"}
-                </span>
-              </>
-            )}
-          </button>
-        </div>
+        <button
+          onClick={handleButtonClick}
+          disabled={isProcessing || isSwapping || isOutOfStock}
+          className="bg-red-600 text-white py-3 px-6 rounded-md w-full flex justify-center items-center gap-2 hover:bg-red-700 disabled:opacity-50"
+        >
+          {isProcessing || isSwapping ? (
+            <>
+              <FaSpinner className="animate-spin" />
+              Processing...
+            </>
+          ) : (
+            <>
+              <FaWallet />
+              {!isAuthenticated
+                ? "Login to Buy"
+                : !wallet.isConnected
+                ? "Connect Wallet"
+                : "Buy Now"}
+            </>
+          )}
+        </button>
 
-        {/* Wallet Balance Display */}
         {wallet.isConnected && (
-          <div className="bg-Dark/30 border border-Red/20 rounded-lg p-2 text-xs">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <HiCurrencyDollar className="w-3 h-3 text-Red" />
-                <span className="text-gray-400">Balance:</span>
+          <div className="bg-gray-800 border border-gray-700 rounded-lg p-2 text-xs">
+            <div className="flex justify-between">
+              <div className="flex items-center gap-1">
+                <HiCurrencyDollar className="text-red-500" />
+                Balance:
               </div>
-              <div className="flex items-center gap-3">
-                <span className="text-white">
-                  {wallet.tokenBalances[wallet.selectedToken.symbol]
-                    ?.formatted || "Loading..."}
-                </span>
-                {/* <span className="text-gray-300">
-                  {wallet.balance
-                    ? `${parseFloat(wallet.balance).toFixed(2)} CELO`
-                    : "0 CELO"}
-                </span> */}
+              <div className="text-white">
+                {wallet.tokenBalances[wallet.selectedToken.symbol]?.formatted ||
+                  "Loading..."}
               </div>
             </div>
-
-            <div className="text-center mt-1 pt-1 border-t border-Red/10">
-              <div className="text-gray-500 text-xs">
-                {wallet.address
-                  ? `${wallet.address.substring(
-                      0,
-                      4
-                    )}...${wallet.address.substring(wallet.address.length - 4)}`
-                  : ""}
-              </div>
+            <div className="text-gray-500 text-center mt-1 border-t border-gray-700 pt-1 text-xs">
+              {wallet.address &&
+                `${wallet.address.slice(0, 4)}…${wallet.address.slice(-4)}`}
             </div>
           </div>
         )}
@@ -225,6 +219,18 @@ const PurchaseSection = ({
       <WalletConnectionModal
         isOpen={showWalletModal}
         onClose={() => setShowWalletModal(false)}
+      />
+
+      <SwapConfirmationModal
+        isOpen={showSwapModal}
+        fromToken={wallet.selectedToken.symbol}
+        toToken={product?.paymentToken || ""}
+        amountIn={swapAmount}
+        amountOut={computeTotals().totalInPay}
+        isProcessing={isSwapping}
+        error={swapError || undefined}
+        onClose={() => setShowSwapModal(false)}
+        onConfirm={handleConfirmSwap}
       />
     </>
   );

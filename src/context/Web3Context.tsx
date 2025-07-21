@@ -14,13 +14,20 @@ import {
   useDisconnect,
   useBalance,
   useSwitchChain,
-} from "wagmi";
-import { parseUnits, formatUnits, erc20Abi, decodeEventLog } from "viem";
-import {
+  useWalletClient,
   useReadContract,
   useWriteContract,
-  useWaitForTransactionReceipt,
+  useChainId,
+  // useWaitForTransactionReceipt,
 } from "wagmi";
+import {
+  parseUnits,
+  formatUnits,
+  erc20Abi,
+  decodeEventLog,
+  WalletClient,
+} from "viem";
+
 import {
   Web3ContextType,
   WalletState,
@@ -43,6 +50,8 @@ import { useCurrencyConverter } from "../utils/hooks/useCurrencyConverter";
 import { DEZENMART_ABI } from "../utils/abi/dezenmartAbi.json";
 import { ESCROW_ADDRESSES } from "../utils/config/web3.config";
 import { parseWeb3Error } from "../utils/errorParser";
+import { Mento } from "@mento-protocol/mento-sdk";
+import { providers, Wallet as EthersWallet, utils } from "ethers";
 import {
   readContract,
   simulateContract,
@@ -77,6 +86,10 @@ interface ExtendedWeb3ContextType extends Omit<Web3ContextType, "wallet"> {
   usdtAllowance: bigint | undefined;
   usdtDecimals: number | undefined;
   approveUSDT: (amount: string) => Promise<string>;
+  walletClient?: WalletClient;
+  chainId?: number;
+  mento?: Mento;
+  performSwap: (from: string, to: string, amount: number) => Promise<void>;
 }
 
 const CACHE_DURATION = 240000; // 4 minutes
@@ -98,6 +111,9 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
 }) => {
   const { showSnackbar } = useSnackbar();
   const { address, isConnected, chain } = useAccount();
+  const { data: walletClient } = useWalletClient();
+  const chainId = useChainId();
+  const [mento, setMento] = useState<Mento | undefined>();
   const {
     connect,
     connectors,
@@ -125,6 +141,49 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
   // Refs for interval management
   const balanceIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastFetchRef = useRef<Record<string, number>>({});
+
+  useEffect(() => {
+    if (!walletClient || !chainId) return;
+    // convert Viem WalletClient to Ethers.js Signer
+    const transport = walletClient.transport;
+    const network = { chainId: chainId, name: walletClient.chain.name };
+    const provider =
+      transport.type === "fallback"
+        ? new providers.JsonRpcProvider(
+            transport.transports[0].value.url,
+            network
+          )
+        : new providers.JsonRpcProvider(transport.url, network);
+
+    const signer = (provider.getSigner as any)(walletClient.account.address);
+    Mento.create(signer).then(setMento).catch(console.error);
+  }, [walletClient, chainId]);
+
+  const performSwap = async (
+    fromSymbol: string,
+    toSymbol: string,
+    amount: number
+  ) => {
+    if (!mento || !walletClient || !chainId) throw new Error("Swap not ready");
+
+    const fromToken = STABLE_TOKENS.find((t) => t.symbol === fromSymbol)!;
+    const toToken = STABLE_TOKENS.find((t) => t.symbol === toSymbol)!;
+    const fromAddr = getTokenAddress(fromToken, chainId)!;
+    const toAddr = getTokenAddress(toToken, chainId)!;
+    const amountIn = utils.parseUnits(amount.toString(), fromToken.decimals);
+
+    const amountOut = await mento.getAmountOut(fromAddr, toAddr, amountIn);
+    const minOut = amountOut.mul(95).div(100);
+
+    const allowanceTx = await mento.increaseTradingAllowance(
+      fromAddr,
+      amountIn
+    );
+    await (walletClient.sendTransaction as any)(allowanceTx);
+
+    const swapTx = await mento.swapIn(fromAddr, toAddr, amountIn, minOut);
+    await (walletClient.sendTransaction as any)(swapTx);
+  };
 
   const [wallet, setWallet] = useState<ExtendedWalletState>({
     isConnected: false,
@@ -902,6 +961,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
     disconnectWallet,
     switchToCorrectNetwork,
     sendPayment,
+    performSwap,
     usdtAllowance,
     usdtDecimals,
     getCurrentAllowance,
