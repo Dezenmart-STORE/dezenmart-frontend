@@ -51,7 +51,7 @@ const FundsReleaseStatus: FC<FundsReleaseStatusProps> = ({
   const [isDisputeModalOpen, setIsDisputeModalOpen] = useState(false);
   const [isConfirmationModalOpen, setIsConfirmationModalOpen] = useState(false);
   const [disputeReason, setDisputeReason] = useState("");
-  const { confirmDelivery } = useContract();
+  const { confirmDeliveryAndPurchase } = useContract();
   const { wallet } = useWeb3();
 
   const sellerName = useMemo(() => {
@@ -94,7 +94,9 @@ const FundsReleaseStatus: FC<FundsReleaseStatusProps> = ({
 
     try {
       if (orderDetails?.purchaseId) {
-        const result = await confirmDelivery(orderDetails?.purchaseId);
+        const result = await confirmDeliveryAndPurchase(
+          orderDetails?.purchaseId
+        );
         if (!result.success) {
           throw new Error(result.message || "Failed to confirm delivery");
         }
@@ -129,7 +131,7 @@ const FundsReleaseStatus: FC<FundsReleaseStatusProps> = ({
   }, [
     wallet.isConnected,
     orderId,
-    confirmDelivery,
+    confirmDeliveryAndPurchase,
     changeOrderStatus,
     onConfirmDelivery,
     showSnackbar,
