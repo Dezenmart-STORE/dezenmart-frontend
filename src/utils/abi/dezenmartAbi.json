@@ -122,6 +122,17 @@
             "inputs": [
                 {
                     "internalType": "address",
+                    "name": "seller",
+                    "type": "address"
+                }
+            ],
+            "name": "InvalidSellerAddress",
+            "type": "error"
+        },
+        {
+            "inputs": [
+                {
+                    "internalType": "address",
                     "name": "tokenAddress",
                     "type": "address"
                 }
@@ -252,19 +263,6 @@
             ],
             "name": "TradeNotFound",
             "type": "error"
-        },
-        {
-            "anonymous": false,
-            "inputs": [
-                {
-                    "indexed": true,
-                    "internalType": "uint256",
-                    "name": "purchaseId",
-                    "type": "uint256"
-                }
-            ],
-            "name": "DeliveryConfirmed",
-            "type": "event"
         },
         {
             "anonymous": false,
@@ -415,7 +413,7 @@
                     "type": "uint256"
                 }
             ],
-            "name": "PurchaseConfirmed",
+            "name": "PurchaseCompletedAndConfirmed",
             "type": "event"
         },
         {
@@ -637,7 +635,7 @@
                     "type": "uint256"
                 }
             ],
-            "name": "confirmDelivery",
+            "name": "confirmDeliveryAndPurchase",
             "outputs": [],
             "stateMutability": "nonpayable",
             "type": "function"
@@ -645,18 +643,10 @@
         {
             "inputs": [
                 {
-                    "internalType": "uint256",
-                    "name": "purchaseId",
-                    "type": "uint256"
-                }
-            ],
-            "name": "confirmPurchase",
-            "outputs": [],
-            "stateMutability": "nonpayable",
-            "type": "function"
-        },
-        {
-            "inputs": [
+                    "internalType": "address",
+                    "name": "seller",
+                    "type": "address"
+                },
                 {
                     "internalType": "uint256",
                     "name": "productCost",
@@ -746,12 +736,7 @@
                         },
                         {
                             "internalType": "bool",
-                            "name": "delivered",
-                            "type": "bool"
-                        },
-                        {
-                            "internalType": "bool",
-                            "name": "confirmed",
+                            "name": "deliveredAndConfirmed",
                             "type": "bool"
                         },
                         {
@@ -829,12 +814,7 @@
                         },
                         {
                             "internalType": "bool",
-                            "name": "delivered",
-                            "type": "bool"
-                        },
-                        {
-                            "internalType": "bool",
-                            "name": "confirmed",
+                            "name": "deliveredAndConfirmed",
                             "type": "bool"
                         },
                         {
@@ -905,12 +885,7 @@
                         },
                         {
                             "internalType": "bool",
-                            "name": "delivered",
-                            "type": "bool"
-                        },
-                        {
-                            "internalType": "bool",
-                            "name": "confirmed",
+                            "name": "deliveredAndConfirmed",
                             "type": "bool"
                         },
                         {
@@ -1184,12 +1159,7 @@
                 },
                 {
                     "internalType": "bool",
-                    "name": "delivered",
-                    "type": "bool"
-                },
-                {
-                    "internalType": "bool",
-                    "name": "confirmed",
+                    "name": "deliveredAndConfirmed",
                     "type": "bool"
                 },
                 {
@@ -1250,7 +1220,13 @@
             "type": "function"
         },
         {
-            "inputs": [],
+            "inputs": [
+                {
+                    "internalType": "address",
+                    "name": "seller",
+                    "type": "address"
+                }
+            ],
             "name": "registerSeller",
             "outputs": [],
             "stateMutability": "nonpayable",
