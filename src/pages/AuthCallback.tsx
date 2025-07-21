@@ -30,23 +30,23 @@ const AuthCallback = () => {
         localStorage.setItem("auth_token", token);
         setTimeout(() => {
           import("../utils/services/apiService").then(({ api }) => {
-            api.getUserProfile(true).then((response) => {
-              if (response.ok && response.data) {
-                handleAuthCallback(token, response.data);
-                // const pendingCode = sessionStorage.getItem(
-                //   "pendingReferralCode"
-                // );
-                const redirectPath = "/";
-                // if (pendingCode) {
-                //   navigate("/", { replace: true });
-                // } else {
-                //   const redirectPath = "/";
-                //   navigate(redirectPath, { replace: true });
-                // }
-                navigate(redirectPath, { replace: true });
-                // console.log("Complete user profile loaded");
-              }
-            });
+            api
+              .getUserProfile(true)
+              .then((response) => {
+                if (response && response.ok && response.data) {
+                  handleAuthCallback(token, response.data);
+                  const redirectPath = "/";
+                  navigate(redirectPath, { replace: true });
+                }
+              })
+              .catch((err) => {
+                if (err && err.name !== "AbortError") {
+                  setError(
+                    err instanceof Error ? err.message : "Authentication failed"
+                  );
+                  setIsProcessing(false);
+                }
+              });
           });
         }, 100);
       } catch (err) {

@@ -44,7 +44,7 @@ export const useWatchlist = () => {
 
   const formatWatchlistWithCurrencies = useCallback(
     (watchlistItem: WatchlistItem) => {
-      if (!watchlistItem) return null;
+      if (!watchlistItem || !watchlistItem.product) return null;
 
       const celoPrice = convertPrice(
         watchlistItem.product.price,
