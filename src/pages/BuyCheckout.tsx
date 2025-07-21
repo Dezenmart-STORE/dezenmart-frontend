@@ -71,6 +71,7 @@ const BuyCheckout = () => {
             stock: 100,
             logisticsCost: [],
             logisticsProviders: [],
+            paymentToken: "cUSD",
           };
 
           setProduct(productData);
