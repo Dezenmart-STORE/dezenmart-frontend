@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from "react";
-import { FaWallet, FaSpinner, FaExchangeAlt } from "react-icons/fa";
+import { useState, useEffect } from "react";
+import { FaWallet, FaSpinner } from "react-icons/fa";
 import { HiCurrencyDollar, HiSignal } from "react-icons/hi2";
 import { Product, ProductVariant } from "../../../utils/types";
 import { useWeb3 } from "../../../context/Web3Context";
@@ -7,13 +7,9 @@ import { useOrderData } from "../../../utils/hooks/useOrder";
 import { useNavigate } from "react-router-dom";
 import QuantitySelector from "./QuantitySelector";
 import { useCurrency } from "../../../context/CurrencyContext";
-import { useCurrencyConverter } from "../../../utils/hooks/useCurrencyConverter";
-import { useSwap } from "../../../utils/hooks/useSwap";
 import LogisticsSelector, { LogisticsProvider } from "./LogisticsSelector";
 import { useAuth } from "../../../context/AuthContext";
 import WalletConnectionModal from "../../web3/WalletConnectionModal";
-import SwapConfirmationModal from "../../common/SwapConfirmationModal";
-import { STABLE_TOKENS } from "../../../utils/config/web3.config";
 
 interface FormattedProduct extends Product {
   celoPrice: number;
@@ -40,120 +36,45 @@ const PurchaseSection = ({
   const [error, setError] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [showWalletModal, setShowWalletModal] = useState(false);
-  const [showSwapModal, setShowSwapModal] = useState(false);
-  const { secondaryCurrency } = useCurrency();
+  // const { secondaryCurrency } = useCurrency();
   const { isAuthenticated } = useAuth();
-  const { wallet, connectWallet, isCorrectNetwork, setSelectedToken } =
-    useWeb3();
-  const { convertPrice } = useCurrencyConverter();
-  const { executeSwap, isSwapping } = useSwap();
+  const { wallet } = useWeb3();
   const [selectedLogistics, setSelectedLogistics] =
     useState<LogisticsProvider | null>(null);
-
-  // Calculate total cost including fees
-  const totalCostUSD = useMemo(() => {
-    if (!product || !selectedLogistics) return 0;
-
-    const productCost = product.price * quantity;
-    const fee = productCost * 0.025; // 2.5% fee
-    const logisticsCost = parseFloat("2");
-
-    return productCost + fee + logisticsCost;
-  }, [product, quantity, selectedLogistics]);
-
-  // Check if swap is needed
-  const needsSwap = useMemo(() => {
-    return (
-      product?.paymentToken &&
-      wallet.selectedToken.symbol !== product.paymentToken
-    );
-  }, [product?.paymentToken, wallet.selectedToken.symbol]);
-
-  // Check if user has sufficient balance
-  const hasSufficientBalance = useMemo(() => {
-    if (!wallet.isConnected || !totalCostUSD) return false;
-
-    const tokenToCheck = needsSwap
-      ? wallet.selectedToken.symbol
-      : product?.paymentToken;
-    if (!tokenToCheck) return false;
-    const balance = wallet.tokenBalances[tokenToCheck];
-
-    if (!balance) return false;
-
-    const requiredAmount = convertPrice(totalCostUSD, "FIAT", tokenToCheck);
-    return parseFloat(balance.raw) >= requiredAmount;
-  }, [
-    wallet.tokenBalances,
-    totalCostUSD,
-    needsSwap,
-    product?.paymentToken,
-    wallet.selectedToken.symbol,
-    convertPrice,
-    wallet.isConnected,
-  ]);
 
   useEffect(() => {
     setQuantity(1);
   }, [selectedVariant]);
 
-  const handleConnectWallet = async () => {
-    setIsProcessing(true);
-    setError(null);
+  // const handleConnectWallet = async () => {
+  //   setIsProcessing(true);
+  //   setError(null);
 
-    try {
-      await connectWallet();
-    } catch (err: any) {
-      console.error("Error connecting wallet:", err);
-      setError(`Failed to connect wallet: ${err.message || "Unknown error"}`);
-    } finally {
-      setIsProcessing(false);
-    }
-  };
+  //   try {
+  //     await connectWallet();
+  //   } catch (err: any) {
+  //     console.error("Error connecting wallet:", err);
+  //     setError(`Failed to connect wallet: ${err.message || "Unknown error"}`);
+  //   } finally {
+  //     setIsProcessing(false);
+  //   }
+  // };
 
   const handleLogisticsSelect = (provider: LogisticsProvider) => {
     setSelectedLogistics(provider);
   };
 
-  const handleSwapAndPurchase = async () => {
-    if (!product || !selectedLogistics || !needsSwap) return;
-
-    setIsProcessing(true);
-    setError(null);
-
-    try {
-      // Execute the swap
-      await executeSwap({
-        fromToken: wallet.selectedToken.symbol,
-        toToken: product.paymentToken,
-        amount: totalCostUSD.toString(),
-        slippageTolerance: 1,
-      });
-
-      // Switch to payment token
-      const paymentToken = STABLE_TOKENS.find(
-        (t) => t.symbol === product.paymentToken
-      );
-      if (paymentToken) {
-        setSelectedToken(paymentToken);
-      }
-
-      // Small delay to allow balance update
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-
-      // Proceed with purchase
-      await handleDirectPurchase();
-    } catch (err: any) {
-      console.error("Swap failed:", err);
-      setError(`Swap failed: ${err.message || "Please try again"}`);
-    } finally {
-      setIsProcessing(false);
-      setShowSwapModal(false);
+  const handlePurchase = async () => {
+    if (!isAuthenticated) {
+      navigate("/login");
+      return;
     }
-  };
 
-  const handleDirectPurchase = async () => {
-    if (!product || !selectedLogistics) return;
+    if (!product) return;
+    if (!selectedLogistics) {
+      setError("Please select a delivery method");
+      return;
+    }
 
     setIsProcessing(true);
     setError(null);
@@ -174,38 +95,6 @@ const PurchaseSection = ({
       setError(`Transaction failed: ${(err as string) || "Please try again"}`);
     } finally {
       setIsProcessing(false);
-    }
-  };
-
-  const handlePurchase = async () => {
-    if (!isAuthenticated) {
-      navigate("/login");
-      return;
-    }
-
-    if (!product) return;
-    if (!selectedLogistics) {
-      setError("Please select a delivery method");
-      return;
-    }
-
-    if (!hasSufficientBalance) {
-      setError(
-        `Insufficient balance. You need ${convertPrice(
-          totalCostUSD,
-          "FIAT",
-          needsSwap ? wallet.selectedToken.symbol : product.paymentToken
-        ).toFixed(4)} ${
-          needsSwap ? wallet.selectedToken.symbol : product.paymentToken
-        }`
-      );
-      return;
-    }
-
-    if (needsSwap) {
-      setShowSwapModal(true);
-    } else {
-      await handleDirectPurchase();
     }
   };
 
@@ -231,34 +120,6 @@ const PurchaseSection = ({
     }
   };
 
-  const getButtonText = () => {
-    if (isProcessing || isSwapping) {
-      return needsSwap && showSwapModal ? "Swapping..." : "Processing...";
-    }
-
-    if (isOutOfStock) return "Out of Stock";
-    if (!isAuthenticated) return "Login to buy";
-    if (!wallet.isConnected) return "Connect wallet to buy";
-
-    if (needsSwap) {
-      return `Swap to ${product?.paymentToken} & Buy`;
-    }
-
-    return "Buy Now";
-  };
-
-  const getButtonIcon = () => {
-    if (isProcessing || isSwapping) {
-      return <FaSpinner className="animate-spin text-lg" />;
-    }
-
-    if (needsSwap && wallet.isConnected) {
-      return <FaExchangeAlt className="text-lg" />;
-    }
-
-    return <FaWallet className="text-lg" />;
-  };
-
   return (
     <>
       <div className="bg-[#212428] p-4 md:p-6 space-y-4">
@@ -266,19 +127,6 @@ const PurchaseSection = ({
           <div className="bg-red-500/10 border border-red-500/30 text-red-400 p-3 rounded-md text-sm mb-3 flex items-center gap-2">
             <HiSignal className="w-4 h-4 flex-shrink-0" />
             {error}
-          </div>
-        )}
-
-        {/* Payment Token Notice */}
-        {needsSwap && wallet.isConnected && (
-          <div className="bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 p-3 rounded-md text-sm mb-3">
-            <p className="font-medium">
-              Payment Token: {product?.paymentToken}
-            </p>
-            <p className="text-xs mt-1">
-              This product requires payment in {product?.paymentToken}. We'll
-              swap from your {wallet.selectedToken.symbol} automatically.
-            </p>
           </div>
         )}
 
@@ -310,60 +158,34 @@ const PurchaseSection = ({
           selectedProvider={selectedLogistics}
         />
 
-        {/* Cost Breakdown */}
-        {selectedLogistics && (
-          <div className="bg-Dark/30 border border-Red/20 rounded-lg p-3 text-xs space-y-1">
-            <div className="flex justify-between">
-              <span className="text-gray-400">Product ({quantity}x):</span>
-              <span className="text-white">
-                ${((product?.price ?? 0) * quantity).toFixed(2)}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-400">Platform fee (2.5%):</span>
-              <span className="text-white">
-                ${((product?.price ?? 0) * quantity * 0.025).toFixed(2)}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-400">Logistics:</span>
-              <span className="text-white">${selectedLogistics.cost}</span>
-            </div>
-            <div className="flex justify-between font-medium border-t border-Red/10 pt-1">
-              <span className="text-white">Total:</span>
-              <span className="text-Red">${totalCostUSD.toFixed(2)}</span>
-            </div>
-          </div>
-        )}
-
         {/* Purchase Button */}
         <div className="flex gap-3 w-full">
           <button
-            className={`py-3 px-6 md:px-10 font-bold flex-1 rounded-md transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg ${
-              needsSwap && wallet.isConnected
-                ? "bg-amber-600 hover:bg-amber-700 text-white"
-                : "bg-Red hover:bg-Red/80 text-white"
-            }`}
+            className="bg-Red text-white py-3 px-6 md:px-10 font-bold flex-1 rounded-md transition-all duration-200 hover:bg-Red/80 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-Red flex items-center justify-center gap-2 shadow-lg"
             onClick={handleButtonClick}
-            disabled={
-              isProcessing ||
-              isSwapping ||
-              !product ||
-              isOutOfStock ||
-              (!hasSufficientBalance && wallet.isConnected)
-            }
+            disabled={isProcessing || !product || isOutOfStock}
           >
-            {getButtonIcon()}
-            <span>{getButtonText()}</span>
+            {isProcessing ? (
+              <span className="flex items-center justify-center gap-2">
+                <FaSpinner className="animate-spin text-lg" />
+                Processing...
+              </span>
+            ) : (
+              <>
+                <FaWallet className="text-lg" />
+                <span>
+                  {isOutOfStock
+                    ? "Out of Stock"
+                    : !isAuthenticated
+                    ? "Login to buy"
+                    : wallet.isConnected
+                    ? "Buy Now"
+                    : "Connect wallet to buy"}
+                </span>
+              </>
+            )}
           </button>
         </div>
-
-        {/* Balance Warning */}
-        {wallet.isConnected && !hasSufficientBalance && totalCostUSD > 0 && (
-          <div className="bg-red-500/10 border border-red-500/30 text-red-400 p-2 rounded-md text-xs">
-            Insufficient balance for this purchase
-          </div>
-        )}
 
         {/* Wallet Balance Display */}
         {wallet.isConnected && (
@@ -378,6 +200,11 @@ const PurchaseSection = ({
                   {wallet.tokenBalances[wallet.selectedToken.symbol]
                     ?.formatted || "Loading..."}
                 </span>
+                {/* <span className="text-gray-300">
+                  {wallet.balance
+                    ? `${parseFloat(wallet.balance).toFixed(2)} CELO`
+                    : "0 CELO"}
+                </span> */}
               </div>
             </div>
 
@@ -398,17 +225,6 @@ const PurchaseSection = ({
       <WalletConnectionModal
         isOpen={showWalletModal}
         onClose={() => setShowWalletModal(false)}
-      />
-
-      <SwapConfirmationModal
-        isOpen={showSwapModal}
-        onClose={() => setShowSwapModal(false)}
-        onConfirm={handleSwapAndPurchase}
-        fromToken={wallet.selectedToken.symbol}
-        toToken={product?.paymentToken || ""}
-        usdAmount={totalCostUSD.toString()}
-        productName={product?.name || ""}
-        loading={isProcessing || isSwapping}
       />
     </>
   );

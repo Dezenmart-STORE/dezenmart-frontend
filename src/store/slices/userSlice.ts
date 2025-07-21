@@ -51,7 +51,12 @@ export const fetchUserProfile = createAsyncThunk<
       }
 
       return response.data;
-    } catch (error) {
+    } catch (error: any) {
+      // Handle AbortError gracefully: do not reject, just return
+      if (error && error.name === "AbortError") {
+        // Optionally, you can log or silently ignore
+        return;
+      }
       const message =
         error instanceof Error ? error.message : "An unknown error occurred";
       return rejectWithValue(message);
