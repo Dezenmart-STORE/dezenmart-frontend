@@ -3,7 +3,6 @@ import react from "@vitejs/plugin-react";
 // import path from "path";
 import { nodePolyfills } from "vite-plugin-node-polyfills";
 
-// https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), nodePolyfills()],
   resolve: {
@@ -15,7 +14,6 @@ export default defineConfig({
     rollupOptions: {
       external: [],
       onwarn(warning, warn) {
-        // Ignore the specific @selfxyz/qrcode import warning
         if (
           warning.code === "MISSING_EXPORT" &&
           warning.message.includes("@selfxyz/qrcode") &&
