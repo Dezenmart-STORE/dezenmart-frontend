@@ -34,8 +34,8 @@ const SwapConfirmationModal: React.FC<SwapConfirmationModalProps> = ({
       title="Swap Token"
       maxWidth="md:max-w-lg"
     >
-      <div className="fixed inset-0 flex items-center justify-center z-50">
-        <div className="bg-rounded-lg p-6 w-full max-w-md space-y-4">
+      <div>
+        <div className="space-y-4">
           <h3 className="text-lg font-semibold">Confirm Token Swap</h3>
           <p>
             Swap <strong>{amountIn.toLocaleString()}</strong> {fromToken} →{" "}
