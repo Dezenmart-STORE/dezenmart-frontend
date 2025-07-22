@@ -18,7 +18,7 @@ import {
   useReadContract,
   useWriteContract,
   useChainId,
-  // useWaitForTransactionReceipt,
+  usePublicClient,
 } from "wagmi";
 import {
   parseUnits,
@@ -26,6 +26,9 @@ import {
   erc20Abi,
   decodeEventLog,
   WalletClient,
+  createWalletClient,
+  custom,
+  http,
 } from "viem";
 
 import {
@@ -51,7 +54,6 @@ import { DEZENMART_ABI } from "../utils/abi/dezenmartAbi.json";
 import { ESCROW_ADDRESSES } from "../utils/config/web3.config";
 import { parseWeb3Error } from "../utils/errorParser";
 import { Mento } from "@mento-protocol/mento-sdk";
-import { providers, Wallet as EthersWallet, utils } from "ethers";
 import {
   readContract,
   simulateContract,
@@ -62,6 +64,14 @@ interface TokenBalance {
   raw: string;
   formatted: string;
   fiat: string;
+}
+
+interface SwapState {
+  isSwapping: boolean;
+  fromAmount: string;
+  toAmount: string;
+  error: string | null;
+  isInitializing: boolean;
 }
 
 interface ExtendedWalletState extends WalletState {
@@ -89,7 +99,10 @@ interface ExtendedWeb3ContextType extends Omit<Web3ContextType, "wallet"> {
   walletClient?: WalletClient;
   chainId?: number;
   mento?: Mento;
+  swapState: SwapState;
   performSwap: (from: string, to: string, amount: number) => Promise<void>;
+  getSwapQuote: (from: string, to: string, amount: number) => Promise<string>;
+  initializeMento: () => Promise<boolean>;
 }
 
 const CACHE_DURATION = 240000; // 4 minutes
@@ -112,8 +125,19 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
   const { showSnackbar } = useSnackbar();
   const { address, isConnected, chain } = useAccount();
   const { data: walletClient } = useWalletClient();
+  const publicClient = usePublicClient();
   const chainId = useChainId();
+
+  // Mento and swap state
   const [mento, setMento] = useState<Mento | undefined>();
+  const [swapState, setSwapState] = useState<SwapState>({
+    isSwapping: false,
+    fromAmount: "",
+    toAmount: "",
+    error: null,
+    isInitializing: false,
+  });
+
   const {
     connect,
     connectors,
@@ -124,9 +148,11 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
   const { switchChain } = useSwitchChain();
   const { writeContractAsync } = useWriteContract();
   const { convertPrice, formatPrice } = useCurrencyConverter();
+
   //balance cache
   const balanceCacheRef = useRef<BalanceCache>({});
   const refreshInProgressRef = useRef<Set<string>>(new Set());
+
   // State for selected token and balances
   const [selectedToken, setSelectedTokenState] = useState<StableToken>(() => {
     const saved = localStorage.getItem("selectedToken");
@@ -142,48 +168,98 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
   const balanceIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastFetchRef = useRef<Record<string, number>>({});
 
+  // Initialize Mento SDK with proper error handling
+  const initializeMento = useCallback(async (): Promise<boolean> => {
+    if (!walletClient || !chainId || !address) {
+      console.warn(
+        "Wallet client, chain ID, or address not available for Mento initialization"
+      );
+      return false;
+    }
+
+    if (mento) {
+      return true; // Already initialized
+    }
+
+    setSwapState((prev) => ({ ...prev, isInitializing: true, error: null }));
+
+    try {
+      // Create a proper viem wallet client for Mento
+      const mentoWalletClient = createWalletClient({
+        account: address,
+        chain: walletClient.chain,
+        transport: custom(window.ethereum!),
+      });
+
+      // Create Mento instance
+      const mentoInstance = await Mento.create(mentoWalletClient);
+      setMento(mentoInstance);
+
+      setSwapState((prev) => ({ ...prev, isInitializing: false }));
+      return true;
+    } catch (error) {
+      console.error("Failed to initialize Mento SDK:", error);
+      setSwapState((prev) => ({
+        ...prev,
+        isInitializing: false,
+        error: "Failed to initialize swap functionality",
+      }));
+      return false;
+    }
+  }, [walletClient, chainId, address, mento]);
+
+  // Initialize Mento when wallet is connected
   useEffect(() => {
-    if (!walletClient || !chainId) return;
-    // convert Viem WalletClient to Ethers.js Signer
-    const transport = walletClient.transport;
-    const network = { chainId: chainId, name: walletClient.chain.name };
-    const provider =
-      transport.type === "fallback"
-        ? new providers.JsonRpcProvider(
-            transport.transports[0].value.url,
-            network
-          )
-        : new providers.JsonRpcProvider(transport.url, network);
+    if (isConnected && address && walletClient && chainId) {
+      initializeMento();
+    } else {
+      setMento(undefined);
+      setSwapState({
+        isSwapping: false,
+        fromAmount: "",
+        toAmount: "",
+        error: null,
+        isInitializing: false,
+      });
+    }
+  }, [isConnected, address, walletClient, chainId, initializeMento]);
 
-    const signer = (provider.getSigner as any)(walletClient.account.address);
-    Mento.create(signer).then(setMento).catch(console.error);
-  }, [walletClient, chainId]);
+  // Get swap quote with error handling
+  const getSwapQuote = useCallback(
+    async (
+      fromSymbol: string,
+      toSymbol: string,
+      amount: number
+    ): Promise<string> => {
+      if (!mento || !chainId) {
+        throw new Error("Swap functionality not ready");
+      }
 
-  const performSwap = async (
-    fromSymbol: string,
-    toSymbol: string,
-    amount: number
-  ) => {
-    if (!mento || !walletClient || !chainId) throw new Error("Swap not ready");
+      const fromToken = STABLE_TOKENS.find((t) => t.symbol === fromSymbol);
+      const toToken = STABLE_TOKENS.find((t) => t.symbol === toSymbol);
 
-    const fromToken = STABLE_TOKENS.find((t) => t.symbol === fromSymbol)!;
-    const toToken = STABLE_TOKENS.find((t) => t.symbol === toSymbol)!;
-    const fromAddr = getTokenAddress(fromToken, chainId)!;
-    const toAddr = getTokenAddress(toToken, chainId)!;
-    const amountIn = utils.parseUnits(amount.toString(), fromToken.decimals);
+      if (!fromToken || !toToken) {
+        throw new Error("Invalid token symbols");
+      }
 
-    const amountOut = await mento.getAmountOut(fromAddr, toAddr, amountIn);
-    const minOut = amountOut.mul(95).div(100);
+      const fromAddr = getTokenAddress(fromToken, chainId);
+      const toAddr = getTokenAddress(toToken, chainId);
 
-    const allowanceTx = await mento.increaseTradingAllowance(
-      fromAddr,
-      amountIn
-    );
-    await (walletClient.sendTransaction as any)(allowanceTx);
+      if (!fromAddr || !toAddr) {
+        throw new Error("Token addresses not found for current chain");
+      }
 
-    const swapTx = await mento.swapIn(fromAddr, toAddr, amountIn, minOut);
-    await (walletClient.sendTransaction as any)(swapTx);
-  };
+      try {
+        const amountIn = parseUnits(amount.toString(), fromToken.decimals);
+        const amountOut = await mento.getAmountOut(fromAddr, toAddr, amountIn);
+        return formatUnits(amountOut, toToken.decimals);
+      } catch (error) {
+        console.error("Failed to get swap quote:", error);
+        throw new Error("Unable to get swap quote. Please try again.");
+      }
+    },
+    [mento, chainId]
+  );
 
   const [wallet, setWallet] = useState<ExtendedWalletState>({
     isConnected: false,
@@ -386,7 +462,132 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
     [address, isCorrectNetwork, selectedToken.symbol, debouncedFetchBalance]
   );
 
-  // Set selected token with persistence
+  // performSwap function
+  const performSwap = useCallback(
+    async (fromSymbol: string, toSymbol: string, amount: number) => {
+      if (!mento || !chainId || !address) {
+        throw new Error("Swap functionality not ready");
+      }
+
+      const fromToken = STABLE_TOKENS.find((t) => t.symbol === fromSymbol);
+      const toToken = STABLE_TOKENS.find((t) => t.symbol === toSymbol);
+
+      if (!fromToken || !toToken) {
+        throw new Error("Invalid token symbols");
+      }
+
+      const fromAddr = getTokenAddress(fromToken, chainId);
+      const toAddr = getTokenAddress(toToken, chainId);
+
+      if (!fromAddr || !toAddr) {
+        throw new Error("Token addresses not found for current chain");
+      }
+
+      setSwapState((prev) => ({
+        ...prev,
+        isSwapping: true,
+        error: null,
+        fromAmount: amount.toString(),
+      }));
+
+      try {
+        // Check balance
+        const balanceRaw = tokenBalances[fromSymbol]?.raw;
+        if (!balanceRaw || parseFloat(balanceRaw) < amount) {
+          throw new Error(`Insufficient ${fromSymbol} balance for swap`);
+        }
+
+        const amountIn = parseUnits(amount.toString(), fromToken.decimals);
+
+        // Get quote
+        const amountOut = await mento.getAmountOut(fromAddr, toAddr, amountIn);
+        const minAmountOut = (amountOut * 95n) / 100n; // 5% slippage tolerance
+
+        setSwapState((prev) => ({
+          ...prev,
+          toAmount: formatUnits(amountOut, toToken.decimals),
+        }));
+
+        // Check and set allowance
+        const allowanceTx = await mento.increaseTradingAllowance(
+          fromAddr,
+          amountIn
+        );
+
+        if (allowanceTx && walletClient) {
+          const allowanceHash = await walletClient.sendTransaction(allowanceTx);
+
+          // Wait for allowance transaction
+          if (publicClient) {
+            await publicClient.waitForTransactionReceipt({
+              hash: allowanceHash,
+              timeout: 60000,
+            });
+          }
+        }
+
+        // Execute swap
+        const swapTx = await mento.swapIn(
+          fromAddr,
+          toAddr,
+          amountIn,
+          minAmountOut
+        );
+
+        if (!swapTx || !walletClient) {
+          throw new Error("Failed to create swap transaction");
+        }
+
+        const swapHash = await walletClient.sendTransaction(swapTx);
+
+        // Wait for swap transaction
+        if (publicClient) {
+          await publicClient.waitForTransactionReceipt({
+            hash: swapHash,
+            timeout: 120000, // 2 minutes timeout for swap
+          });
+        }
+
+        showSnackbar(
+          `Successfully swapped ${amount} ${fromSymbol} to ${toSymbol}`,
+          "success"
+        );
+
+        // Refresh balances after swap
+        setTimeout(() => {
+          refreshTokenBalance(fromSymbol);
+          refreshTokenBalance(toSymbol);
+        }, 2000);
+      } catch (error: any) {
+        console.error("Swap failed:", error);
+        const errorMessage = error?.message || "Swap failed";
+
+        setSwapState((prev) => ({
+          ...prev,
+          error: errorMessage,
+        }));
+
+        showSnackbar(errorMessage, "error");
+        throw error;
+      } finally {
+        setSwapState((prev) => ({
+          ...prev,
+          isSwapping: false,
+        }));
+      }
+    },
+    [
+      mento,
+      chainId,
+      address,
+      tokenBalances,
+      walletClient,
+      publicClient,
+      showSnackbar,
+      refreshTokenBalance,
+    ]
+  );
+  // Set selected token
   const setSelectedToken = useCallback((token: StableToken) => {
     setSelectedTokenState(token);
     localStorage.setItem("selectedToken", JSON.stringify(token));
@@ -962,6 +1163,9 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
     switchToCorrectNetwork,
     sendPayment,
     performSwap,
+    getSwapQuote,
+    initializeMento,
+    swapState,
     usdtAllowance,
     usdtDecimals,
     getCurrentAllowance,
