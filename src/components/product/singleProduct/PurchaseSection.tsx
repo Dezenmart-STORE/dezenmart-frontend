@@ -48,6 +48,7 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = ({
     refreshTokenBalance,
     approveToken,
     getTokenAllowance,
+    initializeMento,
   } = useWeb3();
   const { isAuthenticated } = useAuth();
 
@@ -206,6 +207,44 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = ({
     return () => clearTimeout(timeoutId);
   }, [updateSwapQuote]);
 
+  const validateSwapRequirements = useCallback(async () => {
+    if (!wallet.isConnected || !product) return false;
+
+    try {
+      // Check if we need to initialize Mento
+      const mentoReady = await initializeMento();
+      if (!mentoReady) {
+        setPurchaseError("Swap functionality not available. Please try again.");
+        return false;
+      }
+
+      // Validate balance
+      const balance = parseFloat(
+        wallet.tokenBalances[wallet.selectedToken.symbol]?.raw || "0"
+      );
+      if (balance < computeTotals.totalInSelected) {
+        setPurchaseError(
+          `Insufficient ${wallet.selectedToken.symbol} balance for swap`
+        );
+        return false;
+      }
+
+      // Test if pair exists
+      const pairSupported = await isSwapSupported;
+      if (!pairSupported) {
+        setPurchaseError(
+          `${wallet.selectedToken.symbol}/${product.paymentToken} swap not supported`
+        );
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      setPurchaseError("Failed to validate swap requirements");
+      return false;
+    }
+  }, [wallet, product, computeTotals, initializeMento, isSwapSupported]);
+
   const handleButtonClick = async () => {
     setPurchaseError(null);
 
@@ -234,6 +273,11 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = ({
 
     // Determine if swap is needed
     if (wallet.selectedToken.symbol !== product.paymentToken) {
+      // setShowSwapModal(true);
+      // return;
+      const canSwap = await validateSwapRequirements();
+      if (!canSwap) return;
+
       setShowSwapModal(true);
       return;
     }
@@ -383,8 +427,8 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = ({
           product &&
           wallet.selectedToken.symbol !== product.paymentToken &&
           computeTotals.totalInSelected > 0 && (
-            <div className="bg-blue-900/20 border border-blue-500/30 rounded-lg p-3">
-              <div className="flex items-center gap-2 text-blue-300 text-sm">
+            <div className="bg-red-900/20 border border-red-500/30 rounded-lg p-3">
+              <div className="flex items-center gap-2 text-red-300 text-sm">
                 <FaExchangeAlt className="w-3 h-3" />
                 <span>
                   Will swap {computeTotals.totalInSelected.toFixed(4)}{" "}

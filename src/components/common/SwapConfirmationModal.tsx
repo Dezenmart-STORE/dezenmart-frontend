@@ -39,6 +39,39 @@ const SwapConfirmationModal: React.FC<SwapConfirmationModalProps> = ({
     setMounted(true);
   }, []);
 
+  const errorStates = useMemo(() => {
+    if (!error) return null;
+
+    if (error.includes("transferFrom failed")) {
+      return {
+        type: "allowance",
+        message: "Token approval required",
+        suggestion: "Please approve the token spend and try again.",
+      };
+    }
+
+    if (error.includes("pair not available")) {
+      return {
+        type: "routing",
+        message: "Trading pair not available",
+        suggestion: "Try converting to CELO first, then to your desired token.",
+      };
+    }
+
+    if (error.includes("Insufficient")) {
+      return {
+        type: "balance",
+        message: "Insufficient balance",
+        suggestion: "Please ensure you have enough tokens for the swap.",
+      };
+    }
+
+    return {
+      type: "general",
+      message: "Swap failed",
+      suggestion: error,
+    };
+  }, [error]);
   // Calculate minimum receive amount with proper decimal handling
   const minReceive = useMemo(() => {
     if (!amountOut || !mounted) return undefined;
@@ -103,7 +136,7 @@ const SwapConfirmationModal: React.FC<SwapConfirmationModalProps> = ({
 
           {/* Swap Direction Indicator */}
           <div className="flex justify-center py-2">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-600 to-blue-500 flex items-center justify-center shadow-lg">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-r from-red-600 to-red-500 flex items-center justify-center shadow-lg">
               <FaExchangeAlt className="w-4 h-4 text-white" />
             </div>
           </div>
@@ -138,10 +171,10 @@ const SwapConfirmationModal: React.FC<SwapConfirmationModalProps> = ({
         </div>
 
         {/* Swap Details Info */}
-        <div className="bg-blue-900/10 border border-blue-500/20 rounded-xl p-4">
+        <div className="bg-red-900/10 border border-red-500/20 rounded-xl p-4">
           <div className="flex items-start gap-3">
-            <FaInfoCircle className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" />
-            <div className="text-sm text-blue-300 space-y-2">
+            <FaInfoCircle className="w-4 h-4 text-red-400 mt-0.5 flex-shrink-0" />
+            <div className="text-sm text-red-300 space-y-2">
               <div className="flex justify-between items-center">
                 <span>Slippage tolerance:</span>
                 <span className="font-medium">{slippage}%</span>
@@ -152,7 +185,7 @@ const SwapConfirmationModal: React.FC<SwapConfirmationModalProps> = ({
                   <span className="font-medium">{estimatedGasFee} CELO</span>
                 </div>
               )}
-              <div className="text-xs text-blue-400/80 pt-2 border-t border-blue-500/20">
+              <div className="text-xs text-red-400/80 pt-2 border-t border-red-500/20">
                 <p>• Swap executed through Mento Protocol</p>
                 <p>• Gas fees paid in CELO</p>
                 <p>• Transaction may fail if price moves beyond slippage</p>
@@ -162,7 +195,7 @@ const SwapConfirmationModal: React.FC<SwapConfirmationModalProps> = ({
         </div>
 
         {/* Error Display */}
-        {error && (
+        {errorStates && (
           <div className="bg-red-900/20 border border-red-500/30 rounded-xl p-4">
             <div className="flex items-start gap-3">
               <svg
@@ -177,11 +210,19 @@ const SwapConfirmationModal: React.FC<SwapConfirmationModalProps> = ({
                 />
               </svg>
               <div>
-                <p className="text-sm text-red-400 font-medium">{error}</p>
-                {error.includes("pair not available") && (
-                  <p className="text-xs text-red-300 mt-1">
-                    Try converting to CELO first, then to your desired token.
-                  </p>
+                <p className="text-sm text-red-400 font-medium">
+                  {errorStates.message}
+                </p>
+                <p className="text-xs text-red-300 mt-1">
+                  {errorStates.suggestion}
+                </p>
+                {errorStates.type === "routing" && (
+                  <div className="mt-2 text-xs text-red-300/80">
+                    <p>
+                      • Try: {fromToken} → CELO → {toToken}
+                    </p>
+                    <p>• Or select a different token pair</p>
+                  </div>
                 )}
               </div>
             </div>
@@ -209,7 +250,7 @@ const SwapConfirmationModal: React.FC<SwapConfirmationModalProps> = ({
             }
             onClick={handleConfirm}
             disabled={isLoading || !hasValidAmounts || !!error}
-            className="flex-1 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white text-sm px-4 py-3 rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-blue-500/25"
+            className="flex-1 bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600 text-white text-sm px-4 py-3 rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-red-500/25"
           />
         </div>
       </div>

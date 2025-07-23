@@ -560,17 +560,30 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
       }));
 
       try {
-        // Validate balance
+        // Enhanced balance validation
         const balanceRaw = tokenBalances[fromSymbol]?.raw;
-        if (!balanceRaw || parseFloat(balanceRaw) < amount) {
-          throw new Error(`Insufficient ${fromSymbol} balance for swap`);
+        if (!balanceRaw) {
+          await refreshTokenBalance(fromSymbol);
+          const updatedBalance = tokenBalances[fromSymbol]?.raw;
+          if (!updatedBalance) {
+            throw new Error(`Unable to fetch ${fromSymbol} balance`);
+          }
         }
 
-        // Check if pair exists
+        const currentBalance = parseFloat(balanceRaw || "0");
+        if (currentBalance < amount) {
+          throw new Error(
+            `Insufficient ${fromSymbol} balance. Available: ${currentBalance.toFixed(
+              4
+            )}, Required: ${amount.toFixed(4)}`
+          );
+        }
+
+        // Validate pair exists
         const pairExists = await validateTokenPair(fromSymbol, toSymbol);
         if (!pairExists) {
           throw new Error(
-            `Trading pair ${fromSymbol}/${toSymbol} not available. Try swapping to CELO first.`
+            `Trading pair ${fromSymbol}/${toSymbol} not available. Try converting to CELO first.`
           );
         }
 
@@ -579,7 +592,20 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
           fromToken.decimals
         );
 
-        const amountOut = await mento.getAmountOut(fromAddr, toAddr, amountIn);
+        // Get quote with retry mechanism
+        let amountOut: ethers.BigNumber;
+        let retries = 3;
+        while (retries > 0) {
+          try {
+            amountOut = await mento.getAmountOut(fromAddr, toAddr, amountIn);
+            break;
+          } catch (error) {
+            retries--;
+            if (retries === 0) throw error;
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+          }
+        }
+
         const minAmountOut = amountOut.mul(95).div(100); // 5% slippage
 
         setSwapState((prev) => ({
@@ -587,24 +613,44 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
           toAmount: ethers.utils.formatUnits(amountOut, toToken.decimals),
         }));
 
-        // Set allowance
         const provider = new ethers.providers.Web3Provider(window.ethereum!);
         const signer = provider.getSigner();
 
-        const allowanceTxObj = await mento.increaseTradingAllowance(
-          fromAddr,
-          amountIn
-        );
+        // Enhanced allowance handling
+        const currentAllowance = await checkMentoAllowance(fromAddr, amountIn);
 
-        if (allowanceTxObj) {
-          const allowanceTx = await signer.sendTransaction({
-            ...allowanceTxObj,
-            gasLimit: ethers.utils.hexlify(200000), // Set explicit gas limit
-          });
-          await allowanceTx.wait();
+        if (currentAllowance.lt(amountIn)) {
+          showSnackbar(`Approving ${fromSymbol} for swap...`, "info");
+
+          const allowanceTxObj = await mento.increaseTradingAllowance(
+            fromAddr,
+            amountIn
+          );
+
+          if (allowanceTxObj) {
+            // Estimate gas for allowance
+            let gasEstimate: ethers.BigNumber;
+            try {
+              gasEstimate = await provider.estimateGas({
+                ...allowanceTxObj,
+                from: address,
+              });
+              gasEstimate = gasEstimate.mul(120).div(100); // 20% buffer
+            } catch {
+              gasEstimate = ethers.utils.parseUnits("200000", "wei");
+            }
+
+            const allowanceTx = await signer.sendTransaction({
+              ...allowanceTxObj,
+              gasLimit: gasEstimate,
+            });
+
+            showSnackbar("Waiting for approval confirmation...", "info");
+            await allowanceTx.wait(2); // Wait for 2 confirmations
+          }
         }
 
-        // Execute swap
+        // Execute swap with enhanced error handling
         const swapTxObj = await mento.swapIn(
           fromAddr,
           toAddr,
@@ -616,33 +662,55 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
           throw new Error("Failed to create swap transaction");
         }
 
+        // Estimate gas for swap
+        let swapGasEstimate: ethers.BigNumber;
+        try {
+          swapGasEstimate = await provider.estimateGas({
+            ...swapTxObj,
+            from: address,
+          });
+          swapGasEstimate = swapGasEstimate.mul(130).div(100); // 30% buffer
+        } catch {
+          swapGasEstimate = ethers.utils.parseUnits("400000", "wei");
+        }
+
+        showSnackbar("Executing swap...", "info");
         const swapTx = await signer.sendTransaction({
           ...swapTxObj,
-          gasLimit: ethers.utils.hexlify(300000), // Set explicit gas limit
+          gasLimit: swapGasEstimate,
         });
 
-        await swapTx.wait();
+        showSnackbar("Waiting for swap confirmation...", "info");
+        await swapTx.wait(2);
 
         showSnackbar(
           `Successfully swapped ${amount} ${fromSymbol} to ${toSymbol}`,
           "success"
         );
 
-        // Refresh balances
+        // Refresh balances with delay
         setTimeout(() => {
           refreshTokenBalance(fromSymbol);
           refreshTokenBalance(toSymbol);
-        }, 2000);
+        }, 3000);
       } catch (error: any) {
         console.error("Swap failed:", error);
         let errorMessage = "Swap failed";
 
-        if (error?.message?.includes("No pair found")) {
+        // Enhanced error parsing
+        if (error?.message?.includes("transferFrom failed")) {
+          errorMessage = `${fromSymbol} transfer failed. Check allowance and balance.`;
+        } else if (error?.message?.includes("No pair found")) {
           errorMessage = `${fromSymbol}/${toSymbol} pair not available. Try swapping through CELO.`;
         } else if (error?.message?.includes("insufficient")) {
           errorMessage = `Insufficient ${fromSymbol} balance`;
         } else if (error?.message?.includes("slippage")) {
           errorMessage = "Price changed too much. Please try again.";
+        } else if (error?.message?.includes("User denied")) {
+          errorMessage = "Transaction cancelled by user";
+        } else if (error?.message?.includes("UNPREDICTABLE_GAS_LIMIT")) {
+          errorMessage =
+            "Cannot estimate gas. Check your balance and allowances.";
         } else {
           errorMessage = error?.message || errorMessage;
         }
@@ -663,6 +731,38 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
       refreshTokenBalance,
       validateTokenPair,
     ]
+  );
+
+  const checkMentoAllowance = useCallback(
+    async (
+      tokenAddress: string,
+      amount: ethers.BigNumber
+    ): Promise<ethers.BigNumber> => {
+      if (!mento || !address) {
+        return ethers.BigNumber.from(0);
+      }
+
+      try {
+        const provider = new ethers.providers.Web3Provider(window.ethereum!);
+        const tokenContract = new ethers.Contract(
+          tokenAddress,
+          erc20Abi,
+          provider
+        );
+
+        // Get Mento's exchange address for allowance check
+        const exchangeAddress = await mento.getExchangeAddress(tokenAddress);
+        const allowance = await tokenContract.allowance(
+          address,
+          exchangeAddress
+        );
+        return allowance;
+      } catch (error) {
+        console.warn("Failed to check Mento allowance:", error);
+        return ethers.BigNumber.from(0);
+      }
+    },
+    [mento, address]
   );
 
   // Set selected token
