@@ -100,7 +100,7 @@ interface ExtendedWeb3ContextType extends Omit<Web3ContextType, "wallet"> {
   approveUSDT: (amount: string) => Promise<string>;
   walletClient?: WalletClient;
   chainId?: number;
-  mento?: Mento;
+  mento?: ReturnType<typeof useMento>;
   swapState: SwapState;
   performSwap: (from: string, to: string, amount: number) => Promise<void>;
   getSwapQuote: (from: string, to: string, amount: number) => Promise<string>;
@@ -931,59 +931,81 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
     };
   }, [debouncedFetchBalance]);
 
-  const value: ExtendedWeb3ContextType = {
-    wallet,
-    mento: mento.isReady ? mento : undefined,
-    connectWallet,
-    disconnectWallet,
-    switchToCorrectNetwork,
-    sendPayment,
+  const value: ExtendedWeb3ContextType = useMemo(
+    () => ({
+      wallet,
+      mento: mento.isReady ? mento : undefined,
+      connectWallet,
+      disconnectWallet,
+      switchToCorrectNetwork,
+      sendPayment,
 
-    performSwap: async (
-      from: string,
-      to: string,
-      amount: number
-    ): Promise<void> => {
-      try {
-        await mento.performSwap({ fromSymbol: from, toSymbol: to, amount });
-      } catch (error) {
-        throw error;
-      }
-    },
-    getSwapQuote: async (
-      from: string,
-      to: string,
-      amount: number
-    ): Promise<string> => {
-      try {
-        const quote = await mento.getSwapQuote(from, to, amount);
-        return quote.amountOut;
-      } catch (error) {
-        throw error;
-      }
-    },
-    initializeMento: mento.initializeMento,
-    swapState: {
-      isSwapping: mento.isSwapping,
-      fromAmount: "",
-      toAmount: "",
-      error: mento.error,
-      isInitializing: mento.isInitializing,
-    },
-    usdtAllowance,
-    usdtDecimals,
-    getCurrentAllowance,
-    getUSDTBalance,
-    buyTrade,
-    approveUSDT,
-    validateTradeBeforePurchase,
-    isCorrectNetwork,
-    setSelectedToken,
-    refreshTokenBalance,
-    availableTokens,
-    approveToken,
-    getTokenAllowance,
-  };
+      performSwap: async (
+        from: string,
+        to: string,
+        amount: number
+      ): Promise<void> => {
+        try {
+          await mento.performSwap({ fromSymbol: from, toSymbol: to, amount });
+        } catch (error) {
+          throw error;
+        }
+      },
+      getSwapQuote: async (
+        from: string,
+        to: string,
+        amount: number
+      ): Promise<string> => {
+        try {
+          const quote = await mento.getSwapQuote(from, to, amount);
+          return quote?.amountOut || "0";
+        } catch (error) {
+          throw error;
+        }
+      },
+      initializeMento: mento.initializeMento,
+      swapState: {
+        isSwapping: mento.isSwapping,
+        fromAmount: "",
+        toAmount: "",
+        error: mento.error,
+        isInitializing: mento.isInitializing,
+      },
+      usdtAllowance,
+      usdtDecimals,
+      getCurrentAllowance,
+      getUSDTBalance,
+      buyTrade,
+      approveUSDT,
+      validateTradeBeforePurchase,
+      isCorrectNetwork,
+      setSelectedToken,
+      refreshTokenBalance,
+      availableTokens,
+      approveToken,
+      getTokenAllowance,
+    }),
+    [
+      wallet,
+      mento,
+      connectWallet,
+      disconnectWallet,
+      switchToCorrectNetwork,
+      sendPayment,
+      buyTrade,
+      getTokenAllowance,
+      availableTokens,
+      setSelectedToken,
+      usdtAllowance,
+      usdtDecimals,
+      getCurrentAllowance,
+      getUSDTBalance,
+      buyTrade,
+      approveUSDT,
+      validateTradeBeforePurchase,
+      isCorrectNetwork,
+    ]
+  );
 
   return <Web3Context.Provider value={value}>{children}</Web3Context.Provider>;
 };

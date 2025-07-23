@@ -100,7 +100,15 @@ export function useMento() {
       slippageTolerance = SLIPPAGE_DEFAULT
     ): Promise<SwapQuote> => {
       if (!mentoRef.current || amount <= 0) {
-        throw new Error("Invalid swap parameters");
+        // throw new Error("Invalid swap parameters");
+        return {
+          amountOut: "0",
+          exchangeRate: "0",
+          minAmountOut: "0",
+          priceImpact: "0",
+          route: [fromSymbol, toSymbol],
+          timestamp: Date.now(),
+        };
       }
 
       const cacheKey = `${fromSymbol}-${toSymbol}-${amount}-${slippageTolerance}`;
