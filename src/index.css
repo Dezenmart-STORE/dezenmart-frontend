@@ -44,6 +44,9 @@
   scrollbar-width: thin;
   scrollbar-color: #3A3D42 transparent;
 }
+html{
+  overflow: hidden auto;
+}
 
 @layer base {
   body {
