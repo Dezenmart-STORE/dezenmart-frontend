@@ -754,28 +754,16 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
           provider
         );
 
-        // Get all exchanges
-        const exchanges = await mento.getExchanges();
+        // celo alfajores
+        const MENTO_BROKER_ADDRESS =
+          "0xD3Dff18E465bCa6241A244144765b4421Ac14D09";
+        // celo mainnet
+        // const MENTO_BROKER_ADDRESS =
+        //   "0x777A8255cA72412f0d706dc03C9D1987306B4CaD";
 
-        // Find exchange that handles this token
-        const relevantExchange = exchanges.find((exchange) => {
-          // Check if exchange has this token in its trading pairs
-          return exchange.assets.some(
-            (asset: string) =>
-              asset.toLowerCase() === tokenAddress.toLowerCase()
-          );
-        });
-
-        if (!relevantExchange) {
-          console.warn(`No exchange found for token ${tokenAddress}`);
-          return ethers.BigNumber.from(0);
-        }
-
-        // Use the exchange contract address
-        const exchangeAddress = relevantExchange.contract;
         const allowance = await tokenContract.allowance(
           address,
-          exchangeAddress
+          MENTO_BROKER_ADDRESS
         );
         return allowance;
       } catch (error) {
