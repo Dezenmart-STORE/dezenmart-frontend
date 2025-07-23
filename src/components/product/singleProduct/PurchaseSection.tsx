@@ -134,6 +134,34 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = ({
     return parseFloat(currentBalance.raw) >= requiredAmount;
   }, [wallet, product, computeTotals, mounted]);
 
+  const isSwapSupported = useMemo(async () => {
+    if (
+      !wallet.isConnected ||
+      !product ||
+      wallet.selectedToken.symbol === product.paymentToken
+    ) {
+      return true; // No swap needed
+    }
+
+    try {
+      // Quick validation without getting full quote
+      const fromToken = STABLE_TOKENS.find(
+        (t) => t.symbol === wallet.selectedToken.symbol
+      );
+      const toToken = STABLE_TOKENS.find(
+        (t) => t.symbol === product.paymentToken
+      );
+
+      if (!fromToken || !toToken) return false;
+
+      // Use small amount for testing
+      await getSwapQuote(wallet.selectedToken.symbol, product.paymentToken, 1);
+      return true;
+    } catch {
+      return false;
+    }
+  }, [wallet.selectedToken.symbol, product?.paymentToken, getSwapQuote]);
+
   // Get swap quote when needed
   const updateSwapQuote = useCallback(async () => {
     if (

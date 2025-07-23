@@ -178,6 +178,11 @@ const SwapConfirmationModal: React.FC<SwapConfirmationModalProps> = ({
               </svg>
               <div>
                 <p className="text-sm text-red-400 font-medium">{error}</p>
+                {error.includes("pair not available") && (
+                  <p className="text-xs text-red-300 mt-1">
+                    Try converting to CELO first, then to your desired token.
+                  </p>
+                )}
               </div>
             </div>
           </div>

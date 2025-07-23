@@ -222,7 +222,33 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, [isConnected, address, walletClient, chainId, initializeMento]);
 
-  // Get swap quote with error handling
+  const validateTokenPair = useCallback(
+    async (fromSymbol: string, toSymbol: string): Promise<boolean> => {
+      if (!mento || !chainId) return false;
+
+      const fromToken = STABLE_TOKENS.find((t) => t.symbol === fromSymbol);
+      const toToken = STABLE_TOKENS.find((t) => t.symbol === toSymbol);
+
+      if (!fromToken || !toToken) return false;
+
+      const fromAddr = getTokenAddress(fromToken, chainId);
+      const toAddr = getTokenAddress(toToken, chainId);
+
+      if (!fromAddr || !toAddr) return false;
+
+      try {
+        // Try to get a small quote to validate the pair
+        const testAmount = ethers.utils.parseUnits("1", fromToken.decimals);
+        await mento.getAmountOut(fromAddr, toAddr, testAmount);
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    [mento, chainId]
+  );
+
+  // Get swap quote
   const getSwapQuote = useCallback(
     async (
       fromSymbol: string,
@@ -231,6 +257,10 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
     ): Promise<string> => {
       if (!mento || !chainId) {
         throw new Error("Swap functionality not ready");
+      }
+
+      if (fromSymbol === toSymbol) {
+        return amount.toString();
       }
 
       const fromToken = STABLE_TOKENS.find((t) => t.symbol === fromSymbol);
@@ -247,19 +277,53 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
         throw new Error("Token addresses not found for current chain");
       }
 
+      const amountIn = ethers.utils.parseUnits(
+        amount.toString(),
+        fromToken.decimals
+      );
+
       try {
-        const amountIn = ethers.utils.parseUnits(
-          amount.toString(),
-          fromToken.decimals
-        );
+        // Direct pair attempt
         const amountOut = await mento.getAmountOut(fromAddr, toAddr, amountIn);
         return ethers.utils.formatUnits(amountOut, toToken.decimals);
-      } catch (error) {
-        console.error("Failed to get swap quote:", error);
-        throw new Error("Unable to get swap quote. Please try again.");
+      } catch (directError) {
+        console.warn("Direct pair failed, trying via CELO:", directError);
+
+        // Fallback: Route through CELO if it's not one of the tokens
+        if (fromSymbol !== "CELO" && toSymbol !== "CELO") {
+          try {
+            const celoToken = STABLE_TOKENS.find((t) => t.symbol === "CELO");
+            if (!celoToken) throw new Error("CELO token not found");
+
+            const celoAddr = getTokenAddress(celoToken, chainId);
+            if (!celoAddr) throw new Error("CELO address not found");
+
+            // Step 1: fromToken -> CELO
+            const celoAmount = await mento.getAmountOut(
+              fromAddr,
+              celoAddr,
+              amountIn
+            );
+
+            // Step 2: CELO -> toToken
+            const finalAmount = await mento.getAmountOut(
+              celoAddr,
+              toAddr,
+              celoAmount
+            );
+
+            return ethers.utils.formatUnits(finalAmount, toToken.decimals);
+          } catch (celoError) {
+            console.warn("CELO routing failed:", celoError);
+          }
+        }
+
+        // Final fallback: Use currency converter for estimation
+        const convertedAmount = convertPrice(amount, fromSymbol, toSymbol);
+        return convertedAmount.toString();
       }
     },
-    [mento, chainId]
+    [mento, chainId, convertPrice]
   );
 
   const [wallet, setWallet] = useState<ExtendedWalletState>({
@@ -470,6 +534,10 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
         throw new Error("Swap functionality not ready");
       }
 
+      if (fromSymbol === toSymbol) {
+        throw new Error("Cannot swap same token");
+      }
+
       const fromToken = STABLE_TOKENS.find((t) => t.symbol === fromSymbol);
       const toToken = STABLE_TOKENS.find((t) => t.symbol === toSymbol);
 
@@ -492,10 +560,18 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
       }));
 
       try {
-        // Check balance
+        // Validate balance
         const balanceRaw = tokenBalances[fromSymbol]?.raw;
         if (!balanceRaw || parseFloat(balanceRaw) < amount) {
           throw new Error(`Insufficient ${fromSymbol} balance for swap`);
+        }
+
+        // Check if pair exists
+        const pairExists = await validateTokenPair(fromSymbol, toSymbol);
+        if (!pairExists) {
+          throw new Error(
+            `Trading pair ${fromSymbol}/${toSymbol} not available. Try swapping to CELO first.`
+          );
         }
 
         const amountIn = ethers.utils.parseUnits(
@@ -503,28 +579,28 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
           fromToken.decimals
         );
 
-        // Get quote
         const amountOut = await mento.getAmountOut(fromAddr, toAddr, amountIn);
-        // Fix: Convert BigNumber to proper format for calculations
-        const minAmountOut = amountOut.mul(95).div(100); // 5% slippage tolerance
+        const minAmountOut = amountOut.mul(95).div(100); // 5% slippage
 
         setSwapState((prev) => ({
           ...prev,
           toAmount: ethers.utils.formatUnits(amountOut, toToken.decimals),
         }));
 
-        // Check and set allowance
+        // Set allowance
+        const provider = new ethers.providers.Web3Provider(window.ethereum!);
+        const signer = provider.getSigner();
+
         const allowanceTxObj = await mento.increaseTradingAllowance(
           fromAddr,
           amountIn
         );
 
-        // Fix: Handle TransactionRequest properly with ethers provider
         if (allowanceTxObj) {
-          const provider = new ethers.providers.Web3Provider(window.ethereum!);
-          const signer = provider.getSigner();
-
-          const allowanceTx = await signer.sendTransaction(allowanceTxObj);
+          const allowanceTx = await signer.sendTransaction({
+            ...allowanceTxObj,
+            gasLimit: ethers.utils.hexlify(200000), // Set explicit gas limit
+          });
           await allowanceTx.wait();
         }
 
@@ -540,11 +616,11 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
           throw new Error("Failed to create swap transaction");
         }
 
-        // Fix: Use ethers signer for transaction
-        const provider = new ethers.providers.Web3Provider(window.ethereum!);
-        const signer = provider.getSigner();
+        const swapTx = await signer.sendTransaction({
+          ...swapTxObj,
+          gasLimit: ethers.utils.hexlify(300000), // Set explicit gas limit
+        });
 
-        const swapTx = await signer.sendTransaction(swapTxObj);
         await swapTx.wait();
 
         showSnackbar(
@@ -552,30 +628,41 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
           "success"
         );
 
-        // Refresh balances after swap
+        // Refresh balances
         setTimeout(() => {
           refreshTokenBalance(fromSymbol);
           refreshTokenBalance(toSymbol);
         }, 2000);
       } catch (error: any) {
         console.error("Swap failed:", error);
-        const errorMessage = error?.message || "Swap failed";
+        let errorMessage = "Swap failed";
 
-        setSwapState((prev) => ({
-          ...prev,
-          error: errorMessage,
-        }));
+        if (error?.message?.includes("No pair found")) {
+          errorMessage = `${fromSymbol}/${toSymbol} pair not available. Try swapping through CELO.`;
+        } else if (error?.message?.includes("insufficient")) {
+          errorMessage = `Insufficient ${fromSymbol} balance`;
+        } else if (error?.message?.includes("slippage")) {
+          errorMessage = "Price changed too much. Please try again.";
+        } else {
+          errorMessage = error?.message || errorMessage;
+        }
 
+        setSwapState((prev) => ({ ...prev, error: errorMessage }));
         showSnackbar(errorMessage, "error");
-        throw error;
+        throw new Error(errorMessage);
       } finally {
-        setSwapState((prev) => ({
-          ...prev,
-          isSwapping: false,
-        }));
+        setSwapState((prev) => ({ ...prev, isSwapping: false }));
       }
     },
-    [mento, chainId, address, tokenBalances, showSnackbar, refreshTokenBalance]
+    [
+      mento,
+      chainId,
+      address,
+      tokenBalances,
+      showSnackbar,
+      refreshTokenBalance,
+      validateTokenPair,
+    ]
   );
 
   // Set selected token
