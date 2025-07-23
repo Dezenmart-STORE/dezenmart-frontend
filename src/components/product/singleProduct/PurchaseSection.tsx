@@ -16,6 +16,7 @@ import WalletConnectionModal from "../../web3/WalletConnectionModal";
 import SwapConfirmationModal from "./../../common/SwapConfirmationModal";
 import { useCurrencyConverter } from "../../../utils/hooks/useCurrencyConverter";
 import { STABLE_TOKENS } from "../../../utils/config/web3.config";
+import { useMento } from "../../../utils/hooks/useMento";
 
 interface FormattedProduct extends Product {
   celoPrice: number;
