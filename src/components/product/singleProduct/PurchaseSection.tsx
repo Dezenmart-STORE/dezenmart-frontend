@@ -1,3 +1,4 @@
+// PurchaseSection.tsx
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { FaWallet, FaSpinner, FaExchangeAlt } from "react-icons/fa";
 import {
@@ -13,10 +14,9 @@ import QuantitySelector from "./QuantitySelector";
 import LogisticsSelector, { LogisticsProvider } from "./LogisticsSelector";
 import { useAuth } from "../../../context/AuthContext";
 import WalletConnectionModal from "../../web3/WalletConnectionModal";
-import SwapConfirmationModal from "./../../common/SwapConfirmationModal";
+import SwapConfirmationModal from "../../common/SwapConfirmationModal";
 import { useCurrencyConverter } from "../../../utils/hooks/useCurrencyConverter";
 import { STABLE_TOKENS } from "../../../utils/config/web3.config";
-import { useMento } from "../../../utils/hooks/useMento";
 
 interface FormattedProduct extends Product {
   celoPrice: number;
@@ -45,63 +45,46 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = ({
     performSwap,
     setSelectedToken,
     getSwapQuote,
-    swapState,
     refreshTokenBalance,
     approveToken,
     getTokenAllowance,
     initializeMento,
+    swapState,
   } = useWeb3();
   const { isAuthenticated } = useAuth();
 
-  // State management
   const [quantity, setQuantity] = useState(1);
   const [selectedLogistics, setSelectedLogistics] =
     useState<LogisticsProvider | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [purchaseError, setPurchaseError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [showSwapModal, setShowSwapModal] = useState(false);
   const [swapQuote, setSwapQuote] = useState<string>("");
-  const [isGettingQuote, setIsGettingQuote] = useState(false);
   const [mounted, setMounted] = useState(false);
 
-  // Prevent hydration mismatch
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  // Reset quantity when variant changes
+  useEffect(() => setMounted(true), []);
   useEffect(() => {
     setQuantity(1);
-    setPurchaseError(null);
+    setError(null);
   }, [selectedVariant]);
 
-  // Memoized calculations for better performance
   const computeTotals = useMemo(() => {
-    if (!product || !selectedLogistics || !mounted) {
-      return { grandTotalUsd: 0, totalInSelected: 0, totalInPayment: 0 };
-    }
-
-    const totalUsd = product.price * quantity;
-    const fee = totalUsd * 0.025; // 2.5% fee
+    if (!product || !selectedLogistics || !mounted) return null;
+    const usd = product.price * quantity;
     const logistics = selectedLogistics.cost;
-    const grandTotalUsd = totalUsd + fee + logistics;
+    const fee = usd * 0.025;
+    const totalUsd = usd + fee + logistics;
 
-    const selectedTokenSymbol = wallet.selectedToken.symbol;
-    const paymentTokenSymbol = product.paymentToken;
-
-    const totalInSelected = convertPrice(
-      grandTotalUsd,
-      "USDT",
-      selectedTokenSymbol
-    );
-    const totalInPayment = convertPrice(
-      grandTotalUsd,
-      "USDT",
-      paymentTokenSymbol
-    );
-
-    return { grandTotalUsd, totalInSelected, totalInPayment };
+    return {
+      usd: totalUsd,
+      selectedTotal: convertPrice(
+        totalUsd,
+        "USDT",
+        wallet.selectedToken.symbol
+      ),
+      paymentTotal: convertPrice(totalUsd, "USDT", product.paymentToken),
+    };
   }, [
     product,
     selectedLogistics,
@@ -118,54 +101,18 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = ({
     return 0;
   }, [selectedVariant, product]);
 
-  const isOutOfStock = availableQty <= 0;
-  const isLowStock = availableQty > 0 && availableQty < 10;
-
-  // Check if user has sufficient balance
-  const hasSufficientBalance = useMemo(() => {
-    if (!wallet.isConnected || !mounted) return false;
-
-    const requiredAmount =
+  const insufficientBalance = useMemo(() => {
+    if (!wallet.isConnected || !mounted || !computeTotals) return false;
+    const required =
       wallet.selectedToken.symbol === product?.paymentToken
-        ? computeTotals.totalInPayment
-        : computeTotals.totalInSelected;
+        ? computeTotals.paymentTotal
+        : computeTotals.selectedTotal;
 
-    const currentBalance = wallet.tokenBalances[wallet.selectedToken.symbol];
-    if (!currentBalance) return false;
-
-    return parseFloat(currentBalance.raw) >= requiredAmount;
+    const balance = wallet.tokenBalances[wallet.selectedToken.symbol]?.raw;
+    return parseFloat(balance || "0") < required;
   }, [wallet, product, computeTotals, mounted]);
 
-  const isSwapSupported = useMemo(async () => {
-    if (
-      !wallet.isConnected ||
-      !product ||
-      wallet.selectedToken.symbol === product.paymentToken
-    ) {
-      return true; // No swap needed
-    }
-
-    try {
-      // Quick validation without getting full quote
-      const fromToken = STABLE_TOKENS.find(
-        (t) => t.symbol === wallet.selectedToken.symbol
-      );
-      const toToken = STABLE_TOKENS.find(
-        (t) => t.symbol === product.paymentToken
-      );
-
-      if (!fromToken || !toToken) return false;
-
-      // Use small amount for testing
-      await getSwapQuote(wallet.selectedToken.symbol, product.paymentToken, 1);
-      return true;
-    } catch {
-      return false;
-    }
-  }, [wallet.selectedToken.symbol, product?.paymentToken, getSwapQuote]);
-
-  // Get swap quote when needed
-  const updateSwapQuote = useCallback(async () => {
+  const updateQuote = useCallback(async () => {
     if (
       !product ||
       !wallet.isConnected ||
@@ -175,134 +122,76 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = ({
       return;
     }
 
-    if (computeTotals.totalInSelected <= 0) return;
+    if (!computeTotals || computeTotals.selectedTotal <= 0) return;
 
-    setIsGettingQuote(true);
     try {
       const quote = await getSwapQuote(
         wallet.selectedToken.symbol,
         product.paymentToken,
-        computeTotals.totalInSelected
+        computeTotals.selectedTotal
       );
       setSwapQuote(quote);
-    } catch (error) {
-      console.error("Failed to get swap quote:", error);
+    } catch (e) {
       setSwapQuote("");
-    } finally {
-      setIsGettingQuote(false);
     }
-  }, [
-    product,
-    wallet.isConnected,
-    wallet.selectedToken.symbol,
-    computeTotals.totalInSelected,
-    getSwapQuote,
-  ]);
+  }, [wallet.selectedToken.symbol, product, computeTotals, getSwapQuote]);
 
-  // Update quote when relevant values change
   useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      updateSwapQuote();
-    }, 500); // Debounce quote requests
+    const timeout = setTimeout(() => updateQuote(), 500);
+    return () => clearTimeout(timeout);
+  }, [updateQuote]);
 
-    return () => clearTimeout(timeoutId);
-  }, [updateSwapQuote]);
+  const validateSwap = useCallback(async () => {
+    if (!wallet.isConnected || !product || !computeTotals) return false;
+    const ready = await initializeMento();
+    if (!ready) return false;
 
-  const validateSwapRequirements = useCallback(async () => {
-    if (!wallet.isConnected || !product) return false;
-
-    try {
-      // Check if we need to initialize Mento
-      const mentoReady = await initializeMento();
-      if (!mentoReady) {
-        setPurchaseError("Swap functionality not available. Please try again.");
-        return false;
-      }
-
-      // Validate balance
-      const balance = parseFloat(
-        wallet.tokenBalances[wallet.selectedToken.symbol]?.raw || "0"
-      );
-      if (balance < computeTotals.totalInSelected) {
-        setPurchaseError(
-          `Insufficient ${wallet.selectedToken.symbol} balance for swap`
-        );
-        return false;
-      }
-
-      // Test if pair exists
-      const pairSupported = await isSwapSupported;
-      if (!pairSupported) {
-        setPurchaseError(
-          `${wallet.selectedToken.symbol}/${product.paymentToken} swap not supported`
-        );
-        return false;
-      }
-
-      return true;
-    } catch (error) {
-      setPurchaseError("Failed to validate swap requirements");
+    const balance = parseFloat(
+      wallet.tokenBalances[wallet.selectedToken.symbol]?.raw || "0"
+    );
+    if (balance < computeTotals.selectedTotal) {
+      setError(`Insufficient ${wallet.selectedToken.symbol} balance for swap`);
       return false;
     }
-  }, [wallet, product, computeTotals, initializeMento, isSwapSupported]);
 
-  const handleButtonClick = async () => {
-    setPurchaseError(null);
-
-    // Authentication check
-    if (!isAuthenticated) {
-      return navigate("/login");
+    try {
+      await getSwapQuote(wallet.selectedToken.symbol, product.paymentToken, 1);
+      return true;
+    } catch {
+      setError("Swap pair not supported");
+      return false;
     }
+  }, [wallet, product, computeTotals, initializeMento, getSwapQuote]);
 
-    // Product and logistics validation
-    if (!product || !selectedLogistics) {
-      setPurchaseError("Please select a delivery method");
-      return;
-    }
+  const handleBuy = async () => {
+    setError(null);
+    if (!isAuthenticated) return navigate("/login");
+    if (!product || !selectedLogistics)
+      return setError("Please select a delivery option");
+    if (!wallet.isConnected) return setShowWalletModal(true);
+    if (insufficientBalance) return setError("Insufficient balance");
 
-    // Wallet connection check
-    if (!wallet.isConnected) {
-      setShowWalletModal(true);
-      return;
-    }
-
-    // Balance check
-    if (!hasSufficientBalance) {
-      setPurchaseError(`Insufficient ${wallet.selectedToken.symbol} balance`);
-      return;
-    }
-
-    // Determine if swap is needed
     if (wallet.selectedToken.symbol !== product.paymentToken) {
-      // setShowSwapModal(true);
-      // return;
-      const canSwap = await validateSwapRequirements();
-      if (!canSwap) return;
-
-      setShowSwapModal(true);
-      return;
+      const valid = await validateSwap();
+      if (!valid) return;
+      return setShowSwapModal(true);
     }
 
-    // Direct purchase
     await executeOrder();
   };
 
   const executeOrder = async () => {
-    if (!product || !selectedLogistics) return;
-
+    if (!product || !selectedLogistics || !computeTotals) return;
     setIsProcessing(true);
-    setPurchaseError(null);
-
+    setError(null);
     try {
-      // Check and approve token if necessary
-      const requiredAmount = computeTotals.totalInPayment.toString();
-      const currentAllowance = await getTokenAllowance(product.paymentToken);
-
-      if (currentAllowance < computeTotals.totalInPayment) {
-        setPurchaseError("Approving token spend...");
-        await approveToken(product.paymentToken, requiredAmount);
-        // Wait a moment for blockchain confirmation
-        await new Promise((resolve) => setTimeout(resolve, 2000));
+      const allowance = await getTokenAllowance(product.paymentToken);
+      if (allowance < computeTotals.paymentTotal) {
+        await approveToken(
+          product.paymentToken,
+          computeTotals.paymentTotal.toString()
+        );
+        await new Promise((r) => setTimeout(r, 2000));
       }
 
       const order = await placeOrder({
@@ -311,84 +200,61 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = ({
         logisticsProviderWalletAddress: selectedLogistics.walletAddress,
       });
 
-      if (!order?._id) {
-        throw new Error("Order creation failed");
-      }
-
-      // Refresh balance after successful order
+      if (!order?._id) throw new Error("Order creation failed");
       await refreshTokenBalance();
-
       navigate(`/orders/${order._id}?status=pending`);
-    } catch (err: any) {
-      console.error("Purchase failed:", err);
-      setPurchaseError(err.message || "Purchase failed. Please try again.");
+    } catch (e: any) {
+      setError(e.message || "Purchase failed");
     } finally {
       setIsProcessing(false);
     }
   };
 
   const handleConfirmSwap = async () => {
-    if (!product) return;
-
-    setPurchaseError(null);
+    if (!product || !computeTotals) return;
 
     try {
-      // Perform the swap
       await performSwap(
         wallet.selectedToken.symbol,
         product.paymentToken,
-        computeTotals.totalInSelected
+        computeTotals.selectedTotal
       );
 
-      // Switch to payment token
-      const targetToken = STABLE_TOKENS.find(
+      const toToken = STABLE_TOKENS.find(
         (t) => t.symbol === product.paymentToken
       );
-      if (targetToken) {
-        setSelectedToken(targetToken);
-      }
+      if (toToken) setSelectedToken(toToken);
 
       setShowSwapModal(false);
-
-      // Execute order after successful swap
-      setTimeout(() => {
-        executeOrder();
-      }, 1000);
-    } catch (err: any) {
-      console.error("Swap failed:", err);
-      setPurchaseError(err.message || "Swap failed. Please try again.");
+      setTimeout(() => executeOrder(), 800);
+    } catch (e: any) {
+      setError(e.message || "Swap failed");
     }
   };
 
-  const formatBalance = (balance: string | undefined) => {
-    if (!balance || !mounted) return "Loading...";
-    const num = parseFloat(balance);
+  const formatBalance = (raw?: string) => {
+    const num = parseFloat(raw || "0");
     return num.toLocaleString("en-US", {
       minimumFractionDigits: 0,
       maximumFractionDigits: 6,
     });
   };
 
-  // Don't render during SSR
-  if (!mounted) {
+  if (!mounted)
     return <div className="bg-[#212428] p-4 md:p-6 animate-pulse h-64"></div>;
-  }
 
   const isLoading = isProcessing || swapState.isSwapping;
-  const hasError = purchaseError || swapState.error;
 
   return (
     <>
       <div className="bg-[#212428] p-4 md:p-6 space-y-4">
-        {/* Error Display */}
-        {hasError && (
+        {error && (
           <div className="bg-red-500/10 border border-red-500/30 text-red-400 p-3 rounded-lg text-sm flex items-center gap-2">
-            <HiExclamationTriangle className="w-4 h-4 flex-shrink-0" />
-            <span>{purchaseError || swapState.error}</span>
+            <HiExclamationTriangle className="w-4 h-4" />
+            <span>{error}</span>
           </div>
         )}
 
-        {/* Quantity and Stock Info */}
         <div className="flex justify-between items-center">
           <QuantitySelector
             min={1}
@@ -397,9 +263,9 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = ({
             onChange={setQuantity}
           />
           <div className="text-xs">
-            {isOutOfStock ? (
+            {availableQty <= 0 ? (
               <span className="text-red-500 font-medium">Out of stock</span>
-            ) : isLowStock ? (
+            ) : availableQty < 10 ? (
               <span className="text-yellow-500">Only {availableQty} left</span>
             ) : (
               <span className="text-green-500">{availableQty} available</span>
@@ -407,7 +273,6 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = ({
           </div>
         </div>
 
-        {/* Logistics Selection */}
         <LogisticsSelector
           logisticsCost={product?.logisticsCost || []}
           logisticsProviders={product?.logisticsProviders || []}
@@ -415,42 +280,37 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = ({
           onSelect={setSelectedLogistics}
         />
 
-        {/* Balance Warning */}
-        {wallet.isConnected && !hasSufficientBalance && (
+        {insufficientBalance && (
           <div className="bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 p-3 rounded-lg text-sm flex items-center gap-2">
-            <HiSignal className="w-4 h-4 flex-shrink-0" />
+            <HiSignal className="w-4 h-4" />
             <span>Insufficient balance for this purchase</span>
           </div>
         )}
 
-        {/* Swap Preview */}
         {wallet.isConnected &&
           product &&
+          computeTotals &&
           wallet.selectedToken.symbol !== product.paymentToken &&
-          computeTotals.totalInSelected > 0 && (
+          computeTotals?.selectedTotal > 0 && (
             <div className="bg-red-900/20 border border-red-500/30 rounded-lg p-3">
               <div className="flex items-center gap-2 text-red-300 text-sm">
                 <FaExchangeAlt className="w-3 h-3" />
                 <span>
-                  Will swap {computeTotals.totalInSelected.toFixed(4)}{" "}
+                  Will swap {computeTotals.selectedTotal.toFixed(4)}{" "}
                   {wallet.selectedToken.symbol}
-                  {isGettingQuote ? (
-                    <FaSpinner className="inline ml-2 animate-spin w-3 h-3" />
-                  ) : swapQuote ? (
+                  {swapQuote &&
                     ` → ${parseFloat(swapQuote).toFixed(4)} ${
                       product.paymentToken
-                    }`
-                  ) : null}
+                    }`}
                 </span>
               </div>
             </div>
           )}
 
-        {/* Purchase Button */}
         <button
-          onClick={handleButtonClick}
-          disabled={isLoading || isOutOfStock}
-          className="bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white py-3 px-6 rounded-lg w-full flex justify-center items-center gap-2 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+          onClick={handleBuy}
+          disabled={isLoading || availableQty <= 0}
+          className="bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white py-3 px-6 rounded-lg w-full flex justify-center items-center gap-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isLoading ? (
             <>
@@ -471,31 +331,26 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = ({
           )}
         </button>
 
-        {/* Wallet Info */}
         {wallet.isConnected && (
           <div className="bg-gray-800 border border-gray-700 rounded-lg p-3 text-xs space-y-2">
-            <div className="flex justify-between items-center">
-              <div className="flex items-center gap-1 text-gray-400">
+            <div className="flex justify-between">
+              <span className="text-gray-400 flex items-center gap-1">
                 <HiCurrencyDollar className="text-red-500 w-3 h-3" />
-                <span>{wallet.selectedToken.symbol} Balance:</span>
-              </div>
-              <div className="text-white font-medium">
+                {wallet.selectedToken.symbol} Balance:
+              </span>
+              <span className="text-white font-medium">
                 {formatBalance(
                   wallet.tokenBalances[wallet.selectedToken.symbol]?.raw
                 )}
-              </div>
+              </span>
             </div>
-
-            {wallet.address && (
-              <div className="text-gray-500 text-center pt-1 border-t border-gray-700">
-                {`${wallet.address.slice(0, 6)}...${wallet.address.slice(-4)}`}
-              </div>
-            )}
+            <div className="text-gray-500 text-center pt-1 border-t border-gray-700">
+              {wallet.address?.slice(0, 6)}...{wallet.address?.slice(-4)}
+            </div>
           </div>
         )}
       </div>
 
-      {/* Modals */}
       <WalletConnectionModal
         isOpen={showWalletModal}
         onClose={() => setShowWalletModal(false)}
@@ -505,7 +360,7 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = ({
         isOpen={showSwapModal}
         fromToken={wallet.selectedToken.symbol}
         toToken={product?.paymentToken || ""}
-        amountIn={computeTotals.totalInSelected}
+        amountIn={computeTotals?.selectedTotal || 0}
         amountOut={swapQuote}
         isProcessing={swapState.isSwapping}
         error={swapState.error || undefined}
