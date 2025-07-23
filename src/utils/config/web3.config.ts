@@ -32,12 +32,22 @@ export interface StableToken {
 
 export const STABLE_TOKENS: StableToken[] = [
   {
-    name: "Celo Dollar",
-    symbol: "cUSD",
+    name: "Dollar",
+    symbol: "USDT",
     decimals: 18,
     address: {
       [celo.id]: import.meta.env.VITE_USDT_CONTRACT_ADDRESS_MAINNET!,
       [celoAlfajores.id]: import.meta.env.VITE_USDT_CONTRACT_ADDRESS_TESTNET!,
+    },
+    icon: cUSDIcon,
+  },
+  {
+    name: "Celo Dollar",
+    symbol: "cUSD",
+    decimals: 18,
+    address: {
+      [celo.id]: "0x765de816845861e75a25fca122bb6898b8b1282a",
+      [celoAlfajores.id]: "0x874069fa1eb16d44d622f2e0ca25eea172369bc1",
     },
     icon: cUSDIcon,
   },
