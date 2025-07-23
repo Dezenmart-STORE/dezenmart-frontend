@@ -593,7 +593,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
         );
 
         // Get quote with retry mechanism
-        let amountOut: ethers.BigNumber;
+        let amountOut: ethers.BigNumber | undefined;
         let retries = 3;
         while (retries > 0) {
           try {
@@ -604,6 +604,10 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
             if (retries === 0) throw error;
             await new Promise((resolve) => setTimeout(resolve, 1000));
           }
+        }
+
+        if (!amountOut) {
+          throw new Error("Failed to get swap quote after multiple attempts");
         }
 
         const minAmountOut = amountOut.mul(95).div(100); // 5% slippage
@@ -750,8 +754,25 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
           provider
         );
 
-        // Get Mento's exchange address for allowance check
-        const exchangeAddress = await mento.getExchangeAddress(tokenAddress);
+        // Get all exchanges
+        const exchanges = await mento.getExchanges();
+
+        // Find exchange that handles this token
+        const relevantExchange = exchanges.find((exchange) => {
+          // Check if exchange has this token in its trading pairs
+          return exchange.assets.some(
+            (asset: string) =>
+              asset.toLowerCase() === tokenAddress.toLowerCase()
+          );
+        });
+
+        if (!relevantExchange) {
+          console.warn(`No exchange found for token ${tokenAddress}`);
+          return ethers.BigNumber.from(0);
+        }
+
+        // Use the exchange contract address
+        const exchangeAddress = relevantExchange.contract;
         const allowance = await tokenContract.allowance(
           address,
           exchangeAddress
