@@ -207,7 +207,7 @@ export const ESCROW_ADDRESSES = {
 // Default token is cUSD
 export const DEFAULT_STABLE_TOKEN = STABLE_TOKENS[0];
 
-export const TARGET_CHAIN = celoAlfajores;
+export const TARGET_CHAIN = celo;
 
 export const wagmiConfig = createConfig({
   chains: [celo, celoAlfajores],
