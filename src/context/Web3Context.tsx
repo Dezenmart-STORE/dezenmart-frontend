@@ -946,7 +946,11 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
         amount: number
       ): Promise<void> => {
         try {
-          await mento.performSwap({ fromSymbol: from, toSymbol: to, amount });
+          await mento.performSwap({
+            fromSymbol: from,
+            toSymbol: to,
+            amount: amount,
+          });
         } catch (error) {
           throw error;
         }
