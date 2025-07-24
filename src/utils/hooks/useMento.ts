@@ -109,7 +109,7 @@ export function useMento() {
 
         const mento = await Mento.create(signer);
 
-        // Test the connection by fetching tradable pairs - FIXED TYPO HERE
+        // Test the connection by fetching tradable pairs
         const pairs = await mento.getTradablePairs();
         setAvailablePairs(pairs);
 
@@ -236,20 +236,25 @@ export function useMento() {
           console.log("[getSwapQuote] Tradable pair found:", tradablePair);
 
           // Get amount out using the found pair
-          console.log("[getSwapQuote] Getting amount out...");
+          console.log(
+            "[getSwapQuote] Getting amount out with tradable pair..."
+          );
           amountOut = await mentoRef.current.getAmountOut(
             fromAddress,
             toAddress,
             BigNumber.from(amountIn.toString()),
             tradablePair
           );
-          console.log("[getSwapQuote] amountOut raw:", amountOut.toString());
+          console.log(
+            "[getSwapQuote] amountOut raw (with pair):",
+            amountOut.toString()
+          );
 
           // Determine route
           if (tradablePair?.path && tradablePair.path.length > 2) {
             // Multi-hop route
             const pathSymbols = tradablePair.path.map((pair) => {
-              const addr = pair.assets[0]; // Assuming the first asset is the relevant address
+              const addr = pair.assets[0];
               const token = STABLE_TOKENS.find(
                 (t) =>
                   getTokenAddress(t, chainId)?.toLowerCase() ===
@@ -261,9 +266,9 @@ export function useMento() {
           } else {
             route = [fromSymbol, toSymbol];
           }
-        } catch (pairError) {
-          console.error(
-            "[getSwapQuote] Error finding pair for tokens, trying fallback:",
+        } catch (pairError: any) {
+          console.warn(
+            "[getSwapQuote] Error finding pair, attempting direct swap:",
             pairError
           );
 
@@ -275,9 +280,17 @@ export function useMento() {
               BigNumber.from(amountIn.toString())
             );
             route = [fromSymbol, toSymbol];
-          } catch (directError) {
+            console.log(
+              "[getSwapQuote] amountOut raw (direct swap):",
+              amountOut.toString()
+            );
+          } catch (directSwapError: any) {
+            console.error(
+              "[getSwapQuote] Direct swap also failed:",
+              directSwapError
+            );
             throw new Error(
-              `No trading path available between ${fromSymbol} and ${toSymbol}`
+              `No trading path available between ${fromSymbol} and ${toSymbol}: ${directSwapError.message}`
             );
           }
         }
@@ -322,7 +335,6 @@ export function useMento() {
             minAmountOut,
             tradablePair
           );
-          // Cast the gasLimit to BigInt as viem's estimateGas expects BigInt
           const gasEstimateBigInt = await publicClient!.estimateGas({
             account: address as `0x${string}`,
             to: txRequest.to as `0x${string}`,
@@ -339,7 +351,7 @@ export function useMento() {
             "[getSwapQuote] Failed to estimate gas, using default:",
             gasError
           );
-          estimatedGasLimit = BigNumber.from(300000); // Default gas limit
+          estimatedGasLimit = BigNumber.from(300000);
         }
 
         const networkFee = await getGasFee(publicClient!, estimatedGasLimit);
@@ -390,7 +402,7 @@ export function useMento() {
         throw new Error(errorMessage);
       }
     },
-    [walletClient, validateTokenPair, publicClient, address] // Added publicClient and address to dependencies
+    [walletClient, validateTokenPair, publicClient, address]
   );
 
   const performSwap = useCallback(
@@ -693,7 +705,7 @@ export function useMento() {
 
 const calculatePriceImpact = (amountIn: number, amountOut: number): string => {
   if (amountIn <= 0 || amountOut <= 0) return "0";
-  const expectedRate = 1; // Assuming 1:1 for stablecoins, adjust if other pairs
+  const expectedRate = 1;
   const actualRate = amountOut / amountIn;
   const impact = Math.abs((expectedRate - actualRate) / expectedRate) * 100;
   return impact.toFixed(4);
@@ -706,7 +718,7 @@ const getGasFee = async (
   try {
     const gasPrice = await publicClient.getGasPrice();
     const fee = gasPrice * BigInt(gasLimit.toString());
-    return formatUnits(fee, 18); // Assuming gas is in wei and we want it in ETH/CELO
+    return formatUnits(fee, 18);
   } catch (error) {
     console.error("Failed to estimate gas fee:", error);
     return "0";
