@@ -89,85 +89,85 @@ const SwapConfirmationModal: React.FC<SwapConfirmationModalProps> = ({
   );
 
   // Fetch quote with error handling and retry logic
-  const fetchQuote = useCallback(
-    async (retryCount = 0): Promise<void> => {
-      if (!mento?.isReady || amountIn <= 0 || !fromTokenData || !toTokenData) {
-        return;
-      }
+  //   const fetchQuote = useCallback(
+  //     async (retryCount = 0): Promise<void> => {
+  //       if (!mento?.isReady || amountIn <= 0 || !fromTokenData || !toTokenData) {
+  //         return;
+  //       }
 
-      // Cancel previous request
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-      abortControllerRef.current = new AbortController();
+  //       // Cancel previous request
+  //       if (abortControllerRef.current) {
+  //         abortControllerRef.current.abort();
+  //       }
+  //       abortControllerRef.current = new AbortController();
 
-      setQuote((prev) => ({ ...prev, isLoading: true, error: null }));
+  //       setQuote((prev) => ({ ...prev, isLoading: true, error: null }));
 
-      try {
-        const quoteData = await mento.getSwapQuote(
-          fromToken,
-          toToken,
-          amountIn,
-          slippage / 100
-        );
+  //       try {
+  //         const quoteData = await mento.getSwapQuote(
+  //           fromToken,
+  //           toToken,
+  //           amountIn,
+  //           slippage / 100
+  //         );
 
-        if (!abortControllerRef.current?.signal.aborted) {
-          setQuote({
-            data: quoteData,
-            isLoading: false,
-            error: null,
-            lastUpdated: Date.now(),
-          });
-          setCountdown(15); // Reset countdown
-        }
-      } catch (error: any) {
-        if (error.name === "AbortError") return;
+  //         if (!abortControllerRef.current?.signal.aborted) {
+  //           setQuote({
+  //             data: quoteData,
+  //             isLoading: false,
+  //             error: null,
+  //             lastUpdated: Date.now(),
+  //           });
+  //           setCountdown(15); // Reset countdown
+  //         }
+  //       } catch (error: any) {
+  //         if (error.name === "AbortError") return;
 
-        const errorMessage = error.message || "Failed to get quote";
+  //         const errorMessage = error.message || "Failed to get quote";
 
-        // Retry logic for network errors
-        if (
-          retryCount < 2 &&
-          (errorMessage.includes("network") ||
-            errorMessage.includes("connection") ||
-            errorMessage.includes("timeout"))
-        ) {
-          setTimeout(() => fetchQuote(retryCount + 1), 1000 * (retryCount + 1));
-          return;
-        }
+  //         // Retry logic for network errors
+  //         if (
+  //           retryCount < 2 &&
+  //           (errorMessage.includes("network") ||
+  //             errorMessage.includes("connection") ||
+  //             errorMessage.includes("timeout"))
+  //         ) {
+  //           setTimeout(() => fetchQuote(retryCount + 1), 1000 * (retryCount + 1));
+  //           return;
+  //         }
 
-        if (!abortControllerRef.current?.signal.aborted) {
-          setQuote((prev) => ({
-            ...prev,
-            isLoading: false,
-            error: errorMessage,
-          }));
-        }
-      }
-    },
-    [mento, amountIn, fromToken, toToken, slippage, fromTokenData, toTokenData]
-  );
+  //         if (!abortControllerRef.current?.signal.aborted) {
+  //           setQuote((prev) => ({
+  //             ...prev,
+  //             isLoading: false,
+  //             error: errorMessage,
+  //           }));
+  //         }
+  //       }
+  //     },
+  //     [mento, amountIn, fromToken, toToken, slippage, fromTokenData, toTokenData]
+  //   );
 
   // Setup quote fetching and intervals
-  useEffect(() => {
-    setMounted(true);
+  //   useEffect(() => {
+  //     setMounted(true);
 
-    if (isOpen && mento?.isReady) {
-      fetchQuote();
+  //     if (isOpen && mento?.isReady) {
+  //       fetchQuote();
 
-      // Setup quote refresh interval
-      quoteIntervalRef.current = setInterval(
-        fetchQuote,
-        QUOTE_REFRESH_INTERVAL
-      );
+  //       // Setup quote refresh interval
+  //       quoteIntervalRef.current = setInterval(
+  //         fetchQuote,
+  //         QUOTE_REFRESH_INTERVAL
+  //       );
 
-      return () => {
-        if (quoteIntervalRef.current) {
-          clearInterval(quoteIntervalRef.current);
-        }
-      };
-    }
-  }, [isOpen, mento?.isReady, fetchQuote]);
+  //       return () => {
+  //         if (quoteIntervalRef.current) {
+  //           clearInterval(quoteIntervalRef.current);
+  //         }
+  //       };
+  //     }
+  //   }, [isOpen, mento?.isReady, fetchQuote]);
 
   // Countdown timer
   useEffect(() => {
@@ -179,7 +179,7 @@ const SwapConfirmationModal: React.FC<SwapConfirmationModalProps> = ({
         const remaining = Math.max(0, 15 - timeElapsed);
 
         if (remaining <= 0) {
-          fetchQuote(); // Auto-refresh when expired
+          //   fetchQuote(); // Auto-refresh when expired
           return 15;
         }
 
@@ -192,7 +192,13 @@ const SwapConfirmationModal: React.FC<SwapConfirmationModalProps> = ({
         clearInterval(countdownIntervalRef.current);
       }
     };
-  }, [isOpen, quote.data, quote.isLoading, quote.lastUpdated, fetchQuote]);
+  }, [
+    isOpen,
+    quote.data,
+    quote.isLoading,
+    quote.lastUpdated,
+    //   fetchQuote
+  ]);
 
   // Handle modal close
   const handleClose = useCallback(() => {
@@ -330,7 +336,7 @@ const SwapConfirmationModal: React.FC<SwapConfirmationModalProps> = ({
               </div>
               <Button
                 title="Refresh"
-                onClick={() => fetchQuote()}
+                // onClick={() => fetchQuote()}
                 disabled={quote.isLoading}
                 className="text-xs px-3 py-1 bg-transparent hover:bg-current/10 border border-current/30 rounded-lg"
               />
@@ -531,7 +537,7 @@ const SwapConfirmationModal: React.FC<SwapConfirmationModalProps> = ({
                 <p className="text-red-300/80 text-sm mt-1">{quote.error}</p>
                 <Button
                   title="Retry"
-                  onClick={() => fetchQuote()}
+                  //   onClick={() => fetchQuote()}
                   className="mt-3 text-xs px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded-lg"
                 />
               </div>
@@ -606,7 +612,8 @@ const SwapConfirmationModal: React.FC<SwapConfirmationModalProps> = ({
                 "Confirm Swap"
               )
             }
-            onClick={isQuoteExpired ? () => fetchQuote() : handleConfirm}
+            // onClick={isQuoteExpired ? () => fetchQuote() : handleConfirm}
+            onClick={handleConfirm}
             disabled={!canConfirm || isLoading}
             className={`flex-1 ${
               mento?.isSwapping
