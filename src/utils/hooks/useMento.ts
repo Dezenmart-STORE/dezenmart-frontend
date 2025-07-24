@@ -262,7 +262,10 @@ export function useMento() {
             route = [fromSymbol, toSymbol];
           }
         } catch (pairError) {
-          console.log("Direct pair not found, trying fallback...");
+          console.error(
+            "[getSwapQuote] Error finding pair for tokens, trying fallback:",
+            pairError
+          );
 
           // Fallback to direct swap
           try {
