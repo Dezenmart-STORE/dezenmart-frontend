@@ -176,6 +176,10 @@ export function useMento() {
       amount: number,
       slippageTolerance = SLIPPAGE_DEFAULT
     ): Promise<SwapQuote> => {
+      console.log(
+        `[getSwapQuote] Calling with: from=${fromSymbol}, to=${toSymbol}, amount=${amount}`
+      );
+
       // Input validation
       if (
         !mentoRef.current ||
@@ -215,6 +219,7 @@ export function useMento() {
         }
 
         const amountIn = parseUnits(amount.toString(), fromToken.decimals);
+        console.log(`[getSwapQuote] amountIn: ${amountIn.toString()}`);
 
         let tradablePair: TradablePair | undefined;
         let amountOut: BigNumber;
@@ -223,18 +228,22 @@ export function useMento() {
 
         try {
           // Try to find the best trading path
+          console.log("[getSwapQuote] Finding pair for tokens...");
           tradablePair = await mentoRef.current.findPairForTokens(
             fromAddress,
             toAddress
           );
+          console.log("[getSwapQuote] Tradable pair found:", tradablePair);
 
           // Get amount out using the found pair
+          console.log("[getSwapQuote] Getting amount out...");
           amountOut = await mentoRef.current.getAmountOut(
             fromAddress,
             toAddress,
             BigNumber.from(amountIn.toString()),
             tradablePair
           );
+          console.log("[getSwapQuote] amountOut raw:", amountOut.toString());
 
           // Determine route
           if (tradablePair?.path && tradablePair.path.length > 2) {
@@ -278,6 +287,7 @@ export function useMento() {
         const exchangeRate = (parseFloat(amountOutFormatted) / amount).toFixed(
           6
         );
+        console.log(`[getSwapQuote] exchangeRate: ${exchangeRate}`);
 
         // Calculate minimum amount out with slippage
         const minAmountOut = amountOut
@@ -287,16 +297,21 @@ export function useMento() {
           BigInt(minAmountOut.toString()),
           toToken.decimals
         );
+        console.log(
+          `[getSwapQuote] minAmountOutFormatted: ${minAmountOutFormatted}`
+        );
 
         // Calculate price impact
         const priceImpact = calculatePriceImpact(
           amount,
           parseFloat(amountOutFormatted)
         );
+        console.log(`[getSwapQuote] priceImpact: ${priceImpact}`);
 
         // Estimate gas and fees
         let estimatedGasLimit: BigNumber;
         try {
+          console.log("[getSwapQuote] Estimating gas...");
           const txRequest = await mentoRef.current.swapIn(
             fromAddress,
             toAddress,
@@ -312,13 +327,23 @@ export function useMento() {
             value: BigInt(txRequest.value?.toString() || "0"),
           });
           estimatedGasLimit = BigNumber.from(gasEstimateBigInt.toString());
+          console.log(
+            "[getSwapQuote] estimatedGasLimit:",
+            estimatedGasLimit.toString()
+          );
         } catch (gasError) {
-          console.warn("Failed to estimate gas, using default:", gasError);
+          console.warn(
+            "[getSwapQuote] Failed to estimate gas, using default:",
+            gasError
+          );
           estimatedGasLimit = BigNumber.from(300000); // Default gas limit
         }
 
         const networkFee = await getGasFee(publicClient!, estimatedGasLimit);
         const protocolFee = "0"; // Placeholder for actual protocol fees
+        console.log(
+          `[getSwapQuote] networkFee: ${networkFee}, protocolFee: ${protocolFee}`
+        );
 
         const quote: SwapQuote = {
           amountOut: amountOutFormatted,
@@ -346,9 +371,11 @@ export function useMento() {
           lastQuote: quote,
           error: null,
         }));
+        console.log("[getSwapQuote] Quote fetched successfully:", quote);
 
         return quote;
       } catch (error: any) {
+        console.error("[getSwapQuote] Error fetching quote:", error);
         if (error.name === "AbortError") return Promise.reject(error);
 
         const errorMessage = parseSwapError(error);
@@ -360,7 +387,7 @@ export function useMento() {
         throw new Error(errorMessage);
       }
     },
-    [walletClient, validateTokenPair]
+    [walletClient, validateTokenPair, publicClient, address] // Added publicClient and address to dependencies
   );
 
   const performSwap = useCallback(
