@@ -767,9 +767,9 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = memo(
             fromToken={wallet.selectedToken.symbol}
             toToken={product?.paymentToken || ""}
             amountIn={computedTotals.totalInSelected}
-            amountOut={state.swapQuote}
-            isProcessing={swapState.isSwapping}
-            error={swapState.error || undefined}
+            // amountOut={state.swapQuote}
+            // isProcessing={swapState.isSwapping}
+            // error={swapState.error || undefined}
             onClose={() => updateState({ showSwapModal: false })}
             onConfirm={handleConfirmSwap}
             slippage={5}

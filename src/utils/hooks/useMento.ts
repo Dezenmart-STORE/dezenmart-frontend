@@ -17,6 +17,9 @@ interface MentoState {
   error: string | null;
   lastQuote: SwapQuote | null;
   isInitialized: boolean;
+  isApproving: boolean;
+  currentStep: number;
+  totalSteps: number;
 }
 
 interface SwapQuote {
@@ -26,7 +29,10 @@ interface SwapQuote {
   priceImpact: string;
   route: string[];
   timestamp: number;
-  fees: string;
+  fees: {
+    networkFee: string;
+    protocolFee: string;
+  };
   gasEstimate?: string;
 }
 
@@ -64,6 +70,9 @@ export function useMento() {
     error: null,
     lastQuote: null,
     isInitialized: false,
+    isApproving: false,
+    currentStep: 0,
+    totalSteps: 0,
   });
 
   const mentoRef = useRef<Mento | null>(null);
@@ -279,11 +288,37 @@ export function useMento() {
           toToken.decimals
         );
 
-        // Calculate price impact (simplified)
-        const priceImpact = "0.1"; // You should implement proper price impact calculation
+        // Calculate price impact
+        const priceImpact = calculatePriceImpact(
+          amount,
+          parseFloat(amountOutFormatted)
+        );
 
-        // Estimate fees (this is a placeholder - implement actual fee calculation)
-        const fees = "0.1";
+        // Estimate gas and fees
+        let estimatedGasLimit: BigNumber;
+        try {
+          const txRequest = await mentoRef.current.swapIn(
+            fromAddress,
+            toAddress,
+            amountIn,
+            minAmountOut,
+            tradablePair
+          );
+          // Cast the gasLimit to BigInt as viem's estimateGas expects BigInt
+          const gasEstimateBigInt = await publicClient!.estimateGas({
+            account: address as `0x${string}`,
+            to: txRequest.to as `0x${string}`,
+            data: txRequest.data as `0x${string}`,
+            value: BigInt(txRequest.value?.toString() || "0"),
+          });
+          estimatedGasLimit = BigNumber.from(gasEstimateBigInt.toString());
+        } catch (gasError) {
+          console.warn("Failed to estimate gas, using default:", gasError);
+          estimatedGasLimit = BigNumber.from(300000); // Default gas limit
+        }
+
+        const networkFee = await getGasFee(publicClient!, estimatedGasLimit);
+        const protocolFee = "0"; // Placeholder for actual protocol fees
 
         const quote: SwapQuote = {
           amountOut: amountOutFormatted,
@@ -291,8 +326,8 @@ export function useMento() {
           minAmountOut: minAmountOutFormatted,
           priceImpact,
           route,
-          fees,
-          gasEstimate,
+          fees: { networkFee, protocolFee },
+          gasEstimate: formatUnits(BigInt(estimatedGasLimit.toString()), 18), // Gas estimate in CELO
           timestamp: Date.now(),
         };
 
@@ -346,7 +381,13 @@ export function useMento() {
         throw new Error("Invalid token pair");
       }
 
-      setState((prev) => ({ ...prev, isSwapping: true, error: null }));
+      setState((prev) => ({
+        ...prev,
+        isSwapping: true,
+        error: null,
+        currentStep: 1,
+        totalSteps: 2,
+      })); // Initialize steps
 
       try {
         const chainId = await walletClient.getChainId();
@@ -389,6 +430,12 @@ export function useMento() {
         }
 
         // Step 1: Increase trading allowance
+        setState((prev) => ({
+          ...prev,
+          isApproving: true,
+          currentStep: 1,
+          totalSteps: recipientAddress ? 3 : 2,
+        }));
         console.log("Increasing trading allowance...");
         const allowanceTxObj = await mentoRef.current.increaseTradingAllowance(
           fromAddress,
@@ -416,7 +463,13 @@ export function useMento() {
           throw new Error("Allowance transaction failed");
         }
 
+        setState((prev) => ({ ...prev, isApproving: false, currentStep: 2 }));
+
         // Step 2: Execute swap
+        setState((prev) => ({
+          ...prev,
+          currentStep: recipientAddress ? 2 : 2,
+        })); // Adjust step for remittance
         console.log("Executing swap...");
         const swapTxObj = await mentoRef.current.swapIn(
           fromAddress,
@@ -456,6 +509,7 @@ export function useMento() {
 
         // Step 3: Handle remittance if recipient is different
         if (recipientAddress && recipientAddress !== address) {
+          setState((prev) => ({ ...prev, currentStep: 3 }));
           const transferHash = await handleRemittance(
             toAddress,
             recipientAddress,
@@ -465,7 +519,13 @@ export function useMento() {
           result.transferHash = transferHash;
         }
 
-        setState((prev) => ({ ...prev, isSwapping: false, error: null }));
+        setState((prev) => ({
+          ...prev,
+          isSwapping: false,
+          error: null,
+          currentStep: 0,
+          totalSteps: 0,
+        })); // Reset steps on completion
 
         // Clear cache after successful swap
         clearQuoteCache();
@@ -476,8 +536,11 @@ export function useMento() {
         setState((prev) => ({
           ...prev,
           isSwapping: false,
+          isApproving: false,
           error: errorMessage,
-        }));
+          currentStep: 0,
+          totalSteps: 0,
+        })); // Reset steps on error
         throw new Error(errorMessage);
       }
     },
@@ -597,3 +660,25 @@ export function useMento() {
 
   return contextValue;
 }
+
+const calculatePriceImpact = (amountIn: number, amountOut: number): string => {
+  if (amountIn <= 0 || amountOut <= 0) return "0";
+  const expectedRate = 1; // Assuming 1:1 for stablecoins, adjust if other pairs
+  const actualRate = amountOut / amountIn;
+  const impact = Math.abs((expectedRate - actualRate) / expectedRate) * 100;
+  return impact.toFixed(4);
+};
+
+const getGasFee = async (
+  publicClient: any,
+  gasLimit: BigNumber
+): Promise<string> => {
+  try {
+    const gasPrice = await publicClient.getGasPrice();
+    const fee = gasPrice * BigInt(gasLimit.toString());
+    return formatUnits(fee, 18); // Assuming gas is in wei and we want it in ETH/CELO
+  } catch (error) {
+    console.error("Failed to estimate gas fee:", error);
+    return "0";
+  }
+};
