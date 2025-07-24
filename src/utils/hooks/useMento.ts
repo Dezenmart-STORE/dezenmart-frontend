@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { useAccount, useWalletClient, usePublicClient } from "wagmi";
-import { Mento } from "@mento-protocol/mento-sdk";
+import { Mento, TradablePair } from "@mento-protocol/mento-sdk";
 import { parseUnits, formatUnits, erc20Abi } from "viem";
 import { providers, Contract, BigNumber } from "ethers";
 import {
@@ -45,11 +45,6 @@ interface SwapResult {
   recipient: string;
   transferHash?: string;
   gasUsed?: string;
-}
-
-interface TradablePair {
-  path?: string[];
-  router?: string;
 }
 
 const QUOTE_CACHE_DURATION = 15000; // 15 seconds
@@ -105,8 +100,8 @@ export function useMento() {
 
         const mento = await Mento.create(signer);
 
-        // Test the connection by fetching tradable pairs
-        const pairs = await mento.getTradeablePairs();
+        // Test the connection by fetching tradable pairs - FIXED TYPO HERE
+        const pairs = await mento.getTradablePairs();
         setAvailablePairs(pairs);
 
         mentoRef.current = mento;
@@ -235,9 +230,12 @@ export function useMento() {
           // Determine route
           if (tradablePair?.path && tradablePair.path.length > 2) {
             // Multi-hop route
-            const pathSymbols = tradablePair.path.map((addr) => {
+            const pathSymbols = tradablePair.path.map((pair) => {
+              const addr = pair.assets[0]; // Assuming the first asset is the relevant address
               const token = STABLE_TOKENS.find(
-                (t) => t.address[chainId]?.toLowerCase() === addr.toLowerCase()
+                (t) =>
+                  getTokenAddress(t, chainId)?.toLowerCase() ===
+                  addr.toLowerCase()
               );
               return token?.symbol || addr;
             });
