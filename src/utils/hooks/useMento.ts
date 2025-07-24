@@ -74,6 +74,7 @@ export function useMento() {
 
       const mento = await Mento.create(signer);
       const broker = await mento.getBroker();
+      console.log("ll", mento.getTradablePairs());
 
       mentoRef.current = mento;
       brokerRef.current = broker;
