@@ -574,8 +574,9 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = memo(
       if (wallet.selectedToken.symbol !== product.paymentToken) {
         // const canSwap = await validateSwapRequirements();
         // if (!canSwap) return;
-        console.log("should show modal", state);
+
         updateState({ showSwapModal: true });
+        console.log("should show modal", state);
         return;
       }
 
