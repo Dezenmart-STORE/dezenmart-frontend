@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useAccount, useWalletClient, usePublicClient } from "wagmi";
 import { Mento } from "@mento-protocol/mento-sdk";
-import { parseEther, formatEther, parseUnits, formatUnits } from "viem";
+import { parseUnits, formatUnits } from "viem";
 import { providers, Contract, utils } from "ethers";
 import { STABLE_TOKENS, getTokenAddress } from "../config/web3.config";
 import { debounce } from "lodash-es";
@@ -39,9 +39,8 @@ interface SwapResult {
   transferHash?: string;
 }
 
-const QUOTE_CACHE_DURATION = 30000; // 30 seconds
-const SLIPPAGE_DEFAULT = 0.05; // 5%
-const DEADLINE_MINUTES = 20;
+const QUOTE_CACHE_DURATION = 30000;
+const SLIPPAGE_DEFAULT = 0.01; // 1%
 
 export function useMento() {
   const { address } = useAccount();
@@ -57,10 +56,8 @@ export function useMento() {
   });
 
   const mentoRef = useRef<Mento | null>(null);
-  const brokerRef = useRef<Contract | null>(null);
   const quoteCache = useRef<Map<string, SwapQuote>>(new Map());
 
-  // Initialize Mento SDK
   const initializeMento = useCallback(async (): Promise<boolean> => {
     if (!address || !walletClient || mentoRef.current) {
       return !!mentoRef.current;
@@ -71,14 +68,9 @@ export function useMento() {
     try {
       const provider = new providers.Web3Provider(window.ethereum!);
       const signer = provider.getSigner();
-
       const mento = await Mento.create(signer);
-      const broker = await mento.getBroker();
-      console.log("ll", mento.getTradablePairs());
 
       mentoRef.current = mento;
-      brokerRef.current = broker;
-
       setState((prev) => ({ ...prev, isInitializing: false }));
       return true;
     } catch (error) {
@@ -92,7 +84,6 @@ export function useMento() {
     }
   }, [address, walletClient]);
 
-  // Get swap quote with caching
   const getSwapQuote = useCallback(
     async (
       fromSymbol: string,
@@ -101,7 +92,6 @@ export function useMento() {
       slippageTolerance = SLIPPAGE_DEFAULT
     ): Promise<SwapQuote> => {
       if (!mentoRef.current || amount <= 0) {
-        // throw new Error("Invalid swap parameters");
         return {
           amountOut: "0",
           exchangeRate: "0",
@@ -140,23 +130,57 @@ export function useMento() {
 
         const amountIn = parseUnits(amount.toString(), fromToken.decimals);
 
-        // Get tradable pair for route discovery
-        const tradablePair = await mentoRef.current.findPairForTokens(
-          fromAddress,
-          toAddress
-        );
+        // Find tradable pair with proper error handling
+        let tradablePair;
+        let amountOut;
+        let route: string[] = [];
 
-        // Get amount out
-        const amountOut = await mentoRef.current.getAmountOut(
-          fromAddress,
-          toAddress,
-          amountIn
-        );
+        try {
+          // Try to find direct or routed pair
+          tradablePair = await mentoRef.current.findPairForTokens(
+            fromAddress,
+            toAddress
+          );
+
+          // Get amount out using the tradable pair
+          amountOut = await mentoRef.current.getAmountOut(
+            fromAddress,
+            toAddress,
+            amountIn,
+            tradablePair
+          );
+
+          // Determine route based on path length
+          if (tradablePair.path && tradablePair.path.length > 1) {
+            // Multi-hop route (e.g., cUSD -> CELO -> cEUR)
+            route = [fromSymbol, "CELO", toSymbol];
+          } else {
+            // Direct route
+            route = [fromSymbol, toSymbol];
+          }
+        } catch (pairError) {
+          console.error("Pair finding failed:", pairError);
+
+          // Fallback: try direct swap without routing
+          try {
+            amountOut = await mentoRef.current.getAmountOut(
+              fromAddress,
+              toAddress,
+              amountIn
+            );
+            route = [fromSymbol, toSymbol];
+          } catch (directError) {
+            throw new Error(
+              `No trading path available between ${fromSymbol} and ${toSymbol}`
+            );
+          }
+        }
 
         const amountOutFormatted = formatUnits(
           BigInt(amountOut.toString()),
           toToken.decimals
         );
+
         const exchangeRate = (
           parseFloat(amountOutFormatted) / amount
         ).toString();
@@ -167,19 +191,14 @@ export function useMento() {
             BigInt(Math.floor((1 - slippageTolerance) * 10000))) /
           BigInt(10000)
         ).toString();
+
         const minAmountOutFormatted = formatUnits(
           BigInt(minAmountOut),
           toToken.decimals
         );
 
-        // Calculate price impact (simplified)
-        const priceImpact = "0.1"; // This should be calculated properly based on pool reserves
-
-        // Determine route
-        const route =
-          tradablePair.path.length > 1
-            ? [fromSymbol, "CELO", toSymbol]
-            : [fromSymbol, toSymbol];
+        // Calculate price impact (simplified - you may want to implement proper calculation)
+        const priceImpact = "0.1";
 
         const quote: SwapQuote = {
           amountOut: amountOutFormatted,
@@ -190,7 +209,6 @@ export function useMento() {
           timestamp: Date.now(),
         };
 
-        // Cache the quote
         quoteCache.current.set(cacheKey, quote);
 
         setState((prev) => ({
@@ -198,33 +216,24 @@ export function useMento() {
           isGettingQuote: false,
           lastQuote: quote,
         }));
+
         return quote;
       } catch (error: any) {
+        const errorMessage = error.message || "Failed to get quote";
         setState((prev) => ({
           ...prev,
           isGettingQuote: false,
-          error: error.message || "Failed to get quote",
+          error: errorMessage,
         }));
-        throw error;
+        throw new Error(errorMessage);
       }
     },
     [walletClient]
   );
 
-  // Debounced quote function for UI
-  const debouncedGetQuote = useCallback(debounce(getSwapQuote, 500), [
-    getSwapQuote,
-  ]);
-
-  // Execute swap
   const performSwap = useCallback(
     async (params: SwapParams): Promise<SwapResult> => {
-      if (
-        !mentoRef.current ||
-        !brokerRef.current ||
-        !address ||
-        !walletClient
-      ) {
+      if (!mentoRef.current || !address || !walletClient) {
         throw new Error("Swap not ready");
       }
 
@@ -264,48 +273,62 @@ export function useMento() {
           amount,
           slippageTolerance
         );
+
         const minAmountOut = parseUnits(quote.minAmountOut, toToken.decimals);
 
-        // Check and handle allowance
-        await handleTokenAllowance(
-          fromAddress,
-          fromToken,
-          amountIn.toString(),
-          brokerRef.current.address
-        );
-
-        // Get tradable pair
-        const tradablePair = await mentoRef.current.findPairForTokens(
-          fromAddress,
-          toAddress
-        );
-
-        let swapHash: string;
-
-        if (tradablePair.path.length === 1) {
-          // Direct swap
-          swapHash = await executeDirectSwap(
-            tradablePair.path[0],
+        // Find tradable pair
+        let tradablePair;
+        try {
+          tradablePair = await mentoRef.current.findPairForTokens(
             fromAddress,
-            toAddress,
-            amountIn.toString(),
-            minAmountOut.toString()
+            toAddress
           );
-        } else {
-          // Multi-hop swap
-          swapHash = await executeMultiHopSwap(
-            tradablePair,
-            fromAddress,
-            toAddress,
-            amountIn.toString(),
-            slippageTolerance
-          );
+        } catch (error) {
+          // If no pair found, try direct swap
+          tradablePair = undefined;
         }
 
-        // Wait for confirmation
-        await publicClient?.waitForTransactionReceipt({
-          hash: swapHash as `0x${string}`,
+        // Increase trading allowance
+        console.log("Increasing trading allowance...");
+        const allowanceTxObj = await mentoRef.current.increaseTradingAllowance(
+          fromAddress,
+          amountIn,
+          tradablePair
+        );
+
+        const allowanceHash = await walletClient.sendTransaction({
+          account: address as `0x${string}`,
+          to: allowanceTxObj.to as `0x${string}`,
+          data: allowanceTxObj.data as `0x${string}`,
+          value: BigInt(allowanceTxObj.value?.toString() || "0"),
+          gas: allowanceTxObj.gasLimit
+            ? BigInt(allowanceTxObj.gasLimit.toString())
+            : undefined,
         });
+
+        await publicClient?.waitForTransactionReceipt({ hash: allowanceHash });
+
+        // Execute swap
+        console.log("Executing swap...");
+        const swapTxObj = await mentoRef.current.swapIn(
+          fromAddress,
+          toAddress,
+          amountIn,
+          minAmountOut,
+          tradablePair
+        );
+
+        const swapHash = await walletClient.sendTransaction({
+          account: address as `0x${string}`,
+          to: swapTxObj.to as `0x${string}`,
+          data: swapTxObj.data as `0x${string}`,
+          value: BigInt(swapTxObj.value?.toString() || "0"),
+          gas: swapTxObj.gasLimit
+            ? BigInt(swapTxObj.gasLimit.toString())
+            : undefined,
+        });
+
+        await publicClient?.waitForTransactionReceipt({ hash: swapHash });
 
         let result: SwapResult = {
           success: true,
@@ -328,157 +351,18 @@ export function useMento() {
         setState((prev) => ({ ...prev, isSwapping: false }));
         return result;
       } catch (error: any) {
+        const errorMessage = parseSwapError(error);
         setState((prev) => ({
           ...prev,
           isSwapping: false,
-          error: parseSwapError(error),
+          error: errorMessage,
         }));
-        throw new Error(parseSwapError(error));
+        throw new Error(errorMessage);
       }
     },
     [address, walletClient, publicClient, getSwapQuote]
   );
 
-  // Helper function to handle token allowance
-  const handleTokenAllowance = async (
-    tokenAddress: string,
-    token: any,
-    amount: string,
-    spenderAddress: string
-  ) => {
-    const tokenContract = new Contract(
-      tokenAddress,
-      [
-        "function allowance(address,address) view returns (uint256)",
-        "function approve(address,uint256) returns (bool)",
-      ],
-      new providers.Web3Provider(window.ethereum!).getSigner()
-    );
-
-    const currentAllowance = await tokenContract.allowance(
-      address,
-      spenderAddress
-    );
-
-    if (BigInt(currentAllowance.toString()) < BigInt(amount)) {
-      const approveTx = await tokenContract.populateTransaction.approve(
-        spenderAddress,
-        amount
-      );
-
-      const hash = await walletClient!.sendTransaction({
-        account: address as `0x${string}`,
-        to: tokenAddress as `0x${string}`,
-        data: approveTx.data as `0x${string}`,
-        value: BigInt(0),
-      });
-
-      await publicClient?.waitForTransactionReceipt({ hash });
-    }
-  };
-
-  // Execute direct swap
-  const executeDirectSwap = async (
-    exchange: any,
-    fromAddress: string,
-    toAddress: string,
-    amountIn: string,
-    minAmountOut: string
-  ): Promise<string> => {
-    const txRequest = await brokerRef.current!.populateTransaction.swapIn(
-      exchange.providerAddr,
-      exchange.id,
-      fromAddress,
-      toAddress,
-      amountIn,
-      minAmountOut
-    );
-
-    return await walletClient!.sendTransaction({
-      account: address as `0x${string}`,
-      to: brokerRef.current!.address as `0x${string}`,
-      data: txRequest.data as `0x${string}`,
-      gas: txRequest.gasLimit
-        ? BigInt(txRequest.gasLimit.toString())
-        : undefined,
-      value: BigInt(0),
-    });
-  };
-
-  // Execute multi-hop swap
-  const executeMultiHopSwap = async (
-    tradablePair: any,
-    fromAddress: string,
-    toAddress: string,
-    amountIn: string,
-    slippageTolerance: number
-  ): Promise<string> => {
-    // Implement multi-hop logic similar to the reference
-    // This is a simplified version - you'd need to implement the full logic
-    const firstExchange = tradablePair.path[0];
-    const secondExchange = tradablePair.path[1];
-
-    // Find intermediate token
-    const intermediateToken = findIntermediateToken(
-      firstExchange,
-      secondExchange,
-      fromAddress,
-      toAddress
-    );
-
-    // Execute first swap
-    const step1Quote = await mentoRef.current!.getAmountOut(
-      fromAddress,
-      intermediateToken,
-      BigInt(amountIn)
-    );
-    const step1MinAmount = (
-      (BigInt(step1Quote.toString()) *
-        BigInt(Math.floor((1 - slippageTolerance) * 10000))) /
-      BigInt(10000)
-    ).toString();
-
-    const step1Hash = await executeDirectSwap(
-      firstExchange,
-      fromAddress,
-      intermediateToken,
-      amountIn,
-      step1MinAmount
-    );
-    await publicClient?.waitForTransactionReceipt({
-      hash: step1Hash as `0x${string}`,
-    });
-
-    // Handle intermediate token allowance
-    await handleTokenAllowance(
-      intermediateToken,
-      { decimals: 18 },
-      step1Quote.toString(),
-      brokerRef.current!.address
-    );
-
-    // Execute second swap
-    const step2Quote = await mentoRef.current!.getAmountOut(
-      intermediateToken,
-      toAddress,
-      step1Quote
-    );
-    const step2MinAmount = (
-      (BigInt(step2Quote.toString()) *
-        BigInt(Math.floor((1 - slippageTolerance) * 10000))) /
-      BigInt(10000)
-    ).toString();
-
-    return await executeDirectSwap(
-      secondExchange,
-      intermediateToken,
-      toAddress,
-      step1Quote.toString(),
-      step2MinAmount
-    );
-  };
-
-  // Handle remittance
   const handleRemittance = async (
     tokenAddress: string,
     recipient: string,
@@ -504,30 +388,13 @@ export function useMento() {
     });
   };
 
-  // Helper functions
-  const findIntermediateToken = (
-    exchange1: any,
-    exchange2: any,
-    fromAddr: string,
-    toAddr: string
-  ): string => {
-    for (const asset1 of exchange1.assets) {
-      for (const asset2 of exchange2.assets) {
-        if (asset1 === asset2 && asset1 !== fromAddr && asset1 !== toAddr) {
-          return asset1;
-        }
-      }
-    }
-    throw new Error("No intermediate token found");
-  };
-
   const parseSwapError = (error: any): string => {
     const message = error?.message || error?.toString() || "";
 
+    if (message.includes("No pair found") || message.includes("tradable path"))
+      return "Trading pair not available";
     if (message.includes("transferFrom failed"))
       return "Token approval required";
-    if (message.includes("pair not available"))
-      return "Trading pair not available";
     if (message.includes("Insufficient")) return "Insufficient balance";
     if (message.includes("User rejected"))
       return "Transaction cancelled by user";
@@ -537,7 +404,10 @@ export function useMento() {
     return "Swap failed. Please try again.";
   };
 
-  // Initialize on mount
+  const debouncedGetQuote = useCallback(debounce(getSwapQuote, 500), [
+    getSwapQuote,
+  ]);
+
   useEffect(() => {
     if (address && walletClient) {
       initializeMento();
@@ -550,6 +420,6 @@ export function useMento() {
     getSwapQuote: debouncedGetQuote,
     performSwap,
     clearCache: () => quoteCache.current.clear(),
-    isReady: !!mentoRef.current && !!brokerRef.current,
+    isReady: !!mentoRef.current,
   };
 }
