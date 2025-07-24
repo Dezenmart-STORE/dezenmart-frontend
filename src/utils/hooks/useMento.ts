@@ -229,10 +229,15 @@ export function useMento() {
         try {
           // Try to find the best trading path
           console.log("[getSwapQuote] Finding pair for tokens...");
+          console.log(
+            "[getSwapQuote] tp",
+            await mentoRef.current.findPairForTokens(fromAddress, toAddress)
+          );
           tradablePair = await mentoRef.current.findPairForTokens(
             fromAddress,
             toAddress
           );
+
           console.log("[getSwapQuote] Tradable pair found:", tradablePair);
 
           // Get amount out using the found pair
