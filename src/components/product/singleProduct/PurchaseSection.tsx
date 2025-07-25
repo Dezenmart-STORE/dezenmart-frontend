@@ -571,14 +571,14 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = memo(
         return;
       }
 
-      if (wallet.selectedToken.symbol !== product.paymentToken) {
-        // const canSwap = await validateSwapRequirements();
-        // if (!canSwap) return;
+      // if (wallet.selectedToken.symbol !== product.paymentToken) {
+      // const canSwap = await validateSwapRequirements();
+      // if (!canSwap) return;
 
-        updateState({ showSwapModal: true });
-        console.log("should show modal", state);
-        return;
-      }
+      //   updateState({ showSwapModal: true });
+      //   console.log("should show modal", state);
+      //   return;
+      // }
 
       await executeOrder();
     }, [
