@@ -704,14 +704,14 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = memo(
           />
 
           {/* Swap Preview */}
-          <SwapPreview
+          {/* <SwapPreview
             isVisible={needsSwap}
             fromAmount={computedTotals.totalInSelected}
             fromToken={wallet.selectedToken.symbol}
             toToken={product?.paymentToken || ""}
             isGettingQuote={state.isGettingQuote}
             swapQuote={state.swapQuote}
-          />
+          /> */}
 
           {/* Purchase Button */}
           <button
