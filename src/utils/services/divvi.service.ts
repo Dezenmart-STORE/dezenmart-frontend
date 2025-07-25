@@ -3,12 +3,12 @@ import { parseWeb3Error } from "../errorParser";
 
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000" as const;
 
-const ensure0xPrefix = (value?: string): `0x${string}` => {
+export const ensure0xPrefix = (value?: string): `0x${string}` => {
   if (!value) return ZERO_ADDRESS;
   return (value.startsWith("0x") ? value : `0x${value}`) as `0x${string}`;
 };
 
-const ensure0xPrefixStrict = (value: string): `0x${string}` => {
+export const ensure0xPrefixStrict = (value: string): `0x${string}` => {
   if (!value) {
     throw new Error("Value cannot be empty for 0x prefix conversion.");
   }

@@ -62,6 +62,7 @@ import {
 // import { ethers } from "ethers";
 import { useMento } from "../utils/hooks/useMento";
 import { useDivvi } from "../utils/hooks/useDivvi";
+import { ensure0xPrefix } from "../utils/services/divvi.service";
 
 interface TokenBalance {
   raw: string;
@@ -618,8 +619,11 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
           try {
             const tag = divvi.generateReferralTag({
               user: address,
-              consumer: escrowAddress,
-              providers: [logisticsProvider], // Include logistics provider as a referral provider
+              consumer: ensure0xPrefix(
+                `${import.meta.env.VITE_DIVVI_CONSUMER_ADDRESS!}`
+              ),
+              // providers: [logisticsProvider],
+              providers: [],
             });
             referralTag = tag || "";
           } catch (tagError) {

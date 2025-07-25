@@ -4,6 +4,7 @@ import { useWeb3 } from "../../context/Web3Context";
 import { DEZENMART_ABI } from "../abi/dezenmartAbi.json";
 import { ESCROW_ADDRESSES } from "../config/web3.config";
 import { useSnackbar } from "../../context/SnackbarContext";
+import { ensure0xPrefix } from "../services/divvi.service";
 
 interface ContractResult {
   success: boolean;
@@ -140,7 +141,9 @@ export const useContract = (): UseContractReturn => {
           try {
             const tag = divvi.generateReferralTag({
               user: wallet.address,
-              consumer: escrowAddress!,
+              consumer: ensure0xPrefix(
+                `${import.meta.env.VITE_DIVVI_CONSUMER_ADDRESS!}`
+              ),
               providers: trackingOptions.providers || [],
             });
             referralTag = tag || "";
