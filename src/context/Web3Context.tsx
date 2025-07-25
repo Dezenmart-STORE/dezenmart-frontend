@@ -26,9 +26,9 @@ import {
   erc20Abi,
   decodeEventLog,
   WalletClient,
-  createWalletClient,
-  custom,
-  http,
+  // createWalletClient,
+  // custom,
+  // http,
 } from "viem";
 
 import {
@@ -59,8 +59,9 @@ import {
   simulateContract,
   waitForTransactionReceipt,
 } from "@wagmi/core";
-import { ethers } from "ethers";
+// import { ethers } from "ethers";
 import { useMento } from "../utils/hooks/useMento";
+import { useDivvi } from "../utils/hooks/useDivvi";
 
 interface TokenBalance {
   raw: string;
@@ -105,6 +106,25 @@ interface ExtendedWeb3ContextType extends Omit<Web3ContextType, "wallet"> {
   performSwap: (from: string, to: string, amount: number) => Promise<void>;
   // getSwapQuote: (from: string, to: string, amount: number) => Promise<string>;
   initializeMento: () => Promise<boolean>;
+  divvi: {
+    isReady: boolean;
+    error: string | null;
+    referralCode: string | null;
+    generateReferralTag: (params: {
+      user: string;
+      consumer?: string;
+      providers?: string[];
+    }) => string | null;
+    trackTransaction: (data: {
+      transactionHash: string;
+      chainId: number;
+      user: string;
+      consumer?: string;
+      providers?: string[];
+    }) => Promise<boolean>;
+    generateReferralLink: (referralCode: string, baseUrl?: string) => string;
+    clearReferralCode: () => void;
+  };
 }
 
 const CACHE_DURATION = 240000; // 4 minutes
@@ -126,11 +146,11 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
 }) => {
   const { showSnackbar } = useSnackbar();
   const { address, isConnected, chain } = useAccount();
-  const { data: walletClient } = useWalletClient();
-  const publicClient = usePublicClient();
-  const chainId = useChainId();
+  // const { data: walletClient } = useWalletClient();
+  // const publicClient = usePublicClient();
+  // const chainId = useChainId();
   const mento = useMento();
-
+  const divvi = useDivvi();
   const {
     connect,
     connectors,
@@ -563,7 +583,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
     [address, chain, writeContractAsync, getTokenAllowance]
   );
 
-  // Updated buy trade function
+  // buy trade function
   const buyTrade = useCallback(
     async (params: BuyTradeParams): Promise<PaymentTransaction> => {
       if (!address || !chain?.id) {
@@ -580,11 +600,6 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
         throw new Error("Escrow contract not available on this network");
       }
 
-      // const paymentToken = getTokenBySymbol(params.paymentToken);
-      // if (!paymentToken) {
-      //   throw new Error(`Payment token ${params.paymentToken} not found`);
-      // }
-
       try {
         const tradeId = BigInt(params.tradeId);
         const quantity = BigInt(params.quantity);
@@ -595,6 +610,21 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
           logisticsProvider.length !== 42
         ) {
           throw new Error("Invalid logistics provider address");
+        }
+
+        // Generate referral tag if Divvi is ready
+        let referralTag = "";
+        if (divvi.isReady) {
+          try {
+            const tag = divvi.generateReferralTag({
+              user: address,
+              consumer: escrowAddress,
+              providers: [logisticsProvider], // Include logistics provider as a referral provider
+            });
+            referralTag = tag || "";
+          } catch (tagError) {
+            console.warn("Failed to generate referral tag:", tagError);
+          }
         }
 
         // Estimate gas first
@@ -616,13 +646,21 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
           gasEstimate = BigInt(800000);
         }
 
-        const hash = await writeContractAsync({
+        // Execute transaction with referral tag if available
+        const txConfig: any = {
           address: escrowAddress as `0x${string}`,
           abi: DEZENMART_ABI,
           functionName: "buyTrade",
           args: [tradeId, quantity, logisticsProvider],
           gas: gasEstimate,
-        });
+        };
+
+        // Append referral tag to transaction data if available
+        if (referralTag) {
+          txConfig.dataSuffix = `0x${referralTag}`;
+        }
+
+        const hash = await writeContractAsync(txConfig);
 
         if (!hash) {
           throw new Error("Transaction failed to execute");
@@ -661,6 +699,22 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
             }
           } catch (error) {
             console.warn("Failed to decode event logs:", error);
+          }
+        }
+
+        // Track with Divvi after successful transaction
+        if (receipt.status === "success" && divvi.isReady && referralTag) {
+          try {
+            await divvi.trackTransaction({
+              transactionHash: hash,
+              chainId: chain.id,
+              user: address,
+              consumer: escrowAddress,
+              providers: [logisticsProvider],
+            });
+          } catch (divviError) {
+            // Don't fail the main transaction if Divvi tracking fails
+            console.warn("Divvi tracking failed:", divviError);
           }
         }
 
@@ -729,7 +783,14 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
         throw new Error("Transaction failed. Please try again.");
       }
     },
-    [address, chain, isCorrectNetwork, writeContractAsync, refreshTokenBalance]
+    [
+      address,
+      chain,
+      isCorrectNetwork,
+      writeContractAsync,
+      refreshTokenBalance,
+      divvi,
+    ]
   );
 
   // Legacy functions for backward compatibility
@@ -988,6 +1049,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
       availableTokens,
       approveToken,
       getTokenAllowance,
+      divvi,
     }),
     [
       wallet,
@@ -1008,6 +1070,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
       approveUSDT,
       validateTradeBeforePurchase,
       isCorrectNetwork,
+      divvi,
     ]
   );
 

@@ -31,7 +31,7 @@ const CONTRACT_ERROR_MESSAGES = {
 } as const;
 
 export const useContract = (): UseContractReturn => {
-  const { wallet, switchToCorrectNetwork, isCorrectNetwork } = useWeb3();
+  const { wallet, switchToCorrectNetwork, isCorrectNetwork, divvi } = useWeb3();
   const { writeContractAsync, isPending } = useWriteContract();
   const { showSnackbar } = useSnackbar();
 
@@ -117,7 +117,11 @@ export const useContract = (): UseContractReturn => {
       functionName: string,
       args: readonly unknown[],
       loadingMessage: string,
-      successMessage: string
+      successMessage: string,
+      trackingOptions?: {
+        includeReferralTag?: boolean;
+        providers?: string[];
+      }
     ): Promise<ContractResult> => {
       try {
         // Pre-transaction validation
@@ -126,14 +130,62 @@ export const useContract = (): UseContractReturn => {
 
         showSnackbar(loadingMessage, "info");
 
-        const hash = await writeContractAsync({
+        // Generate referral tag if requested and Divvi is ready
+        let referralTag = "";
+        if (
+          trackingOptions?.includeReferralTag &&
+          divvi.isReady &&
+          wallet.address
+        ) {
+          try {
+            const tag = divvi.generateReferralTag({
+              user: wallet.address,
+              consumer: escrowAddress!,
+              providers: trackingOptions.providers || [],
+            });
+            referralTag = tag || "";
+          } catch (tagError) {
+            console.warn(
+              "Failed to generate referral tag for contract transaction:",
+              tagError
+            );
+          }
+        }
+
+        // Prepare transaction config
+        const txConfig: any = {
           address: escrowAddress!,
           abi: DEZENMART_ABI,
           functionName,
           args,
-        });
+        };
+
+        // Append referral tag if available
+        if (referralTag) {
+          txConfig.dataSuffix = `0x${referralTag}`;
+        }
+
+        const hash = await writeContractAsync(txConfig);
 
         showSnackbar(successMessage, "success");
+
+        // Track with Divvi after successful transaction if referral tag was used
+        if (referralTag && hash && wallet.address && wallet.chainId) {
+          try {
+            await divvi.trackTransaction({
+              transactionHash: hash,
+              chainId: wallet.chainId,
+              user: wallet.address,
+              consumer: escrowAddress!,
+              providers: trackingOptions?.providers || [],
+            });
+          } catch (divviError) {
+            console.warn(
+              "Divvi tracking failed for contract transaction:",
+              divviError
+            );
+          }
+        }
 
         return {
           success: true,
@@ -159,6 +211,9 @@ export const useContract = (): UseContractReturn => {
       writeContractAsync,
       parseContractError,
       showSnackbar,
+      divvi,
+      wallet.address,
+      wallet.chainId,
     ]
   );
 
@@ -179,7 +234,11 @@ export const useContract = (): UseContractReturn => {
         "confirmDeliveryAndPurchase",
         [purchaseIdBigInt],
         "Confirming delivery and purchase...",
-        "Delivery and purchase confirmed successfully"
+        "Delivery and purchase confirmed successfully",
+        {
+          includeReferralTag: true,
+          providers: [],
+        }
       );
     },
     [executeContractTransaction]
