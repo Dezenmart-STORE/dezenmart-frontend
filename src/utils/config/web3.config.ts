@@ -36,8 +36,8 @@ export const STABLE_TOKENS: StableToken[] = [
     symbol: "USDT",
     decimals: 18,
     address: {
-      [celo.id]: import.meta.env.VITE_USDT_CONTRACT_ADDRESS_MAINNET!,
-      [celoAlfajores.id]: import.meta.env.VITE_USDT_CONTRACT_ADDRESS_TESTNET!,
+      [celo.id]: "0x48065fbBE25f71C9282ddf5e1cD6D6A887483D5e",
+      [celoAlfajores.id]: "0x803700bD991d293306D6e7dCcF2B49F9137b437e",
     },
     icon: cUSDIcon,
   },
