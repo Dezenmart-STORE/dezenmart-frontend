@@ -11,6 +11,7 @@ import Button from "../common/Button";
 import { useChat } from "../../utils/hooks/useChat";
 import CurrencyToggle from "../common/CurrencyToggle";
 import WalletConnectButton from "../web3/WalletConnectButton";
+import TokenSelector from "./TokenSelector";// Import the new component
 import { useWeb3 } from "../../context/Web3Context";
 import { FiInfo } from "react-icons/fi";
 import SefldVerification from "../common/SefldVerification";
@@ -29,7 +30,6 @@ const Header = () => {
   const { user, isAuthenticated, logout } = useAuth();
   const { wallet, disconnectWallet } = useWeb3();
   const [showUserMenu, setShowUserMenu] = useState(false);
-  // const [showWallet, setShowWallet] = useState(false);
   const [showVerifyModal, setShowVerifyModal] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const { unreadCount, fetchUserUnreadCount } = useNotifications();
@@ -168,20 +168,15 @@ const Header = () => {
               }
             >
               {title}
-              {/* {title === "Chat" && totalUnreadMessages > 0 && (
-                <span
-                  className="absolute -top-2 -right-4 bg-Red text-white text-xs rounded-full h-5 w-5 flex items-center justify-center"
-                  aria-label={`${totalUnreadMessages} unread messages`}
-                >
-                  {totalUnreadMessages > 9 ? "9+" : totalUnreadMessages}
-                </span>
-              )} */}
             </NavLink>
           ))}
         </nav>
 
         <div className="flex items-center gap-2 md:gap-3">
           <CurrencyToggle />
+
+          {/* Token Selector - NEW: Added here */}
+          <TokenSelector />
 
           {/* Wallet button */}
           <WalletConnectButton />

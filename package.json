@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@divvi/referral-sdk": "^2.3.0",
-    "@hookform/resolvers": "^5.0.1",
+    "@hookform/resolvers": "^3.10.0",
     "@mento-protocol/mento-sdk": "^1.10.3",
     "@rainbow-me/rainbowkit": "^2.2.5",
     "@react-md/app-bar": "^5.1.6",
@@ -44,7 +44,8 @@
     "uuid": "^11.1.0",
     "viem": "^2.0.0",
     "wagmi": "^2.0.0",
-    "web3": "^4.16.0"
+    "web3": "^4.16.0",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@eslint/js": "^9.19.0",

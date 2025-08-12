@@ -11,16 +11,12 @@ import {
   HiArrowsRightLeft,
   HiExclamationTriangle,
   HiChevronDown,
-  HiCurrencyDollar,
-  HiBanknotes,
-  HiStar,
-  HiOutlineStar,
 } from "react-icons/hi2";
 import { FiLogOut } from "react-icons/fi";
 import Modal from "../common/Modal";
 import Button from "../common/Button";
 import { useWeb3 } from "../../context/Web3Context";
-import { TARGET_CHAIN, StableToken } from "../../utils/config/web3.config";
+import { TARGET_CHAIN } from "../../utils/config/web3.config";
 import { truncateAddress, copyToClipboard } from "../../utils/web3.utils";
 import { useSnackbar } from "../../context/SnackbarContext";
 import { useCurrencyConverter } from "../../utils/hooks/useCurrencyConverter";
@@ -101,9 +97,7 @@ const WalletDetailsModal: React.FC<WalletDetailsModalProps> = ({
     disconnectWallet,
     isCorrectNetwork,
     switchToCorrectNetwork,
-    setSelectedToken,
     refreshTokenBalance,
-    availableTokens,
   } = useWeb3();
 
   const {
@@ -114,8 +108,6 @@ const WalletDetailsModal: React.FC<WalletDetailsModalProps> = ({
   } = useCurrencyConverter();
 
   const [balanceMode, setBalanceMode] = useState<BalanceDisplayMode>("FIAT");
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [isTokenSelectorOpen, setIsTokenSelectorOpen] = useState(false);
 
   // Optimized loading state with stable transitions
   const stableTokenLoading = useStableLoadingState(
@@ -125,8 +117,6 @@ const WalletDetailsModal: React.FC<WalletDetailsModalProps> = ({
   const stableCurrencyLoading = useStableLoadingState(currencyLoading, 200);
 
   // Refs for dropdown management
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  const tokenSelectorRef = useRef<HTMLDivElement>(null);
   const refreshTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Memoized current token balance
@@ -189,30 +179,6 @@ const WalletDetailsModal: React.FC<WalletDetailsModalProps> = ({
     wallet.selectedToken.symbol,
   ]);
 
-  // Close dropdowns on outside click
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
-        setIsDropdownOpen(false);
-      }
-      if (
-        tokenSelectorRef.current &&
-        !tokenSelectorRef.current.contains(event.target as Node)
-      ) {
-        setIsTokenSelectorOpen(false);
-      }
-    };
-
-    if (isDropdownOpen || isTokenSelectorOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [isDropdownOpen, isTokenSelectorOpen]);
-
   // Optimized event handlers
   const handleCopyAddress = useCallback(() => {
     if (wallet.address) {
@@ -233,38 +199,6 @@ const WalletDetailsModal: React.FC<WalletDetailsModalProps> = ({
       // Error handled in context
     }
   }, [switchToCorrectNetwork]);
-
-  const handleTokenSelect = useCallback(
-    async (token: StableToken) => {
-      if (token.symbol === wallet.selectedToken.symbol) {
-        setIsTokenSelectorOpen(false);
-        return;
-      }
-
-      setSelectedToken(token);
-      setIsTokenSelectorOpen(false);
-      // showSnackbar(`Switched to ${token.symbol}`, "success");
-
-      // Debounced refresh
-      if (refreshTimeoutRef.current) {
-        clearTimeout(refreshTimeoutRef.current);
-      }
-
-      refreshTimeoutRef.current = setTimeout(async () => {
-        try {
-          await refreshTokenBalance(token.symbol);
-        } catch (error) {
-          console.error("Failed to refresh balance after token switch:", error);
-        }
-      }, 100);
-    },
-    [
-      setSelectedToken,
-      showSnackbar,
-      refreshTokenBalance,
-      wallet.selectedToken.symbol,
-    ]
-  );
 
   const handleRefreshBalance = useCallback(async () => {
     if (!currentTokenBalance || stableTokenLoading) return;
@@ -291,29 +225,6 @@ const WalletDetailsModal: React.FC<WalletDetailsModalProps> = ({
       }
     };
   }, []);
-
-  // Memoized balance options
-  const balanceOptions = useMemo(
-    () =>
-      [
-        {
-          mode: "FIAT" as const,
-          label: userCountry || "USD",
-          priority: 1,
-        },
-        {
-          mode: "TOKEN" as const,
-          label: wallet.selectedToken.symbol,
-          priority: 2,
-        },
-        {
-          mode: "CELO" as const,
-          label: "CELO",
-          priority: 3,
-        },
-      ].sort((a, b) => a.priority - b.priority),
-    [userCountry, wallet.selectedToken.symbol]
-  );
 
   return (
     <Modal
@@ -412,85 +323,7 @@ const WalletDetailsModal: React.FC<WalletDetailsModalProps> = ({
           </div>
         </div>
 
-        {/* Token Selection */}
-        <div className="space-y-3">
-          <h3 className="text-lg font-medium text-white">Selected Token</h3>
-          <div className="relative" ref={tokenSelectorRef}>
-            <button
-              onClick={() => setIsTokenSelectorOpen(!isTokenSelectorOpen)}
-              className="w-full flex items-center justify-between p-3 bg-Dark rounded-lg border border-gray-700/50 hover:border-Red/30 hover:bg-Red/5 transition-all duration-200"
-            >
-              <div className="flex items-center gap-3">
-                <span className="text-xl">
-                  {typeof wallet.selectedToken.icon === "string" &&
-                  wallet.selectedToken.icon ? (
-                    <img
-                      src={wallet.selectedToken.icon}
-                      alt={wallet.selectedToken.symbol}
-                      width={24}
-                      height={24}
-                    />
-                  ) : (
-                    "💰"
-                  )}
-                </span>
-                <div className="text-left">
-                  <p className="text-white font-medium">
-                    {wallet.selectedToken.symbol}
-                  </p>
-                  <p className="text-sm text-gray-400">
-                    {wallet.selectedToken.name}
-                  </p>
-                </div>
-              </div>
-              <HiChevronDown
-                className={`w-5 h-5 text-gray-400 transition-transform ${
-                  isTokenSelectorOpen ? "rotate-180" : ""
-                }`}
-              />
-            </button>
-
-            {isTokenSelectorOpen && (
-              <div className="absolute top-full left-0 right-0 mt-2 bg-[#1a1c20] border border-Red/30 rounded-lg shadow-xl z-30 max-h-64 overflow-y-auto">
-                {availableTokens.map((token) => (
-                  <button
-                    key={token.symbol}
-                    onClick={() => handleTokenSelect(token)}
-                    className={`w-full flex items-center justify-between p-3 hover:bg-Red/10 transition-colors ${
-                      token.symbol === wallet.selectedToken.symbol
-                        ? "bg-Red/20 border-l-2 border-Red"
-                        : ""
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="text-lg">
-                        {typeof token.icon === "string" && token.icon ? (
-                          <img
-                            src={token.icon}
-                            alt={token.symbol}
-                            width={24}
-                            height={24}
-                          />
-                        ) : (
-                          "💰"
-                        )}
-                      </span>
-                      <div className="text-left">
-                        <p className="text-white font-medium">{token.symbol}</p>
-                        <p className="text-sm text-gray-400">{token.name}</p>
-                      </div>
-                    </div>
-                    {token.symbol === wallet.selectedToken.symbol && (
-                      <HiStar className="w-4 h-4 text-Red" />
-                    )}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Token Balance */}
+        {/* Token Balance - Updated to show current selected token */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-medium text-white">Token Balance</h3>
@@ -523,19 +356,22 @@ const WalletDetailsModal: React.FC<WalletDetailsModalProps> = ({
                     "💰"
                   )}
                 </span>
-                <span className="text-gray-300 font-medium">
-                  {wallet.selectedToken.symbol}
-                </span>
+                <div>
+                  <span className="text-gray-300 font-medium block">
+                    {wallet.selectedToken.symbol}
+                  </span>
+                  <span className="text-xs text-gray-500">
+                    {wallet.selectedToken.name}
+                  </span>
+                </div>
               </div>
 
-              <div className="relative" ref={dropdownRef}>
-                <div className="min-h-[24px] flex items-center">
-                  <BalanceDisplay
-                    isLoading={stableTokenLoading}
-                    balance={formattedBalance}
-                    symbol={wallet.selectedToken.symbol}
-                  />
-                </div>
+              <div className="min-h-[24px] flex items-center">
+                <BalanceDisplay
+                  isLoading={stableTokenLoading}
+                  balance={formattedBalance}
+                  symbol={wallet.selectedToken.symbol}
+                />
               </div>
             </div>
 
@@ -560,6 +396,11 @@ const WalletDetailsModal: React.FC<WalletDetailsModalProps> = ({
                 </div>
               )}
           </div>
+          
+          {/* Note about token selection */}
+          <p className="text-xs text-gray-500 text-center">
+            Change selected token from the header dropdown
+          </p>
         </div>
 
         {/* CELO Balance */}
