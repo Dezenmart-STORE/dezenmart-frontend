@@ -1,5 +1,5 @@
 import { FC } from "react";
-import { motion } from "framer-motion";
+import { motion, Variants } from "framer-motion";
 import Button from "../../common/Button";
 
 interface EmptyStateProps {
@@ -14,14 +14,14 @@ const EmptyState: FC<EmptyStateProps> = ({
   className = "",
 }) => {
   // Container animation
-  const containerVariants = {
+  const containerVariants: Variants = {
     initial: { opacity: 0, y: 20 },
     animate: { opacity: 1, y: 0 },
     exit: { opacity: 0, y: -20 },
   };
 
   // Circle animation
-  const circleVariants = {
+  const circleVariants: Variants = {
     initial: { scale: 0.8, opacity: 0 },
     animate: {
       scale: 1,
@@ -35,7 +35,7 @@ const EmptyState: FC<EmptyStateProps> = ({
   };
 
   // Left arrow animation
-  const leftArrowVariants = {
+  const leftArrowVariants: Variants = {
     initial: { x: 0 },
     animate: {
       x: [-3, 0, -3],
@@ -48,7 +48,7 @@ const EmptyState: FC<EmptyStateProps> = ({
   };
 
   // Right arrow animation
-  const rightArrowVariants = {
+  const rightArrowVariants: Variants = {
     initial: { x: 0 },
     animate: {
       x: [3, 0, 3],
@@ -145,3 +145,4 @@ const EmptyState: FC<EmptyStateProps> = ({
 };
 
 export default EmptyState;
+

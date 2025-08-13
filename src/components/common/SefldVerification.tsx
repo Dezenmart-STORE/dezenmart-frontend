@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import Modal from "./Modal";
 import { FullLogo } from "../../pages";
 import { v4 as uuidv4 } from "uuid";
-import SelfQRcodeWrapper from "@selfxyz/qrcode";
+import { SelfQRcodeWrapper } from "@selfxyz/qrcode";
 import { getUniversalLink, SelfAppBuilder } from "@selfxyz/core";
 import type { SelfApp } from "@selfxyz/common/utils/appType";
 import { useAuth } from "../../context/AuthContext";

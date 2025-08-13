@@ -1,5 +1,5 @@
 import { memo, useEffect, useState, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, Variants } from "framer-motion";
 import { FaClock, FaBell } from "react-icons/fa";
 
 interface ComingSoonOverlayProps {
@@ -42,7 +42,7 @@ const ComingSoonOverlay = memo<ComingSoonOverlayProps>(
       setTimeout(() => setShowNotification(false), 3000);
     }, [onNotifyMe]);
 
-    const overlayVariants = {
+    const overlayVariants: Variants = {
       hidden: { opacity: 0, backdropFilter: "blur(0px)" },
       visible: {
         opacity: 1,
@@ -51,7 +51,7 @@ const ComingSoonOverlay = memo<ComingSoonOverlayProps>(
       },
     };
 
-    const contentVariants = {
+    const contentVariants: Variants = {
       hidden: { opacity: 0, y: 30, scale: 0.9 },
       visible: {
         opacity: 1,
