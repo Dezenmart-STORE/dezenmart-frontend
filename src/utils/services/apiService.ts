@@ -542,13 +542,25 @@ export const api = {
   },
 
   getLogisticsProviders: async () => {
-    const key = cacheKey("/contracts/logistics");
+    const key = cacheKey("/logistics");
     if (abortControllers.has(key)) {
       abortControllers.get(key).abort();
     }
     const controller = new AbortController();
     abortControllers.set(key, controller);
-    return fetchWithAuth("/contracts/logistics", {
+    return fetchWithAuth("/logistics", {
+      signal: controller.signal,
+    });
+  },
+
+  getLogisticsDetails: async (logisticsId: string) => {
+    const key = cacheKey(`/logistics/${logisticsId}`);
+    if (abortControllers.has(key)) {
+      abortControllers.get(key).abort();
+    }
+    const controller = new AbortController();
+    abortControllers.set(key, controller);
+    return fetchWithAuth(`/logistics/${logisticsId}`, {
       signal: controller.signal,
     });
   },
@@ -761,3 +773,4 @@ export const api = {
     }
   },
 };
+
