@@ -381,6 +381,36 @@ export const useProductData = () => {
     return () => {};
   }, []);
 
+  const getLogisticsProvidersAsync = useCallback(
+    async (showNotification = false) => {
+      try {
+        const response = await api.getLogisticsProviders();
+        if (!response.ok) {
+          if (showNotification) {
+            showSnackbar(
+              response.error || "Failed to get logistics providers",
+              "error"
+            );
+          }
+          return null;
+        }
+        if (showNotification) {
+          showSnackbar("Logistics providers loaded successfully", "success");
+        }
+        return response.data;
+      } catch (err) {
+        if (showNotification) {
+          showSnackbar(
+            (err as string) || "Failed to get logistics providers",
+            "error"
+          );
+        }
+        return null;
+      }
+    },
+    [showSnackbar]
+  );
+
   return {
     products: formattedProducts,
     product,
@@ -399,6 +429,7 @@ export const useProductData = () => {
     updateProduct: updateProductAsync,
     deleteProduct: deleteProductAsync,
     getProductsByCategory,
+    getLogisticsProviders: getLogisticsProvidersAsync,
     clearProduct,
     secondaryCurrency,
   };

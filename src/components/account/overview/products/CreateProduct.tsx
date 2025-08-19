@@ -15,7 +15,6 @@ import {
   FiX,
   FiPlus,
   FiVideo,
-  FiTag,
   FiCheck,
   FiChevronDown,
 } from "react-icons/fi";
@@ -25,7 +24,6 @@ import Button from "../../../common/Button";
 import { useCurrencyConverter } from "../../../../utils/hooks/useCurrencyConverter";
 import { LogisticsProvider } from "../../../../utils/types";
 import { useSnackbar } from "../../../../context/SnackbarContext";
-import { useContract } from "../../../../utils/hooks/useContract";
 import { useWeb3 } from "../../../../context/Web3Context";
 
 const LoadingSpinner = lazy(() => import("../../../common/LoadingSpinner"));
@@ -76,52 +74,6 @@ const CATEGORIES = [
   "Other",
 ];
 
-// const logisticsProviders: LogisticsProvider[] = [];
-
-const NIGERIAN_CITIES = [
-  "Lagos",
-  "Abuja",
-  "Port Harcourt",
-  "Kano",
-  "Ibadan",
-  "Kaduna",
-  "Enugu",
-  "Benin City",
-  "Owerri",
-  "Calabar",
-  "Warri",
-  "Abeokuta",
-  "Onitsha",
-  "Uyo",
-  "Maiduguri",
-];
-
-const COMPANY_PREFIXES = [
-  "Swift",
-  "Express",
-  "Global",
-  "Royal",
-  "Premium",
-  "Fast",
-  "Reliable",
-  "Elite",
-  "Prime",
-  "Rapid",
-];
-
-const COMPANY_SUFFIXES = [
-  "Logistics",
-  "Delivery",
-  "Shipping",
-  "Courier",
-  "Transport",
-  "Express",
-  "Cargo",
-  "Freight",
-  "Distribution",
-  "Movers",
-];
-
 const fadeInAnimation = {
   initial: { opacity: 0, y: 20 },
   animate: { opacity: 1, y: 0 },
@@ -132,19 +84,18 @@ const fadeInAnimation = {
 const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
   // const navigate = useNavigate();
   const { wallet, availableTokens } = useWeb3();
-  const { createProduct, loading } = useProductData();
+  const { createProduct, loading, getLogisticsProviders } = useProductData();
   const { showSnackbar } = useSnackbar();
   const { convertPrice, userCountry } = useCurrencyConverter();
-  const {
-    getLogisticsProviders,
-    logisticsProviders: apiResponse,
-    logisticsProviderLoading,
-  } = useContract();
+
   const [isTokenSelectorOpen, setIsTokenSelectorOpen] = useState(false);
   const [paymentToken, setPaymentToken] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
+  const [logisticsProviders, setLogisticsProviders] = useState<any[]>([]);
+  const [logisticsProviderLoading, setLogisticsProviderLoading] =
+    useState(true);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -494,47 +445,35 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
     setErrors((prev) => ({ ...prev, logistics: undefined }));
   }, []);
 
-  const generateRandomLogisticsData = useCallback((address: string) => {
-    const randomPrefix =
-      COMPANY_PREFIXES[Math.floor(Math.random() * COMPANY_PREFIXES.length)];
-    const randomSuffix =
-      COMPANY_SUFFIXES[Math.floor(Math.random() * COMPANY_SUFFIXES.length)];
-    const randomCity =
-      NIGERIAN_CITIES[Math.floor(Math.random() * NIGERIAN_CITIES.length)];
-    const randomCost = Math.floor(Math.random() * 4) + 1;
-
-    return {
-      address,
-      name:
-        address === "0xCeaD78F9Cf39Aba45Ea39E297bC0771cF28f3bb4"
-          ? "default"
-          : `${randomPrefix} ${randomSuffix}`,
-      location: `${randomCity}, Nigeria`,
-      cost: randomCost,
-    };
-  }, []);
-
-  const transformedLogisticsProviders = useMemo(() => {
-    if (!apiResponse || !Array.isArray(apiResponse.data)) return [];
-    return apiResponse.data.map(generateRandomLogisticsData);
-  }, [apiResponse, generateRandomLogisticsData]);
-
   useEffect(() => {
-    getLogisticsProviders();
+    const fetchLogistics = async () => {
+      try {
+        const response = await getLogisticsProviders(false);
+        if (response) {
+          setLogisticsProviders(response.data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch logistics providers", error);
+      } finally {
+        setLogisticsProviderLoading(false);
+      }
+    };
+
+    fetchLogistics();
   }, [getLogisticsProviders]);
 
   const filteredLogistics = useMemo(() => {
     if (!debouncedSearchTerm.trim()) {
-      return transformedLogisticsProviders;
+      return logisticsProviders;
     }
 
     const searchTerm = debouncedSearchTerm.toLowerCase().trim();
-    return transformedLogisticsProviders.filter(
+    return logisticsProviders.filter(
       (provider) =>
         provider.name.toLowerCase().includes(searchTerm) ||
         provider.location.toLowerCase().includes(searchTerm)
     );
-  }, [debouncedSearchTerm, transformedLogisticsProviders]);
+  }, [debouncedSearchTerm, logisticsProviders]);
 
   // Form validation
   const validateForm = useCallback(() => {
