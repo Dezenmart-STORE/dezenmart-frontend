@@ -432,7 +432,9 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
   // Logistics providers management
   const toggleLogisticsProvider = useCallback((provider: Logistics) => {
     setSelectedLogistics((prev) => {
-      const isSelected = prev.some((p) => p.walletAddress === provider.walletAddress);
+      const isSelected = prev.some(
+        (p) => p.walletAddress === provider.walletAddress
+      );
       if (isSelected) {
         return prev.filter((p) => p.walletAddress !== provider.walletAddress);
       } else {
@@ -445,18 +447,15 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
 
   useEffect(() => {
     const fetchLogistics = async () => {
-      try {
-        const response = await getLogisticsProviders(false, true);
-        if (response) {
-          setLogisticsProviders(response.data);
-        }
-      } catch (error) {
-        console.error("Failed to fetch logistics providers", error);
-      } finally {
-        setLogisticsProviderLoading(false);
-      }
+      setLogisticsProviderLoading(true);
+      const result = await getLogisticsProviders();
+      // FIX: Extract providers from result.data.logisticsProviders
+      const providers = Array.isArray(result?.data?.logisticsProviders)
+        ? result.data.logisticsProviders
+        : [];
+      setLogisticsProviders(providers);
+      setLogisticsProviderLoading(false);
     };
-
     fetchLogistics();
   }, [getLogisticsProviders]);
 
@@ -1432,9 +1431,7 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
                         </div>
                         <div
                           className={`w-5 h-5 rounded border ${
-                            isSelected
-                              ? "bg-Red border-Red"
-                              : "border-gray-400"
+                            isSelected ? "bg-Red border-Red" : "border-gray-400"
                           } flex items-center justify-center`}
                           aria-hidden="true"
                         >
