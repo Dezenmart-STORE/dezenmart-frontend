@@ -449,7 +449,7 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
     const fetchLogistics = async () => {
       setLogisticsProviderLoading(true);
       const result = await getLogisticsProviders();
-      // FIX: Extract providers from result.data.logisticsProviders
+
       const providers = Array.isArray(result?.data?.logisticsProviders)
         ? result.data.logisticsProviders
         : [];
@@ -1425,9 +1425,9 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
                           <div className="text-white font-medium truncate">
                             {provider.name}
                           </div>
-                          <div className="text-gray-400 text-sm truncate">
+                          {/* <div className="text-gray-400 text-sm truncate">
                             {provider.walletAddress}
-                          </div>
+                          </div> */}
                         </div>
                         <div
                           className={`w-5 h-5 rounded border ${
