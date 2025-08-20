@@ -22,7 +22,7 @@ import {
 import { useProductData } from "../../../../utils/hooks/useProduct";
 import Button from "../../../common/Button";
 import { useCurrencyConverter } from "../../../../utils/hooks/useCurrencyConverter";
-import { LogisticsProvider } from "../../../../utils/types";
+import { Logistics } from "../../../../utils/types";
 import { useSnackbar } from "../../../../context/SnackbarContext";
 import { useWeb3 } from "../../../../context/Web3Context";
 
@@ -93,7 +93,7 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
-  const [logisticsProviders, setLogisticsProviders] = useState<any[]>([]);
+  const [logisticsProviders, setLogisticsProviders] = useState<Logistics[]>([]);
   const [logisticsProviderLoading, setLogisticsProviderLoading] =
     useState(true);
 
@@ -129,9 +129,7 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [inputFocus, setInputFocus] = useState<"USDT" | "FIAT" | null>(null);
-  const [selectedLogistics, setSelectedLogistics] = useState<
-    LogisticsProvider[]
-  >([]);
+  const [selectedLogistics, setSelectedLogistics] = useState<Logistics[]>([]);
   const [searchLogistics, setSearchLogistics] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
 
@@ -432,11 +430,11 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
   };
 
   // Logistics providers management
-  const toggleLogisticsProvider = useCallback((provider: LogisticsProvider) => {
+  const toggleLogisticsProvider = useCallback((provider: Logistics) => {
     setSelectedLogistics((prev) => {
-      const isSelected = prev.some((p) => p.address === provider.address);
+      const isSelected = prev.some((p) => p.walletAddress === provider.walletAddress);
       if (isSelected) {
-        return prev.filter((p) => p.address !== provider.address);
+        return prev.filter((p) => p.walletAddress !== provider.walletAddress);
       } else {
         return [...prev, provider];
       }
@@ -468,10 +466,8 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
     }
 
     const searchTerm = debouncedSearchTerm.toLowerCase().trim();
-    return logisticsProviders.filter(
-      (provider) =>
-        provider.name.toLowerCase().includes(searchTerm) ||
-        provider.location.toLowerCase().includes(searchTerm)
+    return logisticsProviders.filter((provider) =>
+      provider.name.toLowerCase().includes(searchTerm)
     );
   }, [debouncedSearchTerm, logisticsProviders]);
 
@@ -592,19 +588,9 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
       );
 
       if (selectedLogistics.length > 0) {
-        // const addresses = selectedLogistics.map((provider) => provider.address);
-        // const costs = selectedLogistics.map(
-        //   (provider) => provider.cost
-        //   // * Math.pow(10, 18)
-        // );
         selectedLogistics.map((provider) =>
-          formData.append("logisticsProviders", provider.address)
+          formData.append("logisticsProviders", provider.walletAddress)
         );
-        selectedLogistics.map((provider) => {
-          formData.append("logisticsCosts", provider.cost.toString());
-        });
-        // formData.append("logisticsProviders", JSON.stringify(addresses));
-        // formData.append("logisticsCosts", JSON.stringify(costs));
       }
 
       // Add variants if available
@@ -1398,7 +1384,7 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
                   value={searchLogistics}
                   onChange={handleSearchChange}
                   className="w-full bg-[#222] text-white px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-Red transition-all"
-                  placeholder="Search by name or location..."
+                  placeholder="Search by name or wallet address..."
                   aria-label="Search logistics providers"
                 />
               </div>
@@ -1418,11 +1404,11 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
                 ) : filteredLogistics.length > 0 ? (
                   filteredLogistics.map((provider) => {
                     const isSelected = selectedLogistics.some(
-                      (p) => p.address === provider.address
+                      (p) => p.walletAddress === provider.walletAddress
                     );
                     return (
                       <div
-                        key={provider.address}
+                        key={provider.walletAddress}
                         className={`flex items-center justify-between p-3 hover:bg-[#3A3B3F] cursor-pointer ${
                           isSelected ? "bg-[#3A3B3F]" : ""
                         }`}
@@ -1441,36 +1427,31 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
                             {provider.name}
                           </div>
                           <div className="text-gray-400 text-sm truncate">
-                            {provider.location}
+                            {provider.walletAddress}
                           </div>
                         </div>
-                        <div className="flex items-center flex-shrink-0">
-                          <span className="text-gray-400 text-sm mr-3 whitespace-nowrap">
-                            {provider.cost} USDT
-                          </span>
-                          <div
-                            className={`w-5 h-5 rounded border ${
-                              isSelected
-                                ? "bg-Red border-Red"
-                                : "border-gray-400"
-                            } flex items-center justify-center`}
-                            aria-hidden="true"
-                          >
-                            {isSelected && (
-                              <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                className="h-3 w-3 text-white"
-                                viewBox="0 0 20 20"
-                                fill="currentColor"
-                              >
-                                <path
-                                  fillRule="evenodd"
-                                  d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                  clipRule="evenodd"
-                                />
-                              </svg>
-                            )}
-                          </div>
+                        <div
+                          className={`w-5 h-5 rounded border ${
+                            isSelected
+                              ? "bg-Red border-Red"
+                              : "border-gray-400"
+                          } flex items-center justify-center`}
+                          aria-hidden="true"
+                        >
+                          {isSelected && (
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="h-3 w-3 text-white"
+                              viewBox="0 0 20 20"
+                              fill="currentColor"
+                            >
+                              <path
+                                fillRule="evenodd"
+                                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
+                          )}
                         </div>
                       </div>
                     );
@@ -1492,7 +1473,7 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
                 <div className="flex flex-wrap gap-2 mt-2">
                   {selectedLogistics.map((provider) => (
                     <div
-                      key={provider.address}
+                      key={provider.walletAddress}
                       className="bg-[#3A3B3F] text-white text-sm px-3 py-1 rounded-full flex items-center"
                     >
                       <span className="truncate max-w-[150px]">

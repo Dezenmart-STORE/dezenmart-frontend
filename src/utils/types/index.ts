@@ -178,6 +178,15 @@ export interface LogisticsProvider {
   cost: number; // in USDT
 }
 
+export interface Logistics {
+  _id: string;
+  name: string;
+  walletAddress: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // export type NotificationType = "update" | "funds" | "buyer" | "system";
 
 // export interface Notification {
