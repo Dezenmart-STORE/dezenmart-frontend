@@ -541,16 +541,23 @@ export const api = {
     });
   },
 
-  getLogisticsProviders: async () => {
+  getLogisticsProviders: async (skipCache = false) => {
     const key = cacheKey("/logistics");
+    if (!skipCache && requestCache.has(key)) {
+      return requestCache.get(key);
+    }
     if (abortControllers.has(key)) {
       abortControllers.get(key).abort();
     }
     const controller = new AbortController();
     abortControllers.set(key, controller);
-    return fetchWithAuth("/logistics", {
+    const result = await fetchWithAuth("/logistics", {
       signal: controller.signal,
     });
+    if (result.ok) {
+      requestCache.set(key, result);
+    }
+    return result;
   },
 
   getLogisticsDetails: async (logisticsId: string) => {

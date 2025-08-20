@@ -446,7 +446,7 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
   useEffect(() => {
     const fetchLogistics = async () => {
       try {
-        const response = await getLogisticsProviders(false);
+        const response = await getLogisticsProviders(false, true);
         if (response) {
           setLogisticsProviders(response.data);
         }

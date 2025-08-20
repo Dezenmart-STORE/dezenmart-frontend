@@ -382,9 +382,9 @@ export const useProductData = () => {
   }, []);
 
   const getLogisticsProvidersAsync = useCallback(
-    async (showNotification = false) => {
+    async (showNotification = false, skipCache = false) => {
       try {
-        const response = await api.getLogisticsProviders();
+        const response = await api.getLogisticsProviders(skipCache);
         if (!response.ok) {
           if (showNotification) {
             showSnackbar(
