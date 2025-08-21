@@ -132,6 +132,7 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
   const [selectedLogistics, setSelectedLogistics] = useState<Logistics[]>([]);
   const [searchLogistics, setSearchLogistics] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
+  const [logisticsCosts, setLogisticsCosts] = useState<Record<string, string>>({});
 
   const [variants, setVariants] = useState<ProductVariant[]>([
     { id: `variant-${Date.now()}`, properties: [], quantity: 0 },
@@ -430,12 +431,28 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
   };
 
   // Logistics providers management
+  const handleLogisticsCostChange = (
+    providerId: string,
+    cost: string
+  ) => {
+    setLogisticsCosts((prev) => ({
+      ...prev,
+      [providerId]: cost,
+    }));
+  };
+
   const toggleLogisticsProvider = useCallback((provider: Logistics) => {
     setSelectedLogistics((prev) => {
       const isSelected = prev.some(
         (p) => p.walletAddress === provider.walletAddress
       );
       if (isSelected) {
+        // If provider is being deselected, remove its cost
+        setLogisticsCosts((prevCosts) => {
+          const newCosts = { ...prevCosts };
+          delete newCosts[provider.walletAddress];
+          return newCosts;
+        });
         return prev.filter((p) => p.walletAddress !== provider.walletAddress);
       } else {
         return [...prev, provider];
@@ -519,6 +536,14 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
     // Logistics provider validation
     if (selectedLogistics.length === 0) {
       newErrors.logistics = "Please select at least one logistics provider";
+    } else {
+      const missingCost = selectedLogistics.some(
+        (p) => !logisticsCosts[p.walletAddress]
+      );
+      if (missingCost) {
+        newErrors.logistics =
+          "Please enter a cost for all selected logistics providers";
+      }
     }
 
     // Check for variants with no properties
@@ -546,7 +571,7 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  }, [formState, selectedLogistics, variants]);
+  }, [formState, selectedLogistics, variants, logisticsCosts]);
 
   // Handle form submission
   const handleSubmit = async (e: FormEvent) => {
@@ -587,9 +612,11 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
       );
 
       if (selectedLogistics.length > 0) {
-        selectedLogistics.map((provider) =>
-          formData.append("logisticsProviders", provider.walletAddress)
-        );
+        selectedLogistics.forEach((provider) => {
+          formData.append("logisticsProviders", provider.walletAddress);
+          const cost = logisticsCosts[provider.walletAddress];
+          formData.append("logisticsCosts", cost || "0");
+        });
       }
 
       // Add variants if available
@@ -1463,27 +1490,45 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
 
             {/* Selected logistics */}
             {selectedLogistics.length > 0 && (
-              <div className="mt-2">
-                <div className="text-gray-400 text-sm">
-                  Selected providers: {selectedLogistics.length}
-                </div>
-                <div className="flex flex-wrap gap-2 mt-2">
+              <div className="mt-3 p-3 bg-[#2A2C31] rounded-lg">
+                <h4 className="text-white mb-2">Selected Providers</h4>
+                <div className="space-y-3">
                   {selectedLogistics.map((provider) => (
                     <div
                       key={provider.walletAddress}
-                      className="bg-[#3A3B3F] text-white text-sm px-3 py-1 rounded-full flex items-center"
+                      className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-[#333] p-3 rounded-lg"
                     >
-                      <span className="truncate max-w-[150px]">
-                        {provider.name}
-                      </span>
-                      <button
-                        type="button"
-                        className="ml-2 text-gray-400 hover:text-Red flex-shrink-0"
-                        onClick={() => toggleLogisticsProvider(provider)}
-                        aria-label={`Remove ${provider.name}`}
-                      >
-                        <FiX size={14} aria-hidden="true" />
-                      </button>
+                      <div className="flex items-center gap-2 mb-2 sm:mb-0">
+                        <span className="text-white truncate max-w-[150px]">
+                          {provider.name}
+                        </span>
+                        <button
+                          type="button"
+                          className="ml-2 text-gray-400 hover:text-Red flex-shrink-0"
+                          onClick={() => toggleLogisticsProvider(provider)}
+                          aria-label={`Remove ${provider.name}`}
+                        >
+                          <FiX size={14} aria-hidden="true" />
+                        </button>
+                      </div>
+                      <div className="relative w-full sm:w-auto">
+                        <input
+                          type="number"
+                          value={logisticsCosts[provider.walletAddress] || ""}
+                          onChange={(e) =>
+                            handleLogisticsCostChange(
+                              provider.walletAddress,
+                              e.target.value
+                            )
+                          }
+                          className="bg-[#242529] text-white px-3 py-1.5 rounded focus:outline-none focus:ring-1 focus:ring-Red transition-all w-full sm:w-28 pr-10"
+                          placeholder="Cost"
+                          aria-label={`Cost for ${provider.name}`}
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">
+                          USDT
+                        </span>
+                      </div>
                     </div>
                   ))}
                 </div>
