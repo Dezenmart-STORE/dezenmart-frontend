@@ -16,6 +16,8 @@ import cGBPIcon from "../../assets/icons/cGBP.svg";
 import cAUDIcon from "../../assets/icons/cAUD.svg";
 import cCADIcon from "../../assets/icons/cCAD.svg";
 import cGHSIcon from "../../assets/icons/cGHS.svg";
+import USDTIcon from "../../assets/icons/USDT.svg";
+import GDIcon from "../../assets/icons/G$.svg";
 
 const rpcEndpoints = {
   [celo.id]: ["https://forno.celo.org", "https://rpc.ankr.com/celo"],
@@ -39,7 +41,17 @@ export const STABLE_TOKENS: StableToken[] = [
       [celo.id]: "0x48065fbBE25f71C9282ddf5e1cD6D6A887483D5e",
       [celoAlfajores.id]: "0x803700bD991d293306D6e7dCcF2B49F9137b437e",
     },
-    icon: cUSDIcon,
+    icon: USDTIcon,
+  },
+  {
+    name: "GoodDollar",
+    symbol: "G$",
+    decimals: 18,
+    address: {
+      [celo.id]: "0x62B8B11039FcfE5aB0C56E502b1C372A3d2a9c7A",
+      [celoAlfajores.id]: "0x62B8B11039FcfE5aB0C56E502b1C372A3d2a9c7A",
+    },
+    icon: GDIcon,
   },
   {
     name: "Celo Dollar",
