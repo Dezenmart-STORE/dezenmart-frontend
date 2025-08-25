@@ -414,7 +414,6 @@ const SAMPLE_INCOMING_ORDERS: Product[] = [
     category: "Art Work",
     seller: "680821b06eda53ead327e0ea",
     images: [
-      "images-1745366906480-810449189.jpeg",
       "images-1745366906494-585992412.jpeg",
     ],
     isSponsored: false,
@@ -697,6 +696,7 @@ const Trade = () => {
             "Secure peer-to-peer transactions",
           ]}
           onNotifyMe={handleNotifyMe}
+          onClose={() => setShowComingSoon(false)}
         />
       )}
     </div>

@@ -25,6 +25,7 @@ import { useCurrencyConverter } from "../../../../utils/hooks/useCurrencyConvert
 import { Logistics } from "../../../../utils/types";
 import { useSnackbar } from "../../../../context/SnackbarContext";
 import { useWeb3 } from "../../../../context/Web3Context";
+import { createTradeParams } from "../../../../utils/config/web3.config";
 
 const LoadingSpinner = lazy(() => import("../../../common/LoadingSpinner"));
 
@@ -606,10 +607,40 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
       formData.append("stock", stock);
       formData.append("sellerWalletAddress", sellerWalletAddress);
       formData.append("useUSDT", "true");
-      formData.append(
-        "paymentToken",
-        paymentToken || wallet?.selectedToken?.symbol || "USDT"
-      );
+      
+      // Get the selected token symbol
+      const selectedTokenSymbol = paymentToken || wallet?.selectedToken?.symbol || "USDT";
+      formData.append("paymentToken", selectedTokenSymbol);
+      
+      // Add the actual token contract address for the smart contract
+      const selectedToken = availableTokens.find(t => t.symbol === selectedTokenSymbol);
+      if (selectedToken && wallet.chainId) {
+        const tokenAddress = selectedToken.address[wallet.chainId];
+        if (tokenAddress) {
+          formData.append("tokenAddress", tokenAddress);
+          
+          // Also create trade parameters for the smart contract
+          const tradeParams = createTradeParams(
+            parseFloat(priceInUSDT),
+            selectedLogistics.map(p => p.walletAddress),
+            selectedLogistics.map(p => parseFloat(logisticsCosts[p.walletAddress] || "0")),
+            stock,
+            selectedTokenSymbol,
+            wallet.chainId
+          );
+          
+          // Add trade parameters to form data
+          formData.append("tradeParams", JSON.stringify(tradeParams));
+          
+          // Debug log to verify token addresses
+          console.log("Token Selection Debug:", {
+            selectedTokenSymbol,
+            tokenAddress,
+            chainId: wallet.chainId,
+            tradeParams
+          });
+        }
+      }
 
       if (selectedLogistics.length > 0) {
         selectedLogistics.forEach((provider) => {

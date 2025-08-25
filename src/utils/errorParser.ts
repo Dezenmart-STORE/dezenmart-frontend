@@ -43,7 +43,7 @@ export const parseWeb3Error = (error: any): string => {
   }
 
   if (errorMessage.includes("InsufficientUSDTAllowance")) {
-    return "Insufficient USDT allowance. Please approve spending.";
+    return "Insufficient token allowance. Please approve spending.";
   }
 
   if (errorMessage.includes("InvalidTradeId")) {

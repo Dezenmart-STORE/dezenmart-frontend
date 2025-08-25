@@ -164,6 +164,8 @@ export interface CreateTradeParams {
   logisticsCost: number[];
   useUSDT: boolean;
   totalQuantity: string;
+  tokenAddress?: string; // Add token address for real USDT support
+  paymentToken?: string; // Keep for backward compatibility (cUSD, USDT, etc.)
 }
 
 export interface TradeResponse {

@@ -284,3 +284,45 @@ export const getTokenAddress = (
 ): string | undefined => {
   return token.address[chainId];
 };
+
+// Helper function to get real USDT address for current chain
+export const getRealUSDTAddress = (chainId: number): string | undefined => {
+  return USDT_ADDRESSES[chainId as keyof typeof USDT_ADDRESSES];
+};
+
+// Helper function to get token address by symbol for current chain
+export const getTokenAddressBySymbol = (symbol: string, chainId: number): string | undefined => {
+  const token = STABLE_TOKENS.find(t => t.symbol === symbol);
+  if (token) {
+    return token.address[chainId];
+  }
+  
+  // Fallback for legacy tokens
+  if (symbol === "USDT") {
+    return USDT_ADDRESSES[chainId as keyof typeof USDT_ADDRESSES];
+  }
+  
+  return undefined;
+};
+
+// Helper function to create trade parameters with proper token address
+export const createTradeParams = (
+  productCost: number,
+  logisticsProviders: string[],
+  logisticsCosts: number[],
+  totalQuantity: string,
+  paymentToken: string,
+  chainId: number
+) => {
+  const tokenAddress = getTokenAddressBySymbol(paymentToken, chainId);
+  
+  return {
+    productCost,
+    logisticsProvider: logisticsProviders,
+    logisticsCost: logisticsCosts,
+    useUSDT: paymentToken === "USDT",
+    totalQuantity,
+    paymentToken,
+    tokenAddress, // This will be used by the smart contract
+  };
+};

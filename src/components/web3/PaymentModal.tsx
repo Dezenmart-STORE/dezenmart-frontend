@@ -643,7 +643,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
               </h3>
               <p className="text-gray-300 max-w-sm mx-auto">
                 {needsApproval && !approvalHash
-                  ? "Requesting USDT spending permission..."
+                  ? `Requesting ${selectedToken.symbol} spending permission...`
                   : "Completing your purchase transaction..."}
               </p>
               <p className="text-sm text-gray-400">

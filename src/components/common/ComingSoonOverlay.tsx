@@ -7,6 +7,7 @@ interface ComingSoonOverlayProps {
   description?: string;
   features?: string[];
   onNotifyMe?: () => void;
+  onClose?: () => void;
   className?: string;
   backgroundOpacity?: number;
 }
@@ -22,6 +23,7 @@ const ComingSoonOverlay = memo<ComingSoonOverlayProps>(
       "Secure peer-to-peer transactions",
     ],
     onNotifyMe,
+    onClose,
     className = "",
     backgroundOpacity = 0.95,
   }) => {
@@ -31,8 +33,22 @@ const ComingSoonOverlay = memo<ComingSoonOverlayProps>(
     useEffect(() => {
       // Smooth entrance animation
       const timer = setTimeout(() => setIsVisible(true), 100);
-      return () => clearTimeout(timer);
-    }, []);
+      
+      // Add escape key listener
+      const handleEscape = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') {
+          console.log("Escape key pressed, calling handleClose");
+          handleClose();
+        }
+      };
+      
+      document.addEventListener('keydown', handleEscape);
+      
+      return () => {
+        clearTimeout(timer);
+        document.removeEventListener('keydown', handleEscape);
+      };
+    }, [onClose]);
 
     const handleNotifyMe = useCallback(() => {
       if (onNotifyMe) {
@@ -41,6 +57,22 @@ const ComingSoonOverlay = memo<ComingSoonOverlayProps>(
       setShowNotification(true);
       setTimeout(() => setShowNotification(false), 3000);
     }, [onNotifyMe]);
+
+    const handleClose = useCallback(() => {
+      console.log("Close button clicked! onClose:", onClose);
+      if (onClose) {
+        console.log("Setting modal to invisible and calling onClose");
+        setIsVisible(false);
+        // Small delay to allow exit animation to complete
+        setTimeout(() => {
+          console.log("Calling onClose after delay");
+          onClose();
+        }, 300);
+      } else {
+        console.log("No onClose provided, just hiding modal");
+        setIsVisible(false);
+      }
+    }, [onClose]);
 
     const overlayVariants: Variants = {
       hidden: { opacity: 0, backdropFilter: "blur(0px)" },
@@ -73,13 +105,40 @@ const ComingSoonOverlay = memo<ComingSoonOverlayProps>(
             style={{
               backgroundColor: `rgba(33, 36, 40, ${backgroundOpacity})`,
             }}
+            onClick={() => {
+              console.log("Overlay background clicked, calling handleClose");
+              handleClose();
+            }}
           >
             <motion.div
               variants={contentVariants}
               className="relative max-w-md w-full bg-[#212428] rounded-2xl border border-[#292B30] shadow-2xl overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
             >
               {/* Header with Icon */}
               <div className="relative bg-gradient-to-r from-[#ff343f] to-[#ff5722] p-6 text-center">
+                {/* Close Button */}
+                <button
+                  onClick={handleClose}
+                  className="absolute top-4 right-4 w-8 h-8 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center transition-all duration-200 group z-10"
+                  aria-label="Close modal"
+                  style={{ zIndex: 1000 }}
+                >
+                  <svg
+                    className="w-4 h-4 text-white group-hover:scale-110 transition-transform duration-200"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+
                 <motion.div
                   initial={{ rotate: 0 }}
                   animate={{ rotate: 360 }}

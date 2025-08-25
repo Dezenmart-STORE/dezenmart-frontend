@@ -507,6 +507,7 @@ const ViewTrade = () => {
             "Advanced analytics dashboard",
           ]}
           onNotifyMe={handleNotifyMe}
+          onClose={() => setShowComingSoon(false)}
         />
       )}
     </div>
