@@ -20,7 +20,7 @@ import USDTIcon from "../../assets/icons/USDT.svg";
 import GDIcon from "../../assets/icons/G$.svg";
 
 const rpcEndpoints = {
-  [celo.id]: ["https://forno.celo.org", "https://rpc.ankr.com/celo"],
+  [celo.id]: ["https://rpc.ankr.com/celo", "https://forno.celo.org", "https://celo-mainnet.public.blastapi.io"],
   [celoAlfajores.id]: ["https://alfajores-forno.celo-testnet.org"],
 };
 
@@ -34,7 +34,7 @@ export interface StableToken {
 
 export const STABLE_TOKENS: StableToken[] = [
   {
-    name: "Dollar",
+    name: "Tether USD",
     symbol: "USDT",
     decimals: 6,
     address: {
@@ -216,8 +216,8 @@ export const ESCROW_ADDRESSES = {
   [celoAlfajores.id]: import.meta.env.VITE_ESCROW_CONTRACT_TESTNET!,
 } as const;
 
-// Default token is cUSD
-export const DEFAULT_STABLE_TOKEN = STABLE_TOKENS[0];
+// Default token is cUSD (index 2 in the array)
+export const DEFAULT_STABLE_TOKEN = STABLE_TOKENS[2];
 
 export const TARGET_CHAIN = celo;
 
@@ -252,8 +252,8 @@ export const wagmiConfig = createConfig({
   ],
   transports: {
     [celo.id]: fallback(
-      rpcEndpoints[celoAlfajores.id].map((url) =>
-        http(undefined, {
+      rpcEndpoints[celo.id].map((url) =>
+        http(url, {
           batch: true,
           retryCount: 3,
           retryDelay: 1000,
@@ -262,7 +262,7 @@ export const wagmiConfig = createConfig({
     ),
     [celoAlfajores.id]: fallback(
       rpcEndpoints[celoAlfajores.id].map((url) =>
-        http(undefined, {
+        http(url, {
           batch: true,
           retryCount: 3,
           retryDelay: 1000,
