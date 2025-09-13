@@ -53,7 +53,7 @@ import { useCurrencyConverter } from "../utils/hooks/useCurrencyConverter";
 import { DEZENMART_ABI } from "../utils/abi/dezenmartAbi.json";
 import { ESCROW_ADDRESSES } from "../utils/config/web3.config";
 import { parseWeb3Error } from "../utils/errorParser";
-import { Mento } from "@mento-protocol/mento-sdk";
+// import { Mento } from "@mento-protocol/mento-sdk";
 import {
   readContract,
   simulateContract,
@@ -105,7 +105,7 @@ interface ExtendedWeb3ContextType extends Omit<Web3ContextType, "wallet"> {
   mento?: ReturnType<typeof useMento>;
   swapState: SwapState;
   performSwap: (from: string, to: string, amount: number) => Promise<void>;
-  // getSwapQuote: (from: string, to: string, amount: number) => Promise<string>;
+  getSwapQuote: (from: string, to: string, amount: number) => Promise<string>;
   initializeMento: () => Promise<boolean>;
   divvi: {
     isReady: boolean;
@@ -1020,18 +1020,18 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
           throw error;
         }
       },
-      // getSwapQuote: async (
-      //   from: string,
-      //   to: string,
-      //   amount: number
-      // ): Promise<string> => {
-      //   try {
-      //     const quote = await mento.getSwapQuote(from, to, amount);
-      //     return quote?.amountOut || "0";
-      //   } catch (error) {
-      //     throw error;
-      //   }
-      // },
+      getSwapQuote: async (
+        from: string,
+        to: string,
+        amount: number
+      ): Promise<string> => {
+        try {
+          const quote = await mento.getSwapQuote(from, to, amount);
+          return quote?.amountOut || "0";
+        } catch (error) {
+          throw error;
+        }
+      },
       initializeMento: mento.initializeMento,
       swapState: {
         isSwapping: mento.isSwapping,
