@@ -477,292 +477,292 @@ export function useMento() {
     } // Commented out
   }, []); // Commented out
 
-  // Get swap quote // Commented out
-  const getSwapQuote = useCallback( // Commented out
-    async ( // Commented out
-      fromSymbol: string, // Commented out
-      toSymbol: string, // Commented out
-      amount: number, // Commented out
-      slippageTolerance = SLIPPAGE_DEFAULT // Commented out
-    ): Promise<SwapQuote> => { // Commented out
-      console.log( // Commented out
-        `[getSwapQuote] Starting quote: ${fromSymbol} -> ${toSymbol}, amount: ${amount}` // Commented out
-      ); // Commented out
+  // Get swap quote
+  const getSwapQuote = useCallback(
+    async (
+      fromSymbol: string,
+      toSymbol: string,
+      amount: number,
+      slippageTolerance = SLIPPAGE_DEFAULT
+    ): Promise<SwapQuote> => {
+      console.log(
+        `[getSwapQuote] Starting quote: ${fromSymbol} -> ${toSymbol}, amount: ${amount}`
+      );
 
-      if (!mentoRef.current || !state.isInitialized) { // Commented out
-        if (!state.isInitializing) { // Commented out
-          await initializeMento(); // Commented out
-        } // Commented out
-        throw new SwapError( // Commented out
-          SwapErrorType.INITIALIZATION_FAILED, // Commented out
-          "Trading system not ready. Please wait for initialization to complete." // Commented out
-        ); // Commented out
-      } // Commented out
+      if (!mentoRef.current || !state.isInitialized) {
+        if (!state.isInitializing) {
+          await initializeMento();
+        }
+        throw new SwapError(
+          SwapErrorType.INITIALIZATION_FAILED,
+          "Trading system not ready. Please wait for initialization to complete."
+        );
+      }
 
-      if (amount <= 0) { // Commented out
-        throw new SwapError( // Commented out
-          SwapErrorType.INVALID_PAIR, // Commented out
-          "Amount must be greater than 0" // Commented out
-        ); // Commented out
-      } // Commented out
+      if (amount <= 0) {
+        throw new SwapError(
+          SwapErrorType.INVALID_PAIR,
+          "Amount must be greater than 0"
+        );
+      }
 
-      validateTokenPair(fromSymbol, toSymbol); // Commented out
+      validateTokenPair(fromSymbol, toSymbol);
 
-      const cacheKey = `${fromSymbol}-${toSymbol}-${amount}-${slippageTolerance}`; // Commented out
-      const cached = quoteCache.current.get(cacheKey); // Commented out
+      const cacheKey = `${fromSymbol}-${toSymbol}-${amount}-${slippageTolerance}`;
+      const cached = quoteCache.current.get(cacheKey);
 
-      if (cached && Date.now() - cached.timestamp < QUOTE_CACHE_DURATION) { // Commented out
-        console.log("[getSwapQuote] Returning cached quote"); // Commented out
-        setState((prev) => ({ // Commented out
-          ...prev, // Commented out
-          lastQuote: cached, // Commented out
-          isGettingQuote: false, // Commented out
-        })); // Commented out
-        return cached; // Commented out
-      } // Commented out
+      if (cached && Date.now() - cached.timestamp < QUOTE_CACHE_DURATION) {
+        console.log("[getSwapQuote] Returning cached quote");
+        setState((prev) => ({
+          ...prev,
+          lastQuote: cached,
+          isGettingQuote: false,
+        }));
+        return cached;
+      }
 
-      if (abortControllerRef.current) { // Commented out
-        abortControllerRef.current.abort(); // Commented out
-      } // Commented out
-      abortControllerRef.current = new AbortController(); // Commented out
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      abortControllerRef.current = new AbortController();
 
-      setState((prev) => ({ ...prev, isGettingQuote: true, error: null })); // Commented out
+      setState((prev) => ({ ...prev, isGettingQuote: true, error: null }));
 
-      try { // Commented out
-        const chainId = (await walletClient?.getChainId()) || TARGET_CHAIN.id; // Commented out
+      try {
+        const chainId = (await walletClient?.getChainId()) || TARGET_CHAIN.id;
 
-        const fromToken = STABLE_TOKENS.find((t) => t.symbol === fromSymbol)!; // Commented out
-        const toToken = STABLE_TOKENS.find((t) => t.symbol === toSymbol)!; // Commented out
+        const fromToken = STABLE_TOKENS.find((t) => t.symbol === fromSymbol)!;
+        const toToken = STABLE_TOKENS.find((t) => t.symbol === toSymbol)!;
 
-        const fromAddress = getTokenAddress(fromToken, chainId); // Commented out
-        const toAddress = getTokenAddress(toToken, chainId); // Commented out
+        const fromAddress = getTokenAddress(fromToken, chainId);
+        const toAddress = getTokenAddress(toToken, chainId);
 
-        if (!fromAddress || !toAddress) { // Commented out
-          throw new SwapError( // Commented out
-            SwapErrorType.INVALID_PAIR, // Commented out
-            "Token addresses not found for current network" // Commented out
-          ); // Commented out
-        } // Commented out
+        if (!fromAddress || !toAddress) {
+          throw new SwapError(
+            SwapErrorType.INVALID_PAIR,
+            "Token addresses not found for current network"
+          );
+        }
 
-        const amountIn = parseUnits(amount.toString(), fromToken.decimals); // Commented out
-        console.log(`[getSwapQuote] Parsed amount: ${amountIn.toString()}`); // Commented out
+        const amountIn = parseUnits(amount.toString(), fromToken.decimals);
+        console.log(`[getSwapQuote] Parsed amount: ${amountIn.toString()}`);
 
-        let amountOut: BigNumber; // Commented out
-        let route: string[] = []; // Commented out
-        let isDirectSwap = false; // Commented out
-        let tradablePair: TradablePair | undefined; // Commented out
-        let pairDetails: SwapQuote["pairDetails"]; // Commented out
+        let amountOut: BigNumber;
+        let route: string[] = [];
+        let isDirectSwap = false;
+        let tradablePair: TradablePair | undefined;
+        let pairDetails: SwapQuote["pairDetails"];
 
-        try { // Commented out
-          console.log("[getSwapQuote] Finding tradable pair..."); // Commented out
-          tradablePair = (await Promise.race([ // Commented out
-            mentoRef.current.findPairForTokens(fromAddress, toAddress), // Commented out
-            new Promise((_, reject) => // Commented out
-              setTimeout(() => reject(new Error("Pair lookup timeout")), 5000) // Commented out
-            ), // Commented out
-          ])) as TradablePair; // Commented out
+        try {
+          console.log("[getSwapQuote] Finding tradable pair...");
+          tradablePair = (await Promise.race([
+            mentoRef.current.findPairForTokens(fromAddress, toAddress),
+            new Promise((_, reject) =>
+              setTimeout(() => reject(new Error("Pair lookup timeout")), 5000)
+            ),
+          ])) as TradablePair;
 
-          console.log("[getSwapQuote] Tradable pair found:", { // Commented out
-            id: (tradablePair as any)?.id, // Commented out
-            providerAddr: (tradablePair as any)?.providerAddr, // Commented out
-            assetsLength: tradablePair?.assets?.length, // Commented out
-            pathLength: tradablePair?.path?.length, // Commented out
-          }); // Commented out
+          console.log("[getSwapQuote] Tradable pair found:", {
+            id: (tradablePair as any)?.id,
+            providerAddr: (tradablePair as any)?.providerAddr,
+            assetsLength: tradablePair?.assets?.length,
+            pathLength: tradablePair?.path?.length,
+          });
 
-          if (tradablePair) { // Commented out
-            pairDetails = { // Commented out
-              id: (tradablePair as any)?.id || "unknown", // Commented out
-              providerAddr: (tradablePair as any)?.providerAddr || "unknown", // Commented out
+          if (tradablePair) {
+            pairDetails = {
+              id: (tradablePair as any)?.id || "unknown",
+              providerAddr: (tradablePair as any)?.providerAddr || "unknown",
               assets: tradablePair.assets ? tradablePair.assets.map(a => getAddressString(a) || '') : [fromAddress, toAddress],
-            }; // Commented out
-          } // Commented out
+            };
+          }
 
-          amountOut = (await Promise.race([ // Commented out
-            mentoRef.current.getAmountOut( // Commented out
-              fromAddress, // Commented out
-              toAddress, // Commented out
-              BigNumber.from(amountIn.toString()), // Commented out
-              tradablePair // Commented out
-            ), // Commented out
-            new Promise((_, reject) => // Commented out
-              setTimeout( // Commented out
+          amountOut = (await Promise.race([
+            mentoRef.current.getAmountOut(
+              fromAddress,
+              toAddress,
+              BigNumber.from(amountIn.toString()),
+              tradablePair
+            ),
+            new Promise((_, reject) =>
+              setTimeout(
                 () => reject(new Error("Amount calculation timeout")),
-                5000 // Commented out
-              ) // Commented out
-            ), // Commented out
-          ])) as BigNumber; // Commented out
+                5000
+              )
+            ),
+          ])) as BigNumber;
 
-          route = buildRouteFromPair( // Commented out
-            tradablePair, // Commented out
-            fromSymbol, // Commented out
-            toSymbol, // Commented out
-            chainId // Commented out
-          ); // Commented out
-        } catch (pairError: any) { // Commented out
-          console.warn( // Commented out
-            "[getSwapQuote] Pair lookup failed, trying direct swap:", // Commented out
-            pairError.message // Commented out
-          ); // Commented out
+          route = buildRouteFromPair(
+            tradablePair,
+            fromSymbol,
+            toSymbol,
+            chainId
+          );
+        } catch (pairError: any) {
+          console.warn(
+            "[getSwapQuote] Pair lookup failed, trying direct swap:",
+            pairError.message
+          );
 
-          try { // Commented out
-            amountOut = (await Promise.race([ // Commented out
-              mentoRef.current.getAmountOut( // Commented out
-                fromAddress, // Commented out
-                toAddress, // Commented out
-                BigNumber.from(amountIn.toString()) // Commented out
-              ), // Commented out
-              new Promise((_, reject) => // Commented out
-                setTimeout(() => reject(new Error("Direct swap timeout")), 5000) // Commented out
-              ), // Commented out
-            ])) as BigNumber; // Commented out
+          try {
+            amountOut = (await Promise.race([
+              mentoRef.current.getAmountOut(
+                fromAddress,
+                toAddress,
+                BigNumber.from(amountIn.toString())
+              ),
+              new Promise((_, reject) =>
+                setTimeout(() => reject(new Error("Direct swap timeout")), 5000)
+              ),
+            ])) as BigNumber;
 
-            route = [fromSymbol, toSymbol]; // Commented out
-            isDirectSwap = true; // Commented out
-            console.log("[getSwapQuote] Direct swap successful"); // Commented out
-          } catch (directSwapError: any) { // Commented out
-            console.error( // Commented out
-              "[getSwapQuote] Direct swap failed:", // Commented out
-              directSwapError.message // Commented out
-            ); // Commented out
-            throw new SwapError( // Commented out
-              SwapErrorType.INSUFFICIENT_LIQUIDITY, // Commented out
-              `No trading path available between ${fromSymbol} and ${toSymbol}. This pair may not have sufficient liquidity.` // Commented out
-            ); // Commented out
-          } // Commented out
-        } // Commented out
+            route = [fromSymbol, toSymbol];
+            isDirectSwap = true;
+            console.log("[getSwapQuote] Direct swap successful");
+          } catch (directSwapError: any) {
+            console.error(
+              "[getSwapQuote] Direct swap failed:",
+              directSwapError.message
+            );
+            throw new SwapError(
+              SwapErrorType.INSUFFICIENT_LIQUIDITY,
+              `No trading path available between ${fromSymbol} and ${toSymbol}. This pair may not have sufficient liquidity.`
+            );
+          }
+        }
 
-        if (!amountOut || amountOut.isZero()) { // Commented out
-          throw new SwapError( // Commented out
-            SwapErrorType.INSUFFICIENT_LIQUIDITY, // Commented out
-            "Insufficient liquidity for this trade amount" // Commented out
-          ); // Commented out
-        } // Commented out
+        if (!amountOut || amountOut.isZero()) {
+          throw new SwapError(
+            SwapErrorType.INSUFFICIENT_LIQUIDITY,
+            "Insufficient liquidity for this trade amount"
+          );
+        }
 
-        const amountOutFormatted = formatUnits( // Commented out
-          BigInt(amountOut.toString()), // Commented out
-          toToken.decimals // Commented out
-        ); // Commented out
+        const amountOutFormatted = formatUnits(
+          BigInt(amountOut.toString()),
+          toToken.decimals
+        );
 
-        const exchangeRate = (parseFloat(amountOutFormatted) / amount).toFixed( // Commented out
-          6 // Commented out
-        ); // Commented out
+        const exchangeRate = (parseFloat(amountOutFormatted) / amount).toFixed(
+          6
+        );
 
-        const minAmountOut = amountOut // Commented out
-          .mul(Math.floor((1 - slippageTolerance) * 10000)) // Commented out
-          .div(10000); // Commented out
-        const minAmountOutFormatted = formatUnits( // Commented out
-          BigInt(minAmountOut.toString()), // Commented out
-          toToken.decimals // Commented out
-        ); // Commented out
+        const minAmountOut = amountOut
+          .mul(Math.floor((1 - slippageTolerance) * 10000))
+          .div(10000);
+        const minAmountOutFormatted = formatUnits(
+          BigInt(minAmountOut.toString()),
+          toToken.decimals
+        );
 
-        const priceImpact = calculatePriceImpact( // Commented out
-          amount, // Commented out
-          parseFloat(amountOutFormatted) // Commented out
-        ); // Commented out
+        const priceImpact = calculatePriceImpact(
+          amount,
+          parseFloat(amountOutFormatted)
+        );
 
-        let gasEstimate = "0"; // Commented out
-        try { // Commented out
-          console.log("[getSwapQuote] Estimating gas..."); // Commented out
-          const txRequest = await mentoRef.current.swapIn( // Commented out
-            fromAddress, // Commented out
-            toAddress, // Commented out
-            BigNumber.from(amountIn.toString()), // Commented out
-            minAmountOut, // Commented out
-            tradablePair // Commented out
-          ); // Commented out
+        let gasEstimate = "0";
+        try {
+          console.log("[getSwapQuote] Estimating gas...");
+          const txRequest = await mentoRef.current.swapIn(
+            fromAddress,
+            toAddress,
+            BigNumber.from(amountIn.toString()),
+            minAmountOut,
+            tradablePair
+          );
 
-          const gasEstimateBigInt = await publicClient!.estimateGas({ // Commented out
+          const gasEstimateBigInt = await publicClient!.estimateGas({
             account: address as `0x${string}`,
             to: txRequest.to as `0x${string}`,
             data: txRequest.data as `0x${string}`,
             value: BigInt(txRequest.value?.toString() || "0"),
-          }); // Commented out
+          });
 
-          gasEstimate = formatUnits(gasEstimateBigInt, 18); // Commented out
-          console.log("[getSwapQuote] Gas estimated:", gasEstimate); // Commented out
-        } catch (gasError: any) { // Commented out
-          console.warn( // Commented out
-            "[getSwapQuote] Gas estimation failed:", // Commented out
-            gasError.message // Commented out
-          ); // Commented out
-          gasEstimate = "0.01"; // Commented out
-        } // Commented out
+          gasEstimate = formatUnits(gasEstimateBigInt, 18);
+          console.log("[getSwapQuote] Gas estimated:", gasEstimate);
+        } catch (gasError: any) {
+          console.warn(
+            "[getSwapQuote] Gas estimation failed:",
+            gasError.message
+          );
+          gasEstimate = "0.01";
+        }
 
-        const networkFee = await getGasFee( // Commented out
-          publicClient!, // Commented out
-          BigNumber.from(parseUnits(gasEstimate, 18).toString()) // Commented out
-        ); // Commented out
-        const protocolFee = "0"; // Commented out
+        const networkFee = await getGasFee(
+          publicClient!,
+          BigNumber.from(parseUnits(gasEstimate, 18).toString())
+        );
+        const protocolFee = "0";
 
-        const quote: SwapQuote = { // Commented out
-          amountOut: amountOutFormatted, // Commented out
-          exchangeRate, // Commented out
-          minAmountOut: minAmountOutFormatted, // Commented out
-          priceImpact, // Commented out
-          route, // Commented out
-          fees: { networkFee, protocolFee }, // Commented out
-          gasEstimate, // Commented out
-          timestamp: Date.now(), // Commented out
-          isDirectSwap, // Commented out
-          pairDetails, // Commented out
-        }; // Commented out
+        const quote: SwapQuote = {
+          amountOut: amountOutFormatted,
+          exchangeRate,
+          minAmountOut: minAmountOutFormatted,
+          priceImpact,
+          route,
+          fees: { networkFee, protocolFee },
+          gasEstimate,
+          timestamp: Date.now(),
+          isDirectSwap,
+          pairDetails,
+        };
 
-        quoteCache.current.set(cacheKey, quote); // Commented out
+        quoteCache.current.set(cacheKey, quote);
 
-        if (quoteTtlRef.current) clearTimeout(quoteTtlRef.current); // Commented out
-        quoteTtlRef.current = setTimeout(() => { // Commented out
-          quoteCache.current.delete(cacheKey); // Commented out
-        }, QUOTE_CACHE_DURATION); // Commented out
+        if (quoteTtlRef.current) clearTimeout(quoteTtlRef.current);
+        quoteTtlRef.current = setTimeout(() => {
+          quoteCache.current.delete(cacheKey);
+        }, QUOTE_CACHE_DURATION);
 
-        setState((prev) => ({ // Commented out
-          ...prev, // Commented out
-          isGettingQuote: false, // Commented out
-          lastQuote: quote, // Commented out
-          error: null, // Commented out
-        })); // Commented out
+        setState((prev) => ({
+          ...prev,
+          isGettingQuote: false,
+          lastQuote: quote,
+          error: null,
+        }));
 
-        console.log("[getSwapQuote] Quote completed successfully:", { // Commented out
-          amountOut: quote.amountOut, // Commented out
-          exchangeRate: quote.exchangeRate, // Commented out
-          priceImpact: quote.priceImpact, // Commented out
-          isDirectSwap: quote.isDirectSwap, // Commented out
-        }); // Commented out
+        console.log("[getSwapQuote] Quote completed successfully:", {
+          amountOut: quote.amountOut,
+          exchangeRate: quote.exchangeRate,
+          priceImpact: quote.priceImpact,
+          isDirectSwap: quote.isDirectSwap,
+        });
 
-        return quote; // Commented out
-      } catch (error: any) { // Commented out
-        console.error("[getSwapQuote] Error:", error); // Commented out
+        return quote;
+      } catch (error: any) {
+        console.error("[getSwapQuote] Error:", error);
 
-        if (error.name === "AbortError") { // Commented out
-          return Promise.reject(error); // Commented out
-        } // Commented out
+        if (error.name === "AbortError") {
+          return Promise.reject(error);
+        }
 
-        const swapError = // Commented out
-          error instanceof SwapError // Commented out
-            ? error // Commented out
-            : new SwapError( // Commented out
-                SwapErrorType.NETWORK_ERROR, // Commented out
-                `Failed to get quote: ${error.message || "Unknown error"}` // Commented out
-              ); // Commented out
+        const swapError =
+          error instanceof SwapError
+            ? error
+            : new SwapError(
+                SwapErrorType.NETWORK_ERROR,
+                `Failed to get quote: ${error.message || "Unknown error"}`
+              );
 
-        setState((prev) => ({ // Commented out
-          ...prev, // Commented out
-          isGettingQuote: false, // Commented out
-          error: swapError.message, // Commented out
-        })); // Commented out
+        setState((prev) => ({
+          ...prev,
+          isGettingQuote: false,
+          error: swapError.message,
+        }));
 
-        throw swapError; // Commented out
-      } // Commented out
-    }, // Commented out
-    [ // Commented out
-      walletClient, // Commented out
-      validateTokenPair, // Commented out
-      publicClient, // Commented out
-      address, // Commented out
-      state.isInitialized, // Commented out
-      state.isInitializing, // Commented out
-      initializeMento, // Commented out
-    ] // Commented out
-  ); // Commented out
+        throw swapError;
+      }
+    },
+    [
+      walletClient,
+      validateTokenPair,
+      publicClient,
+      address,
+      state.isInitialized,
+      state.isInitializing,
+      initializeMento,
+    ]
+  );
 
   // Perform swap
   const performSwap = useCallback(
@@ -808,7 +808,7 @@ export function useMento() {
           parseUnits(amount.toString(), fromToken.decimals).toString()
         );
 
-        const quote = await getSwapQuote( // Commented out
+        const quote = await getSwapQuote(
           fromSymbol,
           toSymbol,
           amount,
@@ -817,10 +817,6 @@ export function useMento() {
         const minAmountOut = BigNumber.from(
           parseUnits(quote.minAmountOut, toToken.decimals).toString()
         );
-
-        // Placeholder for amountOut and minAmountOut as getSwapQuote is commented out
-        const amountOutPlaceholder = BigNumber.from("1"); // You might need to replace this with actual logic or a default
-        const minAmountOutPlaceholder = BigNumber.from("1"); // You might need to replace this with actual logic or a default
 
         let tradablePair: TradablePair | undefined;
         try {
@@ -872,7 +868,7 @@ export function useMento() {
           fromAddress,
           toAddress,
           amountIn,
-          minAmountOutPlaceholder, // Use placeholder
+          minAmountOut,
           tradablePair
         );
 
@@ -898,7 +894,7 @@ export function useMento() {
         let result: SwapResult = {
           success: true,
           hash: swapHash,
-          amountOut: "0", // Placeholder as quote is commented out
+          amountOut: quote.amountOut,
           recipient: recipientAddress || address,
           gasUsed: swapReceipt?.gasUsed?.toString(),
         };
@@ -908,8 +904,7 @@ export function useMento() {
           const transferHash = await handleRemittance(
             toAddress,
             recipientAddress,
-            quote.amountOut, // Commented out
-            // "0", // Placeholder as quote is commented out
+            quote.amountOut,
             toToken.decimals
           );
           result.transferHash = transferHash;
@@ -1035,7 +1030,7 @@ export function useMento() {
     }
   };
 
-  const debouncedGetQuote = useCallback( // Commented out
+  const debouncedGetQuote = useCallback(
     debounce(getSwapQuote, 800, {
       leading: false,
       trailing: true,
@@ -1068,7 +1063,7 @@ export function useMento() {
       if (initializationTimeoutRef.current) {
         clearTimeout(initializationTimeoutRef.current);
       }
-      debouncedGetQuote.cancel(); // Commented out
+      debouncedGetQuote.cancel();
     };
   }, []);
 
@@ -1076,18 +1071,18 @@ export function useMento() {
     () => ({
       ...state,
       initializeMento,
-      getSwapQuote: debouncedGetQuote, // Commented out
+      getSwapQuote: debouncedGetQuote,
       performSwap,
-      clearQuoteCache, // Commented out
+      clearQuoteCache,
       availablePairs,
       isReady: state.isInitialized && !!mentoRef.current,
     }),
     [
       state,
       initializeMento,
-      debouncedGetQuote, // Commented out
+      debouncedGetQuote,
       performSwap,
-      clearQuoteCache, // Commented out
+      clearQuoteCache,
       availablePairs,
     ]
   );

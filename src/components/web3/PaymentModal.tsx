@@ -19,6 +19,12 @@ import { useSnackbar } from "../../context/SnackbarContext";
 import { Order } from "../../utils/types";
 import { parseWeb3Error } from "../../utils/errorParser";
 import { StableToken } from "../../utils/config/web3.config";
+import { 
+  scanWalletForStableTokens, 
+  checkSufficientBalance, 
+  getBestTokenForPurchase,
+  TokenBalanceInfo 
+} from "../../utils/tokenBalanceChecker";
 
 interface PaymentModalProps {
   isOpen: boolean;
@@ -62,6 +68,15 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   const [isLoadingBalance, setIsLoadingBalance] = useState(false);
   const [isTokenSelectorOpen, setIsTokenSelectorOpen] = useState(false);
   const [refreshingToken, setRefreshingToken] = useState<string | null>(null);
+  const [walletTokens, setWalletTokens] = useState<TokenBalanceInfo[]>([]);
+  const [isScanningWallet, setIsScanningWallet] = useState(false);
+  const [needsConversion, setNeedsConversion] = useState(false);
+  const [conversionInfo, setConversionInfo] = useState<{
+    fromToken: string;
+    toToken: string;
+    amount: number;
+    estimatedUSDT: string;
+  } | null>(null);
 
   // Get selected token and its balance
   const selectedToken = wallet.selectedToken;
@@ -89,6 +104,38 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   );
 
   const hasInsufficientGas = useMemo(() => gasBalance < 0.01, [gasBalance]);
+
+  // Scan wallet for available stable tokens
+  const scanWallet = useCallback(async () => {
+    if (!wallet.isConnected || !wallet.address) return;
+    
+    setIsScanningWallet(true);
+    try {
+      const walletScan = await scanWalletForStableTokens(wallet.address, wallet.chainId || 42220);
+      setWalletTokens(walletScan.availableTokens);
+      
+      // Check if user needs to convert tokens
+      const balanceCheck = checkSufficientBalance(walletScan.availableTokens, orderAmount, "USDT");
+      
+      if (!balanceCheck.hasSufficientBalance && balanceCheck.needsConversion && balanceCheck.conversionRequired) {
+        setNeedsConversion(true);
+        setConversionInfo({
+          fromToken: balanceCheck.conversionRequired.fromToken,
+          toToken: balanceCheck.conversionRequired.toToken,
+          amount: balanceCheck.conversionRequired.amount,
+          estimatedUSDT: balanceCheck.conversionRequired.amount.toString(), // Simplified
+        });
+      } else {
+        setNeedsConversion(false);
+        setConversionInfo(null);
+      }
+    } catch (error) {
+      console.error("Failed to scan wallet:", error);
+      showSnackbar("Failed to scan wallet for tokens", "error");
+    } finally {
+      setIsScanningWallet(false);
+    }
+  }, [wallet.isConnected, wallet.address, wallet.chainId, orderAmount, showSnackbar]);
 
   // Fetch balance for selected token
   const loadBalance = useCallback(async () => {
@@ -134,8 +181,9 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     if (isOpen && wallet.isConnected) {
       loadBalance();
       checkApprovalNeeds();
+      scanWallet();
     }
-  }, [isOpen, wallet.isConnected, loadBalance, checkApprovalNeeds]);
+  }, [isOpen, wallet.isConnected, loadBalance, checkApprovalNeeds, scanWallet]);
 
   // Reset state when modal opens
   useEffect(() => {
@@ -146,6 +194,9 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
       setApprovalHash("");
       setRetryCount(0);
       setIsProcessing(false);
+      setNeedsConversion(false);
+      setConversionInfo(null);
+      setWalletTokens([]);
     }
   }, [isOpen]);
 
@@ -521,6 +572,61 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
               </div>
             </div>
 
+            {/* Available Tokens Section */}
+            {walletTokens.length > 0 && (
+              <div className="space-y-3">
+                <h3 className="text-lg font-semibold text-white">
+                  Available Tokens in Wallet
+                </h3>
+                <div className="bg-Dark/50 border border-Red/20 rounded-lg p-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    {walletTokens
+                      .filter(token => token.hasBalance)
+                      .map((tokenInfo) => (
+                        <div
+                          key={tokenInfo.token.symbol}
+                          className="flex items-center justify-between p-2 bg-Dark/30 rounded-md"
+                        >
+                          <div className="flex items-center gap-2">
+                            {typeof tokenInfo.token.icon === "string" && tokenInfo.token.icon ? (
+                              <img
+                                src={tokenInfo.token.icon}
+                                alt={tokenInfo.token.symbol}
+                                width={20}
+                                height={20}
+                              />
+                            ) : (
+                              "💰"
+                            )}
+                            <span className="text-white font-medium">
+                              {tokenInfo.token.symbol}
+                            </span>
+                          </div>
+                          <span className="text-sm text-gray-300">
+                            {tokenInfo.formattedBalance}
+                          </span>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Conversion Notice */}
+            {needsConversion && conversionInfo && (
+              <div className="bg-yellow-900/20 border border-yellow-500/30 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <HiExclamationTriangle className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-yellow-400 font-medium">Token Conversion Required</p>
+                    <p className="text-sm text-yellow-400/80 mt-1">
+                      You don't have enough USDT. We'll convert {conversionInfo.amount} {conversionInfo.fromToken} to USDT before completing your purchase.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Security Notice */}
             <div className="bg-Red/10 border border-Red/30 rounded-lg p-4">
               <div className="flex items-start gap-3">
@@ -616,12 +722,15 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
               title={
                 !wallet.isConnected
                   ? "Connect Wallet"
+                  : needsConversion
+                  ? `Convert & Pay ${formatCurrency(orderAmount)} USDT`
                   : `Pay ${formatCurrency(orderAmount)} ${selectedToken.symbol}`
               }
               onClick={handlePayment}
               disabled={
                 isProcessing ||
                 isLoadingBalance ||
+                isScanningWallet ||
                 (wallet.isConnected &&
                   (hasInsufficientBalance || hasInsufficientGas))
               }
