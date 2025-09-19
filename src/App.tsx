@@ -1,14 +1,16 @@
-import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import React from 'react';
+import { SolanaProvider } from './context/SolanaContext';
+import DezenMartDashboard from './components/DezenMartDashboard';
+import './App.css';
 
 const App = () => {
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    navigate("/");
-  }, [navigate]);
-
-  return null;
+  return (
+    <SolanaProvider>
+      <div className="App">
+        <DezenMartDashboard />
+      </div>
+    </SolanaProvider>
+  );
 };
 
 export default App;
