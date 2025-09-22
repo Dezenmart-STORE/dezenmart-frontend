@@ -63,6 +63,12 @@ import {
 import { useMento } from "../utils/hooks/useMento";
 import { useDivvi } from "../utils/hooks/useDivvi";
 import { ensure0xPrefix } from "../utils/services/divvi.service";
+import { 
+  scanWalletForStableTokens, 
+  checkSufficientBalance, 
+  getBestTokenForPurchase,
+  TokenBalanceInfo 
+} from "../utils/tokenBalanceChecker";
 
 interface TokenBalance {
   raw: string;
@@ -584,7 +590,68 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
     [address, chain, writeContractAsync, getTokenAllowance]
   );
 
-  // buy trade function
+  // Helper function to convert tokens using Mento SDK
+  const convertTokens = useCallback(
+    async (fromToken: string, toToken: string, amount: number): Promise<string> => {
+      if (!mento?.isReady) {
+        throw new Error("Token conversion not available. Please try again later.");
+      }
+
+      try {
+        // First, get a quote to check if conversion is possible
+        const quote = await mento.getSwapQuote(fromToken, toToken, amount);
+        
+        if (!quote || parseFloat(quote.amountOut) <= 0) {
+          throw new Error(`No conversion path available from ${fromToken} to ${toToken}`);
+        }
+
+        // Check if the conversion rate is reasonable (not too much slippage)
+        const conversionRate = parseFloat(quote.amountOut) / amount;
+        if (conversionRate < 0.5) {
+          throw new Error(`Conversion rate too low (${(conversionRate * 100).toFixed(2)}%). This may indicate insufficient liquidity.`);
+        }
+
+        showSnackbar(
+          `Converting ${amount} ${fromToken} to approximately ${parseFloat(quote.amountOut).toFixed(6)} ${toToken}...`,
+          "info"
+        );
+
+        const swapResult = await mento.performSwap({
+          fromSymbol: fromToken,
+          toSymbol: toToken,
+          amount: amount,
+          slippageTolerance: 0.01, // 1% slippage
+        });
+
+        if (!swapResult.success) {
+          throw new Error("Token conversion transaction failed");
+        }
+
+        showSnackbar("Token conversion completed successfully!", "success");
+        return swapResult.hash;
+      } catch (error: any) {
+        console.error("Token conversion failed:", error);
+        
+        // Provide more specific error messages
+        if (error.message?.includes("insufficient balance")) {
+          throw new Error(`Insufficient ${fromToken} balance for conversion`);
+        } else if (error.message?.includes("slippage")) {
+          throw new Error(`Price moved too much during conversion. Please try again.`);
+        } else if (error.message?.includes("liquidity")) {
+          throw new Error(`Insufficient liquidity for ${fromToken} to ${toToken} conversion`);
+        } else if (error.message?.includes("user rejected")) {
+          throw new Error("Token conversion was cancelled by user");
+        } else if (error.message?.includes("network")) {
+          throw new Error("Network error during conversion. Please check your connection and try again.");
+        } else {
+          throw new Error(`Failed to convert ${fromToken} to ${toToken}: ${error.message || "Unknown error"}`);
+        }
+      }
+    },
+    [mento, showSnackbar]
+  );
+
+  // buy trade function with token conversion support
   const buyTrade = useCallback(
     async (params: BuyTradeParams): Promise<PaymentTransaction> => {
       if (!address || !chain?.id) {
@@ -602,6 +669,67 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
       }
 
       try {
+        // First, scan user wallet for available stable tokens
+        const walletScan = await scanWalletForStableTokens(address, chain.id);
+        
+        // Get the required amount (this should come from the trade details)
+        // For now, we'll use a placeholder - in real implementation, this should be fetched from the trade
+        const requiredAmount = 100; // This should be the actual trade amount
+        
+        // Check if user has sufficient USDT balance
+        const balanceCheck = checkSufficientBalance(walletScan.availableTokens, requiredAmount, "USDT");
+        
+        let conversionHash: string | undefined;
+        
+        if (!balanceCheck.hasSufficientBalance && balanceCheck.needsConversion && balanceCheck.conversionRequired) {
+          // User needs to convert tokens to USDT
+          showSnackbar(
+            `Converting ${balanceCheck.conversionRequired.amount} ${balanceCheck.conversionRequired.fromToken} to USDT...`,
+            "info"
+          );
+          
+          try {
+            conversionHash = await convertTokens(
+              balanceCheck.conversionRequired.fromToken,
+              balanceCheck.conversionRequired.toToken,
+              balanceCheck.conversionRequired.amount
+            );
+            
+            showSnackbar("Token conversion completed successfully!", "success");
+            
+            // Wait a bit for the conversion to be confirmed
+            await new Promise(resolve => setTimeout(resolve, 3000));
+            
+            // Refresh token balances after conversion
+            await refreshTokenBalance("USDT");
+          } catch (conversionError: any) {
+            console.error("Token conversion failed:", conversionError);
+            
+            // Provide more specific error messages based on the conversion error
+            let errorMessage = "Token conversion failed. ";
+            
+            if (conversionError.message?.includes("insufficient balance")) {
+              errorMessage += "You don't have enough tokens to convert.";
+            } else if (conversionError.message?.includes("liquidity")) {
+              errorMessage += "Insufficient liquidity for this conversion. Please try a smaller amount or different tokens.";
+            } else if (conversionError.message?.includes("slippage")) {
+              errorMessage += "Price moved too much during conversion. Please try again.";
+            } else if (conversionError.message?.includes("user rejected")) {
+              errorMessage += "Conversion was cancelled. Please try again.";
+            } else if (conversionError.message?.includes("network")) {
+              errorMessage += "Network error. Please check your connection and try again.";
+            } else {
+              errorMessage += conversionError.message || "Please ensure you have sufficient balance and try again.";
+            }
+            
+            throw new Error(errorMessage);
+          }
+        } else if (!balanceCheck.hasSufficientBalance) {
+          throw new Error(
+            `Insufficient balance. You need at least ${requiredAmount} USDT to complete this purchase.`
+          );
+        }
+
         const tradeId = BigInt(params.tradeId);
         const quantity = BigInt(params.quantity);
         const logisticsProvider = params.logisticsProvider as `0x${string}`;
@@ -724,7 +852,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
 
         // Refresh balance after successful purchase
         setTimeout(() => {
-          refreshTokenBalance(selectedToken.symbol);
+          refreshTokenBalance("USDT");
         }, 2000);
 
         return {
@@ -732,10 +860,11 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
           amount: "0",
           to: escrowAddress,
           from: address,
-          token: selectedToken.symbol,
+          token: "USDT", // Always use USDT for purchases
           status: "pending",
           timestamp: Date.now(),
           purchaseId,
+          conversionHash, // Include conversion hash if token was converted
         };
       } catch (error: any) {
         console.error("Buy trade failed:", error);
@@ -794,6 +923,8 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
       writeContractAsync,
       refreshTokenBalance,
       divvi,
+      convertTokens,
+      showSnackbar,
     ]
   );
 

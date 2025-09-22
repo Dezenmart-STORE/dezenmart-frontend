@@ -18,6 +18,7 @@ export interface PaymentTransaction {
   gasUsed?: string;
   gasPrice?: string;
   purchaseId?: string;
+  conversionHash?: string;
 }
 
 export interface EscrowPayment {
