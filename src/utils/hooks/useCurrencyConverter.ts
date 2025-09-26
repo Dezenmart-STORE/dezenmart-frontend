@@ -12,7 +12,7 @@ const DEFAULT_RATES: Omit<ExchangeRates, "lastUpdated"> = {
   USDT_CELO: 0.5,
   USDT_FIAT: 1,
   CELO_FIAT: 2,
-  // Add default rates for stable tokens (1:1 with FIAT for stable tokens)
+  // default rates for stable tokens (1:1 with FIAT for stable tokens)
   cUSD_FIAT: 1,
   cEUR_FIAT: 0.85,
   cREAL_FIAT: 0.2,
@@ -28,6 +28,7 @@ const DEFAULT_RATES: Omit<ExchangeRates, "lastUpdated"> = {
   cAUD_FIAT: 0.67,
   cCAD_FIAT: 0.74,
   cGHS_FIAT: 0.083,
+  G$_FIAT: 1,
 };
 
 // Cache keys
@@ -59,6 +60,8 @@ const STABLE_TOKEN_TO_FIAT_MAP: Record<string, string> = {
   cAUD: "AUD",
   cCAD: "CAD",
   cGHS: "GHS",
+  G$: "USD",
+  USDT: "USD",
 };
 
 export const useCurrencyConverter = () => {
@@ -175,7 +178,7 @@ export const useCurrencyConverter = () => {
         const allCurrencies = `${localCurrency.toLowerCase()},usd,${stableCurrencies.toLowerCase()}`;
 
         const response = await fetchWithRetry(
-          `https://api.coingecko.com/api/v3/simple/price?ids=tether,celo&vs_currencies=${allCurrencies}`
+          `https://api.coingecko.com/api/v3/simple/price?ids=tether,celo,gooddollar&vs_currencies=${allCurrencies}`
         );
 
         const data = await response.json();
@@ -193,6 +196,14 @@ export const useCurrencyConverter = () => {
           CELO_FIAT: celoToUserFiat,
           lastUpdated: Date.now(),
         };
+
+        if (data.gooddollar) {
+          const gdToUserFiat =
+            data.gooddollar[localCurrency.toLowerCase()] || data.gooddollar.usd;
+          newRates["G$_FIAT"] = gdToUserFiat;
+          newRates["G$_USDT"] = data.gooddollar.usd;
+          newRates["G$_CELO"] = gdToUserFiat / celoToUserFiat;
+        }
 
         // Add stable token rates
         Object.entries(STABLE_TOKEN_TO_FIAT_MAP).forEach(

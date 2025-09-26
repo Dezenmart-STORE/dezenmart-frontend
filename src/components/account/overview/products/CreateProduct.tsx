@@ -90,7 +90,9 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
   const { convertPrice, userCountry } = useCurrencyConverter();
 
   const [isTokenSelectorOpen, setIsTokenSelectorOpen] = useState(false);
-  const [paymentToken, setPaymentToken] = useState("");
+  const [paymentToken, setPaymentToken] = useState(
+    wallet?.selectedToken?.symbol
+  );
   const fileInputRef = useRef<HTMLInputElement>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
@@ -111,11 +113,11 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isTokenSelectorOpen]);
-  useEffect(() => {
-    if (wallet?.selectedToken?.symbol) {
-      setPaymentToken(wallet.selectedToken.symbol);
-    }
-  }, [wallet?.selectedToken]);
+  // useEffect(() => {
+  //   if (wallet?.selectedToken?.symbol) {
+  //     setPaymentToken(wallet.selectedToken.symbol);
+  //   }
+  // }, [wallet?.selectedToken]);
   const [formState, setFormState] = useState({
     name: "",
     description: "",
@@ -133,7 +135,9 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
   const [selectedLogistics, setSelectedLogistics] = useState<Logistics[]>([]);
   const [searchLogistics, setSearchLogistics] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
-  const [logisticsCosts, setLogisticsCosts] = useState<Record<string, string>>({});
+  const [logisticsCosts, setLogisticsCosts] = useState<Record<string, string>>(
+    {}
+  );
 
   const [variants, setVariants] = useState<ProductVariant[]>([
     { id: `variant-${Date.now()}`, properties: [], quantity: 0 },
@@ -281,8 +285,10 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
         : file.type.startsWith("video/")
         ? "video"
         : null;
-
-      if (!fileType) {
+      if (
+        !fileType ||
+        !/^(image\/(jpeg|jpg|png|gif|webp)|video\/mp4)$/.test(file.type)
+      ) {
         invalidTypeFiles.push(file.name);
         return;
       }
@@ -432,10 +438,7 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
   };
 
   // Logistics providers management
-  const handleLogisticsCostChange = (
-    providerId: string,
-    cost: string
-  ) => {
+  const handleLogisticsCostChange = (providerId: string, cost: string) => {
     setLogisticsCosts((prev) => ({
       ...prev,
       [providerId]: cost,
@@ -547,6 +550,11 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
       }
     }
 
+    // Media file validation
+    if (mediaFiles.length === 0) {
+      newErrors.media = "At least one image or video is required";
+    }
+
     // Check for variants with no properties
     const nonEmptyVariants = variants.filter((v) => v.properties.length > 0);
     if (variants.length > 1 && nonEmptyVariants.length < variants.length) {
@@ -572,7 +580,7 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  }, [formState, selectedLogistics, variants, logisticsCosts]);
+  }, [formState, selectedLogistics, variants, logisticsCosts, mediaFiles]);
 
   // Handle form submission
   const handleSubmit = async (e: FormEvent) => {
@@ -607,37 +615,41 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
       formData.append("stock", stock);
       formData.append("sellerWalletAddress", sellerWalletAddress);
       formData.append("useUSDT", "true");
-      
+
       // Get the selected token symbol
-      const selectedTokenSymbol = paymentToken || wallet?.selectedToken?.symbol || "USDT";
+      const selectedTokenSymbol = paymentToken || "USDT";
       formData.append("paymentToken", selectedTokenSymbol);
-      
+
       // Add the actual token contract address for the smart contract
-      const selectedToken = availableTokens.find(t => t.symbol === selectedTokenSymbol);
+      const selectedToken = availableTokens.find(
+        (t) => t.symbol === selectedTokenSymbol
+      );
       if (selectedToken && wallet.chainId) {
         const tokenAddress = selectedToken.address[wallet.chainId];
         if (tokenAddress) {
           formData.append("tokenAddress", tokenAddress);
-          
+
           // Also create trade parameters for the smart contract
           const tradeParams = createTradeParams(
             parseFloat(priceInUSDT),
-            selectedLogistics.map(p => p.walletAddress),
-            selectedLogistics.map(p => parseFloat(logisticsCosts[p.walletAddress] || "0")),
+            selectedLogistics.map((p) => p.walletAddress),
+            selectedLogistics.map((p) =>
+              parseFloat(logisticsCosts[p.walletAddress] || "0")
+            ),
             stock,
             selectedTokenSymbol,
             wallet.chainId
           );
-          
+
           // Add trade parameters to form data
           formData.append("tradeParams", JSON.stringify(tradeParams));
-          
+
           // Debug log to verify token addresses
           console.log("Token Selection Debug:", {
             selectedTokenSymbol,
             tokenAddress,
             chainId: wallet.chainId,
-            tradeParams
+            tradeParams,
           });
         }
       }
@@ -1337,8 +1349,11 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
                     {typeof wallet?.selectedToken?.icon === "string" &&
                     wallet.selectedToken.icon ? (
                       <img
-                        src={wallet.selectedToken.icon}
-                        alt={wallet.selectedToken.symbol}
+                        src={
+                          availableTokens.find((t) => t.symbol === paymentToken)
+                            ?.icon || ""
+                        }
+                        alt={paymentToken}
                         className="w-6 h-6 rounded-full"
                       />
                     ) : (
@@ -1383,16 +1398,12 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
                           setIsTokenSelectorOpen(false);
                         }}
                         className={`w-full flex items-center justify-between p-3 hover:bg-Red/10 transition-colors ${
-                          token.symbol ===
-                          (wallet?.selectedToken?.symbol || paymentToken)
+                          token.symbol === paymentToken
                             ? "bg-Red/20 border-l-2 border-Red"
                             : ""
                         }`}
                         role="option"
-                        aria-selected={
-                          token.symbol ===
-                          (wallet?.selectedToken?.symbol || paymentToken)
-                        }
+                        aria-selected={token.symbol === paymentToken}
                       >
                         <div className="flex items-center gap-3">
                           <div className="text-lg">

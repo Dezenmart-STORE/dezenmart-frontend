@@ -20,7 +20,11 @@ import USDTIcon from "../../assets/icons/USDT.svg";
 import GDIcon from "../../assets/icons/G$.svg";
 
 const rpcEndpoints = {
-  [celo.id]: ["https://rpc.ankr.com/celo", "https://forno.celo.org", "https://celo-mainnet.public.blastapi.io"],
+  [celo.id]: [
+    "https://rpc.ankr.com/celo",
+    "https://forno.celo.org",
+    "https://celo-mainnet.public.blastapi.io",
+  ],
   [celoAlfajores.id]: ["https://alfajores-forno.celo-testnet.org"],
 };
 
@@ -206,10 +210,10 @@ export const STABLE_TOKENS: StableToken[] = [
 ];
 
 // Legacy USDT addresses - for backward compatibility
-export const USDT_ADDRESSES = {
-  [celo.id]: "0x48065fbBE25f71C9282ddf5e1cD6D6A887483D5e",
-  [celoAlfajores.id]: "0x803700bD991d293306D6e7dCcF2B49F9137b437e",
-} as const;
+// export const USDT_ADDRESSES = {
+//   [celo.id]: "0x48065fbBE25f71C9282ddf5e1cD6D6A887483D5e",
+//   [celoAlfajores.id]: "0x803700bD991d293306D6e7dCcF2B49F9137b437e",
+// } as const;
 
 export const ESCROW_ADDRESSES = {
   [celo.id]: import.meta.env.VITE_ESCROW_CONTRACT_MAINNET!,
@@ -287,21 +291,26 @@ export const getTokenAddress = (
 
 // Helper function to get real USDT address for current chain
 export const getRealUSDTAddress = (chainId: number): string | undefined => {
-  return USDT_ADDRESSES[chainId as keyof typeof USDT_ADDRESSES];
+  // return USDT_ADDRESSES[chainId as keyof typeof USDT_ADDRESSES];
+  return STABLE_TOKENS[0].address[chainId];
 };
 
 // Helper function to get token address by symbol for current chain
-export const getTokenAddressBySymbol = (symbol: string, chainId: number): string | undefined => {
-  const token = STABLE_TOKENS.find(t => t.symbol === symbol);
+export const getTokenAddressBySymbol = (
+  symbol: string,
+  chainId: number
+): string | undefined => {
+  const token = STABLE_TOKENS.find((t) => t.symbol === symbol);
   if (token) {
     return token.address[chainId];
   }
-  
+
   // Fallback for legacy tokens
   if (symbol === "USDT") {
-    return USDT_ADDRESSES[chainId as keyof typeof USDT_ADDRESSES];
+    // return USDT_ADDRESSES[chainId as keyof typeof USDT_ADDRESSES];
+    return STABLE_TOKENS[0].address[chainId];
   }
-  
+
   return undefined;
 };
 
@@ -315,7 +324,7 @@ export const createTradeParams = (
   chainId: number
 ) => {
   const tokenAddress = getTokenAddressBySymbol(paymentToken, chainId);
-  
+
   return {
     productCost,
     logisticsProvider: logisticsProviders,

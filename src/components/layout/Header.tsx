@@ -11,7 +11,7 @@ import Button from "../common/Button";
 import { useChat } from "../../utils/hooks/useChat";
 import CurrencyToggle from "../common/CurrencyToggle";
 import WalletConnectButton from "../web3/WalletConnectButton";
-import TokenSelector from "./TokenSelector";// Import the new component
+import TokenSelector from "./TokenSelector";
 import { useWeb3 } from "../../context/Web3Context";
 import { FiInfo } from "react-icons/fi";
 import SefldVerification from "../common/SefldVerification";
