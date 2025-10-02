@@ -304,10 +304,15 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
     if (oversizedFiles.length > 0) {
       errorMessage += `Files exceeding 5MB: ${oversizedFiles.join(", ")}. `;
     }
+    // if (invalidTypeFiles.length > 0) {
+    //   errorMessage += `Unsupported file types: ${invalidTypeFiles.join(
+    //     ", "
+    //   )}. `;
+    // }
     if (invalidTypeFiles.length > 0) {
-      errorMessage += `Unsupported file types: ${invalidTypeFiles.join(
+      errorMessage += `File upload only supports the following filetypes - /jpeg|jpg|png|gif|webp|mp4/. Unsupported files: ${invalidTypeFiles.join(
         ", "
-      )}. `;
+      )}`;
     }
 
     return { validFiles, errorMessage: errorMessage.trim() };
@@ -539,7 +544,7 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
 
     // Logistics provider validation
     if (selectedLogistics.length === 0) {
-      newErrors.logistics = "Please select at least one logistics provider";
+      newErrors.logistics = "Please select athdhd least one logistics provider";
     } else {
       const missingCost = selectedLogistics.some(
         (p) => !logisticsCosts[p.walletAddress]
@@ -553,8 +558,21 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
     // Media file validation
     if (mediaFiles.length === 0) {
       newErrors.media = "At least one image or video is required";
+    } else {
+      // Validate that all media files are supported types
+      const hasInvalidTypes = mediaFiles.some(
+        (media) =>
+          !media.file.type.match(
+            /^(image\/(jpeg|jpg|png|gif|webp)|video\/mp4)$/
+          )
+      );
+      if (hasInvalidTypes) {
+        newErrors.media =
+          "File upload only supports the following filetypes - /jpeg|jpg|png|gif|webp|mp4/";
+      }
     }
 
+    console.log("dd", errors.media);
     // Check for variants with no properties
     const nonEmptyVariants = variants.filter((v) => v.properties.length > 0);
     if (variants.length > 1 && nonEmptyVariants.length < variants.length) {
@@ -629,7 +647,7 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
         if (tokenAddress) {
           formData.append("tokenAddress", tokenAddress);
 
-          // Also create trade parameters for the smart contract
+          // create trade parameters for the smart contract
           const tradeParams = createTradeParams(
             parseFloat(priceInUSDT),
             selectedLogistics.map((p) => p.walletAddress),
@@ -1363,10 +1381,16 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
 
                   <div className="flex flex-col items-start">
                     <div className="text-white font-medium">
-                      {wallet?.selectedToken?.symbol || "USDT"}
+                      {
+                        availableTokens.find((t) => t.symbol === paymentToken)
+                          ?.symbol
+                      }
                     </div>
                     <div className="text-gray-400 text-sm">
-                      {wallet?.selectedToken?.name || "Tether USD"}
+                      {
+                        availableTokens.find((t) => t.symbol === paymentToken)
+                          ?.name
+                      }
                     </div>
                   </div>
                 </div>
@@ -1428,8 +1452,7 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
                           </div>
                         </div>
 
-                        {token.symbol ===
-                          (wallet?.selectedToken?.symbol || paymentToken) && (
+                        {token.symbol === paymentToken && (
                           <FiCheck className="text-Red" size={16} />
                         )}
                       </button>
