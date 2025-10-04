@@ -238,7 +238,7 @@ export const wagmiConfig = createConfig({
     coinbaseWallet({
       appName: "Dezenmart",
       appLogoUrl: `${window.location.origin}/images/logo-full.png`,
-      enableAnalytics: false,
+      // enableAnalytics: false,
     }),
     ...(import.meta.env.VITE_WALLETCONNECT_PROJECT_ID
       ? [
@@ -252,9 +252,9 @@ export const wagmiConfig = createConfig({
               icons: [`${window.location.origin}/images/logo-full.png`],
             },
             showQrModal: true,
-            qrModalOptions: {
-              enableAnalytics: false,
-            },
+            // qrModalOptions: {
+            //   enableAnalytics: false,
+            // },
           }),
         ]
       : []),

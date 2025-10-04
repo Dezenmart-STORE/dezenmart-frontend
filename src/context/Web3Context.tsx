@@ -152,20 +152,8 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const { showSnackbar } = useSnackbar();
-  // const { address, isConnected, chain } = useAccount();
-  const { address, isConnected, chain } = useAccount({
-    onConnect: ({ address: newAddress }) => {
-      console.log("Wallet connected:", newAddress);
-      connectionCheckRef.current = true;
-    },
-    onDisconnect: () => {
-      console.log("Wallet disconnected");
-      connectionCheckRef.current = false;
-      // Clear all cached data
-      balanceCacheRef.current = {};
-      lastFetchRef.current = {};
-    },
-  });
+  const { address, isConnected, chain } = useAccount();
+
   // connection status ref to prevent redundant checks
   const connectionCheckRef = useRef<boolean>(false);
   const mountedRef = useRef<boolean>(true);
@@ -214,12 +202,18 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
     tokenBalances,
     isLoadingTokenBalance,
   });
+
   // connection stability check
   useEffect(() => {
     if (isConnected && address) {
+      console.log("Wallet connected:", address);
       connectionCheckRef.current = true;
-    } else {
+    } else if (!isConnected) {
+      console.log("Wallet disconnected");
       connectionCheckRef.current = false;
+      // Clear all cached data
+      balanceCacheRef.current = {};
+      lastFetchRef.current = {};
     }
   }, [isConnected, address]);
 
