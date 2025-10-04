@@ -88,11 +88,11 @@ export const fetchSellerOrders = createAsyncThunk<
 
 export const fetchOrderById = createAsyncThunk<
   Order,
-  string,
+  { orderId: string; skipCache: boolean },
   { rejectValue: string }
->("orders/fetchById", async (orderId, { rejectWithValue }) => {
+>("orders/fetchById", async ({ orderId, skipCache }, { rejectWithValue }) => {
   try {
-    const response = await api.getOrderById(orderId);
+    const response = await api.getOrderById(orderId, skipCache);
     if (!response.ok) {
       return rejectWithValue(response.error || "Failed to fetch order");
     }

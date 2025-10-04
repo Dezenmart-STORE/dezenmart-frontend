@@ -41,6 +41,10 @@ export const useOrderData = () => {
   const currentOrder = useAppSelector(selectCurrentOrder);
   const loading = useAppSelector(selectOrderLoading);
   const error = useAppSelector(selectOrderError);
+  const tokenSymbol = useMemo(
+    () => wallet.selectedToken.symbol,
+    [wallet.selectedToken.symbol]
+  );
 
   const formatOrderWithCurrencies = useCallback(
     (order: Order) => {
@@ -49,11 +53,7 @@ export const useOrderData = () => {
       const usdtPrice = order.amount;
       const celoPrice = convertPrice(usdtPrice, "USDT", "CELO");
       const fiatPrice = convertPrice(usdtPrice, "USDT", "FIAT");
-      const tokenPrice = convertPrice(
-        usdtPrice,
-        "USDT",
-        `${wallet.selectedToken.symbol}`
-      );
+      const tokenPrice = convertPrice(usdtPrice, "USDT", tokenSymbol);
       const totalUsdtAmount = usdtPrice * (order.quantity || 1);
       const totalCeloAmount = celoPrice * (order.quantity || 1);
       const totalFiatAmount = fiatPrice * (order.quantity || 1);
@@ -76,16 +76,13 @@ export const useOrderData = () => {
         formattedUsdtPrice: formatPrice(usdtPrice, "USDT"),
         formattedCeloPrice: formatPrice(celoPrice, "CELO"),
         formattedFiatPrice: formatPrice(fiatPrice, "FIAT"),
-        formattedTokenAmount: formatPrice(
-          totalTokenAmount,
-          `${wallet.selectedToken.symbol}`
-        ),
+        formattedTokenAmount: formatPrice(totalTokenAmount, tokenSymbol),
         formattedUsdtAmount: formatPrice(totalUsdtAmount, "USDT"),
         formattedCeloAmount: formatPrice(totalCeloAmount, "CELO"),
         formattedFiatAmount: formatPrice(totalFiatAmount, "FIAT"),
       };
     },
-    [convertPrice, formatPrice, wallet.selectedToken.symbol]
+    [convertPrice, formatPrice, tokenSymbol]
   );
 
   const formattedOrders = useMemo(() => {
@@ -242,15 +239,17 @@ export const useOrderData = () => {
   );
 
   const getOrderById = useCallback(
-    async (orderId: string, showNotification = false) => {
+    async (orderId: string, showNotification = false, skipCache = false) => {
       try {
-        const result = await dispatch(fetchOrderById(orderId)).unwrap();
+        const result = await dispatch(
+          fetchOrderById({ orderId, skipCache })
+        ).unwrap();
         if (showNotification) {
           showSnackbar("Order details loaded successfully", "success");
         }
         return result;
       } catch (err) {
-        if (showNotification) {
+        if (err !== "AbortError" && showNotification) {
           showSnackbar(
             (err as string) || "Failed to load order details",
             "error"
@@ -330,6 +329,7 @@ export const useOrderData = () => {
   useEffect(() => {
     return () => {
       api.cancelRequest("/orders");
+      api.cancelRequest("/orders/.*", "GET");
     };
   }, []);
 

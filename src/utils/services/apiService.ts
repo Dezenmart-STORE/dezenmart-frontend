@@ -431,16 +431,25 @@ export const api = {
     }
     return result;
   },
-  getOrderById: async (orderId: string) => {
+  getOrderById: async (orderId: string, skipCache = false) => {
     const key = cacheKey(`/orders/${orderId}`);
+    if (!skipCache && requestCache.has(key)) {
+      return requestCache.get(key);
+    }
     if (abortControllers.has(key)) {
       abortControllers.get(key).abort();
     }
     const controller = new AbortController();
     abortControllers.set(key, controller);
-    return fetchWithAuth(`/orders/${orderId}`, {
+    const result = await fetchWithAuth(`/orders/${orderId}`, {
       signal: controller.signal,
     });
+    // Cache successful results
+    if (result.ok) {
+      requestCache.set(key, result);
+    }
+
+    return result;
   },
   updateOrderStatus: async (
     orderId: string,
@@ -773,10 +782,21 @@ export const api = {
     requestCache.clear();
   },
   cancelRequest: (endpoint: string, method = "GET") => {
-    const key = cacheKey(endpoint, { method });
-    if (abortControllers.has(key)) {
-      abortControllers.get(key).abort();
-      abortControllers.delete(key);
+    // Support regex patterns for canceling multiple similar requests
+    if (endpoint.includes(".*")) {
+      const pattern = new RegExp(endpoint);
+      Array.from(abortControllers.keys()).forEach((key) => {
+        if (pattern.test(key)) {
+          abortControllers.get(key).abort();
+          abortControllers.delete(key);
+        }
+      });
+    } else {
+      const key = cacheKey(endpoint, { method });
+      if (abortControllers.has(key)) {
+        abortControllers.get(key).abort();
+        abortControllers.delete(key);
+      }
     }
   },
 };

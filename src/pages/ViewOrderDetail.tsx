@@ -16,6 +16,9 @@ const ViewOrderDetail = memo(() => {
   const navigate = useNavigate();
   const { showSnackbar } = useSnackbar();
 
+  // Track if we've already fetched to prevent duplicate calls
+  const hasFetchedRef = useRef(false);
+  const lastFetchedOrderId = useRef<string | null>(null);
   useEffect(() => {
     if (orderId) {
       storeOrderId(orderId);
@@ -88,10 +91,22 @@ const ViewOrderDetail = memo(() => {
   }, [orderDetails?.buyer, orderDetails?.seller]);
 
   useEffect(() => {
-    if (orderId) {
-      getOrderById(orderId);
+    if (
+      orderId &&
+      (!hasFetchedRef.current || lastFetchedOrderId.current !== orderId)
+    ) {
+      getOrderById(orderId, false, false); // Use cache by default
+      hasFetchedRef.current = true;
+      lastFetchedOrderId.current = orderId;
     }
-  }, [orderId, getOrderById]);
+
+    // Reset when component unmounts or orderId changes
+    return () => {
+      if (orderId !== lastFetchedOrderId.current) {
+        hasFetchedRef.current = false;
+      }
+    };
+  }, [orderId]);
 
   useEffect(() => {
     if (orderDetails?.status) {
@@ -117,6 +132,14 @@ const ViewOrderDetail = memo(() => {
 
   const handleContactBuyer = useCallback(() => {
     toast.info("Opening chat with buyer...");
+    //  const buyerId =
+    //    typeof orderDetails?.buyer === "string"
+    //      ? orderDetails.buyer
+    //      : orderDetails?.buyer?._id;
+    //  if (buyerId) {
+    //    navigate(`/chat/${buyerId}`);
+    //  }
+    // [orderDetails?.buyer, navigate];
   }, []);
 
   const handleOrderDispute = useCallback(
@@ -147,7 +170,8 @@ const ViewOrderDetail = memo(() => {
         console.error("Dispute error:", error);
       }
     },
-    [raiseDispute, changeOrderStatus, navigate]
+    [orderId, raiseDispute, changeOrderStatus, navigate, showSnackbar]
+    // [raiseDispute, changeOrderStatus, navigate]
   );
 
   const handleReleaseNow = useCallback(async () => {
@@ -162,7 +186,7 @@ const ViewOrderDetail = memo(() => {
       toast.error("Failed Release. Please try again.");
       console.error("Release error:", error);
     }
-  }, [navigate]);
+  }, [orderId, navigate]);
 
   const handleConfirmDelivery = useCallback(async () => {
     const currentOrderId = orderId || getStoredOrderId();
@@ -185,7 +209,7 @@ const ViewOrderDetail = memo(() => {
       toast.error("Failed to complete the order. Please try again.");
       console.error("Confirm delivery error:", error);
     }
-  }, [changeOrderStatus, navigate]);
+  }, [orderId, changeOrderStatus, navigate]);
 
   const navigatePath = useMemo(() => {
     const currentOrderId = orderId || getStoredOrderId();
