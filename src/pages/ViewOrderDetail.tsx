@@ -16,9 +16,11 @@ const ViewOrderDetail = memo(() => {
   const navigate = useNavigate();
   const { showSnackbar } = useSnackbar();
 
-  // Track if we've already fetched to prevent duplicate calls
-  const hasFetchedRef = useRef(false);
-  const lastFetchedOrderId = useRef<string | null>(null);
+  // Track if we've already initiated a fetch for this orderId
+  const hasFetchedRef = useRef<Set<string>>(new Set());
+  const isMountedRef = useRef(true);
+
+  // Store orderId when it changes
   useEffect(() => {
     if (orderId) {
       storeOrderId(orderId);
@@ -90,34 +92,51 @@ const ViewOrderDetail = memo(() => {
     };
   }, [orderDetails?.buyer, orderDetails?.seller]);
 
+  // fetch order data
   useEffect(() => {
-    if (
-      orderId &&
-      (!hasFetchedRef.current || lastFetchedOrderId.current !== orderId)
-    ) {
-      getOrderById(orderId, false, false); // Use cache by default
-      hasFetchedRef.current = true;
-      lastFetchedOrderId.current = orderId;
-    }
-
-    // Reset when component unmounts or orderId changes
-    return () => {
-      if (orderId !== lastFetchedOrderId.current) {
-        hasFetchedRef.current = false;
+    const fetchOrder = async () => {
+      if (!orderId || hasFetchedRef.current.has(orderId)) {
+        return;
       }
+
+      // Mark as fetched immediately to prevent duplicate calls
+      hasFetchedRef.current.add(orderId);
+
+      try {
+        await getOrderById(orderId, false, false);
+      } catch (error) {
+        console.error("Error fetching order:", error);
+        // Remove from set on error so it can be retried
+        if (isMountedRef.current) {
+          hasFetchedRef.current.delete(orderId);
+        }
+      }
+    };
+
+    fetchOrder();
+
+    // Cleanup function
+    return () => {
+      isMountedRef.current = false;
     };
   }, [orderId]);
 
+  // status updates
   useEffect(() => {
     if (orderDetails?.status) {
       const key =
         orderDetails.status.toLowerCase() as keyof typeof statusMapping;
       const newStatus = statusMapping[key] || "pending";
-      if (newStatus !== orderStatus) {
-        setOrderStatus(newStatus);
-      }
+
+      // Only update if status actually changed
+      setOrderStatus((prevStatus) => {
+        if (prevStatus !== newStatus) {
+          return newStatus;
+        }
+        return prevStatus;
+      });
     }
-  }, [orderDetails?.status, statusMapping, orderStatus]);
+  }, [orderDetails?.status, statusMapping]);
 
   const handleContactSeller = useCallback(() => {
     toast.info("Opening chat with seller...");
@@ -132,14 +151,6 @@ const ViewOrderDetail = memo(() => {
 
   const handleContactBuyer = useCallback(() => {
     toast.info("Opening chat with buyer...");
-    //  const buyerId =
-    //    typeof orderDetails?.buyer === "string"
-    //      ? orderDetails.buyer
-    //      : orderDetails?.buyer?._id;
-    //  if (buyerId) {
-    //    navigate(`/chat/${buyerId}`);
-    //  }
-    // [orderDetails?.buyer, navigate];
   }, []);
 
   const handleOrderDispute = useCallback(
@@ -171,7 +182,6 @@ const ViewOrderDetail = memo(() => {
       }
     },
     [orderId, raiseDispute, changeOrderStatus, navigate, showSnackbar]
-    // [raiseDispute, changeOrderStatus, navigate]
   );
 
   const handleReleaseNow = useCallback(async () => {
