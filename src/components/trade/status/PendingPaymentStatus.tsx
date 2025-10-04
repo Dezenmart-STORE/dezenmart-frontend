@@ -307,8 +307,9 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
     orderDetails?.logisticsProviderWalletAddress?.[0],
     quantity,
     selectedLogisticsProvider?.walletAddress,
-    // wallet.tokenBalances,
+    wallet.tokenBalances,
     wallet.selectedToken.symbol,
+    convertPrice,
   ]);
 
   const escrowAddress = useMemo(() => {

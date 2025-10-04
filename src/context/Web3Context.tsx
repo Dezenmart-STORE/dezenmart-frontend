@@ -481,8 +481,10 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
         prev.isConnecting !== newWalletState.isConnecting ||
         prev.selectedToken.symbol !== newWalletState.selectedToken.symbol ||
         prev.isLoadingTokenBalance !== newWalletState.isLoadingTokenBalance ||
-        Object.keys(prev.tokenBalances).length !==
-          Object.keys(newWalletState.tokenBalances).length;
+        // Object.keys(prev.tokenBalances).length !==
+        //   Object.keys(newWalletState.tokenBalances).length;
+        JSON.stringify(prev.tokenBalances) !==
+          JSON.stringify(newWalletState.tokenBalances);
 
       return hasChanged ? newWalletState : prev;
     });
