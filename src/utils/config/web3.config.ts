@@ -233,10 +233,12 @@ export const wagmiConfig = createConfig({
         name: "Dezenmart",
         url: window.location.origin,
       },
+      enableAnalytics: false,
     }),
     coinbaseWallet({
       appName: "Dezenmart",
       appLogoUrl: `${window.location.origin}/images/logo-full.png`,
+      enableAnalytics: false,
     }),
     ...(import.meta.env.VITE_WALLETCONNECT_PROJECT_ID
       ? [
@@ -250,6 +252,9 @@ export const wagmiConfig = createConfig({
               icons: [`${window.location.origin}/images/logo-full.png`],
             },
             showQrModal: true,
+            qrModalOptions: {
+              enableAnalytics: false,
+            },
           }),
         ]
       : []),
@@ -258,22 +263,32 @@ export const wagmiConfig = createConfig({
     [celo.id]: fallback(
       rpcEndpoints[celo.id].map((url) =>
         http(url, {
-          batch: true,
-          retryCount: 3,
+          // batch: true,
+          batch: {
+            wait: 100,
+          },
+          retryCount: 2,
           retryDelay: 1000,
+          timeout: 30000,
         })
       )
     ),
     [celoAlfajores.id]: fallback(
       rpcEndpoints[celoAlfajores.id].map((url) =>
         http(url, {
-          batch: true,
-          retryCount: 3,
+          // batch: true,
+          batch: {
+            wait: 100,
+          },
+          retryCount: 2,
           retryDelay: 1000,
+          timeout: 30000,
         })
       )
     ),
   },
+  pollingInterval: 12000,
+  syncConnectedChain: true,
 });
 
 // Helper function to get token by symbol

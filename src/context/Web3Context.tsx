@@ -152,7 +152,23 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const { showSnackbar } = useSnackbar();
-  const { address, isConnected, chain } = useAccount();
+  // const { address, isConnected, chain } = useAccount();
+  const { address, isConnected, chain } = useAccount({
+    onConnect: ({ address: newAddress }) => {
+      console.log("Wallet connected:", newAddress);
+      connectionCheckRef.current = true;
+    },
+    onDisconnect: () => {
+      console.log("Wallet disconnected");
+      connectionCheckRef.current = false;
+      // Clear all cached data
+      balanceCacheRef.current = {};
+      lastFetchRef.current = {};
+    },
+  });
+  // connection status ref to prevent redundant checks
+  const connectionCheckRef = useRef<boolean>(false);
+  const mountedRef = useRef<boolean>(true);
   // const { data: walletClient } = useWalletClient();
   // const publicClient = usePublicClient();
   // const chainId = useChainId();
@@ -188,6 +204,9 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
   const balanceIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastFetchRef = useRef<Record<string, number>>({});
 
+  // ref to track initialization
+  const isInitializedRef = useRef<boolean>(false);
+
   const [wallet, setWallet] = useState<ExtendedWalletState>({
     isConnected: false,
     isConnecting: false,
@@ -195,6 +214,14 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
     tokenBalances,
     isLoadingTokenBalance,
   });
+  // connection stability check
+  useEffect(() => {
+    if (isConnected && address) {
+      connectionCheckRef.current = true;
+    } else {
+      connectionCheckRef.current = false;
+    }
+  }, [isConnected, address]);
 
   const isCorrectNetwork = chain?.id === TARGET_CHAIN.id;
 
@@ -218,6 +245,12 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
     query: {
       enabled: !!address && isCorrectNetwork,
       refetchInterval: 300000, // 5 minutes
+      staleTime: 240000, // 4 minutes
+      gcTime: 600000, // 10 minutes
+      retry: 1,
+      refetchOnWindowFocus: false,
+      refetchOnMount: false,
+      refetchOnReconnect: false,
     },
   });
 
@@ -233,8 +266,13 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
     args: address ? [address] : undefined,
     query: {
       enabled: !!address && !!currentTokenAddress && isCorrectNetwork,
-      refetchInterval: 300000, // 5 minutes
-      staleTime: 150000, // 2.5 minutes
+      refetchInterval: 300000,
+      staleTime: 240000,
+      gcTime: 600000,
+      retry: 1,
+      refetchOnWindowFocus: false,
+      refetchOnMount: false,
+      refetchOnReconnect: false,
     },
   });
 
@@ -246,6 +284,9 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
     query: {
       enabled: !!currentTokenAddress && isCorrectNetwork,
       staleTime: Infinity,
+      gcTime: Infinity,
+      refetchOnWindowFocus: false,
+      refetchOnMount: false,
     },
   });
 
@@ -273,6 +314,10 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
     query: {
       enabled: !!address && !!usdtContractAddress && isCorrectNetwork,
       refetchInterval: 300000,
+      staleTime: Infinity,
+      gcTime: Infinity,
+      refetchOnWindowFocus: false,
+      refetchOnMount: false,
     },
   });
 
@@ -283,6 +328,9 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
     query: {
       enabled: !!usdtContractAddress && isCorrectNetwork,
       staleTime: Infinity,
+      gcTime: Infinity,
+      refetchOnWindowFocus: false,
+      refetchOnMount: false,
     },
   });
 
@@ -342,50 +390,70 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
     // convertPrice, formatPrice
   );
   // Debounced balance fetching
-  const debouncedFetchBalance = useCallback(
-    debounce(async (tokenSymbol: string) => {
-      if (refreshInProgressRef.current.has(tokenSymbol)) {
-        return;
-      }
+  const debouncedFetchBalance = useMemo(
+    () =>
+      debounce(
+        async (tokenSymbol: string) => {
+          if (
+            !mountedRef.current ||
+            refreshInProgressRef.current.has(tokenSymbol)
+          ) {
+            return;
+          }
 
-      refreshInProgressRef.current.add(tokenSymbol);
+          refreshInProgressRef.current.add(tokenSymbol);
 
-      try {
-        const token = getTokenBySymbol(tokenSymbol);
-        if (!token) return;
+          try {
+            const token = getTokenBySymbol(tokenSymbol);
+            if (!token) return;
 
-        const balance = await fetchTokenBalance(token);
-        if (balance) {
-          setTokenBalances((prev) => ({
-            ...prev,
-            [token.symbol]: balance,
-          }));
+            const balance = await fetchTokenBalance(token);
+            if (balance && mountedRef.current) {
+              setTokenBalances((prev) => ({
+                ...prev,
+                [token.symbol]: balance,
+              }));
 
-          // Update cache
-          balanceCacheRef.current[tokenSymbol] = {
-            data: balance,
-            timestamp: Date.now(),
-          };
-        }
-      } finally {
-        refreshInProgressRef.current.delete(tokenSymbol);
-        setIsLoadingTokenBalance(false);
-      }
-    }, 300),
+              balanceCacheRef.current[tokenSymbol] = {
+                data: balance,
+                timestamp: Date.now(),
+              };
+            }
+          } catch (error) {
+            console.error(`Failed to fetch ${tokenSymbol} balance:`, error);
+          } finally {
+            refreshInProgressRef.current.delete(tokenSymbol);
+            if (mountedRef.current) {
+              setIsLoadingTokenBalance(false);
+            }
+          }
+        },
+        500, // debounce time
+        { leading: true, trailing: false, maxWait: 1000 }
+      ),
     [fetchTokenBalance]
   );
   // Refresh token balance
   const refreshTokenBalance = useCallback(
     async (tokenSymbol?: string) => {
-      if (!address || !isCorrectNetwork) return;
+      if (!address || !isCorrectNetwork || !mountedRef.current) return;
 
       const targetSymbol = tokenSymbol || selectedToken.symbol;
+
+      // Rate limiting: Don't refresh if last fetch was less than 30 seconds ago
+      const lastFetch = lastFetchRef.current[targetSymbol] || 0;
+      const now = Date.now();
+      if (now - lastFetch < 30000) {
+        console.log(`Skipping refresh for ${targetSymbol} - too soon`);
+        return;
+      }
 
       // Check if already refreshing
       if (refreshInProgressRef.current.has(targetSymbol)) {
         return;
       }
 
+      lastFetchRef.current[targetSymbol] = now;
       setIsLoadingTokenBalance(true);
       debouncedFetchBalance(targetSymbol);
     },
@@ -448,38 +516,85 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, [convertPrice, formatPrice]);
 
-  // Setup balance refresh interval
+  // balance refresh interval
   useEffect(() => {
-    if (isConnected && address && isCorrectNetwork) {
+    // Prevent double initialization
+    if (isInitializedRef.current) {
+      return;
+    }
+
+    if (
+      isConnected &&
+      address &&
+      isCorrectNetwork &&
+      connectionCheckRef.current
+    ) {
+      isInitializedRef.current = true;
+
       // Clear existing interval
       if (balanceIntervalRef.current) {
         clearInterval(balanceIntervalRef.current);
+        balanceIntervalRef.current = null;
       }
 
-      // Set new interval for 5 minutes
+      // Initial fetch after a short delay
+      const initialTimeout = setTimeout(() => {
+        if (mountedRef.current && connectionCheckRef.current) {
+          refreshTokenBalance();
+          refetchCeloBalance();
+        }
+      }, 1000);
+
+      // Set interval for 5 minutes
       balanceIntervalRef.current = setInterval(() => {
-        refreshTokenBalance();
-        refetchCeloBalance();
+        if (mountedRef.current && connectionCheckRef.current) {
+          refreshTokenBalance();
+          refetchCeloBalance();
+        }
       }, 300000);
 
-      // Initial fetch
-      refreshTokenBalance();
-
       return () => {
+        clearTimeout(initialTimeout);
         if (balanceIntervalRef.current) {
           clearInterval(balanceIntervalRef.current);
+          balanceIntervalRef.current = null;
         }
+        isInitializedRef.current = false;
       };
     }
-    // refreshTokenBalance;
+
+    return () => {
+      if (balanceIntervalRef.current) {
+        clearInterval(balanceIntervalRef.current);
+        balanceIntervalRef.current = null;
+      }
+      isInitializedRef.current = false;
+    };
   }, [isConnected, address, isCorrectNetwork]);
 
   // Fetch balance when selected token changes
   useEffect(() => {
-    if (selectedToken && address && isCorrectNetwork) {
-      refreshTokenBalance();
+    let timeoutId: NodeJS.Timeout;
+
+    if (
+      selectedToken &&
+      address &&
+      isCorrectNetwork &&
+      connectionCheckRef.current
+    ) {
+      timeoutId = setTimeout(() => {
+        if (mountedRef.current) {
+          refreshTokenBalance();
+        }
+      }, 500);
     }
-  }, [selectedToken, address, isCorrectNetwork]);
+
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [selectedToken?.symbol, address, isCorrectNetwork]);
 
   // Update wallet state
   useEffect(() => {
@@ -1176,12 +1291,31 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
 
   // Cleanup on unmount
   useEffect(() => {
+    mountedRef.current = true;
+
     return () => {
+      mountedRef.current = false;
+
+      // Cancel debounced function
+      debouncedFetchBalance.cancel();
+
+      // Clear all intervals
       if (balanceIntervalRef.current) {
         clearInterval(balanceIntervalRef.current);
+        balanceIntervalRef.current = null;
       }
+
+      // Clear all in-progress refreshes
+      refreshInProgressRef.current.clear();
+
+      // Clear fetch timestamps
+      lastFetchRef.current = {};
+
+      // Reset initialization flag
+      isInitializedRef.current = false;
     };
-  }, []);
+  }, [debouncedFetchBalance]);
+
   useEffect(() => {
     return () => {
       debouncedFetchBalance.cancel();
