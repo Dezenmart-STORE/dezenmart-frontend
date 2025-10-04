@@ -16,9 +16,14 @@ const ViewOrderDetail = memo(() => {
   const navigate = useNavigate();
   const { showSnackbar } = useSnackbar();
 
-  // Track if we've already initiated a fetch for this orderId
+  // Track if there is already an initiated a fetch for this orderId
   const hasFetchedRef = useRef<Set<string>>(new Set());
   const isMountedRef = useRef(true);
+  // Determine if validation is needed based on status
+  const needsValidation = useMemo(() => {
+    const statusParam = new URLSearchParams(location.search).get("status");
+    return statusParam === "pending" || !statusParam;
+  }, [location.search]);
 
   // Store orderId when it changes
   useEffect(() => {
@@ -44,7 +49,7 @@ const ViewOrderDetail = memo(() => {
     useState<TradeStatusType>(initialStatus);
 
   const {
-    getOrderById,
+    getOrderByIdWithValidation,
     currentOrder: orderDetails,
     loading,
     error,
@@ -103,7 +108,12 @@ const ViewOrderDetail = memo(() => {
       hasFetchedRef.current.add(orderId);
 
       try {
-        await getOrderById(orderId, false, false);
+        await getOrderByIdWithValidation(
+          orderId,
+          needsValidation,
+          false,
+          false
+        );
       } catch (error) {
         console.error("Error fetching order:", error);
         // Remove from set on error so it can be retried
@@ -119,7 +129,7 @@ const ViewOrderDetail = memo(() => {
     return () => {
       isMountedRef.current = false;
     };
-  }, [orderId]);
+  }, [orderId, needsValidation, getOrderByIdWithValidation]);
 
   // status updates
   useEffect(() => {

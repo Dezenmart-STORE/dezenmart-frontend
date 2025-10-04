@@ -73,15 +73,7 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
   const { convertPrice, formatPrice } = useCurrencyConverter();
   // const { usdtBalance, refetch: refetchBalance } = useWalletBalance();
   const { changeOrderStatus, currentOrder } = useOrderData();
-  const [tradeValidation, setTradeValidation] = useState<{
-    isValid: boolean;
-    isLoading: boolean;
-    error: string | null;
-  }>({
-    isValid: true,
-    isLoading: false,
-    error: null,
-  });
+
   const [showWalletModal, setShowWalletModal] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const mountedRef = useRef(true);
@@ -117,7 +109,22 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
     () => txInfo,
     [txInfo?.buyerName, txInfo?.sellerName]
   );
+  const tradeValidation = useMemo(() => {
+    if (orderDetails?.tradeValidation) {
+      return {
+        isValid: orderDetails.tradeValidation.isValid,
+        isLoading: false,
+        error: orderDetails.tradeValidation.error,
+      };
+    }
 
+    // Default to valid if no validation data (for non-pending statuses)
+    return {
+      isValid: true,
+      isLoading: false,
+      error: null,
+    };
+  }, [orderDetails?.tradeValidation]);
   useEffect(() => {
     if (orderId) {
       storeOrderId(orderId);
@@ -137,63 +144,63 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
     };
   }, []);
 
-  useEffect(() => {
-    const validateTrade = async () => {
-      if (
-        !orderDetails?.product?.tradeId ||
-        !wallet.isConnected ||
-        tradeValidation.isLoading
-      )
-        return;
+  // useEffect(() => {
+  //   const validateTrade = async () => {
+  //     if (
+  //       !orderDetails?.product?.tradeId ||
+  //       !wallet.isConnected ||
+  //       tradeValidation.isLoading
+  //     )
+  //       return;
 
-      // Clear previous timeout
-      if (tradeValidationTimeoutRef.current) {
-        clearTimeout(tradeValidationTimeoutRef.current);
-      }
+  //     // Clear previous timeout
+  //     if (tradeValidationTimeoutRef.current) {
+  //       clearTimeout(tradeValidationTimeoutRef.current);
+  //     }
 
-      tradeValidationTimeoutRef.current = setTimeout(async () => {
-        setTradeValidation({ isValid: true, isLoading: true, error: null });
+  //     tradeValidationTimeoutRef.current = setTimeout(async () => {
+  //       setTradeValidation({ isValid: true, isLoading: true, error: null });
 
-        try {
-          const isValid = await validateTradeBeforePurchase?.(
-            orderDetails.product.tradeId,
-            orderDetails.quantity.toString(),
-            orderDetails.logisticsProviderWalletAddress[0]
-          );
+  //       try {
+  //         const isValid = await validateTradeBeforePurchase?.(
+  //           orderDetails.product.tradeId,
+  //           orderDetails.quantity.toString(),
+  //           orderDetails.logisticsProviderWalletAddress[0]
+  //         );
 
-          if (mountedRef.current) {
-            setTradeValidation({
-              isValid: isValid || false,
-              isLoading: false,
-              error: isValid ? null : "Product no longer available",
-            });
-          }
-        } catch (error) {
-          if (mountedRef.current) {
-            console.error("Trade validation error:", error);
-            setTradeValidation({
-              isValid: false,
-              isLoading: false,
-              error: "Unable to verify product availability",
-            });
-          }
-        }
-      }, 2000);
-    };
+  //         if (mountedRef.current) {
+  //           setTradeValidation({
+  //             isValid: isValid || false,
+  //             isLoading: false,
+  //             error: isValid ? null : "Product no longer available",
+  //           });
+  //         }
+  //       } catch (error) {
+  //         if (mountedRef.current) {
+  //           console.error("Trade validation error:", error);
+  //           setTradeValidation({
+  //             isValid: false,
+  //             isLoading: false,
+  //             error: "Unable to verify product availability",
+  //           });
+  //         }
+  //       }
+  //     }, 2000);
+  //   };
 
-    validateTrade();
+  //   validateTrade();
 
-    return () => {
-      if (tradeValidationTimeoutRef.current) {
-        clearTimeout(tradeValidationTimeoutRef.current);
-      }
-    };
-  }, [
-    orderDetails?.product?.tradeId,
-    orderDetails?.quantity,
-    orderDetails?.logisticsProviderWalletAddress?.[0],
-    wallet.isConnected,
-  ]);
+  //   return () => {
+  //     if (tradeValidationTimeoutRef.current) {
+  //       clearTimeout(tradeValidationTimeoutRef.current);
+  //     }
+  //   };
+  // }, [
+  //   orderDetails?.product?.tradeId,
+  //   orderDetails?.quantity,
+  //   orderDetails?.logisticsProviderWalletAddress?.[0],
+  //   wallet.isConnected,
+  // ]);
 
   const orderValidation = useMemo(() => {
     try {
@@ -208,13 +215,6 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
         return {
           isValid: false,
           error: "Invalid quantity (1-999)",
-        };
-      }
-
-      if (tradeValidation.isLoading) {
-        return {
-          isValid: false,
-          error: "Verifying product availability...",
         };
       }
 
@@ -238,7 +238,6 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
     orderDetails?.quantity,
     quantity,
     tradeValidation.isValid,
-    tradeValidation.isLoading,
     tradeValidation.error,
   ]);
 

@@ -26,7 +26,7 @@ import { useCurrency } from "../../context/CurrencyContext";
 import { useWeb3 } from "../../context/Web3Context";
 
 export const useOrderData = () => {
-  const { wallet } = useWeb3();
+  const { wallet, validateTradeBeforePurchase } = useWeb3();
   const { secondaryCurrency } = useCurrency();
   const dispatch = useAppDispatch();
   const { showSnackbar } = useSnackbar();
@@ -261,6 +261,63 @@ export const useOrderData = () => {
     [dispatch, showSnackbar]
   );
 
+  const getOrderByIdWithValidation = useCallback(
+    async (
+      orderId: string,
+      validateTrade = false,
+      showNotification = false,
+      skipCache = false
+    ) => {
+      try {
+        const result = await dispatch(
+          fetchOrderById({ orderId, skipCache })
+        ).unwrap();
+
+        // If validation is requested and wallet is connected
+        if (validateTrade && wallet.isConnected && result?.product?.tradeId) {
+          try {
+            const isValid = await validateTradeBeforePurchase?.(
+              result.product.tradeId,
+              result.quantity.toString(),
+              result.logisticsProviderWalletAddress[0]
+            );
+
+            return {
+              ...result,
+              tradeValidation: {
+                isValid: isValid || false,
+                error: isValid ? null : "Product no longer available",
+              },
+            };
+          } catch (validationError) {
+            console.error("Trade validation error:", validationError);
+            return {
+              ...result,
+              tradeValidation: {
+                isValid: false,
+                error: "Unable to verify product availability",
+              },
+            };
+          }
+        }
+
+        if (showNotification) {
+          showSnackbar("Order details loaded successfully", "success");
+        }
+        return result;
+      } catch (err) {
+        if (err !== "AbortError" && showNotification) {
+          showSnackbar(
+            (err as string) || "Failed to load order details",
+            "error"
+          );
+        }
+        return null;
+      }
+    },
+    [dispatch, showSnackbar, wallet.isConnected, validateTradeBeforePurchase]
+  );
+
   const changeOrderStatus = useCallback(
     async (
       orderId: string,
@@ -351,6 +408,7 @@ export const useOrderData = () => {
     fetchBuyerOrders,
     fetchMerchantOrders,
     getOrderById,
+    getOrderByIdWithValidation,
     changeOrderStatus,
     raiseDispute,
     getOrdersByStatus,

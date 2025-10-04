@@ -340,6 +340,10 @@ export interface TradeDetails {
 export interface OrderDetails extends Order {
   formattedDate: string;
   formattedAmount: string;
+  tradeValidation?: {
+    isValid: boolean;
+    error: string | null;
+  };
 }
 
 export interface TradeTransactionInfo {
