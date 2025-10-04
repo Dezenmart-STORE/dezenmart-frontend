@@ -317,10 +317,12 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
           maximumFractionDigits: Math.min(decimals, 6),
         })} ${token.symbol}`;
 
-        const fiat = formatPrice(
-          convertPrice(numericBalance, token.symbol, "FIAT"),
-          "FIAT"
-        );
+        // const fiat = formatPrice(
+        //   convertPrice(numericBalance, token.symbol, "FIAT"),
+        //   "FIAT"
+        // );
+
+        const fiat = "0";
 
         const balanceData = { raw, formatted, fiat };
 
@@ -336,7 +338,8 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
         return null;
       }
     },
-    [address, chain?.id, isCorrectNetwork, convertPrice, formatPrice]
+    [address, chain?.id, isCorrectNetwork]
+    // convertPrice, formatPrice
   );
   // Debounced balance fetching
   const debouncedFetchBalance = useCallback(
@@ -424,6 +427,27 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
     formatPrice,
   ]);
 
+  // Update fiat values for all token balances when currency conversion changes
+  useEffect(() => {
+    if (Object.keys(tokenBalances).length > 0) {
+      setTokenBalances((prev) => {
+        const updated = { ...prev };
+        Object.keys(updated).forEach((symbol) => {
+          const balance = updated[symbol];
+          if (balance && balance.raw !== "0") {
+            const numericBalance = parseFloat(balance.raw);
+            const fiat = formatPrice(
+              convertPrice(numericBalance, symbol, "FIAT"),
+              "FIAT"
+            );
+            updated[symbol] = { ...balance, fiat };
+          }
+        });
+        return updated;
+      });
+    }
+  }, [convertPrice, formatPrice]);
+
   // Setup balance refresh interval
   useEffect(() => {
     if (isConnected && address && isCorrectNetwork) {
@@ -447,7 +471,8 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
         }
       };
     }
-  }, [isConnected, address, isCorrectNetwork, refreshTokenBalance]);
+    // refreshTokenBalance;
+  }, [isConnected, address, isCorrectNetwork]);
 
   // Fetch balance when selected token changes
   useEffect(() => {
