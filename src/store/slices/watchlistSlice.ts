@@ -21,10 +21,20 @@ const initialState: WatchlistState = {
 // Cache timeout (5 minutes)
 const CACHE_TIMEOUT = 5 * 60 * 1000;
 
+// Helper function to check if error is an abort error
+const isAbortError = (error: any): boolean => {
+  return (
+    error?.name === "AbortError" ||
+    error?.message?.includes("abort") ||
+    error?.message?.includes("cancelled") ||
+    error?.message?.includes("canceled")
+  );
+};
+
 export const fetchWatchlist = createAsyncThunk<
   WatchlistItem[],
   boolean | undefined,
-  { rejectValue: string }
+  { rejectValue: { message: string; isAbort: boolean } }
 >(
   "watchlist/fetchWatchlist",
   async (forceRefresh = false, { getState, rejectWithValue }) => {
@@ -42,17 +52,24 @@ export const fetchWatchlist = createAsyncThunk<
         return state.watchlist.items;
       }
 
-      const response = await api.getUserWatchlist(forceRefresh);
+      const response = await api.getUserWatchlist(forceRefresh, true);
 
       if (!response.ok) {
-        return rejectWithValue(response.error || "Failed to fetch watchlist");
+        return rejectWithValue({
+          message: response.error || "Failed to fetch watchlist",
+          isAbort: false,
+        });
       }
 
       return response.data;
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "An unknown error occurred";
-      return rejectWithValue(message);
+
+      return rejectWithValue({
+        message,
+        isAbort: isAbortError(error),
+      });
     }
   }
 );
@@ -132,39 +149,58 @@ const watchlistSlice = createSlice({
       state.items = [];
       state.lastFetched = null;
       state.isWatchlist = {};
+      state.loading = "idle";
+      state.error = null;
     },
-    // Add immediate state update for better UX
+    // optimistic state update
     optimisticAddToWatchlist: (state, action: PayloadAction<string>) => {
       state.isWatchlist[action.payload] = true;
     },
     optimisticRemoveFromWatchlist: (state, action: PayloadAction<string>) => {
       state.isWatchlist[action.payload] = false;
     },
+    // Clear error state
+    clearWatchlistError: (state) => {
+      state.error = null;
+    },
   },
   extraReducers: (builder) => {
     builder
       .addCase(fetchWatchlist.pending, (state) => {
         state.loading = "pending";
-        state.error = null;
+        // don't clear error immediately - let it stay until we have results
       })
       .addCase(
         fetchWatchlist.fulfilled,
         (state, action: PayloadAction<WatchlistItem[]>) => {
           state.items = action.payload;
           state.loading = "succeeded";
+          state.error = null; // Clear error on success
           state.lastFetched = Date.now();
 
           // Update isWatchlist object
           const newIsWatchlist: { [productId: string]: boolean } = {};
           action.payload.forEach((item) => {
-            newIsWatchlist[item.product?._id] = true;
+            if (item.product?._id) {
+              newIsWatchlist[item.product._id] = true;
+            }
           });
           state.isWatchlist = newIsWatchlist;
         }
       )
       .addCase(fetchWatchlist.rejected, (state, action) => {
+        // Check if it's an abort error
+        const payload = action.payload as
+          | { message: string; isAbort: boolean }
+          | undefined;
+
+        if (payload?.isAbort) {
+          return;
+        }
+
         state.loading = "failed";
-        state.error = (action.payload as string) || "Unknown error occurred";
+        state.error =
+          payload?.message || action.error.message || "Unknown error occurred";
       })
       .addCase(checkWatchlist.fulfilled, (state, action) => {
         state.isWatchlist[action.payload.productId] =
@@ -179,11 +215,13 @@ const watchlistSlice = createSlice({
         addToWatchlist.fulfilled,
         (state, action: PayloadAction<WatchlistItem>) => {
           // Confirm the optimistic update
-          state.isWatchlist[action.payload.product._id] = true;
+          if (action.payload.product?._id) {
+            state.isWatchlist[action.payload.product._id] = true;
 
-          // Add to items if not already present
-          if (!state.items.some((item) => item._id === action.payload._id)) {
-            state.items.push(action.payload);
+            // Add to items if not already present
+            if (!state.items.some((item) => item._id === action.payload._id)) {
+              state.items.push(action.payload);
+            }
           }
 
           state.loading = "succeeded";
@@ -209,7 +247,7 @@ const watchlistSlice = createSlice({
           if (action.payload.success) {
             // Confirm the optimistic update
             state.items = state.items.filter(
-              (item) => item.product._id !== action.payload.productId
+              (item) => item.product?._id !== action.payload.productId
             );
             state.isWatchlist[action.payload.productId] = false;
           }
@@ -229,5 +267,6 @@ export const {
   clearWatchlist,
   optimisticAddToWatchlist,
   optimisticRemoveFromWatchlist,
+  clearWatchlistError,
 } = watchlistSlice.actions;
 export default watchlistSlice.reducer;

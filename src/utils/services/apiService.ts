@@ -599,23 +599,52 @@ export const api = {
       method: "POST",
     });
   },
-  getUserWatchlist: async (skipCache = false) => {
+  getUserWatchlist: async (skipCache = false, preventAbort = false) => {
     const key = cacheKey("/watchlist");
     if (!skipCache && requestCache.has(key)) {
       return requestCache.get(key);
     }
-    if (abortControllers.has(key)) {
+
+    // Only abort previous requests if not preventing abort
+    if (!preventAbort && abortControllers.has(key)) {
       abortControllers.get(key).abort();
     }
+
     const controller = new AbortController();
-    abortControllers.set(key, controller);
-    const result = await fetchWithAuth("/watchlist", {
-      signal: controller.signal,
-    });
-    if (result.ok) {
-      requestCache.set(key, result);
+
+    // Only store controller if we're allowing aborts
+    if (!preventAbort) {
+      abortControllers.set(key, controller);
     }
-    return result;
+
+    try {
+      const result = await fetchWithAuth("/watchlist", {
+        signal: controller.signal,
+      });
+
+      if (result.ok) {
+        requestCache.set(key, result);
+      }
+
+      return result;
+    } catch (error: any) {
+      // Re-throw abort errors so they can be handled properly
+      if (error.name === "AbortError") {
+        throw error;
+      }
+
+      return {
+        ok: false,
+        status: 0,
+        error: error instanceof Error ? error.message : "Unknown error",
+        data: null,
+      };
+    } finally {
+      // Clean up controller reference
+      if (!preventAbort && abortControllers.get(key) === controller) {
+        abortControllers.delete(key);
+      }
+    }
   },
   checkWatchlist: async (productId: string) => {
     const key = cacheKey(`/watchlist/${productId}/check`);

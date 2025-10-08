@@ -89,6 +89,7 @@ export const useWatchlist = () => {
         return true;
       });
   }, [watchlistItems, formatWatchlistWithCurrencies]);
+
   const isProductInWatchlist = useCallback(
     (productId: string) => {
       return !!isWatchlistMap[productId];
@@ -99,12 +100,18 @@ export const useWatchlist = () => {
   const fetchUserWatchlist = useCallback(
     async (showNotifications = false, forceRefresh = false) => {
       try {
+        // const result =
         await dispatch(fetchWatchlist(forceRefresh)).unwrap();
         if (showNotifications) {
           showSnackbar("Watchlist loaded successfully", "success");
         }
         return true;
-      } catch (err) {
+      } catch (err: any) {
+        // Don't treat abort errors as failures
+        if (err?.name === "AbortError" || err?.message?.includes("abort")) {
+          return false;
+        }
+
         if (showNotifications) {
           showSnackbar((err as string) || "Failed to load watchlist", "error");
         }

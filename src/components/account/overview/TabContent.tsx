@@ -55,6 +55,7 @@ const TabContent: React.FC<TabContentProps> = React.memo(({ activeTab }) => {
   );
   const [retryCount, setRetryCount] = useState<Record<string, number>>({});
   const abortControllerRef = useRef<AbortController | null>(null);
+  const fetchingRef = useRef<Record<string, boolean>>({});
 
   // Cleanup function
   const cleanup = useCallback(() => {
@@ -64,14 +65,15 @@ const TabContent: React.FC<TabContentProps> = React.memo(({ activeTab }) => {
     }
   }, []);
 
-  // Initialize tab data with proper error handling and cleanup
+  // Initialize tab data
   const initializeTab = useCallback(
     async (tabId: string) => {
-      if (tabInitialized[tabId]) return;
+      // Prevent concurrent fetches for the same tab
+      if (fetchingRef.current[tabId] || tabInitialized[tabId]) {
+        return;
+      }
 
-      // Cleanup previous requests
-      cleanup();
-      abortControllerRef.current = new AbortController();
+      fetchingRef.current[tabId] = true;
 
       try {
         let success = false;
@@ -95,25 +97,30 @@ const TabContent: React.FC<TabContentProps> = React.memo(({ activeTab }) => {
           setTabInitialized((prev) => ({ ...prev, [tabId]: true }));
           setRetryCount((prev) => ({ ...prev, [tabId]: 0 }));
         } else if (currentRetry < maxRetries) {
+          // Auto-retry with exponential backoff
           setTimeout(() => {
+            fetchingRef.current[tabId] = false;
             setRetryCount((prev) => ({ ...prev, [tabId]: currentRetry + 1 }));
-            setTabInitialized((prev) => ({ ...prev, [tabId]: false }));
           }, Math.pow(2, currentRetry) * 1000);
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error(`Failed to initialize tab ${tabId}:`, error);
-        if (retryCount[tabId] < 3) {
+
+        // Only retry for non-abort errors
+        if (error?.name !== "AbortError" && retryCount[tabId] < 3) {
           setTimeout(() => {
+            fetchingRef.current[tabId] = false;
             setRetryCount((prev) => ({
               ...prev,
               [tabId]: (prev[tabId] || 0) + 1,
             }));
-            setTabInitialized((prev) => ({ ...prev, [tabId]: false }));
           }, 2000);
         }
+      } finally {
+        fetchingRef.current[tabId] = false;
       }
     },
-    [tabInitialized, retryCount, fetchUserWatchlist, fetchBuyerOrders, cleanup]
+    [tabInitialized, retryCount, fetchUserWatchlist, fetchBuyerOrders]
   );
 
   // Effect to handle tab changes
@@ -131,12 +138,14 @@ const TabContent: React.FC<TabContentProps> = React.memo(({ activeTab }) => {
       cleanup();
       setTabInitialized({});
       setRetryCount({});
+      fetchingRef.current = {};
     };
   }, [cleanup]);
 
   const handleRetryWatchlist = useCallback(() => {
     setTabInitialized((prev) => ({ ...prev, "1": false }));
     setRetryCount((prev) => ({ ...prev, "1": 0 }));
+    fetchingRef.current["1"] = false;
     initializeTab("1");
   }, [initializeTab]);
 
@@ -144,21 +153,49 @@ const TabContent: React.FC<TabContentProps> = React.memo(({ activeTab }) => {
     const tabId = activeTab;
     setTabInitialized((prev) => ({ ...prev, [tabId]: false }));
     setRetryCount((prev) => ({ ...prev, [tabId]: 0 }));
+    fetchingRef.current[tabId] = false;
     initializeTab(tabId);
   }, [activeTab, initializeTab]);
 
   // Enhanced loading state
   const isTabLoading = useCallback(
     (tabId: string) => {
+      const isFetching = fetchingRef.current[tabId];
+      const hasData =
+        (tabId === "1" && watchlistItems.length > 0) ||
+        (tabId === "3" && nonDisputeOrders && nonDisputeOrders.length > 0) ||
+        (tabId === "4" && disputeOrders && disputeOrders.length > 0);
+
+      // Show loading only if fetching and no data yet
       return (
-        !tabInitialized[tabId] &&
-        ((tabId === "1" && watchlistLoading) ||
-          (["3", "4"].includes(tabId) && orderLoading))
+        isFetching ||
+        (!tabInitialized[tabId] &&
+          ((tabId === "1" && watchlistLoading) ||
+            (["3", "4"].includes(tabId) && orderLoading)))
       );
     },
-    [tabInitialized, watchlistLoading, orderLoading]
+    [
+      tabInitialized,
+      watchlistLoading,
+      orderLoading,
+      watchlistItems,
+      nonDisputeOrders,
+      disputeOrders,
+    ]
   );
 
+  // Determine if error should be shown
+  const shouldShowError = useCallback(
+    (tabId: string) => {
+      const hasError =
+        (tabId === "1" && watchlistError) ||
+        (["3", "4"].includes(tabId) && orderError);
+      const isRetrying = retryCount[tabId] > 0 && retryCount[tabId] < 3;
+
+      return hasError && !isTabLoading(tabId) && !isRetrying;
+    },
+    [watchlistError, orderError, isTabLoading, retryCount]
+  );
   return (
     <LazyMotion features={domAnimation}>
       {/* Watchlist Tab */}
@@ -172,27 +209,30 @@ const TabContent: React.FC<TabContentProps> = React.memo(({ activeTab }) => {
           {isTabLoading("1") && (
             <div className="flex justify-center items-center py-12">
               <LoadingSpinner size="lg" />
+              {retryCount["1"] > 0 && (
+                <p className="text-gray-400 text-sm mt-4">
+                  Retrying... (Attempt {retryCount["1"]}/3)
+                </p>
+              )}
             </div>
           )}
 
-          {!isTabLoading("1") && watchlistError && (
+          {shouldShowError("1") && (
             <div className="text-center py-8">
               <p className="text-Red mb-2">Error loading saved items</p>
-              <p className="text-gray-400 text-sm mb-4">
-                {retryCount["1"] > 0 && `Retry attempt ${retryCount["1"]}/3`}
-              </p>
+              <p className="text-gray-400 text-sm mb-4">{watchlistError}</p>
               <button
                 onClick={handleRetryWatchlist}
                 disabled={isTabLoading("1")}
                 className="text-white underline hover:text-gray-300 disabled:opacity-50"
               >
-                {isTabLoading("1") ? "Retrying..." : "Try Again"}
+                Try Again
               </button>
             </div>
           )}
 
           {!isTabLoading("1") &&
-            !watchlistError &&
+            !shouldShowError("1") &&
             (!watchlistItems || watchlistItems.length === 0) && (
               <EmptyState
                 message="Your wishlist is empty."
@@ -202,7 +242,7 @@ const TabContent: React.FC<TabContentProps> = React.memo(({ activeTab }) => {
             )}
 
           {!isTabLoading("1") &&
-            !watchlistError &&
+            !shouldShowError("1") &&
             watchlistItems &&
             watchlistItems.length > 0 && (
               <div className="mt-6 space-y-4">
