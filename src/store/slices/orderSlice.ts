@@ -54,6 +54,7 @@ export const fetchUserOrders = createAsyncThunk<
       if (!response.ok) {
         return rejectWithValue(response.error || "Failed to fetch orders");
       }
+      console.log("ttresponse.data.data.orders:", response.data);
       return response.data.data.orders;
     } catch (error) {
       return rejectWithValue(
