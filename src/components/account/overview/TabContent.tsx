@@ -64,6 +64,7 @@ const TabContent: React.FC<TabContentProps> = React.memo(({ activeTab }) => {
   const [retryCount, setRetryCount] = useState<Record<string, number>>({});
   const abortControllerRef = useRef<AbortController | null>(null);
   const fetchingRef = useRef<Record<string, boolean>>({});
+  const retryTimeoutRef = useRef<Record<string, NodeJS.Timeout>>({});
 
   // Cleanup function
   const cleanup = useCallback(() => {
@@ -71,21 +72,68 @@ const TabContent: React.FC<TabContentProps> = React.memo(({ activeTab }) => {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
     }
+
+    // Clear all retry timeouts
+    Object.values(retryTimeoutRef.current).forEach((timeout) => {
+      clearTimeout(timeout);
+    });
+    retryTimeoutRef.current = {};
   }, []);
 
-  // Initialize tab data
-  const initializeTab = useCallback(
-    async (tabId: string) => {
-      // Prevent concurrent fetches for the same tab
-      if (fetchingRef.current[tabId] || tabInitialized[tabId]) {
+  // Stable retry handler using refs to avoid recreating initializeTab
+  const scheduleRetry = useCallback(
+    (tabId: string, currentRetry: number) => {
+      const maxRetries = 3;
+
+      if (currentRetry >= maxRetries) {
+        fetchingRef.current[tabId] = false;
         return;
       }
 
+      // Clear existing timeout for this tab
+      if (retryTimeoutRef.current[tabId]) {
+        clearTimeout(retryTimeoutRef.current[tabId]);
+      }
+
+      const delay = Math.pow(2, currentRetry) * 1000;
+
+      retryTimeoutRef.current[tabId] = setTimeout(() => {
+        fetchingRef.current[tabId] = false;
+        setRetryCount((prev) => ({ ...prev, [tabId]: currentRetry + 1 }));
+
+        // Trigger fetch without recursion
+        if (tabId === "1") {
+          fetchUserWatchlist(false, true);
+        } else if (tabId === "3" || tabId === "4") {
+          fetchBuyerOrders(false, true);
+        }
+
+        delete retryTimeoutRef.current[tabId];
+      }, delay);
+    },
+    [fetchUserWatchlist, fetchBuyerOrders]
+  );
+
+  // Initialize tab data - removed state dependencies
+  const initializeTab = useCallback(
+    async (tabId: string) => {
+      // Prevent concurrent fetches for the same tab
+      if (fetchingRef.current[tabId]) {
+        console.log(`🔒 Tab ${tabId} already fetching, skipping...`);
+        return;
+      }
+
+      // Check if already initialized
+      if (tabInitialized[tabId]) {
+        console.log(`✅ Tab ${tabId} already initialized, skipping...`);
+        return;
+      }
+
+      console.log(`🚀 Initializing tab ${tabId}`);
       fetchingRef.current[tabId] = true;
 
       try {
         let success = false;
-        const maxRetries = 3;
         const currentRetry = retryCount[tabId] || 0;
 
         switch (tabId) {
@@ -102,37 +150,27 @@ const TabContent: React.FC<TabContentProps> = React.memo(({ activeTab }) => {
         }
 
         if (success) {
+          console.log(`✅ Tab ${tabId} initialized successfully`);
           setTabInitialized((prev) => ({ ...prev, [tabId]: true }));
           setRetryCount((prev) => ({ ...prev, [tabId]: 0 }));
-        } else if (currentRetry < maxRetries) {
-          setTimeout(() => {
-            fetchingRef.current[tabId] = false;
-            setRetryCount((prev) => ({ ...prev, [tabId]: currentRetry + 1 }));
-            // Trigger re-initialization
-            initializeTab(tabId);
-          }, Math.pow(2, currentRetry) * 1000);
-          return;
+          fetchingRef.current[tabId] = false;
+        } else {
+          console.log(
+            `⚠️ Tab ${tabId} initialization failed, scheduling retry`
+          );
+          scheduleRetry(tabId, currentRetry);
         }
       } catch (error: any) {
-        console.error(`Failed to initialize tab ${tabId}:`, error);
+        console.error(`❌ Failed to initialize tab ${tabId}:`, error);
 
-        if (error?.name !== "AbortError" && (retryCount[tabId] || 0) < 3) {
-          setTimeout(() => {
-            fetchingRef.current[tabId] = false;
-            setRetryCount((prev) => ({
-              ...prev,
-              [tabId]: (prev[tabId] || 0) + 1,
-            }));
-            // Trigger re-initialization
-            initializeTab(tabId);
-          }, 2000);
-          return;
+        if (error?.name !== "AbortError") {
+          scheduleRetry(tabId, retryCount[tabId] || 0);
+        } else {
+          fetchingRef.current[tabId] = false;
         }
-      } finally {
-        fetchingRef.current[tabId] = false;
       }
     },
-    [tabInitialized, retryCount, fetchUserWatchlist, fetchBuyerOrders]
+    [] // Empty dependency array - use refs and callbacks for dynamic values
   );
 
   // Effect to handle tab changes
@@ -142,7 +180,7 @@ const TabContent: React.FC<TabContentProps> = React.memo(({ activeTab }) => {
     }
 
     return cleanup;
-  }, [activeTab, initializeTab, cleanup]);
+  }, [activeTab, cleanup]); // Only depend on activeTab and cleanup
 
   // Reset initialization when component unmounts
   useEffect(() => {
@@ -155,17 +193,33 @@ const TabContent: React.FC<TabContentProps> = React.memo(({ activeTab }) => {
   }, [cleanup]);
 
   const handleRetryWatchlist = useCallback(() => {
+    console.log("🔄 Manual retry for watchlist");
     setTabInitialized((prev) => ({ ...prev, "1": false }));
     setRetryCount((prev) => ({ ...prev, "1": 0 }));
     fetchingRef.current["1"] = false;
+
+    // Clear any pending retry
+    if (retryTimeoutRef.current["1"]) {
+      clearTimeout(retryTimeoutRef.current["1"]);
+      delete retryTimeoutRef.current["1"];
+    }
+
     initializeTab("1");
   }, [initializeTab]);
 
   const handleRetryOrders = useCallback(() => {
     const tabId = activeTab;
+    console.log(`🔄 Manual retry for orders tab ${tabId}`);
     setTabInitialized((prev) => ({ ...prev, [tabId]: false }));
     setRetryCount((prev) => ({ ...prev, [tabId]: 0 }));
     fetchingRef.current[tabId] = false;
+
+    // Clear any pending retry
+    if (retryTimeoutRef.current[tabId]) {
+      clearTimeout(retryTimeoutRef.current[tabId]);
+      delete retryTimeoutRef.current[tabId];
+    }
+
     initializeTab(tabId);
   }, [activeTab, initializeTab]);
 
@@ -222,6 +276,7 @@ const TabContent: React.FC<TabContentProps> = React.memo(({ activeTab }) => {
       disputeOrders,
     ]
   );
+
   return (
     <LazyMotion features={domAnimation}>
       {/* Watchlist Tab */}
