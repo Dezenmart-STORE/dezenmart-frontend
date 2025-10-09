@@ -49,14 +49,27 @@ export const fetchUserOrders = createAsyncThunk<
 >(
   "orders/fetchUserOrders",
   async (forceRefresh = false, { rejectWithValue }) => {
+    console.log("🌐 fetchUserOrders thunk started", { forceRefresh });
     try {
       const response = await api.getUserOrders("buyer", forceRefresh);
+      console.log("🌐 fetchUserOrders API response:", response);
+      console.log("🌐 fetchUserOrders response.ok:", response.ok);
+      console.log("🌐 fetchUserOrders response.data:", response.data);
+
       if (!response.ok) {
+        console.error("🌐 fetchUserOrders API error:", response.error);
         return rejectWithValue(response.error || "Failed to fetch orders");
       }
-      console.log("ttresponse.data.data.orders:", response.data);
-      return response.data.data.orders;
+
+      const orders = response.data.data.orders;
+      console.log("🌐 fetchUserOrders extracted orders:", orders);
+      console.log("🌐 fetchUserOrders orders type:", typeof orders);
+      console.log("🌐 fetchUserOrders is array:", Array.isArray(orders));
+      console.log("🌐 fetchUserOrders length:", orders?.length);
+
+      return orders;
     } catch (error) {
+      console.error("🌐 fetchUserOrders caught error:", error);
       return rejectWithValue(
         error instanceof Error ? error.message : "Unknown error"
       );

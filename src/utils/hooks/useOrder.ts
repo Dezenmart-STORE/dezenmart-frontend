@@ -41,6 +41,13 @@ export const useOrderData = () => {
   const currentOrder = useAppSelector(selectCurrentOrder);
   const loading = useAppSelector(selectOrderLoading);
   const error = useAppSelector(selectOrderError);
+  console.log("🎣 useOrderData - Raw orders from selector:", orders);
+  console.log("🎣 useOrderData - Orders type:", typeof orders);
+  console.log("🎣 useOrderData - Is array:", Array.isArray(orders));
+  console.log("🎣 useOrderData - Orders length:", orders?.length);
+  console.log("🎣 useOrderData - Loading:", loading);
+  console.log("🎣 useOrderData - Error:", error);
+
   const tokenSymbol = useMemo(
     () => wallet.selectedToken.symbol,
     [wallet.selectedToken.symbol]
@@ -48,7 +55,12 @@ export const useOrderData = () => {
 
   const formatOrderWithCurrencies = useCallback(
     (order: Order) => {
-      if (!order || !order._id) return null;
+      console.log("💰 Formatting order:", order?._id, order);
+
+      if (!order || !order._id) {
+        console.warn("⚠️ Invalid order (no _id):", order);
+        return null;
+      }
 
       const usdtPrice = order.amount;
       const celoPrice = convertPrice(usdtPrice, "USDT", "CELO");
@@ -59,7 +71,7 @@ export const useOrderData = () => {
       const totalFiatAmount = fiatPrice * (order.quantity || 1);
       const totalTokenAmount = tokenPrice * (order.quantity || 1);
 
-      return {
+      const formatted = {
         ...order,
         formattedDate: new Date(order.createdAt).toLocaleDateString(),
         formattedAmount: usdtPrice.toFixed(2),
@@ -81,14 +93,28 @@ export const useOrderData = () => {
         formattedCeloAmount: formatPrice(totalCeloAmount, "CELO"),
         formattedFiatAmount: formatPrice(totalFiatAmount, "FIAT"),
       };
+
+      console.log("💰 Formatted order result:", formatted);
+      return formatted;
     },
-    [convertPrice, formatPrice, tokenSymbol]
+    [convertPrice, formatPrice, tokenSymbol, wallet.selectedToken.symbol]
   );
 
   const formattedOrders = useMemo(() => {
-    return orders
+    console.log("🔄 Computing formattedOrders from orders:", orders);
+    console.log("🔄 Orders before mapping:", orders?.length, orders);
+
+    if (!Array.isArray(orders)) {
+      console.error("❌ orders is not an array!", typeof orders, orders);
+      return [];
+    }
+
+    const formatted = orders
       .map(formatOrderWithCurrencies)
       .filter((order): order is NonNullable<typeof order> => order !== null);
+
+    console.log("🔄 Formatted orders result:", formatted?.length, formatted);
+    return formatted;
   }, [orders, formatOrderWithCurrencies]);
 
   const formattedSellerOrders = useMemo(() => {
@@ -101,21 +127,44 @@ export const useOrderData = () => {
   }, [currentOrder, formatOrderWithCurrencies]);
 
   const disputeOrders = useMemo(() => {
-    console.log("Computing disputeOrders, all orders:", formattedOrders);
-    const filtered = formattedOrders.filter(
-      (order) => order?.status === "disputed" && order?.product?._id
+    console.log("🚨 Computing disputeOrders");
+    console.log(
+      "🚨 Input formattedOrders:",
+      formattedOrders?.length,
+      formattedOrders
     );
-    console.log("Disputed orders:", filtered);
+
+    const filtered = formattedOrders.filter((order) => {
+      const isDisputed = order?.status === "disputed";
+      const hasProduct = order?.product?._id;
+      console.log(
+        `🚨 Order ${order?._id}: disputed=${isDisputed}, hasProduct=${hasProduct}`
+      );
+      return isDisputed && hasProduct;
+    });
+
+    console.log("🚨 Disputed orders result:", filtered?.length, filtered);
     return filtered;
   }, [formattedOrders]);
 
   const nonDisputeOrders = useMemo(() => {
-    console.log("ttComputing formattedOrders, all orders:", orders);
-    console.log("Computing nonDisputeOrders, all orders:", formattedOrders);
-    const filtered = formattedOrders.filter(
-      (order) => order?.status !== "disputed" && order?.product?._id
+    console.log("✅ Computing nonDisputeOrders");
+    console.log(
+      "✅ Input formattedOrders:",
+      formattedOrders?.length,
+      formattedOrders
     );
-    console.log("Non-disputed orders:", filtered);
+
+    const filtered = formattedOrders.filter((order) => {
+      const isNotDisputed = order?.status !== "disputed";
+      const hasProduct = order?.product?._id;
+      console.log(
+        `✅ Order ${order?._id}: notDisputed=${isNotDisputed}, hasProduct=${hasProduct}, status=${order?.status}`
+      );
+      return isNotDisputed && hasProduct;
+    });
+
+    console.log("✅ Non-disputed orders result:", filtered?.length, filtered);
     return filtered;
   }, [formattedOrders]);
 
@@ -208,13 +257,23 @@ export const useOrderData = () => {
 
   const fetchBuyerOrders = useCallback(
     async (showNotification = false, forceRefresh = false) => {
+      console.log("📥 fetchBuyerOrders called", {
+        showNotification,
+        forceRefresh,
+      });
       try {
         const result = await dispatch(fetchUserOrders(forceRefresh)).unwrap();
+        console.log("📥 fetchBuyerOrders result:", result);
+        console.log("📥 fetchBuyerOrders result type:", typeof result);
+        console.log("📥 fetchBuyerOrders is array:", Array.isArray(result));
+        console.log("📥 fetchBuyerOrders length:", result?.length);
+
         if (showNotification) {
           showSnackbar("Orders loaded successfully", "success");
         }
         return result;
       } catch (err) {
+        console.error("❌ fetchBuyerOrders error:", err);
         if (showNotification) {
           showSnackbar((err as string) || "Failed to load orders", "error");
         }

@@ -42,6 +42,14 @@ const TabContent: React.FC<TabContentProps> = React.memo(({ activeTab }) => {
     error: orderError,
   } = useOrderData();
 
+  console.log("🎨 TabContent render", {
+    activeTab,
+    disputeOrdersCount: disputeOrders?.length,
+    nonDisputeOrdersCount: nonDisputeOrders?.length,
+    orderLoading,
+    orderError,
+  });
+
   const {
     watchlistItems,
     fetchUserWatchlist,
