@@ -101,15 +101,21 @@ export const useOrderData = () => {
   }, [currentOrder, formatOrderWithCurrencies]);
 
   const disputeOrders = useMemo(() => {
-    return formattedOrders.filter(
-      (order) => order.status === "disputed" && order.product?._id
+    console.log("Computing disputeOrders, all orders:", formattedOrders);
+    const filtered = formattedOrders.filter(
+      (order) => order?.status === "disputed" && order?.product?._id
     );
+    console.log("Disputed orders:", filtered);
+    return filtered;
   }, [formattedOrders]);
 
   const nonDisputeOrders = useMemo(() => {
-    return formattedOrders.filter(
-      (order) => order.status !== "disputed" && order.product?._id
+    console.log("Computing nonDisputeOrders, all orders:", formattedOrders);
+    const filtered = formattedOrders.filter(
+      (order) => order?.status !== "disputed" && order?.product?._id
     );
+    console.log("Non-disputed orders:", filtered);
+    return filtered;
   }, [formattedOrders]);
 
   const activeTrades = useMemo(() => {
