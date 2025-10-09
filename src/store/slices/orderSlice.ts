@@ -61,7 +61,7 @@ export const fetchUserOrders = createAsyncThunk<
         return rejectWithValue(response.error || "Failed to fetch orders");
       }
 
-      const orders = response.data.data.orders;
+      const orders = response.data.data;
       console.log("🌐 fetchUserOrders extracted orders:", orders);
       console.log("🌐 fetchUserOrders orders type:", typeof orders);
       console.log("🌐 fetchUserOrders is array:", Array.isArray(orders));
