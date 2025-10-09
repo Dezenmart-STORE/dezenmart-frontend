@@ -87,7 +87,7 @@ const TabContent: React.FC<TabContentProps> = React.memo(({ activeTab }) => {
           case "3":
           case "4":
             const orders = await fetchBuyerOrders(false, true);
-            success = orders !== null;
+            success = Array.isArray(orders);
             break;
           default:
             success = true;
@@ -97,24 +97,28 @@ const TabContent: React.FC<TabContentProps> = React.memo(({ activeTab }) => {
           setTabInitialized((prev) => ({ ...prev, [tabId]: true }));
           setRetryCount((prev) => ({ ...prev, [tabId]: 0 }));
         } else if (currentRetry < maxRetries) {
-          // Auto-retry with exponential backoff
           setTimeout(() => {
             fetchingRef.current[tabId] = false;
             setRetryCount((prev) => ({ ...prev, [tabId]: currentRetry + 1 }));
+            // Trigger re-initialization
+            initializeTab(tabId);
           }, Math.pow(2, currentRetry) * 1000);
+          return;
         }
       } catch (error: any) {
         console.error(`Failed to initialize tab ${tabId}:`, error);
 
-        // Only retry for non-abort errors
-        if (error?.name !== "AbortError" && retryCount[tabId] < 3) {
+        if (error?.name !== "AbortError" && (retryCount[tabId] || 0) < 3) {
           setTimeout(() => {
             fetchingRef.current[tabId] = false;
             setRetryCount((prev) => ({
               ...prev,
               [tabId]: (prev[tabId] || 0) + 1,
             }));
+            // Trigger re-initialization
+            initializeTab(tabId);
           }, 2000);
+          return;
         }
       } finally {
         fetchingRef.current[tabId] = false;
@@ -157,31 +161,23 @@ const TabContent: React.FC<TabContentProps> = React.memo(({ activeTab }) => {
     initializeTab(tabId);
   }, [activeTab, initializeTab]);
 
-  // Enhanced loading state
+  // loading state
   const isTabLoading = useCallback(
     (tabId: string) => {
-      const isFetching = fetchingRef.current[tabId];
       const hasData =
         (tabId === "1" && watchlistItems.length > 0) ||
         (tabId === "3" && nonDisputeOrders && nonDisputeOrders.length > 0) ||
         (tabId === "4" && disputeOrders && disputeOrders.length > 0);
 
-      // Show loading only if fetching and no data yet
-      return (
-        isFetching ||
-        (!tabInitialized[tabId] &&
-          ((tabId === "1" && watchlistLoading) ||
-            (["3", "4"].includes(tabId) && orderLoading)))
-      );
+      if (hasData) {
+        return false;
+      }
+
+      const isFetching = fetchingRef.current[tabId];
+
+      return isFetching || !tabInitialized[tabId];
     },
-    [
-      tabInitialized,
-      watchlistLoading,
-      orderLoading,
-      watchlistItems,
-      nonDisputeOrders,
-      disputeOrders,
-    ]
+    [tabInitialized, watchlistItems, nonDisputeOrders, disputeOrders]
   );
 
   // Determine if error should be shown
@@ -190,11 +186,33 @@ const TabContent: React.FC<TabContentProps> = React.memo(({ activeTab }) => {
       const hasError =
         (tabId === "1" && watchlistError) ||
         (["3", "4"].includes(tabId) && orderError);
-      const isRetrying = retryCount[tabId] > 0 && retryCount[tabId] < 3;
 
-      return hasError && !isTabLoading(tabId) && !isRetrying;
+      const hasData =
+        (tabId === "1" && watchlistItems.length > 0) ||
+        (tabId === "3" && nonDisputeOrders && nonDisputeOrders.length > 0) ||
+        (tabId === "4" && disputeOrders && disputeOrders.length > 0);
+
+      const isRetrying =
+        (retryCount[tabId] || 0) > 0 && (retryCount[tabId] || 0) < 3;
+      const isLoading = isTabLoading(tabId);
+      return (
+        hasError &&
+        tabInitialized[tabId] &&
+        !isLoading &&
+        !isRetrying &&
+        !hasData
+      );
     },
-    [watchlistError, orderError, isTabLoading, retryCount]
+    [
+      watchlistError,
+      orderError,
+      isTabLoading,
+      retryCount,
+      tabInitialized,
+      watchlistItems,
+      nonDisputeOrders,
+      disputeOrders,
+    ]
   );
   return (
     <LazyMotion features={domAnimation}>
