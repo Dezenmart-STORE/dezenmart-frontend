@@ -110,6 +110,7 @@ export const useOrderData = () => {
   }, [formattedOrders]);
 
   const nonDisputeOrders = useMemo(() => {
+    console.log("ttComputing formattedOrders, all orders:", orders);
     console.log("Computing nonDisputeOrders, all orders:", formattedOrders);
     const filtered = formattedOrders.filter(
       (order) => order?.status !== "disputed" && order?.product?._id
