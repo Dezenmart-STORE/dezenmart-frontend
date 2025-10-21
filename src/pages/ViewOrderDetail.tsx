@@ -132,21 +132,21 @@ const ViewOrderDetail = memo(() => {
   }, [orderId, needsValidation, getOrderByIdWithValidation]);
 
   // status updates
-  useEffect(() => {
-    if (orderDetails?.status) {
-      const key =
-        orderDetails.status.toLowerCase() as keyof typeof statusMapping;
-      const newStatus = statusMapping[key] || "pending";
+  // useEffect(() => {
+  //   if (orderDetails?.status) {
+  //     const key =
+  //       orderDetails.status.toLowerCase() as keyof typeof statusMapping;
+  //     const newStatus = statusMapping[key] || "pending";
 
-      // Only update if status actually changed
-      setOrderStatus((prevStatus) => {
-        if (prevStatus !== newStatus) {
-          return newStatus;
-        }
-        return prevStatus;
-      });
-    }
-  }, [orderDetails?.status, statusMapping]);
+  //     // Only update if status actually changed
+  //     setOrderStatus((prevStatus) => {
+  //       if (prevStatus !== newStatus) {
+  //         return newStatus;
+  //       }
+  //       return prevStatus;
+  //     });
+  //   }
+  // }, [orderDetails?.status, statusMapping]);
 
   const handleContactSeller = useCallback(() => {
     toast.info("Opening chat with seller...");

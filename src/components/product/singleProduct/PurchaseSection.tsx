@@ -566,12 +566,12 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = memo(
         return;
       }
 
-      if (!hasSufficientBalance) {
-        updateState({
-          purchaseError: `Insufficient ${wallet.selectedToken.symbol} balance`,
-        });
-        return;
-      }
+      // if (!hasSufficientBalance) {
+      //   updateState({
+      //     purchaseError: `Insufficient ${wallet.selectedToken.symbol} balance`,
+      //   });
+      //   return;
+      // }
 
       // if (wallet.selectedToken.symbol !== product.paymentToken) {
       //   const canSwap = await validateSwapRequirements();
