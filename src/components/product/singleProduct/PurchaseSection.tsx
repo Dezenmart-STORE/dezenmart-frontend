@@ -23,7 +23,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../../context/AuthContext";
 import { useCurrencyConverter } from "../../../utils/hooks/useCurrencyConverter";
 import { STABLE_TOKENS } from "../../../utils/config/web3.config";
-import { useMento } from "../../../utils/hooks/useMento";
+// import { useMento } from "../../../utils/hooks/useMento";
 import { debounce } from "lodash-es";
 
 // Lazy load heavy modals
@@ -341,163 +341,163 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = memo(
     }, [wallet, product, computedTotals, state.mounted]);
 
     // Swap support validation
-    const isSwapSupported = useCallback(async () => {
-      if (
-        !wallet.isConnected ||
-        !product ||
-        wallet.selectedToken.symbol === product.paymentToken
-      ) {
-        return true;
-      }
+    // const isSwapSupported = useCallback(async () => {
+    //   if (
+    //     !wallet.isConnected ||
+    //     !product ||
+    //     wallet.selectedToken.symbol === product.paymentToken
+    //   ) {
+    //     return true;
+    //   }
 
-      try {
-        const fromToken = STABLE_TOKENS.find(
-          (t) => t.symbol === wallet.selectedToken.symbol
-        );
-        const toToken = STABLE_TOKENS.find(
-          (t) => t.symbol === product.paymentToken
-        );
+    //   try {
+    //     const fromToken = STABLE_TOKENS.find(
+    //       (t) => t.symbol === wallet.selectedToken.symbol
+    //     );
+    //     const toToken = STABLE_TOKENS.find(
+    //       (t) => t.symbol === product.paymentToken
+    //     );
 
-        if (!fromToken || !toToken) return false;
+    //     if (!fromToken || !toToken) return false;
 
-        // Test with minimal amount
-        await getSwapQuote(
-          wallet.selectedToken.symbol,
-          product.paymentToken,
-          0.1
-        );
-        return true;
-      } catch {
-        return false;
-      }
-    }, [
-      wallet.selectedToken.symbol,
-      product?.paymentToken,
-      getSwapQuote,
-      wallet.isConnected,
-    ]);
+    //     // Test with minimal amount
+    //     await getSwapQuote(
+    //       wallet.selectedToken.symbol,
+    //       product.paymentToken,
+    //       0.1
+    //     );
+    //     return true;
+    //   } catch {
+    //     return false;
+    //   }
+    // }, [
+    //   wallet.selectedToken.symbol,
+    //   product?.paymentToken,
+    //   getSwapQuote,
+    //   wallet.isConnected,
+    // ]);
 
     // Debounced quote fetching
-    const updateSwapQuote = useCallback(
-      debounce(async () => {
-        if (
-          !product ||
-          !wallet.isConnected ||
-          wallet.selectedToken.symbol === product.paymentToken
-        ) {
-          updateState({ swapQuote: "" });
-          return;
-        }
+    // const updateSwapQuote = useCallback(
+    //   debounce(async () => {
+    //     if (
+    //       !product ||
+    //       !wallet.isConnected ||
+    //       wallet.selectedToken.symbol === product.paymentToken
+    //     ) {
+    //       updateState({ swapQuote: "" });
+    //       return;
+    //     }
 
-        if (computedTotals.totalInSelected <= 0) return;
+    //     if (computedTotals.totalInSelected <= 0) return;
 
-        // Cancel previous request
-        if (abortControllerRef.current) {
-          abortControllerRef.current.abort();
-        }
+    //     // Cancel previous request
+    //     if (abortControllerRef.current) {
+    //       abortControllerRef.current.abort();
+    //     }
 
-        abortControllerRef.current = new AbortController();
-        updateState({ isGettingQuote: true });
+    //     abortControllerRef.current = new AbortController();
+    //     updateState({ isGettingQuote: true });
 
-        try {
-          const quote = await getSwapQuote(
-            wallet.selectedToken.symbol,
-            product.paymentToken,
-            computedTotals.totalInSelected
-          );
+    //     try {
+    //       const quote = await getSwapQuote(
+    //         wallet.selectedToken.symbol,
+    //         product.paymentToken,
+    //         computedTotals.totalInSelected
+    //       );
 
-          if (!abortControllerRef.current.signal.aborted) {
-            updateState({ swapQuote: quote, isGettingQuote: false });
-          }
-        } catch (error) {
-          if (!abortControllerRef.current?.signal.aborted) {
-            console.error("Failed to get swap quote:", error);
-            updateState({ swapQuote: "", isGettingQuote: false });
-          }
-        }
-      }, QUOTE_DEBOUNCE_MS),
-      [
-        product,
-        wallet.isConnected,
-        wallet.selectedToken.symbol,
-        computedTotals.totalInSelected,
-        getSwapQuote,
-        updateState,
-      ]
-    );
+    //       if (!abortControllerRef.current.signal.aborted) {
+    //         updateState({ swapQuote: quote, isGettingQuote: false });
+    //       }
+    //     } catch (error) {
+    //       if (!abortControllerRef.current?.signal.aborted) {
+    //         console.error("Failed to get swap quote:", error);
+    //         updateState({ swapQuote: "", isGettingQuote: false });
+    //       }
+    //     }
+    //   }, QUOTE_DEBOUNCE_MS),
+    //   [
+    //     product,
+    //     wallet.isConnected,
+    //     wallet.selectedToken.symbol,
+    //     computedTotals.totalInSelected,
+    //     getSwapQuote,
+    //     updateState,
+    //   ]
+    // );
 
     // Update quote when relevant values change
-    useEffect(() => {
-      if (quoteTimeoutRef.current) {
-        clearTimeout(quoteTimeoutRef.current);
-      }
+    // useEffect(() => {
+    //   if (quoteTimeoutRef.current) {
+    //     clearTimeout(quoteTimeoutRef.current);
+    //   }
 
-      quoteTimeoutRef.current = setTimeout(() => {
-        updateSwapQuote();
-      }, 100);
+    //   quoteTimeoutRef.current = setTimeout(() => {
+    //     updateSwapQuote();
+    //   }, 100);
 
-      return () => {
-        if (quoteTimeoutRef.current) {
-          clearTimeout(quoteTimeoutRef.current);
-        }
-      };
-    }, [updateSwapQuote]);
+    //   return () => {
+    //     if (quoteTimeoutRef.current) {
+    //       clearTimeout(quoteTimeoutRef.current);
+    //     }
+    //   };
+    // }, [updateSwapQuote]);
 
     // Cleanup on unmount
-    useEffect(() => {
-      return () => {
-        if (abortControllerRef.current) {
-          abortControllerRef.current.abort();
-        }
-        updateSwapQuote.cancel();
-      };
-    }, [updateSwapQuote]);
+    // useEffect(() => {
+    //   return () => {
+    //     if (abortControllerRef.current) {
+    //       abortControllerRef.current.abort();
+    //     }
+    //     updateSwapQuote.cancel();
+    //   };
+    // }, [updateSwapQuote]);
 
     // Validate swap requirements
-    const validateSwapRequirements = useCallback(async () => {
-      if (!wallet.isConnected || !product) return false;
+    // const validateSwapRequirements = useCallback(async () => {
+    //   if (!wallet.isConnected || !product) return false;
 
-      try {
-        const mentoReady = await initializeMento();
-        if (!mentoReady) {
-          updateState({
-            purchaseError:
-              "Swap functionality not available. Please try again.",
-          });
-          return false;
-        }
+    //   try {
+    //     const mentoReady = await initializeMento();
+    //     if (!mentoReady) {
+    //       updateState({
+    //         purchaseError:
+    //           "Swap functionality not available. Please try again.",
+    //       });
+    //       return false;
+    //     }
 
-        const balance = parseFloat(
-          wallet.tokenBalances[wallet.selectedToken.symbol]?.raw || "0"
-        );
-        if (balance < computedTotals.totalInSelected) {
-          updateState({
-            purchaseError: `Insufficient ${wallet.selectedToken.symbol} balance for swap`,
-          });
-          return false;
-        }
+    //     const balance = parseFloat(
+    //       wallet.tokenBalances[wallet.selectedToken.symbol]?.raw || "0"
+    //     );
+    //     if (balance < computedTotals.totalInSelected) {
+    //       updateState({
+    //         purchaseError: `Insufficient ${wallet.selectedToken.symbol} balance for swap`,
+    //       });
+    //       return false;
+    //     }
 
-        const pairSupported = await isSwapSupported();
-        if (!pairSupported) {
-          updateState({
-            purchaseError: `${wallet.selectedToken.symbol}/${product.paymentToken} swap not supported`,
-          });
-          return false;
-        }
+    //     const pairSupported = await isSwapSupported();
+    //     if (!pairSupported) {
+    //       updateState({
+    //         purchaseError: `${wallet.selectedToken.symbol}/${product.paymentToken} swap not supported`,
+    //       });
+    //       return false;
+    //     }
 
-        return true;
-      } catch (error) {
-        updateState({ purchaseError: "Failed to validate swap requirements" });
-        return false;
-      }
-    }, [
-      wallet,
-      product,
-      computedTotals,
-      initializeMento,
-      isSwapSupported,
-      updateState,
-    ]);
+    //     return true;
+    //   } catch (error) {
+    //     updateState({ purchaseError: "Failed to validate swap requirements" });
+    //     return false;
+    //   }
+    // }, [
+    //   wallet,
+    //   product,
+    //   computedTotals,
+    //   // initializeMento,
+    //   isSwapSupported,
+    //   updateState,
+    // ]);
 
     // Execute order
     const executeOrder = useCallback(async () => {
@@ -573,14 +573,14 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = memo(
         return;
       }
 
-      if (wallet.selectedToken.symbol !== product.paymentToken) {
-        const canSwap = await validateSwapRequirements();
-        if (!canSwap) return;
+      // if (wallet.selectedToken.symbol !== product.paymentToken) {
+      //   const canSwap = await validateSwapRequirements();
+      //   if (!canSwap) return;
 
-        updateState({ showSwapModal: true });
-        console.log("should show modal", state);
-        return;
-      }
+      //   updateState({ showSwapModal: true });
+      //   console.log("should show modal", state);
+      //   return;
+      // }
 
       await executeOrder();
     }, [
@@ -589,52 +589,52 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = memo(
       state.selectedLogistics,
       wallet,
       hasSufficientBalance,
-      validateSwapRequirements,
+      // validateSwapRequirements,
       executeOrder,
       navigate,
       updateState,
     ]);
 
     // Handle swap confirmation
-    const handleConfirmSwap = useCallback(async () => {
-      if (!product) return;
+    // const handleConfirmSwap = useCallback(async () => {
+    //   if (!product) return;
 
-      updateState({ purchaseError: null });
+    //   updateState({ purchaseError: null });
 
-      try {
-        await performSwap(
-          wallet.selectedToken.symbol,
-          product.paymentToken,
-          computedTotals.totalInSelected
-        );
+    //   try {
+    //     await performSwap(
+    //       wallet.selectedToken.symbol,
+    //       product.paymentToken,
+    //       computedTotals.totalInSelected
+    //     );
 
-        const targetToken = STABLE_TOKENS.find(
-          (t) => t.symbol === product.paymentToken
-        );
-        if (targetToken) {
-          setSelectedToken(targetToken);
-        }
+    //     const targetToken = STABLE_TOKENS.find(
+    //       (t) => t.symbol === product.paymentToken
+    //     );
+    //     if (targetToken) {
+    //       setSelectedToken(targetToken);
+    //     }
 
-        updateState({ showSwapModal: false });
+    //     updateState({ showSwapModal: false });
 
-        setTimeout(() => {
-          executeOrder();
-        }, SWAP_CONFIRMATION_DELAY);
-      } catch (err: any) {
-        console.error("Swap failed:", err);
-        updateState({
-          purchaseError: err.message || "Swap failed. Please try again.",
-        });
-      }
-    }, [
-      product,
-      performSwap,
-      wallet.selectedToken.symbol,
-      computedTotals,
-      setSelectedToken,
-      executeOrder,
-      updateState,
-    ]);
+    //     setTimeout(() => {
+    //       executeOrder();
+    //     }, SWAP_CONFIRMATION_DELAY);
+    //   } catch (err: any) {
+    //     console.error("Swap failed:", err);
+    //     updateState({
+    //       purchaseError: err.message || "Swap failed. Please try again.",
+    //     });
+    //   }
+    // }, [
+    //   product,
+    //   performSwap,
+    //   wallet.selectedToken.symbol,
+    //   computedTotals,
+    //   setSelectedToken,
+    //   executeOrder,
+    //   updateState,
+    // ]);
 
     // Format balance utility
     const formatBalance = useCallback(
@@ -663,8 +663,10 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = memo(
       );
     }
 
-    const isLoading = state.isProcessing || swapState.isSwapping;
-    const hasError = state.purchaseError || swapState.error;
+    const isLoading = state.isProcessing;
+    // || swapState.isSwapping;
+    const hasError = state.purchaseError;
+    // || swapState.error;
     const needsSwap = Boolean(
       wallet.isConnected &&
         product &&
@@ -766,7 +768,7 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = memo(
             onClose={() => updateState({ showWalletModal: false })}
           />
 
-          <SwapConfirmationModal
+          {/* <SwapConfirmationModal
             isOpen={state.showSwapModal}
             fromToken={wallet.selectedToken.symbol}
             toToken={product?.paymentToken || ""}
@@ -777,7 +779,7 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = memo(
             onClose={() => updateState({ showSwapModal: false })}
             onConfirm={handleConfirmSwap}
             slippage={5}
-          />
+          /> */}
         </Suspense>
       </>
     );
