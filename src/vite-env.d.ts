@@ -2,6 +2,8 @@
 
 interface ImportMetaEnv {
   readonly VITE_API_URL: string;
+  readonly VITE_DE_API_URL: string;
+  readonly VITE_DOMAIN_URL: string;
   readonly VITE_THIRDWEB_CLIENT_ID: string;
   readonly VITE_ESCROW_CONTRACT_TESTNET: string;
   readonly VITE_ESCROW_CONTRACT_MAINNET: string;

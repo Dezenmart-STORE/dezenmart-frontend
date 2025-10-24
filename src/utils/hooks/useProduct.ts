@@ -27,6 +27,7 @@ import { Product } from "../types";
 import { useCurrency } from "../../context/CurrencyContext";
 import { useAuth } from "../../context/AuthContext";
 import { useWeb3 } from "../../context/Web3Context";
+import { CHAINENUMS } from "../../components/account/overview/products/CreateProduct";
 
 export const useProductData = () => {
   const { user } = useAuth();
@@ -234,6 +235,7 @@ export const useProductData = () => {
         }
         return result;
       } catch (err) {
+        console.log(err)
         if (showNotification) {
           showSnackbar((err as string) || "Failed to load product", "error");
         }
@@ -380,11 +382,14 @@ export const useProductData = () => {
   useEffect(() => {
     return () => {};
   }, []);
-
+interface IL {showNotification?:boolean, skipCache?: boolean,chain?:CHAINENUMS}
   const getLogisticsProvidersAsync = useCallback(
-    async (showNotification = false, skipCache = false) => {
+
+    async (dataa:IL={}) => {
+let {showNotification=false ,skipCache =false,chain} = dataa
       try {
-        const response = await api.getLogisticsProviders(skipCache);
+        console.log("dog")
+        const response = await api.getLogisticsProviders({skipCache,chain});
         if (!response.ok) {
           if (showNotification) {
             showSnackbar(

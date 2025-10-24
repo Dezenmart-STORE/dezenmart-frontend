@@ -204,6 +204,29 @@ export const STABLE_TOKENS: StableToken[] = [
     icon: cGHSIcon,
   },
 ];
+export const STABLE_TOKENS_SOLANA: any[] = [
+  {
+    name: "Tether USD",
+    symbol: "USDT",
+    decimals: 6,
+    address: {
+       address:"0x48065fbBE25f71C9282ddf5e1cD6D6A887483D5e",
+     
+    },
+    icon: USDTIcon,
+  },
+  {
+    name: "Test",
+    symbol: "TESTTKN",
+    decimals: 6,
+    address: {
+      address:"",
+    
+    },
+    icon: USDTIcon,
+  },
+  
+];
 
 // Legacy USDT addresses - for backward compatibility
 export const USDT_ADDRESSES = {

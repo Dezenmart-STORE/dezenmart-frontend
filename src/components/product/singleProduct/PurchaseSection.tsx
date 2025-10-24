@@ -37,6 +37,12 @@ const SwapConfirmationModal = lazy(
 // Lightweight components
 import QuantitySelector from "./QuantitySelector";
 import LogisticsSelector, { LogisticsProvider } from "./LogisticsSelector";
+import { useGeneralContract } from "../../../contract/contract";
+import { TESTTOKENMINT } from "../../../contract/solanaContract";
+import { buyTrade } from "../../../store/slices/contractSlice";
+import { generateUniqueNumericalId } from "../../../utils/helpers";
+import { CHAINENUMS } from "../../account/overview/products/CreateProduct";
+import { useGeneralStore } from "../../../context/GeneralContext";
 
 // Types
 interface FormattedProduct extends Product {
@@ -83,6 +89,7 @@ const usePurchaseState = () => {
 };
 
 // Custom hook for memoized calculations
+
 const useCalculatedTotals = ({
   product,
   selectedLogistics,
@@ -261,6 +268,8 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = memo(
   ({ product, selectedVariant }) => {
     const navigate = useNavigate();
     const { placeOrder } = useOrderData();
+    const contract = useGeneralContract()
+  
     const { convertPrice } = useCurrencyConverter();
     const {
       wallet,
@@ -324,8 +333,69 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = memo(
     });
 
     // Balance validation
+    // const hasSufficientBalance = useMemo(() => {
+    //   if (!contract.walletFactory.isConnected || !state.mounted) return false;
+
+    //   const requiredAmount =
+    //     wallet.selectedToken.symbol === product?.paymentToken
+    //       ? computedTotals.totalInPayment
+    //       : computedTotals.totalInSelected;
+
+    //   const currentBalance = wallet.tokenBalances[wallet.selectedToken.symbol];
+    //   if (!currentBalance) return false;
+
+    //   // console.log("parseFloat(currentBalance.raw)", parseFloat(currentBalance.raw));
+    //   // console.log("requiredAmount", requiredAmount);
+    //   return parseFloat(currentBalance.raw) >= requiredAmount;
+    // }, [wallet, product, computedTotals, state.mounted]);
+   let [balanceDetails,setBalanceDetails] = useState<{hasSufficientBalance:boolean,balance:number}>({hasSufficientBalance:false,balance:0})
+   let getcomputedcost = ({
+    product,selectedLogistics,quantity
+   }:{product?:Product,selectedLogistics?:any,quantity?:number})=>{
+     if (!product || !selectedLogistics||!quantity) {
+      return { grandTotalUsd: 0 };
+    }
+    const totalUsd = product.price * quantity;
+    const fee = totalUsd * TRANSACTION_FEE_RATE;
+    const logistics = selectedLogistics.cost;
+    const grandTotalUsd = totalUsd + fee + logistics;
+    return { grandTotalUsd};
+   }
+let store = useGeneralStore()
+ 
+   useEffect(()=>{
+
+    let f = async()=>{
+
+      try{
+let total =getcomputedcost({product,selectedLogistics:state.selectedLogistics,quantity:state.quantity
+
+})
+   
+
+      let c = await contract.getTokenBalance({
+              symbol:product?.paymentToken,
+              tokenMint:product?.tokenMint||TESTTOKENMINT,
+              requiredAmount:total.grandTotalUsd
+            })
+
+        
+if(c){
+
+  setBalanceDetails(c)
+}
+
+
+      }catch(e){
+        console.log(e)
+      }
+    }
+    f()
+   },[product])
     const hasSufficientBalance = useMemo(() => {
-      if (!wallet.isConnected || !state.mounted) return false;
+
+      // return 
+      if (!contract.walletFactory.isConnected || !state.mounted) return false;
 
       const requiredAmount =
         wallet.selectedToken.symbol === product?.paymentToken
@@ -503,29 +573,39 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = memo(
     const executeOrder = useCallback(async () => {
       if (!product || !state.selectedLogistics) return;
 
-      updateState({ isProcessing: true, purchaseError: null });
+    updateState({ isProcessing: true, purchaseError: null });
 
       try {
-        const requiredAmount = computedTotals.totalInPayment.toString();
-        const currentAllowance = await getTokenAllowance(product.paymentToken);
+       
+        // const requiredAmount = computedTotals.totalInPayment.toString();
+        // const currentAllowance = await getTokenAllowance(product.paymentToken);
 
-        if (currentAllowance < computedTotals.totalInPayment) {
-          updateState({ purchaseError: "Approving token spend..." });
-          await approveToken(product.paymentToken, requiredAmount);
-          await new Promise((resolve) => setTimeout(resolve, 2000));
-        }
+        // if (currentAllowance < computedTotals.totalInPayment) {
+        //   updateState({ purchaseError: "Approving token spend..." });
+        //   await approveToken(product.paymentToken, requiredAmount);
+        //   await new Promise((resolve) => setTimeout(resolve, 2000));
+        // }
 
+      let purchaseId = generateUniqueNumericalId(); 
+ let data =  await contract.makeOrder({
+  ...(product as any||{}),...(state as any||{}),purchaseId,requiredAmount:getcomputedcost({product,selectedLogistics:state.selectedLogistics,quantity:state.quantity
+
+}),chain:store.selectedChain as CHAINENUMS,logisticsProvider:state.selectedLogistics.walletAddress,quantity:state.quantity,tokenMint:product.tokenMint||TESTTOKENMINT
+})
         const order = await placeOrder({
           product: product._id,
           quantity: state.quantity,
+          purchaseId,
+          
           logisticsProviderWalletAddress: state.selectedLogistics.walletAddress,
+          
         });
 
         if (!order?._id) {
           throw new Error("Order creation failed");
         }
 
-        await refreshTokenBalance();
+        // await refreshTokenBalance();
         navigate(`/orders/${order._id}?status=pending`);
       } catch (err: any) {
         console.error("Purchase failed:", err);
@@ -546,7 +626,8 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = memo(
       refreshTokenBalance,
       navigate,
       updateState,
-    ]);
+      balanceDetails
+    ,contract.makeOrder]);
 
     // Handle button click
     const handleButtonClick = useCallback(async () => {
@@ -561,26 +642,28 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = memo(
         return;
       }
 
-      if (!wallet.isConnected) {
+      if (!contract.walletFactory.isConnected) {
         updateState({ showWalletModal: true });
         return;
       }
 
-      if (!hasSufficientBalance) {
+      if (!balanceDetails.hasSufficientBalance) {
+        
         updateState({
           purchaseError: `Insufficient ${wallet.selectedToken.symbol} balance`,
         });
         return;
       }
 
-      if (wallet.selectedToken.symbol !== product.paymentToken) {
-        const canSwap = await validateSwapRequirements();
-        if (!canSwap) return;
+      // if (wallet.selectedToken.symbol !== product.paymentToken) {
+      //   console.log("dddddqqqqqqqqxxxx")
+      //   const canSwap = await validateSwapRequirements();
+      //   if (!canSwap) return;
 
-        updateState({ showSwapModal: true });
-        console.log("should show modal", state);
-        return;
-      }
+      //   updateState({ showSwapModal: true });
+      //   console.log("should show modal", state);
+      //   return;
+      // }
 
       await executeOrder();
     }, [
@@ -701,8 +784,8 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = memo(
 
           {/* Balance Warning */}
           <BalanceWarning
-            isConnected={wallet.isConnected}
-            hasSufficientBalance={hasSufficientBalance}
+            isConnected={!!contract.walletFactory.isConnected}
+            hasSufficientBalance={balanceDetails.hasSufficientBalance}
           />
 
           {/* Swap Preview */}
@@ -723,7 +806,7 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = memo(
             aria-label={
               !isAuthenticated
                 ? "Login to buy this product"
-                : !wallet.isConnected
+                : !contract.walletFactory.isConnected
                 ? "Connect wallet to purchase"
                 : "Complete purchase"
             }
@@ -739,7 +822,7 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = memo(
                 <span>
                   {!isAuthenticated
                     ? "Login to Buy"
-                    : !wallet.isConnected
+                    : !contract.walletFactory.isConnected
                     ? "Connect Wallet"
                     : stockStatus.isOutOfStock
                     ? "Out of Stock"

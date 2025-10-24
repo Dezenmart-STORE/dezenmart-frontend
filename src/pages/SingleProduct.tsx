@@ -35,6 +35,7 @@ const SingleProduct = () => {
     useCurrency();
   const [activeTab, setActiveTab] = useState<TabType>("details");
   const [reviewCount, setReviewCount] = useState(0);
+  // const {getToken} = useAuth()
   const { isProductInWatchlist, toggleWatchlist, checkProductWatchlist } =
     useWatchlist();
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(
@@ -84,6 +85,7 @@ const SingleProduct = () => {
   useEffect(() => {
     const loadProduct = async () => {
       if (productId) {
+        console.log(productId,"idddddm")
         await fetchProductById(productId);
         await checkProductWatchlist(productId);
         setActiveTab("details");
@@ -95,7 +97,7 @@ const SingleProduct = () => {
 
     // Cleanup
     return () => {};
-  }, [productId, fetchProductById, checkProductWatchlist]);
+  }, [productId]);
 
   // Initialize with first available variant when product loads
   useEffect(() => {
@@ -249,7 +251,8 @@ const SingleProduct = () => {
               </div>
 
               {typeof formattedProduct.seller === "object" &&
-                formattedProduct.seller?._id !== user?._id && (
+                // formattedProduct.seller?._id !== user?._id && 
+                (
                   <PurchaseSection
                     product={formattedProduct}
                     selectedVariant={selectedVariant as ProductVariant}

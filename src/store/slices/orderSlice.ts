@@ -22,6 +22,7 @@ export const createOrder = createAsyncThunk<
   Order,
   {
     product: string;
+    purchaseId: string|number;
     quantity: number;
     logisticsProviderWalletAddress: string;
     // seller: string;

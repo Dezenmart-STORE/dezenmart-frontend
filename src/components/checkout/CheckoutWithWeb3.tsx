@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo } from "react";
 import { useWeb3 } from "../../context/Web3Context";
-import PaymentModal from "../web3/PaymentModal";
+import PaymentModal from "../web3/p/PaymentModal";
 import Button from "../common/Button";
 import { HiWallet } from "react-icons/hi2";
 

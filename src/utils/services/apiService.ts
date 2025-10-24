@@ -1,3 +1,5 @@
+import { CHAINENUMS } from "../../components/account/overview/products/CreateProduct";
+import { objectToQueryParams } from "../helpers";
 import {
   CreateTradeParams,
   MarkReadParams,
@@ -258,7 +260,7 @@ export const api = {
     const key = cacheKey(`/products/${productId}`);
     // Cancel any existing request
     if (abortControllers.has(key)) {
-      abortControllers.get(key).abort();
+      // abortControllers.get(key).abort();
     }
     const controller = new AbortController();
     abortControllers.set(key, controller);
@@ -399,6 +401,7 @@ export const api = {
   // Orders API endpoints
   createOrder: async (orderData: {
     product: string;
+    purchaseId: string|number;
     quantity: number;
     logisticsProviderWalletAddress: string;
     // seller: string;
@@ -434,7 +437,7 @@ export const api = {
   getOrderById: async (orderId: string) => {
     const key = cacheKey(`/orders/${orderId}`);
     if (abortControllers.has(key)) {
-      abortControllers.get(key).abort();
+      // abortControllers.get(key).abort();
     }
     const controller = new AbortController();
     abortControllers.set(key, controller);
@@ -541,8 +544,9 @@ export const api = {
     });
   },
 
-  getLogisticsProviders: async (skipCache = false) => {
+  getLogisticsProviders: async ({skipCache = false,chain=CHAINENUMS.ethereum}) => {
     const key = cacheKey("/logistics");
+    console.log("Dd")
     if (!skipCache && requestCache.has(key)) {
       return requestCache.get(key);
     }
@@ -551,12 +555,14 @@ export const api = {
     }
     const controller = new AbortController();
     abortControllers.set(key, controller);
-    const result = await fetchWithAuth("/logistics", {
+    const result = await fetchWithAuth(`/logistics?${objectToQueryParams({chain})}`, {
       signal: controller.signal,
+      // body:JSON.stringify({chain})
     });
-    if (result.ok) {
+    if (result.ok) { 
       requestCache.set(key, result);
     }
+    console.log(result)
     return result;
   },
 

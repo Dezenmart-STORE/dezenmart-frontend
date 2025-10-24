@@ -183,6 +183,7 @@ export const useOrderData = () => {
         product: string;
         quantity: number;
         logisticsProviderWalletAddress: string;
+        purchaseId: string|number;
       },
       showNotification = true
     ) => {

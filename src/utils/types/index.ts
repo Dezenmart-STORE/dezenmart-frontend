@@ -62,6 +62,7 @@ export interface Product {
   type: ProductVariant[];
   logisticsCost: string[];
   paymentToken: string;
+  tokenMint: string;
   logisticsProviders: string[];
 }
 //review
@@ -97,9 +98,12 @@ export interface Review {
 
 export interface Order {
   _id: string;
+   logisticsProvider: string;
   product: {
     _id: string;
     name: string;
+    tokenMint: string;
+    chain: string;
     price: number;
     images: string[];
     tradeId: string;

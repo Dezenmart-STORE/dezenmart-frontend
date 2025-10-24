@@ -7,7 +7,9 @@
   "compilerOptions": {
     "types": ["node"],
     "noUnusedLocals": false,
-    "noUnusedParameters": false
+        "resolveJsonModule": true,
+    "noUnusedParameters": false,
+      "esModuleInterop": true,
     // "noUnusedLocals": true,
     // "noUnusedParameters": true,
   }

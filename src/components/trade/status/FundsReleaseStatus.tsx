@@ -15,6 +15,9 @@ import { useWeb3 } from "../../../context/Web3Context";
 import { useSnackbar } from "../../../context/SnackbarContext";
 import { useContract } from "../../../utils/hooks/useSmartContract";
 import { useOrderData } from "../../../utils/hooks/useOrder";
+import { useGeneralContract } from "../../../contract/contract";
+import { token } from "@coral-xyz/anchor/dist/cjs/utils";
+import { CHAINENUMS } from "../../account/overview/products/CreateProduct";
 
 interface FundsReleaseStatusProps {
   tradeDetails?: TradeDetails;
@@ -53,7 +56,7 @@ const FundsReleaseStatus: FC<FundsReleaseStatusProps> = ({
   const [disputeReason, setDisputeReason] = useState("");
   const { confirmDeliveryAndPurchase } = useContract();
   const { wallet } = useWeb3();
-
+let contract = useGeneralContract()
   const sellerName = useMemo(() => {
     if (typeof orderDetails?.seller !== "string") {
       return orderDetails?.seller?.name || "Unknown seller";
@@ -78,9 +81,9 @@ const FundsReleaseStatus: FC<FundsReleaseStatusProps> = ({
       setIsConfirmationModalOpen(false);
     }
   }, [processingState.confirmDelivery]);
-
+console.log(orderDetails,"order details in funds release")
   const handleConfirmDelivery = useCallback(async () => {
-    if (!wallet.isConnected) {
+    if (!contract.walletFactory.isConnected) {
       showSnackbar("Please connect your wallet to continue", "info");
       return;
     }
@@ -94,12 +97,23 @@ const FundsReleaseStatus: FC<FundsReleaseStatusProps> = ({
 
     try {
       if (orderDetails?.purchaseId) {
-        const result = await confirmDeliveryAndPurchase(
-          orderDetails?.purchaseId
-        );
-        if (!result.success) {
-          throw new Error(result.message || "Failed to confirm delivery");
-        }
+        // const result = await confirmDeliveryAndPurchase(
+        //   orderDetails?.purchaseId
+        // );
+
+        await contract.confirmDelivery({
+          ...orderDetails,
+          ...orderDetails.product,
+          purchaseId:orderDetails?.purchaseId,
+          // buyer:contract.wallet.publicKey,
+          logisticsProvider:orderDetails.logisticsProviderWalletAddress[0],
+          tokenMint:orderDetails.product.tokenMint,
+          // sellerTokenAccount:orderDetails.product.,
+          sellerAccount:orderDetails.sellerWalletAddress,
+          chain:orderDetails.product.chain as CHAINENUMS
+
+        })
+     
         await changeOrderStatus(
           orderId,
           {

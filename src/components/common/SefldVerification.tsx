@@ -45,7 +45,7 @@ function SefldVerification({ isOpen, onClose }: props) {
 
   useEffect(() => {
     const id = uuidv4();
-    const API_URL = import.meta.env.VITE_API_URL;
+    const API_URL = import.meta.env.VITE_DE_API_URL;
     setSelfApp(
       new SelfAppBuilder({
         appName: "Dezenmart",

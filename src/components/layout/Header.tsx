@@ -16,6 +16,9 @@ import { useWeb3 } from "../../context/Web3Context";
 import { FiInfo } from "react-icons/fi";
 import SefldVerification from "../common/SefldVerification";
 import { useUserManagement } from "../../utils/hooks/useUser";
+import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
+import SelectChain from "./SelectChain";
+import { useGeneralContract } from "../../contract/contract";
 
 const NavList = [
   { title: "Home", path: "/" },
@@ -34,7 +37,7 @@ const Header = () => {
   const userMenuRef = useRef<HTMLDivElement>(null);
   const { unreadCount, fetchUserUnreadCount } = useNotifications();
   const { loadConversations, totalUnreadMessages } = useChat();
-
+useGeneralContract()
   useEffect(() => {
     if (selectedUser?._id) {
       checkVerificationStatus(false);
@@ -173,13 +176,15 @@ const Header = () => {
         </nav>
 
         <div className="flex items-center gap-2 md:gap-3">
-          <CurrencyToggle />
+          {/* <CurrencyToggle /> */}
+          <SelectChain/>
 
           {/* Token Selector - NEW: Added here */}
           <TokenSelector />
 
           {/* Wallet button */}
           <WalletConnectButton />
+         
 
           {isAuthenticated ? (
             <>

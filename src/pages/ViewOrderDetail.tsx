@@ -47,6 +47,8 @@ const ViewOrderDetail = memo(() => {
     raiseDispute,
   } = useOrderData();
 
+  console.log("Order Details:", orderDetails);
+
   const statusMapping = useMemo(
     () => ({
       pending: "pending" as TradeStatusType,

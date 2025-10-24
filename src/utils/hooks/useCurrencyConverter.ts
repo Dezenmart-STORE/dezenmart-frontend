@@ -29,6 +29,10 @@ const DEFAULT_RATES: Omit<ExchangeRates, "lastUpdated"> = {
   cCAD_FIAT: 0.74,
   cGHS_FIAT: 0.083,
 };
+const DEFAULT_SOLANA_RATES: Omit<ExchangeRates, "lastUpdated"> = {
+  // 
+  TESTTKN :1
+};
 
 // Cache keys
 const CACHE_KEYS = {
@@ -63,6 +67,8 @@ const STABLE_TOKEN_TO_FIAT_MAP: Record<string, string> = {
 
 export const useCurrencyConverter = () => {
   const [rates, setRates] = useState<ExchangeRates>(() => {
+
+    
     const cachedRates = localStorage.getItem(CACHE_KEYS.RATES);
     if (cachedRates) {
       try {

@@ -25,8 +25,12 @@ import { useCurrencyConverter } from "../../../../utils/hooks/useCurrencyConvert
 import { Logistics } from "../../../../utils/types";
 import { useSnackbar } from "../../../../context/SnackbarContext";
 import { useWeb3 } from "../../../../context/Web3Context";
-import { createTradeParams } from "../../../../utils/config/web3.config";
-
+import { createTradeParams, STABLE_TOKENS_SOLANA } from "../../../../utils/config/web3.config";
+import { useGeneralContract } from "../../../../contract/contract";
+export enum CHAINENUMS {
+  solana = 'solana',
+  ethereum = 'ethereum',
+}
 const LoadingSpinner = lazy(() => import("../../../common/LoadingSpinner"));
 
 interface CreateProductProps {
@@ -37,6 +41,7 @@ interface FormErrors {
   name?: string;
   description?: string;
   category?: string;
+  chain?: string;
   price?: string;
   media?: string;
   stock?: string;
@@ -90,7 +95,7 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
   const { convertPrice, userCountry } = useCurrencyConverter();
 
   const [isTokenSelectorOpen, setIsTokenSelectorOpen] = useState(false);
-  const [paymentToken, setPaymentToken] = useState("");
+  const [paymentToken, setPaymentToken] = useState<any>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
@@ -116,15 +121,36 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
       setPaymentToken(wallet.selectedToken.symbol);
     }
   }, [wallet?.selectedToken]);
+  let contract = useGeneralContract()
   const [formState, setFormState] = useState({
     name: "",
     description: "",
     category: "",
     stock: "",
-    sellerWalletAddress: "",
+    sellerWalletAddress: contract?.walletFactory?.address||"",
     priceInUSDT: "",
     priceInFiat: "",
+    chain: contract?.selectedChain||CHAINENUMS.ethereum,
   });
+
+  const chainmetadata=  {
+
+    walletAddress:{
+      placeholder:{
+        [CHAINENUMS.ethereum]:"Enter a valid celo/EVM wallet address",
+        [CHAINENUMS.solana]:"Enter a valid solana wallet address"
+      }
+    },
+    
+    AVALABLETOKEN:{
+ 
+        [CHAINENUMS.ethereum]:availableTokens,
+        [CHAINENUMS.solana]:STABLE_TOKENS_SOLANA
+      
+
+    }
+
+  }
   const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -465,9 +491,10 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
 
   useEffect(() => {
     const fetchLogistics = async () => {
+    
       setLogisticsProviderLoading(true);
-      const result = await getLogisticsProviders();
-
+      const result = await getLogisticsProviders({chain:formState?.chain as CHAINENUMS,skipCache:true});
+        
       const providers = Array.isArray(result?.data?.logisticsProviders)
         ? result.data.logisticsProviders
         : [];
@@ -475,7 +502,7 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
       setLogisticsProviderLoading(false);
     };
     fetchLogistics();
-  }, [getLogisticsProviders]);
+  }, [getLogisticsProviders,formState?.chain]);
 
   const filteredLogistics = useMemo(() => {
     if (!debouncedSearchTerm.trim()) {
@@ -528,11 +555,11 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
     }
 
     // Wallet address validation
-    if (!sellerWalletAddress.trim()) {
-      newErrors.sellerWalletAddress = "Seller wallet address is required";
-    } else if (!/^0x[a-fA-F0-9]{40}$/.test(sellerWalletAddress)) {
-      newErrors.sellerWalletAddress = "Invalid Ethereum wallet address format";
-    }
+    // if (!sellerWalletAddress.trim()) {
+    //   newErrors.sellerWalletAddress = "Seller wallet address is required";
+    // } else if (!/^0x[a-fA-F0-9]{40}$/.test(sellerWalletAddress)) {
+    //   newErrors.sellerWalletAddress = "Invalid Ethereum wallet address format";
+    // }
 
     // Logistics provider validation
     if (selectedLogistics.length === 0) {
@@ -566,7 +593,7 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
     if (nonEmptyVariants.length > 0 && totalVariantQuantity !== stockQuantity) {
       newErrors.variants = `Total variant quantity (${totalVariantQuantity}) exceeds available stock (${stockQuantity})`;
     }
-    if (!paymentToken && !wallet?.selectedToken?.symbol) {
+    if ((!paymentToken  && !paymentToken?.symbol) && !wallet?.selectedToken?.symbol) {
       newErrors.submit = "Please select a payment token";
     }
 
@@ -609,7 +636,7 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
       formData.append("useUSDT", "true");
       
       // Get the selected token symbol
-      const selectedTokenSymbol = paymentToken || wallet?.selectedToken?.symbol || "USDT";
+      const selectedTokenSymbol = paymentToken?.symbol || wallet?.selectedToken?.symbol || "USDT";
       formData.append("paymentToken", selectedTokenSymbol);
       
       // Add the actual token contract address for the smart contract
@@ -659,9 +686,10 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
       mediaFiles.forEach((media) => {
         formData.append(`images`, media.file);
       });
+      formData.append(`chain`, formState.chain);
 
       const result = await createProduct(formData);
-      console.log(result);
+    
       if (result.data) {
         setSuccessMessage("Product created successfully! Redirecting...");
         showSnackbar("Product created successfully!", "success");
@@ -681,6 +709,7 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
             sellerWalletAddress: "",
             priceInUSDT: "",
             priceInFiat: "",
+            chain:CHAINENUMS.ethereum
           });
           setMediaFiles([]);
           setVariants([
@@ -986,6 +1015,68 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
             )}
           </section>
 
+
+
+              {/* chain */}
+          <section aria-labelledby="chain-section">
+            <label
+              id="chain-section"
+              htmlFor="category"
+              className="block text-white mb-2"
+            >
+              Chain
+            </label>
+            <div className="relative">
+              <select
+                id="chain"
+                value={formState.chain}
+                onChange={(e) => updateFormField("chain", e.target.value)}
+                className={`w-full bg-[#333] text-white px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-Red transition-all appearance-none ${
+                  errors.category ? "border border-Red" : ""
+                }`}
+                aria-invalid={!!errors.chain}
+                aria-describedby={
+                  errors.chain ? "category-error" : undefined
+                }
+              >
+                <option value="" disabled>
+                  Select a Chain
+                </option>
+                {Object.keys(CHAINENUMS).map((key) => 
+
+               {   const value = CHAINENUMS[key as keyof typeof CHAINENUMS];
+                return   <option key={key} value={key}>
+                    {key}
+                  </option>}
+                )}
+              </select>
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  fill="currentColor"
+                  viewBox="0 0 16 16"
+                  aria-hidden="true"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z"
+                  />
+                </svg>
+              </div>
+            </div>
+            {errors.category && (
+              <p
+                id="category-error"
+                className="text-Red text-sm mt-1"
+                role="alert"
+              >
+                {errors.category}
+              </p>
+            )}
+          </section>
+
           {/* Seller Wallet Address */}
           <section aria-labelledby="wallet-section">
             <label
@@ -1005,12 +1096,12 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
               className={`w-full bg-[#333] text-white px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-Red transition-all ${
                 errors.sellerWalletAddress ? "border border-Red" : ""
               }`}
-              placeholder="Enter a valid celo/EVM wallet address"
+              placeholder={chainmetadata.walletAddress.placeholder[formState.chain as CHAINENUMS]}
               aria-invalid={!!errors.sellerWalletAddress}
               aria-describedby={
                 errors.sellerWalletAddress ? "wallet-error" : undefined
               }
-              pattern="^0x[a-fA-F0-9]{40}$"
+              // pattern="^0x[a-fA-F0-9]{40}$"
             />
             {errors.sellerWalletAddress && (
               <p
@@ -1337,8 +1428,8 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
                     {typeof wallet?.selectedToken?.icon === "string" &&
                     wallet.selectedToken.icon ? (
                       <img
-                        src={wallet.selectedToken.icon}
-                        alt={wallet.selectedToken.symbol}
+                        src={paymentToken?.icon||wallet.selectedToken.icon}
+                        alt={paymentToken?.symbol||wallet.selectedToken.symbol}
                         className="w-6 h-6 rounded-full"
                       />
                     ) : (
@@ -1348,10 +1439,10 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
 
                   <div className="flex flex-col items-start">
                     <div className="text-white font-medium">
-                      {wallet?.selectedToken?.symbol || "USDT"}
+                      {paymentToken?.symbol||wallet?.selectedToken?.symbol || "USDT"}
                     </div>
                     <div className="text-gray-400 text-sm">
-                      {wallet?.selectedToken?.name || "Tether USD"}
+                      {paymentToken?.name||wallet?.selectedToken?.name || "Tether USD"}
                     </div>
                   </div>
                 </div>
@@ -1374,24 +1465,24 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
                     transition={{ duration: 0.2 }}
                     role="listbox"
                   >
-                    {availableTokens.map((token) => (
+                    {chainmetadata.AVALABLETOKEN[formState.chain as CHAINENUMS] .map((token) => (
                       <button
                         key={token.symbol}
                         type="button"
                         onClick={() => {
-                          setPaymentToken(token.symbol);
+                          setPaymentToken(token);
                           setIsTokenSelectorOpen(false);
                         }}
                         className={`w-full flex items-center justify-between p-3 hover:bg-Red/10 transition-colors ${
                           token.symbol ===
-                          (wallet?.selectedToken?.symbol || paymentToken)
+                          (paymentToken?.symbol||wallet?.selectedToken?.symbol )
                             ? "bg-Red/20 border-l-2 border-Red"
                             : ""
                         }`}
                         role="option"
                         aria-selected={
                           token.symbol ===
-                          (wallet?.selectedToken?.symbol || paymentToken)
+                          (paymentToken?.symbol||wallet?.selectedToken?.symbol )
                         }
                       >
                         <div className="flex items-center gap-3">

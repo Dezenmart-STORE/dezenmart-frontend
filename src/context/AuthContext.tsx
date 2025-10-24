@@ -89,13 +89,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const login = (provider: string) => {
+    console.log(import.meta.env.DOMAIN_URL)
     const API_URL = import.meta.env.VITE_API_URL;
+    const DOMAIN_URL = import.meta.env.VITE_DOMAIN_URL;
     // const FRONTEND_URL = window.location.origin;
 
     if (provider === "google") {
       // storage.setItem("auth_redirect", window.location.origin);
 
-      const redirectUrl = `${API_URL}/auth/google?origin=https://dezenmart.netlify.app`;
+      const redirectUrl = `${API_URL}/auth/google?origin=${DOMAIN_URL}`;
       // ?frontend=${FRONTEND_URL}
       // console.log("Redirecting to:", redirectUrl);
       window.location.href = redirectUrl;

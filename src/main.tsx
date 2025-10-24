@@ -22,6 +22,8 @@ import { Web3Provider } from "./context/Web3Context.tsx";
 import { wagmiConfig } from "./utils/config/web3.config.ts";
 import TermsModal from "./components/common/TermsModal.tsx";
 import { TermsProvider } from "./context/TermsContext.tsx";
+import SolanaProvider from "./context/SolanaContext.tsx";
+import { GeneralStore } from "./context/GeneralContext.tsx";
 
 // import GoogleCallback from "./pages/GoogleCallback.tsx";
 
@@ -57,11 +59,15 @@ setupGlobalErrorHandling();
 const RouterLayout = () => {
   return (
     <Configuration>
+      <GeneralStore>
+
       <SnackbarProvider>
         <Provider store={store}>
           <WagmiProvider config={wagmiConfig}>
             <QueryClientProvider client={queryClient}>
               <Web3Provider>
+                <SolanaProvider>
+
                 <AuthProvider>
                   <TermsProvider>
                     <CurrencyProvider>
@@ -75,11 +81,13 @@ const RouterLayout = () => {
                     </CurrencyProvider>
                   </TermsProvider>
                 </AuthProvider>
+                </SolanaProvider>
               </Web3Provider>
             </QueryClientProvider>
           </WagmiProvider>
         </Provider>
       </SnackbarProvider>
+      </GeneralStore>
     </Configuration>
   );
 };
@@ -89,11 +97,11 @@ const router = createBrowserRouter([
     path: "/",
     element: <RouterLayout />,
 
-    errorElement: (
-      <ErrorBoundary>
-        <NotFound />
-      </ErrorBoundary>
-    ),
+    // errorElement: (
+    //   <ErrorBoundary>
+    //     <NotFound />
+    //   </ErrorBoundary>
+    // ),
     children: [
       {
         index: true,

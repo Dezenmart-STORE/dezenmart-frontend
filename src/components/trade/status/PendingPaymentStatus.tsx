@@ -18,7 +18,7 @@ import { useWeb3 } from "../../../context/Web3Context";
 // import { useWalletBalance } from "../../../utils/hooks/useWalletBalance";
 import { useOrderData } from "../../../utils/hooks/useOrder";
 import { ESCROW_ADDRESSES } from "../../../utils/config/web3.config";
-import PaymentModal from "../../web3/PaymentModal";
+import PaymentModal from "../../web3/p/PaymentModal";
 import WalletConnectionModal from "../../web3/WalletConnectionModal";
 import {
   clearStoredOrderId,
@@ -27,6 +27,7 @@ import {
 } from "../../../utils/helpers";
 import { PaymentTransaction } from "../../../utils/types/web3.types";
 import { useCurrencyConverter } from "../../../utils/hooks/useCurrencyConverter";
+import { useGeneralContract } from "../../../contract/contract";
 
 interface PendingPaymentStatusProps {
   tradeDetails?: TradeDetails;
@@ -194,7 +195,7 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
     orderDetails?.logisticsProviderWalletAddress?.[0],
     wallet.isConnected,
   ]);
-
+  const contract = useGeneralContract();
   const orderValidation = useMemo(() => {
     try {
       if (!orderDetails?.product?.price || !orderDetails.quantity) {
@@ -243,6 +244,7 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
   ]);
 
   const calculations = useMemo(() => {
+    console.log(!orderValidation.isValid || !(!!orderDetails?.product?.price),"calculation check",!!orderDetails?.product?.price,orderValidation.isValid)
     if (!orderValidation.isValid || !orderDetails?.product?.price) {
       return {
         totalAmount: 0,
@@ -264,31 +266,41 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
       const requiredAmount = Number((totalAmount * 1.02).toFixed(6));
 
       const hasQuantityChanged = quantity !== orderDetails.quantity;
-      const currentLogistics = orderDetails.logisticsProviderWalletAddress?.[0];
+      const currentLogistics = orderDetails?.logisticsProviderWalletAddress?.[0];
       const selectedLogistics = selectedLogisticsProvider?.walletAddress;
       const hasLogisticsChanged =
         selectedLogistics && selectedLogistics !== currentLogistics;
 
-      const userBalance = (() => {
-        const balanceStr = String(
-          wallet.tokenBalances[wallet.selectedToken.symbol].raw || 0
-        ).replace(/[,\s]/g, "");
-        const parsed = Number(balanceStr);
-        return Number.isFinite(parsed) ? parsed : 0;
-      })();
+//       const userBalance = (() => {
+//         const balanceStr = String(
+//    );
+//         const parsed = Number(balanceStr);
+//         return Number.isFinite(parsed) ? parsed : 0;
+//       })();
+// console.log(  userBalance >=
+//           convertPrice(
+//             requiredAmount,
+//             "USDT",
+//             `${wallet.selectedToken.symbol}`
+//           ),userBalance,wallet.selectedToken.symbol,   convertPrice(
+//             requiredAmount,
+//             "USDT",
+//             `${wallet.selectedToken.symbol}`
+//           ),"calculations")
+
 
       return {
         totalAmount,
         requiredAmount,
         hasChanges: hasQuantityChanged || Boolean(hasLogisticsChanged),
-        userBalance,
-        hasSufficientBalance:
-          userBalance >=
-          convertPrice(
-            requiredAmount,
-            "USDT",
-            `${wallet.selectedToken.symbol}`
-          ),
+        // userBalance,
+        // hasSufficientBalance:
+        //   userBalance >=
+        //   convertPrice(
+        //     requiredAmount,
+        //     "USDT",
+        //     `${wallet.selectedToken.symbol}`
+        //   ),
       };
     } catch (error) {
       console.error("Calculation error:", error);
@@ -325,9 +337,9 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
     if (tradeValidation.isLoading) return "Checking availability...";
     if (!tradeValidation.isValid) return "Product unavailable";
 
-    if (!wallet.isConnected) return "Connect Wallet to Pay";
+    if (!contract.walletFactory.isConnected) return "Connect Wallet to Paym";
 
-    if (!calculations.hasSufficientBalance) return "Insufficient Balance";
+    // if (!calculations.hasSufficientBalance) return "Insufficient Balance";
     return `Pay ${formatPrice(
       calculations.totalAmount,
       `${orderDetails?.product.paymentToken}`
@@ -336,9 +348,8 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
     loading,
     tradeValidation.isLoading,
     tradeValidation.isValid,
-    wallet.isConnected,
-    calculations.totalAmount,
-    calculations.hasSufficientBalance,
+contract.walletFactory.isConnected,
+    ,
   ]);
 
   useEffect(() => {
@@ -410,7 +421,7 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
     abortControllerRef.current = controller;
 
     try {
-      if (!wallet.isConnected) {
+      if (!contract.walletFactory.isConnected) {
         // await connectWallet();
         setShowWalletModal(true);
         await new Promise((resolve) => setTimeout(resolve, 500));
@@ -419,15 +430,6 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
 
       if (controller.signal.aborted) return;
 
-      if (!calculations.hasSufficientBalance) {
-        showSnackbar(
-          `Insufficient USDT balance. Required: ${calculations.requiredAmount.toFixed(
-            2
-          )} USDT`,
-          "error"
-        );
-        return;
-      }
 
       setIsPaymentModalOpen(true);
     } catch (error) {
@@ -448,8 +450,8 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
   }, [
     orderValidation.isValid,
     loading,
-    wallet.isConnected,
-    calculations.hasSufficientBalance,
+    contract.walletFactory.isConnected,
+    // calculations.hasSufficientBalance,
     calculations.requiredAmount,
     connectWallet,
     debouncedRefetchBalance,
@@ -474,7 +476,7 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
             currentOrder._id,
             {
               status: "accepted",
-              purchaseId: transaction.purchaseId,
+              purchaseId: currentOrder?.purchaseId,
             },
             true
           );
@@ -595,10 +597,11 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
   const Payment = useMemo(
     () =>
       orderDetails && escrowAddress ? (
-        <PaymentModal
+        <contract.ContractPaymentModal
+        // <PaymentModal 
           isOpen={isPaymentModalOpen}
           onClose={handlePaymentModalClose}
-          orderDetails={orderDetails}
+          orderDetails={orderDetails as any}
           onPaymentSuccess={handlePaymentSuccess}
         />
       ) : null,
@@ -633,7 +636,7 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
       <Button
         title={payButtonText}
         className={`text-white text-sm px-6 py-3 rounded transition-colors duration-200 disabled:cursor-not-allowed ${
-          calculations.hasSufficientBalance &&
+          // calculations.hasSufficientBalance &&
           !loading &&
           tradeValidation.isValid &&
           orderValidation.isValid
@@ -642,7 +645,7 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
         }`}
         onClick={handlePayNow}
         disabled={
-          !calculations.hasSufficientBalance ||
+          // !calculations.hasSufficientBalance ||
           loading ||
           !orderValidation.isValid ||
           !tradeValidation.isValid ||
@@ -652,7 +655,7 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
     ),
     [
       payButtonText,
-      calculations.hasSufficientBalance,
+      // calculations.hasSufficientBalance,
       loading,
       orderValidation.isValid,
       tradeValidation.isValid,
@@ -687,7 +690,7 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
         statusTitle="Order Summary"
         statusDescription="Review your order details before payment. You can modify quantity and logistics provider if needed."
         statusAlert={statusAlert}
-        orderDetails={orderDetails}
+        orderDetails={orderDetails as any}
         tradeDetails={tradeDetails}
         transactionInfo={transactionInfo}
         showTimer={showTimer}
