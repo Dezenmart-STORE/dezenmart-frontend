@@ -16,16 +16,17 @@ import {
 } from "@solana/wallet-adapter-react-ui";
 import { PhantomWalletAdapter } from "@solana/wallet-adapter-wallets";
 
-import idl from "../../../dezenmart_rust_smart_contract/target/idl/dezenmart_logistics.json"; // drop idl into your src
+// import idl from "../../../dezenmart_rust_smart_contract/target/idl/dezenmart_logistics.json"; // drop idl into your src
+import idl from "../idl/dezenmart_logistics.json"; // drop idl into your src
 import { Account, ASSOCIATED_TOKEN_PROGRAM_ID, getAccount, getAssociatedTokenAddress, getMint, getOrCreateAssociatedTokenAccount, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 const SOLANAPROGRAMID = anchor.web3.SystemProgram.programId
 // const TOKENPROGRAM = new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXuAYJkmXvzJvmfK57a")
 const TOKENPROGRAM = TOKEN_PROGRAM_ID;
-export const TESTTOKENMINT = new PublicKey("BPbivqM9vJGgJFoV3bAHKpZVq44YmuH2gkUEt8uQX8jy")
-export const TESTTOKENACCOUNT = new PublicKey("6vX1HpDDhYGyzDTpDmWzzXLQKe3CrhrGy7rHh6YbYoDN")
+export const TESTTOKENMINT = new PublicKey("Do1mZe9KZxnn4XdEQm53srKvbpSo8ae7BitH4L9UEXv9")
+export const TESTTOKENACCOUNT = new PublicKey("5EHhG8Pd4HA4myMgQ4wFTqhRvvrMSAsTCqNFJfhh32mk")
 export const TESTACCOUNT = new PublicKey("BTd1DEeDRkfFV6K1BXPTJG6PXxLhS3tMsiSYoJtoidv5")
-const RPC_URL = "http://127.0.0.1:8899";
-// const RPC_URL = "https://api.devnet.solana.com";
+// const RPC_URL = "http://127.0.0.1:8899";
+const RPC_URL = "https://api.devnet.solana.com";
  // or "http://127.0.0.1:8899" for local
 const PROGRAM_ID = new PublicKey(idl.address);     // idl.address must be present
 import secretArray from ".././id.json" with { type: "json" };
