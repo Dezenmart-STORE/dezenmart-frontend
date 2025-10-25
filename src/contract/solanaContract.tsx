@@ -35,11 +35,11 @@ import { LocalWallet } from "./wallet";
 const secretKey = Uint8Array.from(secretArray as number[]);
  const testWallet = Keypair.fromSecretKey(secretKey);
 function useAnchorProgram() {
-   const wallet = new LocalWallet(testWallet);
+  //  const wallet = new LocalWallet(testWallet);
 // const wallet:any = new anchor.Wallet(testWallet);
 //      const NodeWallet:any = anchor.Wallet.local().constructor;
 // const wallet = new NodeWallet(testWallet);
-  // const wallet = useAnchorWallet(); // provided by wallet adapter react
+  const wallet = useAnchorWallet(); // provided by wallet adapter react
   // const wallet = testWallet; // provided by wallet adapter react
   const connection = new Connection(RPC_URL, "confirmed");
 
@@ -97,10 +97,10 @@ function useAnchorProgram() {
 export const useSolanaContract = ()=>{
 
 
-      // const wallet = useAnchorWallet()
+      const wallet:any = useAnchorWallet()
 //       const NodeWallet:any = anchor.Wallet.constructor;
 // const wallet = new NodeWallet(testWallet);
-   const wallet = new LocalWallet(testWallet);
+  //  const wallet = new LocalWallet(testWallet);
       // const wallet = testWallet;
 
       const program = useAnchorProgram();
