@@ -620,7 +620,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
             )}
 
             {/* Conversion Notice */}
-            {/* {needsConversion && conversionInfo && (
+            {needsConversion && conversionInfo && (
               <div className="bg-yellow-900/20 border border-yellow-500/30 rounded-lg p-4">
                 <div className="flex items-start gap-3">
                   <HiExclamationTriangle className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
@@ -636,7 +636,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                   </div>
                 </div>
               </div>
-            )} */}
+            )}
 
             {/* Security Notice */}
             <div className="bg-Red/10 border border-Red/30 rounded-lg p-4">
@@ -820,61 +820,26 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
       case "error":
         return (
           <div className="text-center space-y-6 py-8">
-            <motion.div
-              initial={{ scale: 0, rotate: -180 }}
-              animate={{ scale: 1, rotate: 0 }}
-              transition={{ type: "spring", duration: 0.6, delay: 0.1 }}
-            >
-              <div className="w-16 h-16 bg-Red/20 rounded-full flex items-center justify-center mx-auto">
-                <HiCheckCircle className="w-10 h-10 text-Red" />
-              </div>
-            </motion.div>
-            <div className="space-y-3">
-              <h3 className="text-xl font-bold text-white">
-                Payment Successful!
-              </h3>
-              <p className="text-gray-300 max-w-md mx-auto">
-                Your payment has been sent to escrow. You'll receive your order
-                soon.
-              </p>
-              {transaction && (
-                <div className="bg-Dark/50 border border-Red/20 rounded-lg p-4 mt-4">
-                  <p className="text-sm text-gray-400 mb-1">
-                    Transaction Hash:
-                  </p>
-                  <p className="font-mono text-xs text-Red break-all">
-                    {transaction.hash}
-                  </p>
-                </div>
-              )}
+            <div className="w-16 h-16 bg-red-900/20 rounded-full flex items-center justify-center mx-auto">
+              <HiXCircle className="w-10 h-10 text-red-400" />
             </div>
-            <Button
-              title="Continue Shopping"
-              onClick={onClose}
-              className="w-full bg-Red hover:bg-Red/80 text-white"
-            />
+            <div className="space-y-3">
+              <h3 className="text-xl font-bold text-white">Payment Failed</h3>
+              <p className="text-gray-300 max-w-md mx-auto">{error}</p>
+            </div>
+            <div className="space-y-3">
+              <Button
+                title="Try Again"
+                onClick={handleRetry}
+                className="w-full bg-Red hover:bg-Red/80 text-white"
+              />
+              <Button
+                title="Close"
+                onClick={onClose}
+                className="w-full bg-gray-700 hover:bg-gray-600 text-white"
+              />
+            </div>
           </div>
-          // <div className="text-center space-y-6 py-8">
-          //   <div className="w-16 h-16 bg-red-900/20 rounded-full flex items-center justify-center mx-auto">
-          //     <HiXCircle className="w-10 h-10 text-red-400" />
-          //   </div>
-          //   <div className="space-y-3">
-          //     <h3 className="text-xl font-bold text-white">Payment Failed</h3>
-          //     <p className="text-gray-300 max-w-md mx-auto">{error}</p>
-          //   </div>
-          //   <div className="space-y-3">
-          //     <Button
-          //       title="Try Again"
-          //       onClick={handleRetry}
-          //       className="w-full bg-Red hover:bg-Red/80 text-white"
-          //     />
-          //     <Button
-          //       title="Close"
-          //       onClick={onClose}
-          //       className="w-full bg-gray-700 hover:bg-gray-600 text-white"
-          //     />
-          //   </div>
-          // </div>
         );
 
       default:

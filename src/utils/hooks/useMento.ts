@@ -31,9 +31,9 @@ const getAddressString = (value: unknown): string | undefined => {
 interface MentoState {
   isInitializing: boolean;
   isSwapping: boolean;
-  isGettingQuote: boolean; // Commented out
+  isGettingQuote: boolean;
   error: string | null;
-  lastQuote: SwapQuote | null; // Commented out
+  lastQuote: SwapQuote | null;
   isInitialized: boolean;
   isApproving: boolean;
   currentStep: number;
@@ -41,7 +41,7 @@ interface MentoState {
   initializationAttempts: number;
 }
 
-interface SwapQuote { // Commented out
+interface SwapQuote {
   amountOut: string;
   exchangeRate: string;
   minAmountOut: string;
@@ -59,7 +59,7 @@ interface SwapQuote { // Commented out
     providerAddr: string;
     assets: string[];
   };
-} // Commented out
+}
 
 interface SwapParams {
   fromSymbol: string;
@@ -262,9 +262,9 @@ export function useMento() {
   const [state, setState] = useState<MentoState>({
     isInitializing: false,
     isSwapping: false,
-    isGettingQuote: false, // Commented out
+    isGettingQuote: false,
     error: null,
-    lastQuote: null, // Commented out
+    lastQuote: null,
     isInitialized: false,
     isApproving: false,
     currentStep: 0,
@@ -273,9 +273,9 @@ export function useMento() {
   });
 
   const mentoRef = useRef<Mento | null>(null);
-  const quoteCache = useRef<Map<string, SwapQuote>>(new Map()); // Commented out
-  const abortControllerRef = useRef<AbortController | null>(null); // Commented out
-  const quoteTtlRef = useRef<NodeJS.Timeout | null>(null); // Commented out
+  const quoteCache = useRef<Map<string, SwapQuote>>(new Map());
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const quoteTtlRef = useRef<NodeJS.Timeout | null>(null);
   const initializationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const [availablePairs, setAvailablePairs] = useState<TradablePair[]>([]);
@@ -469,13 +469,13 @@ export function useMento() {
     validateEnvironment,
   ]);
 
-  // Clear quote cache // Commented out
-  const clearQuoteCache = useCallback(() => { // Commented out
-    quoteCache.current.clear(); // Commented out
-    if (quoteTtlRef.current) { // Commented out
-      clearTimeout(quoteTtlRef.current); // Commented out
-    } // Commented out
-  }, []); // Commented out
+  // Clear quote cache
+  const clearQuoteCache = useCallback(() => {
+    quoteCache.current.clear();
+    if (quoteTtlRef.current) {
+      clearTimeout(quoteTtlRef.current);
+    }
+  }, []);
 
   // Get swap quote
   const getSwapQuote = useCallback(
@@ -573,7 +573,9 @@ export function useMento() {
             pairDetails = {
               id: (tradablePair as any)?.id || "unknown",
               providerAddr: (tradablePair as any)?.providerAddr || "unknown",
-              assets: tradablePair.assets ? tradablePair.assets.map(a => getAddressString(a) || '') : [fromAddress, toAddress],
+              assets: tradablePair.assets
+                ? tradablePair.assets.map((a) => getAddressString(a) || "")
+                : [fromAddress, toAddress],
             };
           }
 
@@ -918,7 +920,7 @@ export function useMento() {
           totalSteps: 0,
         }));
 
-        clearQuoteCache(); // Commented out
+        clearQuoteCache();
 
         return result;
       } catch (error: any) {
@@ -938,9 +940,9 @@ export function useMento() {
       address,
       walletClient,
       publicClient,
-      getSwapQuote, // Commented out
+      getSwapQuote,
       validateTokenPair,
-      clearQuoteCache, // Commented out
+      clearQuoteCache,
     ]
   );
 
