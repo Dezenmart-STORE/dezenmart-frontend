@@ -24,7 +24,7 @@ import { OrderStatus, Order } from "../types";
 import { useCurrencyConverter } from "./useCurrencyConverter";
 import { useCurrency } from "../../context/CurrencyContext";
 import { useWeb3 } from "../../context/Web3Context";
-
+const FETCH_TIMEOUT = 30000;
 export const useOrderData = () => {
   const { wallet, validateTradeBeforePurchase } = useWeb3();
   const { secondaryCurrency } = useCurrency();
@@ -257,24 +257,36 @@ export const useOrderData = () => {
 
   const fetchBuyerOrders = useCallback(
     async (showNotification = false, forceRefresh = false) => {
-      console.log("📥 fetchBuyerOrders called", {
-        showNotification,
-        forceRefresh,
-      });
+      // console.log(" fetchBuyerOrders called", {
+      //   showNotification,
+      //   forceRefresh,
+      // });
       try {
-        const result = await dispatch(fetchUserOrders(forceRefresh)).unwrap();
-        console.log("📥 fetchBuyerOrders result:", result);
-        console.log("📥 fetchBuyerOrders result type:", typeof result);
-        console.log("📥 fetchBuyerOrders is array:", Array.isArray(result));
-        console.log("📥 fetchBuyerOrders length:", result?.length);
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("Request timeout")), FETCH_TIMEOUT)
+        );
+        const fetchPromise = dispatch(fetchUserOrders(forceRefresh)).unwrap();
+        const result = (await Promise.race([
+          fetchPromise,
+          timeoutPromise,
+        ])) as any;
+        // const result = await dispatch(fetchUserOrders(forceRefresh)).unwrap();
+        // console.log("fetchBuyerOrders result:", result);
+        // console.log("fetchBuyerOrders result type:", typeof result);
+        // console.log("fetchBuyerOrders is array:", Array.isArray(result));
+        // console.log("fetchBuyerOrders length:", result?.length);
 
         if (showNotification) {
           showSnackbar("Orders loaded successfully", "success");
         }
         return result;
       } catch (err) {
-        console.error("❌ fetchBuyerOrders error:", err);
-        if (showNotification) {
+        // console.error("fetchBuyerOrders error:", err);
+        if (err === "Request timeout") {
+          if (showNotification) {
+            showSnackbar("Request timed out. Please try again.", "error");
+          }
+        } else if (showNotification) {
           showSnackbar((err as string) || "Failed to load orders", "error");
         }
         return [];
