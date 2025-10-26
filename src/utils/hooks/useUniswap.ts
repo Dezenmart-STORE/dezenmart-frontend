@@ -1,3 +1,4 @@
+// src/utils/hooks/useUniswapSimple.ts
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { useAccount, useWalletClient, usePublicClient } from "wagmi";
 import { parseUnits, formatUnits, erc20Abi, isAddress } from "viem";
@@ -8,12 +9,6 @@ import {
   Percent,
   Currency,
 } from "@uniswap/sdk-core";
-import {
-  AlphaRouter,
-  SwapType,
-  SwapOptionsSwapRouter02,
-  SwapRoute,
-} from "@uniswap/smart-order-router";
 import { ethers } from "ethers";
 import { debounce } from "lodash-es";
 import {
@@ -23,12 +18,95 @@ import {
   StableToken,
 } from "../config/web3.config";
 
+// Uniswap V3 Router addresses from your config
 const SWAP_ROUTER_ADDRESSES = {
   42220: "0x5615CDAb10dc425a742d643d949a7F474C01abc4", // Celo Mainnet
   44787: "0x5615CDAb10dc425a742d643d949a7F474C01abc4", // Celo Alfajores
 } as const;
 
-//  interfaces
+// Quoter V2 address on Celo
+const QUOTER_V2_ADDRESS = "0x82825d0554fA07f7FC52Ab63c961F330fdEFa8E8";
+
+// SwapRouter02 ABI (minimal for exactInputSingle)
+const SWAP_ROUTER_ABI = [
+  {
+    inputs: [
+      {
+        components: [
+          { internalType: "address", name: "tokenIn", type: "address" },
+          { internalType: "address", name: "tokenOut", type: "address" },
+          { internalType: "uint24", name: "fee", type: "uint24" },
+          { internalType: "address", name: "recipient", type: "address" },
+          { internalType: "uint256", name: "amountIn", type: "uint256" },
+          {
+            internalType: "uint256",
+            name: "amountOutMinimum",
+            type: "uint256",
+          },
+          {
+            internalType: "uint160",
+            name: "sqrtPriceLimitX96",
+            type: "uint160",
+          },
+        ],
+        internalType: "struct IV3SwapRouter.ExactInputSingleParams",
+        name: "params",
+        type: "tuple",
+      },
+    ],
+    name: "exactInputSingle",
+    outputs: [{ internalType: "uint256", name: "amountOut", type: "uint256" }],
+    stateMutability: "payable",
+    type: "function",
+  },
+];
+
+// Quoter ABI (minimal for quoteExactInputSingle)
+const QUOTER_ABI = [
+  {
+    inputs: [
+      {
+        components: [
+          { internalType: "address", name: "tokenIn", type: "address" },
+          { internalType: "address", name: "tokenOut", type: "address" },
+          { internalType: "uint256", name: "amountIn", type: "uint256" },
+          { internalType: "uint24", name: "fee", type: "uint24" },
+          {
+            internalType: "uint160",
+            name: "sqrtPriceLimitX96",
+            type: "uint160",
+          },
+        ],
+        internalType: "struct IQuoterV2.QuoteExactInputSingleParams",
+        name: "params",
+        type: "tuple",
+      },
+    ],
+    name: "quoteExactInputSingle",
+    outputs: [
+      { internalType: "uint256", name: "amountOut", type: "uint256" },
+      { internalType: "uint160", name: "sqrtPriceX96After", type: "uint160" },
+      {
+        internalType: "uint32",
+        name: "initializedTicksCrossed",
+        type: "uint32",
+      },
+      { internalType: "uint256", name: "gasEstimate", type: "uint256" },
+    ],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+];
+
+// Fee tiers
+enum FeeAmount {
+  LOWEST = 100,
+  LOW = 500,
+  MEDIUM = 3000,
+  HIGH = 10000,
+}
+
+// Enhanced interfaces
 interface UniswapState {
   isInitializing: boolean;
   isSwapping: boolean;
@@ -111,120 +189,6 @@ class SwapError extends Error {
   }
 }
 
-// Type guard to check if a currency is a Token
-function isToken(currency: Currency): currency is Token {
-  return "address" in currency;
-}
-
-// Helper to safely extract token address
-function safeGetAddress(currency: Currency): string | null {
-  if (isToken(currency)) {
-    return currency.address;
-  }
-  return null;
-}
-
-// Helper to extract route information from Uniswap route
-const extractRouteInfo = (
-  route: SwapRoute,
-  fromSymbol: string,
-  toSymbol: string,
-  chainId: number
-): {
-  symbols: string[];
-  poolAddresses: string[];
-  poolFees: number[];
-  path: string[];
-} => {
-  const symbols: string[] = [fromSymbol];
-  const poolAddresses: string[] = [];
-  const poolFees: number[] = [];
-  const path: string[] = [];
-
-  try {
-    if (route.route && route.route.length > 0) {
-      // Iterate through all routes
-      for (const routeItem of route.route) {
-        // Extract token path
-        if (routeItem.tokenPath && Array.isArray(routeItem.tokenPath)) {
-          routeItem.tokenPath.forEach((currency: Currency, index: number) => {
-            const address = safeGetAddress(currency);
-            if (address) {
-              const lowerAddress = address.toLowerCase();
-              path.push(lowerAddress);
-
-              // Map address to symbol for intermediate tokens
-              if (index > 0 && index < routeItem.tokenPath.length - 1) {
-                const stableToken = STABLE_TOKENS.find(
-                  (t) =>
-                    getTokenAddress(t, chainId)?.toLowerCase() === lowerAddress
-                );
-                if (stableToken && !symbols.includes(stableToken.symbol)) {
-                  symbols.push(stableToken.symbol);
-                }
-              }
-            }
-          });
-        }
-
-        // Extract pool information with safe access
-        try {
-          const routeData = routeItem.route as any;
-
-          // Try to get pools (V3/MIXED routes)
-          if (
-            routeData &&
-            "pools" in routeData &&
-            Array.isArray(routeData.pools)
-          ) {
-            routeData.pools.forEach((pool: any) => {
-              if (pool.token0) {
-                const addr = safeGetAddress(pool.token0);
-                if (addr) poolAddresses.push(addr);
-              }
-              if (typeof pool.fee === "number") {
-                poolFees.push(pool.fee);
-              }
-            });
-          }
-
-          // Try to get pairs (V2 routes)
-          if (
-            routeData &&
-            "pairs" in routeData &&
-            Array.isArray(routeData.pairs)
-          ) {
-            routeData.pairs.forEach((pair: any) => {
-              if (pair.token0) {
-                const addr = safeGetAddress(pair.token0);
-                if (addr) poolAddresses.push(addr);
-              }
-              // V2 doesn't have fee tiers, use default 0.3%
-              poolFees.push(3000);
-            });
-          }
-        } catch (poolError) {
-          console.warn("[extractRouteInfo] Error extracting pools:", poolError);
-        }
-      }
-    }
-  } catch (error) {
-    console.warn("[extractRouteInfo] Error extracting route:", error);
-  }
-
-  // Ensure we have at least the start and end tokens
-  if (!symbols.includes(toSymbol)) {
-    symbols.push(toSymbol);
-  }
-
-  return {
-    symbols,
-    poolAddresses,
-    poolFees,
-    path,
-  };
-};
-
 // Utility functions
 const calculatePriceImpact = (
   expectedRate: number,
@@ -268,7 +232,6 @@ export function useUniswap() {
     initializationAttempts: 0,
   });
 
-  const routerRef = useRef<AlphaRouter | null>(null);
   const providerRef = useRef<ethers.providers.Web3Provider | null>(null);
   const quoteCache = useRef<Map<string, SwapQuote>>(new Map());
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -333,7 +296,7 @@ export function useUniswap() {
     []
   );
 
-  // Initialize Uniswap Router
+  // Initialize Uniswap
   const initializeUniswap = useCallback(async (): Promise<boolean> => {
     if (state.isInitialized || state.isInitializing) {
       return state.isInitialized;
@@ -380,15 +343,10 @@ export function useUniswap() {
           );
         }
 
-        console.log(`[Uniswap] Initializing Router attempt ${retries + 1}...`);
+        console.log(
+          `[Uniswap] Initializing (Simple SDK) attempt ${retries + 1}...`
+        );
 
-        // Initialize AlphaRouter with Celo network
-        const router = new AlphaRouter({
-          chainId: network.chainId,
-          provider,
-        });
-
-        routerRef.current = router;
         providerRef.current = provider;
 
         if (initializationTimeoutRef.current) {
@@ -456,7 +414,7 @@ export function useUniswap() {
     }
   }, []);
 
-  // Get swap quote
+  // Get swap quote using Quoter contract
   const getSwapQuote = useCallback(
     async (
       fromSymbol: string,
@@ -468,7 +426,7 @@ export function useUniswap() {
         `[getSwapQuote] Starting quote: ${fromSymbol} -> ${toSymbol}, amount: ${amount}`
       );
 
-      if (!routerRef.current || !state.isInitialized) {
+      if (!providerRef.current || !state.isInitialized) {
         if (!state.isInitializing) {
           await initializeUniswap();
         }
@@ -523,72 +481,59 @@ export function useUniswap() {
           );
         }
 
-        // Create Token instances for Uniswap SDK
-        const inputToken = new Token(
-          chainId,
-          fromAddress,
-          fromToken.decimals,
-          fromToken.symbol,
-          fromToken.name
-        );
-
-        const outputToken = new Token(
-          chainId,
-          toAddress,
-          toToken.decimals,
-          toToken.symbol,
-          toToken.name
-        );
-
         const amountIn = parseUnits(amount.toString(), fromToken.decimals);
 
-        // Create CurrencyAmount
-        const inputAmount = CurrencyAmount.fromRawAmount(
-          inputToken,
-          amountIn.toString()
+        // Try different fee tiers to find best quote
+        const feeTiers = [
+          FeeAmount.MEDIUM,
+          FeeAmount.LOW,
+          FeeAmount.HIGH,
+          FeeAmount.LOWEST,
+        ];
+        const quoter = new ethers.Contract(
+          QUOTER_V2_ADDRESS,
+          QUOTER_ABI,
+          providerRef.current
         );
 
-        console.log(`[getSwapQuote] Getting route from Uniswap...`);
+        let bestQuote: any = null;
+        let bestFee = FeeAmount.MEDIUM;
 
-        // Calculate deadline
-        const deadline = Math.floor(Date.now() / 1000) + DEADLINE_MINUTES * 60;
+        for (const fee of feeTiers) {
+          try {
+            const quoteParams = {
+              tokenIn: fromAddress,
+              tokenOut: toAddress,
+              amountIn: amountIn.toString(),
+              fee: fee,
+              sqrtPriceLimitX96: 0,
+            };
 
-        // Create swap options
-        const swapOptions: SwapOptionsSwapRouter02 = {
-          recipient: address as string,
-          slippageTolerance: new Percent(
-            Math.floor(slippageTolerance * 10000),
-            10000
-          ),
-          deadline,
-          type: SwapType.SWAP_ROUTER_02,
-        };
+            const quote = await quoter.callStatic.quoteExactInputSingle(
+              quoteParams
+            );
 
-        // Get route from AlphaRouter
-        const route = (await Promise.race([
-          routerRef.current.route(
-            inputAmount,
-            outputToken,
-            TradeType.EXACT_INPUT,
-            swapOptions
-          ),
-          new Promise<null>((_, reject) =>
-            setTimeout(
-              () => reject(new Error("Route calculation timeout")),
-              15000
-            )
-          ),
-        ])) as SwapRoute | null;
+            if (
+              !bestQuote ||
+              ethers.BigNumber.from(quote.amountOut).gt(bestQuote.amountOut)
+            ) {
+              bestQuote = quote;
+              bestFee = fee;
+            }
+          } catch (error) {
+            console.warn(`Quote failed for fee tier ${fee}:`, error);
+          }
+        }
 
-        if (!route || !route.quote) {
+        if (!bestQuote || ethers.BigNumber.from(bestQuote.amountOut).isZero()) {
           throw new SwapError(
             SwapErrorType.INSUFFICIENT_LIQUIDITY,
-            `No trading path available between ${fromSymbol} and ${toSymbol}. This pair may not have sufficient liquidity.`
+            `No liquidity found for ${fromSymbol}/${toSymbol} pair`
           );
         }
 
         const amountOutFormatted = formatUnits(
-          BigInt(route.quote.quotient.toString()),
+          ethers.BigNumber.from(bestQuote.amountOut).toBigInt(),
           toToken.decimals
         );
 
@@ -596,64 +541,38 @@ export function useUniswap() {
           6
         );
 
-        const minAmountOut =
-          (BigInt(route.quote.quotient.toString()) *
-            BigInt(Math.floor((1 - slippageTolerance) * 10000))) /
-          BigInt(10000);
+        const minAmountOut = ethers.BigNumber.from(bestQuote.amountOut)
+          .mul(Math.floor((1 - slippageTolerance) * 10000))
+          .div(10000);
 
         const minAmountOutFormatted = formatUnits(
-          minAmountOut,
+          minAmountOut.toBigInt(),
           toToken.decimals
         );
 
-        // Calculate price impact
-        const priceImpact =
-          route.trade && route.trade.priceImpact
-            ? route.trade.priceImpact.toFixed(4)
-            : calculatePriceImpact(1, parseFloat(exchangeRate));
+        const priceImpact = calculatePriceImpact(1, parseFloat(exchangeRate));
 
-        // Extract route information
-        const routeInfo = extractRouteInfo(
-          route,
-          fromSymbol,
-          toSymbol,
-          chainId
-        );
-
-        const gasEstimate = route.estimatedGasUsed
-          ? formatUnits(BigInt(route.estimatedGasUsed.toString()), 18)
-          : "0.01";
+        const gasEstimate = formatUnits(bestQuote.gasEstimate || "150000", 18);
 
         const networkFee = await getGasFee(
           publicClient!,
-          BigInt(route.estimatedGasUsed?.toString() || "150000")
+          BigInt(bestQuote.gasEstimate?.toString() || "150000")
         );
-
-        const protocolFee = route.gasPriceWei
-          ? formatUnits(
-              BigInt(route.estimatedGasUsed?.toString() || "0") *
-                BigInt(route.gasPriceWei.toString()),
-              18
-            )
-          : "0";
 
         const quote: SwapQuote = {
           amountOut: amountOutFormatted,
           exchangeRate,
           minAmountOut: minAmountOutFormatted,
           priceImpact,
-          route: routeInfo.symbols,
-          fees: {
-            networkFee,
-            protocolFee,
-          },
+          route: [fromSymbol, toSymbol],
+          fees: { networkFee, protocolFee: "0" },
           gasEstimate,
           timestamp: Date.now(),
-          isDirectSwap: routeInfo.symbols.length === 2,
+          isDirectSwap: true,
           routeDetails: {
-            poolAddresses: routeInfo.poolAddresses,
-            poolFees: routeInfo.poolFees,
-            path: routeInfo.path,
+            poolAddresses: [],
+            poolFees: [bestFee],
+            path: [fromAddress, toAddress],
           },
         };
 
@@ -675,8 +594,7 @@ export function useUniswap() {
           amountOut: quote.amountOut,
           exchangeRate: quote.exchangeRate,
           priceImpact: quote.priceImpact,
-          isDirectSwap: quote.isDirectSwap,
-          routeLength: quote.route.length,
+          fee: bestFee,
         });
 
         return quote;
@@ -708,17 +626,16 @@ export function useUniswap() {
       walletClient,
       validateTokenPair,
       publicClient,
-      address,
       state.isInitialized,
       state.isInitializing,
       initializeUniswap,
     ]
   );
 
-  // Perform swap
+  // Perform swap using SwapRouter02
   const performSwap = useCallback(
     async (params: SwapParams): Promise<SwapResult> => {
-      if (!routerRef.current || !address || !walletClient) {
+      if (!providerRef.current || !address || !walletClient) {
         throw new Error("Swap not ready - please ensure wallet is connected");
       }
 
@@ -771,51 +688,8 @@ export function useUniswap() {
           slippageTolerance
         );
 
-        // Create Token instances
-        const inputToken = new Token(
-          chainId,
-          fromAddress,
-          fromToken.decimals,
-          fromToken.symbol,
-          fromToken.name
-        );
-
-        const outputToken = new Token(
-          chainId,
-          toAddress,
-          toToken.decimals,
-          toToken.symbol,
-          toToken.name
-        );
-
-        const inputAmount = CurrencyAmount.fromRawAmount(
-          inputToken,
-          amountIn.toString()
-        );
-
-        const deadline = Math.floor(Date.now() / 1000) + DEADLINE_MINUTES * 60;
-
-        const swapOptions: SwapOptionsSwapRouter02 = {
-          recipient: recipientAddress || (address as string),
-          slippageTolerance: new Percent(
-            Math.floor(slippageTolerance * 10000),
-            10000
-          ),
-          deadline,
-          type: SwapType.SWAP_ROUTER_02,
-        };
-
-        // Get route
-        const route = await routerRef.current.route(
-          inputAmount,
-          outputToken,
-          TradeType.EXACT_INPUT,
-          swapOptions
-        );
-
-        if (!route || !route.methodParameters) {
-          throw new Error("Unable to generate swap route");
-        }
+        const minAmountOut = parseUnits(quote.minAmountOut, toToken.decimals);
+        const bestFee = quote.routeDetails?.poolFees[0] || FeeAmount.MEDIUM;
 
         // Step 1: Approve token
         setState((prev) => ({
@@ -849,21 +723,51 @@ export function useUniswap() {
 
         setState((prev) => ({ ...prev, isApproving: false, currentStep: 2 }));
 
-        // Step 2: Execute swap
+        // Step 2: Execute swap using SwapRouter02
         console.log("Executing swap...");
 
-        // Add 20% buffer to gas estimate
-        const gasEstimate = route.estimatedGasUsed
-          ? (BigInt(route.estimatedGasUsed.toString()) * BigInt(120)) /
-            BigInt(100)
-          : BigInt(500000);
+        const deadline = Math.floor(Date.now() / 1000) + DEADLINE_MINUTES * 60;
+
+        // Create swap params for exactInputSingle
+        const swapParams = {
+          tokenIn: fromAddress,
+          tokenOut: toAddress,
+          fee: bestFee,
+          recipient: recipientAddress || address,
+          amountIn: amountIn.toString(),
+          amountOutMinimum: minAmountOut.toString(),
+          sqrtPriceLimitX96: 0,
+        };
+
+        // Encode the function call
+        const swapRouter = new ethers.Contract(
+          routerAddress,
+          SWAP_ROUTER_ABI,
+          providerRef.current
+        );
+
+        const data = swapRouter.interface.encodeFunctionData(
+          "exactInputSingle",
+          [swapParams]
+        );
+
+        // Estimate gas
+        const gasEstimate = await publicClient!.estimateGas({
+          account: address as `0x${string}`,
+          to: routerAddress as `0x${string}`,
+          data: data as `0x${string}`,
+          value: BigInt(0),
+        });
+
+        // Add 20% buffer
+        const gasWithBuffer = (gasEstimate * BigInt(120)) / BigInt(100);
 
         const swapHash = await walletClient.sendTransaction({
           account: address as `0x${string}`,
-          to: route.methodParameters.to as `0x${string}`,
-          data: route.methodParameters.calldata as `0x${string}`,
-          value: BigInt(route.methodParameters.value),
-          gas: gasEstimate,
+          to: routerAddress as `0x${string}`,
+          data: data as `0x${string}`,
+          value: BigInt(0),
+          gas: gasWithBuffer,
         });
 
         const swapReceipt = await publicClient?.waitForTransactionReceipt({
@@ -1047,10 +951,12 @@ export function useUniswap() {
       getSwapQuote: debouncedGetQuote,
       performSwap,
       clearQuoteCache,
-      isReady: state.isInitialized && !!routerRef.current,
+      isReady: state.isInitialized && !!providerRef.current,
     }),
     [state, initializeUniswap, debouncedGetQuote, performSwap, clearQuoteCache]
   );
 
   return contextValue;
 }
+
+// Export as
