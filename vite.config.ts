@@ -4,11 +4,38 @@ import react from "@vitejs/plugin-react";
 import { nodePolyfills } from "vite-plugin-node-polyfills";
 
 export default defineConfig({
-  plugins: [react(), nodePolyfills()],
+  plugins: [
+    react(),
+    nodePolyfills({
+      protocolImports: true,
+      globals: {
+        Buffer: true,
+        global: true,
+        process: true,
+      },
+    }),
+  ],
   resolve: {
     alias: {
       "@selfxyz/common/utils/appType": "@selfxyz/core",
+      "@": "/src",
     },
+  },
+  define: {
+    "process.env": {},
+    global: "globalThis",
+  },
+  optimizeDeps: {
+    esbuildOptions: {
+      define: {
+        global: "globalThis",
+      },
+    },
+    include: [
+      "@uniswap/sdk-core",
+      "@uniswap/v3-sdk",
+      "@uniswap/smart-order-router",
+    ],
   },
   build: {
     rollupOptions: {
@@ -23,6 +50,9 @@ export default defineConfig({
         }
         warn(warning);
       },
+    },
+    commonjsOptions: {
+      transformMixedEsModules: true,
     },
   },
   // build: {
