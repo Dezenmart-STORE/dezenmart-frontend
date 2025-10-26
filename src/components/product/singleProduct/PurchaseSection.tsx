@@ -271,7 +271,7 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = memo(
       refreshTokenBalance,
       approveToken,
       getTokenAllowance,
-      initializeMento,
+      initializeUniswap,
     } = useWeb3();
     const { isAuthenticated } = useAuth();
 
@@ -458,7 +458,7 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = memo(
       if (!wallet.isConnected || !product) return false;
 
       try {
-        const mentoReady = await initializeMento();
+        const mentoReady = await initializeUniswap();
         if (!mentoReady) {
           updateState({
             purchaseError:
@@ -494,7 +494,7 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = memo(
       wallet,
       product,
       computedTotals,
-      initializeMento,
+      initializeUniswap,
       isSwapSupported,
       updateState,
     ]);

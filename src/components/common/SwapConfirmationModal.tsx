@@ -11,9 +11,7 @@ import Modal from "./Modal";
 import {
   FaSpinner,
   FaInfoCircle,
-  FaExchangeAlt,
   FaRoute,
-  FaCheckCircle,
   FaExclamationTriangle,
   FaArrowDown,
   FaClock,
@@ -42,8 +40,6 @@ interface QuoteState {
   lastUpdated: number;
 }
 
-// Removed SwapExecutionState - will use mento.isSwapping, mento.isApproving, mento.error
-
 const QUOTE_REFRESH_INTERVAL = 15000; // 15 seconds
 const QUOTE_EXPIRY_WARNING = 5000; // Show warning when 5s left
 
@@ -57,7 +53,7 @@ const SwapConfirmationModal: React.FC<SwapConfirmationModalProps> = ({
   slippage = 1,
   recipientAddress,
 }) => {
-  const { mento, wallet } = useWeb3();
+  const { uniswap, wallet } = useWeb3();
 
   // State management
   const [quote, setQuote] = useState<QuoteState>({
@@ -66,8 +62,6 @@ const SwapConfirmationModal: React.FC<SwapConfirmationModalProps> = ({
     error: null,
     lastUpdated: 0,
   });
-
-  // Removed execution state, using mento.isSwapping, mento.isApproving, mento.error instead
 
   const [countdown, setCountdown] = useState(15);
   const [mounted, setMounted] = useState(false);
@@ -88,86 +82,98 @@ const SwapConfirmationModal: React.FC<SwapConfirmationModalProps> = ({
     [toToken]
   );
 
-  // Fetch quote with error handling and retry logic
-    const fetchQuote = useCallback(
-      async (retryCount = 0): Promise<void> => {
-        if (!mento?.isReady || amountIn <= 0 || !fromTokenData || !toTokenData) {
+  // Fetch quote
+  const fetchQuote = useCallback(
+    async (retryCount = 0): Promise<void> => {
+      if (
+        !uniswap?.isReady ||
+        amountIn <= 0 ||
+        !fromTokenData ||
+        !toTokenData
+      ) {
+        return;
+      }
+
+      // Cancel previous request
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      abortControllerRef.current = new AbortController();
+
+      setQuote((prev) => ({ ...prev, isLoading: true, error: null }));
+
+      try {
+        const quoteData = await uniswap.getSwapQuote(
+          fromToken,
+          toToken,
+          amountIn,
+          slippage / 100
+        );
+
+        if (!abortControllerRef.current?.signal.aborted) {
+          setQuote({
+            data: quoteData,
+            isLoading: false,
+            error: null,
+            lastUpdated: Date.now(),
+          });
+          setCountdown(15); // Reset countdown
+        }
+      } catch (error: any) {
+        if (error.name === "AbortError") return;
+
+        const errorMessage = error.message || "Failed to get quote";
+
+        if (
+          retryCount < 2 &&
+          (errorMessage.includes("network") ||
+            errorMessage.includes("connection") ||
+            errorMessage.includes("timeout"))
+        ) {
+          setTimeout(() => fetchQuote(retryCount + 1), 1000 * (retryCount + 1));
           return;
         }
 
-        // Cancel previous request
-        if (abortControllerRef.current) {
-          abortControllerRef.current.abort();
+        if (!abortControllerRef.current?.signal.aborted) {
+          setQuote((prev) => ({
+            ...prev,
+            isLoading: false,
+            error: errorMessage,
+          }));
         }
-        abortControllerRef.current = new AbortController();
-
-        setQuote((prev) => ({ ...prev, isLoading: true, error: null }));
-
-        try {
-          const quoteData = await mento.getSwapQuote(
-            fromToken,
-            toToken,
-            amountIn,
-            slippage / 100
-          );
-
-          if (!abortControllerRef.current?.signal.aborted) {
-            setQuote({
-              data: quoteData,
-              isLoading: false,
-              error: null,
-              lastUpdated: Date.now(),
-            });
-            setCountdown(15); // Reset countdown
-          }
-        } catch (error: any) {
-          if (error.name === "AbortError") return;
-
-          const errorMessage = error.message || "Failed to get quote";
-
-          // Retry logic for network errors
-          if (
-            retryCount < 2 &&
-            (errorMessage.includes("network") ||
-              errorMessage.includes("connection") ||
-              errorMessage.includes("timeout"))
-          ) {
-            setTimeout(() => fetchQuote(retryCount + 1), 1000 * (retryCount + 1));
-            return;
-          }
-
-          if (!abortControllerRef.current?.signal.aborted) {
-            setQuote((prev) => ({
-              ...prev,
-              isLoading: false,
-              error: errorMessage,
-            }));
-          }
-        }
-      },
-      [mento, amountIn, fromToken, toToken, slippage, fromTokenData, toTokenData]
-    );
+      }
+    },
+    [
+      uniswap,
+      amountIn,
+      fromToken,
+      toToken,
+      slippage,
+      fromTokenData,
+      toTokenData,
+    ]
+  );
 
   // Setup quote fetching and intervals
-    useEffect(() => {
-      setMounted(true);
+  useEffect(() => {
+    setMounted(true);
 
-      if (isOpen && mento?.isReady) {
-        fetchQuote();
+    if (isOpen && uniswap?.isReady) {
+      fetchQuote();
 
-        // Setup quote refresh interval
-        quoteIntervalRef.current = setInterval(
-          fetchQuote,
-          QUOTE_REFRESH_INTERVAL
-        );
+      // Setup quote refresh interval
+      quoteIntervalRef.current = setInterval(
+        fetchQuote,
+        QUOTE_REFRESH_INTERVAL
+      );
 
-        return () => {
-          if (quoteIntervalRef.current) {
-            clearInterval(quoteIntervalRef.current);
-          }
-        };
-      }
-    }, [isOpen, mento?.isReady, fetchQuote]);
+      return () => {
+        if (quoteIntervalRef.current) {
+          clearInterval(quoteIntervalRef.current);
+        }
+      };
+    }
+  }, [isOpen, uniswap?.isReady, fetchQuote]);
 
   // Countdown timer
   useEffect(() => {
@@ -202,8 +208,7 @@ const SwapConfirmationModal: React.FC<SwapConfirmationModalProps> = ({
 
   // Handle modal close
   const handleClose = useCallback(() => {
-    // Check mento.isSwapping directly to prevent closing during transaction
-    if (mento?.isSwapping) {
+    if (uniswap?.isSwapping) {
       return;
     }
 
@@ -211,8 +216,6 @@ const SwapConfirmationModal: React.FC<SwapConfirmationModalProps> = ({
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
-
-    // Removed execution state reset
 
     setQuote({
       data: null,
@@ -222,15 +225,15 @@ const SwapConfirmationModal: React.FC<SwapConfirmationModalProps> = ({
     });
 
     onClose();
-  }, [onClose, mento?.isSwapping]); // Added mento.isSwapping to dependency array
+  }, [onClose, uniswap?.isSwapping]);
 
-  // Execute swap with proper error handling
+  // Execute swap
   const handleConfirm = useCallback(async () => {
-    if (!mento?.isReady || !quote.data) return; // Removed execution.stage check
+    if (!uniswap?.isReady || !quote.data) return;
 
     try {
-      // State is now managed by useMento internally
-      const result = await mento.performSwap({
+      // State is managed internally
+      const result = await uniswap.performSwap({
         fromSymbol: fromToken,
         toSymbol: toToken,
         amount: amountIn,
@@ -238,17 +241,15 @@ const SwapConfirmationModal: React.FC<SwapConfirmationModalProps> = ({
         recipientAddress,
       });
 
-      // On successful swap, call parent onConfirm and close modal
       await onConfirm();
       setTimeout(() => {
         handleClose();
       }, 3000);
     } catch (error: any) {
-      // Error handled by useMento, which updates mento.error
-      // No need to set local execution state for error
+      // Error handled by useUniswap
     }
   }, [
-    mento,
+    uniswap,
     quote.data,
     fromToken,
     toToken,
@@ -256,19 +257,19 @@ const SwapConfirmationModal: React.FC<SwapConfirmationModalProps> = ({
     slippage,
     recipientAddress,
     onConfirm,
-    handleClose, // Added handleClose to dependency array
+    handleClose,
   ]);
 
   // Computed values
   const isQuoteExpired = countdown <= 0;
   const isQuoteExpiring = countdown <= 5 && countdown > 0;
-  const isLoading = quote.isLoading || mento?.isSwapping; // Use mento.isSwapping directly
+  const isLoading = quote.isLoading || uniswap?.isSwapping;
   const canConfirm =
     quote.data &&
     !isQuoteExpired &&
-    !mento?.isSwapping &&
+    !uniswap?.isSwapping &&
     !quote.error &&
-    !mento?.error; // Use mento.isSwapping and mento.error
+    !uniswap?.error;
 
   const minReceive = useMemo(() => {
     if (!quote.data?.minAmountOut) return null;
@@ -510,7 +511,7 @@ const SwapConfirmationModal: React.FC<SwapConfirmationModalProps> = ({
             <div className="flex items-start gap-2 p-3 bg-blue-900/20 border border-blue-500/20 rounded-lg mt-4">
               <FaShieldAlt className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" />
               <div className="text-xs text-blue-300 space-y-1">
-                <p>• Swap executed through Mento Protocol</p>
+                <p>• Swap executed through uniswap Protocol</p>
                 <p>• Transaction is irreversible once confirmed</p>
                 <p>• Gas fees are paid in CELO</p>
                 {quote.data.route?.length > 2 && (
@@ -537,7 +538,7 @@ const SwapConfirmationModal: React.FC<SwapConfirmationModalProps> = ({
                 <p className="text-red-300/80 text-sm mt-1">{quote.error}</p>
                 <Button
                   title="Retry"
-                    onClick={() => fetchQuote()}
+                  onClick={() => fetchQuote()}
                   className="mt-3 text-xs px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded-lg"
                 />
               </div>
@@ -546,18 +547,18 @@ const SwapConfirmationModal: React.FC<SwapConfirmationModalProps> = ({
         )}
 
         {/* Execution State Display */}
-        {mento?.isSwapping && (
+        {uniswap?.isSwapping && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             className={`rounded-xl p-4 border ${
-              mento?.error
+              uniswap?.error
                 ? "bg-red-900/20 border-red-500/30"
                 : "bg-blue-900/20 border-blue-500/30"
             }`}
           >
             <div className="flex items-center gap-3">
-              {mento?.error ? (
+              {uniswap?.error ? (
                 <FaExclamationTriangle className="w-5 h-5 text-red-400" />
               ) : (
                 <FaSpinner className="w-5 h-5 text-blue-400 animate-spin" />
@@ -566,21 +567,21 @@ const SwapConfirmationModal: React.FC<SwapConfirmationModalProps> = ({
               <div className="flex-1">
                 <div
                   className={`font-medium ${
-                    mento?.error ? "text-red-400" : "text-blue-400"
+                    uniswap?.error ? "text-red-400" : "text-blue-400"
                   }`}
                 >
-                  {mento?.error ? "Swap failed" : "Executing swap..."}
+                  {uniswap?.error ? "Swap failed" : "Executing swap..."}
                 </div>
 
-                {mento?.error && (
+                {uniswap?.error && (
                   <div className="text-sm text-red-300 mt-1">
-                    {mento?.error}
+                    {uniswap?.error}
                   </div>
                 )}
 
-                {mento?.isSwapping && (
+                {uniswap?.isSwapping && (
                   <div className="text-sm text-gray-400 mt-1">
-                    Step {mento.currentStep} of {mento.totalSteps}
+                    Step {uniswap.currentStep} of {uniswap.totalSteps}
                   </div>
                 )}
               </div>
@@ -593,17 +594,17 @@ const SwapConfirmationModal: React.FC<SwapConfirmationModalProps> = ({
           <Button
             title="Cancel"
             onClick={handleClose}
-            disabled={mento?.isSwapping}
+            disabled={uniswap?.isSwapping}
             className="flex-1 bg-transparent hover:bg-gray-700/50 text-gray-300 hover:text-white text-sm px-4 py-3 border border-gray-600 hover:border-gray-500 rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           />
 
           <Button
             title={
-              mento?.isSwapping ? (
+              uniswap?.isSwapping ? (
                 <div className="flex items-center justify-center gap-2">
                   <FaSpinner className="animate-spin w-4 h-4" />
                   <span>
-                    {mento?.isSwapping ? "Swapping..." : "Approving..."}
+                    {uniswap?.isSwapping ? "Swapping..." : "Approving..."}
                   </span>
                 </div>
               ) : isQuoteExpired ? (
@@ -616,7 +617,7 @@ const SwapConfirmationModal: React.FC<SwapConfirmationModalProps> = ({
             // onClick={handleConfirm}
             disabled={!canConfirm || isLoading}
             className={`flex-1 ${
-              mento?.isSwapping
+              uniswap?.isSwapping
                 ? "bg-blue-600 hover:bg-blue-700"
                 : isQuoteExpired
                 ? "bg-yellow-600 hover:bg-yellow-700"

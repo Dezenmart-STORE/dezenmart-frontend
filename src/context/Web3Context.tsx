@@ -54,13 +54,14 @@ import { DEZENMART_ABI } from "../utils/abi/dezenmartAbi.json";
 import { ESCROW_ADDRESSES } from "../utils/config/web3.config";
 import { parseWeb3Error } from "../utils/errorParser";
 // import { Mento } from "@mento-protocol/mento-sdk";
+import { useUniswap } from "../utils/hooks/useUniswap";
 import {
   readContract,
   simulateContract,
   waitForTransactionReceipt,
 } from "@wagmi/core";
 // import { ethers } from "ethers";
-import { useMento } from "../utils/hooks/useMento";
+// import { useMento } from "../utils/hooks/useMento";
 import { useDivvi } from "../utils/hooks/useDivvi";
 import { ensure0xPrefix } from "../utils/services/divvi.service";
 import {
@@ -108,11 +109,13 @@ interface ExtendedWeb3ContextType extends Omit<Web3ContextType, "wallet"> {
   approveUSDT: (amount: string) => Promise<string>;
   walletClient?: WalletClient;
   chainId?: number;
-  mento?: ReturnType<typeof useMento>;
+  // mento?: ReturnType<typeof useMento>;
+  uniswap?: ReturnType<typeof useUniswap>;
   swapState: SwapState;
   performSwap: (from: string, to: string, amount: number) => Promise<void>;
   getSwapQuote: (from: string, to: string, amount: number) => Promise<string>;
-  initializeMento: () => Promise<boolean>;
+  // initializeMento: () => Promise<boolean>;
+  initializeUniswap: () => Promise<boolean>;
   divvi: {
     isReady: boolean;
     error: string | null;
@@ -160,7 +163,8 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
   // const { data: walletClient } = useWalletClient();
   // const publicClient = usePublicClient();
   // const chainId = useChainId();
-  const mento = useMento();
+  const uniswap = useUniswap();
+  // const mento = useMento();
   const divvi = useDivvi();
   const {
     connect,
@@ -726,14 +730,14 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
     [address, chain, writeContractAsync, getTokenAllowance]
   );
 
-  // Helper function to convert tokens using Mento SDK
+  // Helper function to convert tokens using Uniswao SDK
   const convertTokens = useCallback(
     async (
       fromToken: string,
       toToken: string,
       amount: number
     ): Promise<string> => {
-      if (!mento?.isReady) {
+      if (!uniswap?.isReady) {
         throw new Error(
           "Token conversion not available. Please try again later."
         );
@@ -741,7 +745,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
 
       try {
         // First, get a quote to check if conversion is possible
-        const quote = await mento.getSwapQuote(fromToken, toToken, amount);
+        const quote = await uniswap.getSwapQuote(fromToken, toToken, amount);
 
         if (!quote || parseFloat(quote.amountOut) <= 0) {
           throw new Error(
@@ -766,7 +770,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
           "info"
         );
 
-        const swapResult = await mento.performSwap({
+        const swapResult = await uniswap.performSwap({
           fromSymbol: fromToken,
           toSymbol: toToken,
           amount: amount,
@@ -808,7 +812,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
         }
       }
     },
-    [mento, showSnackbar]
+    [uniswap, showSnackbar]
   );
 
   // buy trade function with token conversion support
@@ -1320,7 +1324,8 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
   const value: ExtendedWeb3ContextType = useMemo(
     () => ({
       wallet,
-      mento: mento.isReady ? mento : undefined,
+      // mento: mento.isReady ? mento : undefined,
+      mento: uniswap.isReady ? uniswap : undefined,
       connectWallet,
       disconnectWallet,
       switchToCorrectNetwork,
@@ -1332,7 +1337,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
         amount: number
       ): Promise<void> => {
         try {
-          await mento.performSwap({
+          await uniswap.performSwap({
             fromSymbol: from,
             toSymbol: to,
             amount: amount,
@@ -1347,19 +1352,19 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
         amount: number
       ): Promise<string> => {
         try {
-          const quote = await mento.getSwapQuote(from, to, amount);
+          const quote = await uniswap.getSwapQuote(from, to, amount);
           return quote?.amountOut || "0";
         } catch (error) {
           throw error;
         }
       },
-      initializeMento: mento.initializeMento,
+      initializeUniswap: uniswap.initializeUniswap,
       swapState: {
-        isSwapping: mento.isSwapping,
+        isSwapping: uniswap.isSwapping,
         fromAmount: "",
         toAmount: "",
-        error: mento.error,
-        isInitializing: mento.isInitializing,
+        error: uniswap.error,
+        isInitializing: uniswap.isInitializing,
       },
       usdtAllowance,
       usdtDecimals,
@@ -1378,7 +1383,8 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
     }),
     [
       wallet,
-      mento,
+      // mento,
+      uniswap,
       connectWallet,
       disconnectWallet,
       switchToCorrectNetwork,
