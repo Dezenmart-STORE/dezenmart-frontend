@@ -54,7 +54,7 @@ const BaseStatus: FC<BaseStatusProps> = memo(
         orderDetails?.product?.name ||
         "Unknown Product";
 
-      const orderId = tradeDetails?.orderNo || orderDetails?._id || "";
+      const orderId = tradeDetails?.orderNo || orderDetails?.orderId || "";
       const paymentToken = orderDetails?.product.paymentToken || "cUSD";
       const amount = tradeDetails?.amount || orderDetails?.product?.price || 0;
       const formattedAmount = formatPrice(

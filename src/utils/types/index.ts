@@ -97,6 +97,7 @@ export interface Review {
 
 export interface Order {
   _id: string;
+  orderId: string;
   product: {
     _id: string;
     name: string;

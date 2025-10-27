@@ -1,24 +1,23 @@
-// src/utils/hooks/useUniswapSimple.ts
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { useAccount, useWalletClient, usePublicClient } from "wagmi";
 import { parseUnits, formatUnits, erc20Abi, isAddress } from "viem";
-import {
-  Token,
-  CurrencyAmount,
-  TradeType,
-  Percent,
-  Currency,
-} from "@uniswap/sdk-core";
+// import {
+//   Token,
+//   CurrencyAmount,
+//   TradeType,
+//   Percent,
+//   Currency,
+// } from "@uniswap/sdk-core";
 import { ethers } from "ethers";
 import { debounce } from "lodash-es";
 import {
   STABLE_TOKENS,
   getTokenAddress,
   TARGET_CHAIN,
-  StableToken,
+  // StableToken,
 } from "../config/web3.config";
 
-// Uniswap V3 Router addresses from your config
+// Uniswap V3 Router addresses
 const SWAP_ROUTER_ADDRESSES = {
   42220: "0x5615CDAb10dc425a742d643d949a7F474C01abc4", // Celo Mainnet
   44787: "0x5615CDAb10dc425a742d643d949a7F474C01abc4", // Celo Alfajores
@@ -106,7 +105,7 @@ enum FeeAmount {
   HIGH = 10000,
 }
 
-// Enhanced interfaces
+// interfaces
 interface UniswapState {
   isInitializing: boolean;
   isSwapping: boolean;
@@ -958,5 +957,3 @@ export function useUniswap() {
 
   return contextValue;
 }
-
-// Export as

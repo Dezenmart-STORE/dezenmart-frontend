@@ -815,7 +815,9 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
     [uniswap, showSnackbar]
   );
 
-  // buy trade function with token conversion support
+  // buy trade function
+  // src/context/Web3Context.tsx - Update buyTrade function
+
   const buyTrade = useCallback(
     async (params: BuyTradeParams): Promise<PaymentTransaction> => {
       if (!address || !chain?.id) {
@@ -836,13 +838,29 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
         // First, scan user wallet for available stable tokens
         const walletScan = await scanWalletForStableTokens(address, chain.id);
 
-        // Get the required amount
-        const requiredAmount = 100;
+        // Calculate the TOTAL required amount (product + escrow fee + logistics)
+        const productCost = params.productCost || 0;
+        const quantity = parseInt(params.quantity);
+        const logisticsCost = params.logisticsCost || 0;
+
+        // Calculate total: (price * qty) + escrowFee(2.5%) + logistics
+        const subtotal = productCost * quantity;
+        const escrowFee = subtotal * 0.025; // 2.5%
+        const requiredAmountUSDT = subtotal + escrowFee + logisticsCost;
+
+        showSnackbar(
+          `Total required: ${requiredAmountUSDT.toFixed(
+            2
+          )} USDT (Product: ${subtotal.toFixed(2)} + Fee: ${escrowFee.toFixed(
+            2
+          )} + Logistics: ${logisticsCost.toFixed(2)})`,
+          "info"
+        );
 
         // Check if user has sufficient USDT balance
         const balanceCheck = checkSufficientBalance(
           walletScan.availableTokens,
-          requiredAmount,
+          requiredAmountUSDT,
           "USDT"
         );
 
@@ -855,28 +873,48 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
         ) {
           // User needs to convert tokens to USDT
           showSnackbar(
-            `Converting ${balanceCheck.conversionRequired.amount} ${balanceCheck.conversionRequired.fromToken} to USDT...`,
+            `Converting ${balanceCheck.conversionRequired.amount.toFixed(4)} ${
+              balanceCheck.conversionRequired.fromToken
+            } to USDT...`,
             "info"
           );
 
           try {
             conversionHash = await convertTokens(
               balanceCheck.conversionRequired.fromToken,
-              balanceCheck.conversionRequired.toToken,
+              "USDT",
               balanceCheck.conversionRequired.amount
             );
 
             showSnackbar("Token conversion completed successfully!", "success");
 
-            // Wait a bit for the conversion to be confirmed
+            // Wait for conversion to be confirmed
             await new Promise((resolve) => setTimeout(resolve, 3000));
 
-            // Refresh token balances after conversion
+            // Refresh USDT balance after conversion
             await refreshTokenBalance("USDT");
+
+            // Re-verify balance after conversion
+            const updatedWalletScan = await scanWalletForStableTokens(
+              address,
+              chain.id
+            );
+            const updatedBalanceCheck = checkSufficientBalance(
+              updatedWalletScan.availableTokens,
+              requiredAmountUSDT,
+              "USDT"
+            );
+
+            if (!updatedBalanceCheck.hasSufficientBalance) {
+              throw new Error(
+                `Insufficient balance after conversion. Required: ${requiredAmountUSDT.toFixed(
+                  2
+                )} USDT`
+              );
+            }
           } catch (conversionError: any) {
             console.error("Token conversion failed:", conversionError);
 
-            // Provide more specific error messages based on the conversion error
             let errorMessage = "Token conversion failed. ";
 
             if (conversionError.message?.includes("insufficient balance")) {
@@ -902,12 +940,14 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
           }
         } else if (!balanceCheck.hasSufficientBalance) {
           throw new Error(
-            `Insufficient balance. You need at least ${requiredAmount} USDT to complete this purchase.`
+            `Insufficient balance. You need at least ${requiredAmountUSDT.toFixed(
+              2
+            )} USDT to complete this purchase.`
           );
         }
 
         const tradeId = BigInt(params.tradeId);
-        const quantity = BigInt(params.quantity);
+        const quantityBigInt = BigInt(params.quantity);
         const logisticsProvider = params.logisticsProvider as `0x${string}`;
 
         if (
@@ -926,13 +966,26 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
               consumer: ensure0xPrefix(
                 `${import.meta.env.VITE_DIVVI_CONSUMER_ADDRESS!}`
               ),
-              // providers: [logisticsProvider],
               providers: [],
             });
             referralTag = tag || "";
           } catch (tagError) {
             console.warn("Failed to generate referral tag:", tagError);
           }
+        }
+
+        // Check and approve USDT if needed
+        const usdtToken = STABLE_TOKENS.find((t) => t.symbol === "USDT");
+        if (!usdtToken) {
+          throw new Error("USDT token configuration not found");
+        }
+
+        const currentAllowance = await getTokenAllowance("USDT");
+
+        if (currentAllowance < requiredAmountUSDT) {
+          showSnackbar("Approving USDT spend...", "info");
+          await approveToken("USDT", requiredAmountUSDT.toString());
+          await new Promise((resolve) => setTimeout(resolve, 2000));
         }
 
         // Estimate gas first
@@ -942,7 +995,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
             address: escrowAddress as `0x${string}`,
             abi: DEZENMART_ABI,
             functionName: "buyTrade",
-            args: [tradeId, quantity, logisticsProvider],
+            args: [tradeId, quantityBigInt, logisticsProvider],
             account: address,
           });
 
@@ -959,7 +1012,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
           address: escrowAddress as `0x${string}`,
           abi: DEZENMART_ABI,
           functionName: "buyTrade",
-          args: [tradeId, quantity, logisticsProvider],
+          args: [tradeId, quantityBigInt, logisticsProvider],
           gas: gasEstimate,
         };
 
@@ -1032,32 +1085,26 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
 
         return {
           hash,
-          amount: "0",
+          amount: requiredAmountUSDT.toString(),
           to: escrowAddress,
           from: address,
-          token: "USDT", // Always use USDT for purchases
+          token: "USDT",
           status: "pending",
           timestamp: Date.now(),
           purchaseId,
-          conversionHash, // Include conversion hash if token was converted
+          conversionHash,
         };
       } catch (error: any) {
         console.error("Buy trade failed:", error);
 
         const errorMessage = error?.message || error?.toString() || "";
 
-        if (
-          errorMessage.includes(`Insufficient${selectedToken.symbol}Balance`)
-        ) {
-          throw new Error(
-            `Insufficient ${selectedToken.symbol} balance for this purchase`
-          );
+        if (errorMessage.includes("InsufficientUSDTBalance")) {
+          throw new Error("Insufficient USDT balance for this purchase");
         }
-        if (
-          errorMessage.includes(`Insufficient${selectedToken.symbol}Allowance`)
-        ) {
+        if (errorMessage.includes("InsufficientUSDTAllowance")) {
           throw new Error(
-            `${selectedToken.symbol} allowance insufficient. Please approve the amount first`
+            "USDT allowance insufficient. Please approve the amount first"
           );
         }
         if (
@@ -1100,6 +1147,8 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
       divvi,
       convertTokens,
       showSnackbar,
+      getTokenAllowance,
+      approveToken,
     ]
   );
 

@@ -57,7 +57,7 @@ const useStableLoadingState = (isLoading: boolean, delay: number = 200) => {
   return stableLoading;
 };
 
-// Memoized balance display component
+// balance display component
 const BalanceDisplay = React.memo<{
   isLoading: boolean;
   balance: string | null;
@@ -119,12 +119,12 @@ const WalletDetailsModal: React.FC<WalletDetailsModalProps> = ({
   // Refs for dropdown management
   const refreshTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Memoized current token balance
+  // current token balance
   const currentTokenBalance = useMemo(() => {
     return wallet.tokenBalances[wallet.selectedToken.symbol];
   }, [wallet.tokenBalances, wallet.selectedToken.symbol]);
 
-  // Memoized portfolio value calculation
+  // portfolio value calculation
   const portfolioValue = useMemo(() => {
     if (stableCurrencyLoading) return 0;
 
@@ -396,7 +396,7 @@ const WalletDetailsModal: React.FC<WalletDetailsModalProps> = ({
                 </div>
               )}
           </div>
-          
+
           {/* Note about token selection */}
           <p className="text-xs text-gray-500 text-center">
             Change selected token from the header dropdown

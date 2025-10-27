@@ -262,7 +262,7 @@
 //   const currencyDropdownRef = React.useRef<HTMLDivElement>(null);
 //   const deviceInfo = useMemo(() => createDeviceInfo(), []);
 
-//   // Memoized values
+//   // values
 //   const shortenedAddress = useMemo(
 //     () => (account ? `${account.slice(0, 6)}...${account.slice(-4)}` : ""),
 //     [account]

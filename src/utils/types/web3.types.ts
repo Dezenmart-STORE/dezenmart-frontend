@@ -59,6 +59,8 @@ export interface BuyTradeParams {
   tradeId: string;
   quantity: string;
   logisticsProvider: string;
+  productCost?: number;
+  logisticsCost?: number;
 }
 
 export interface TradeDetails {

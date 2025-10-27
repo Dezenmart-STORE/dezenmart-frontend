@@ -89,36 +89,42 @@ const FundsReleaseStatus: FC<FundsReleaseStatusProps> = ({
       showSnackbar("Order ID is missing. Cannot confirm delivery.", "error");
       return;
     }
+    if (!orderDetails?.purchaseId) {
+      showSnackbar("Purchase ID is missing. Cannot confirm delivery.", "error");
+      return;
+    }
 
     setProcessingState((prev) => ({ ...prev, confirmDelivery: true }));
 
     try {
-      if (orderDetails?.purchaseId) {
-        const result = await confirmDeliveryAndPurchase(
-          orderDetails?.purchaseId
-        );
-        if (!result.success) {
-          throw new Error(result.message || "Failed to confirm delivery");
-        }
-        await changeOrderStatus(
-          orderId,
-          {
-            status: "completed",
-          },
-          false
-        );
-
-        showSnackbar(
-          "Delivery confirmed successfully! Order has been completed.",
-          "success"
-        );
-
-        setIsConfirmationModalOpen(false);
+      // Call smart contract to confirm delivery
+      const result = await confirmDeliveryAndPurchase(orderDetails?.purchaseId);
+      if (!result.success) {
+        throw new Error(result.message || "Failed to confirm delivery");
       }
-      showSnackbar(
-        "Unabele to confirm delivery at the moment, please try again.",
-        "error"
+      // Update order status in backend
+      await changeOrderStatus(
+        orderId,
+        {
+          status: "completed",
+        },
+        false
       );
+
+      showSnackbar(
+        "Delivery confirmed successfully! Order has been completed.",
+        "success"
+      );
+
+      setIsConfirmationModalOpen(false);
+      // Navigate to completed status
+      if (onConfirmDelivery) {
+        onConfirmDelivery();
+      }
+      // showSnackbar(
+      //   "Unabele to confirm delivery at the moment, please try again.",
+      //   "error"
+      // );
     } catch (error: any) {
       console.error("Error during delivery confirmation:", error);
       showSnackbar(
@@ -131,6 +137,8 @@ const FundsReleaseStatus: FC<FundsReleaseStatusProps> = ({
   }, [
     wallet.isConnected,
     orderId,
+    orderDetails?.purchaseId,
+    ,
     confirmDeliveryAndPurchase,
     changeOrderStatus,
     onConfirmDelivery,

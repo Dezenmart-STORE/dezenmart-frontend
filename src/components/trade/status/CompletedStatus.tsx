@@ -249,7 +249,7 @@ const CompletedStatus: FC<CompletedStatusProps> = ({
                       <span className="text-white mr-2">
                         {tradeDetails
                           ? tradeDetails.orderNo
-                          : orderDetails?._id}
+                          : orderDetails?.orderId}
                       </span>
                       <motion.button
                         onClick={() =>

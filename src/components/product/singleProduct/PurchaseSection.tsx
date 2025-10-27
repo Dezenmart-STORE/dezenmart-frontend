@@ -82,7 +82,7 @@ const usePurchaseState = () => {
   return [state, updateState] as const;
 };
 
-// Custom hook for memoized calculations
+// Custom hook for calculations
 const useCalculatedTotals = ({
   product,
   selectedLogistics,
@@ -101,24 +101,45 @@ const useCalculatedTotals = ({
       return { grandTotalUsd: 0, totalInSelected: 0, totalInPayment: 0 };
     }
 
-    const totalUsd = product.price * quantity;
-    const fee = totalUsd * TRANSACTION_FEE_RATE;
-    const logistics = selectedLogistics.cost;
-    const grandTotalUsd = totalUsd + fee + logistics;
+    // Calculate subtotal
+    const subtotal = product.price * quantity;
+
+    // Calculate escrow fee (2.5%)
+    const escrowFee = subtotal * TRANSACTION_FEE_RATE; // 0.025
+
+    // Get logistics cost
+    const logisticsCost = selectedLogistics.cost;
+
+    // Calculate grand total in USD
+    const grandTotalUsd = subtotal + escrowFee + logisticsCost;
 
     const selectedTokenSymbol = walletSelectedToken.symbol;
     const paymentTokenSymbol = product.paymentToken;
 
+    // Convert to selected wallet token (for display)
     const totalInSelected = convertPrice(
       grandTotalUsd,
       "USDT",
       selectedTokenSymbol
     );
+
+    // Convert to payment token (what will actually be charged)
     const totalInPayment = convertPrice(
       grandTotalUsd,
       "USDT",
       paymentTokenSymbol
     );
+
+    console.log("💰 Total Calculation:", {
+      subtotal,
+      escrowFee,
+      logisticsCost,
+      grandTotalUsd,
+      totalInSelected,
+      totalInPayment,
+      selectedTokenSymbol,
+      paymentTokenSymbol,
+    });
 
     return { grandTotalUsd, totalInSelected, totalInPayment };
   }, [product, selectedLogistics, quantity, convertPrice, walletSelectedToken]);
@@ -314,7 +335,7 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = memo(
       [availableQty]
     );
 
-    // Memoized total calculations
+    // total calculations
     const computedTotals = useCalculatedTotals({
       product: product,
       selectedLogistics: state.selectedLogistics,

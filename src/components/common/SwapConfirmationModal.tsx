@@ -21,6 +21,7 @@ import {
 import { formatUnits, parseUnits } from "viem";
 import { useWeb3 } from "../../context/Web3Context";
 import { STABLE_TOKENS } from "../../utils/config/web3.config";
+import { useSnackbar } from "../../context/SnackbarContext";
 
 interface SwapConfirmationModalProps {
   isOpen: boolean;
@@ -54,7 +55,7 @@ const SwapConfirmationModal: React.FC<SwapConfirmationModalProps> = ({
   recipientAddress,
 }) => {
   const { uniswap, wallet } = useWeb3();
-
+  const { showSnackbar } = useSnackbar();
   // State management
   const [quote, setQuote] = useState<QuoteState>({
     data: null,
@@ -71,7 +72,7 @@ const SwapConfirmationModal: React.FC<SwapConfirmationModalProps> = ({
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Memoized token data
+  // token data
   const fromTokenData = useMemo(
     () => STABLE_TOKENS.find((t) => t.symbol === fromToken),
     [fromToken]
@@ -154,14 +155,14 @@ const SwapConfirmationModal: React.FC<SwapConfirmationModalProps> = ({
     ]
   );
 
-  // Setup quote fetching and intervals
+  // Setup quote fetching
   useEffect(() => {
     setMounted(true);
 
     if (isOpen && uniswap?.isReady) {
       fetchQuote();
 
-      // Setup quote refresh interval
+      // quote refresh interval
       quoteIntervalRef.current = setInterval(
         fetchQuote,
         QUOTE_REFRESH_INTERVAL
@@ -227,39 +228,6 @@ const SwapConfirmationModal: React.FC<SwapConfirmationModalProps> = ({
     onClose();
   }, [onClose, uniswap?.isSwapping]);
 
-  // Execute swap
-  const handleConfirm = useCallback(async () => {
-    if (!uniswap?.isReady || !quote.data) return;
-
-    try {
-      // State is managed internally
-      const result = await uniswap.performSwap({
-        fromSymbol: fromToken,
-        toSymbol: toToken,
-        amount: amountIn,
-        slippageTolerance: slippage / 100,
-        recipientAddress,
-      });
-
-      await onConfirm();
-      setTimeout(() => {
-        handleClose();
-      }, 3000);
-    } catch (error: any) {
-      // Error handled by useUniswap
-    }
-  }, [
-    uniswap,
-    quote.data,
-    fromToken,
-    toToken,
-    amountIn,
-    slippage,
-    recipientAddress,
-    onConfirm,
-    handleClose,
-  ]);
-
   // Computed values
   const isQuoteExpired = countdown <= 0;
   const isQuoteExpiring = countdown <= 5 && countdown > 0;
@@ -280,6 +248,63 @@ const SwapConfirmationModal: React.FC<SwapConfirmationModalProps> = ({
     if (!quote.data?.priceImpact) return null;
     return parseFloat(quote.data.priceImpact);
   }, [quote.data?.priceImpact]);
+
+  // Execute swap
+  const handleConfirm = useCallback(async () => {
+    if (!uniswap?.isReady || !quote.data) return;
+
+    try {
+      // Validate quote freshness before swapping
+      if (isQuoteExpired) {
+        showSnackbar("Quote expired. Please get a new quote.", "error");
+        await fetchQuote();
+        return;
+      }
+
+      // Check slippage tolerance
+      const priceImpact = parseFloat(quote.data.priceImpact || "0");
+      if (priceImpact > 10) {
+        showSnackbar(
+          `High price impact (${priceImpact.toFixed(
+            2
+          )}%). Please confirm you want to proceed.`,
+          "error"
+        );
+      }
+
+      const result = await uniswap.performSwap({
+        fromSymbol: fromToken,
+        toSymbol: toToken,
+        amount: amountIn,
+        slippageTolerance: slippage / 100,
+        recipientAddress,
+      });
+
+      if (result.success) {
+        await onConfirm();
+        showSnackbar("Swap completed successfully!", "success");
+        setTimeout(() => {
+          handleClose();
+        }, 2000);
+      }
+    } catch (error: any) {
+      console.error("Swap execution failed:", error);
+      showSnackbar(error.message || "Swap failed. Please try again.", "error");
+    }
+  }, [
+    uniswap,
+    quote.data,
+    isQuoteExpired,
+    fromToken,
+    toToken,
+    amountIn,
+    slippage,
+    recipientAddress,
+    onConfirm,
+    handleClose,
+    fetchQuote,
+    showSnackbar,
+  ]);
 
   // Format number utility
   const formatNumber = useCallback((value: number, decimals = 6) => {

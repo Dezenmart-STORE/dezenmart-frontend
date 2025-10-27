@@ -44,3 +44,37 @@ export const isValidAddress = (address: string): boolean => {
 
 export const sleep = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
+
+export const calculateTotalOrderAmount = (
+  productPrice: number,
+  quantity: number,
+  logisticsCost: number
+): {
+  subtotal: number;
+  escrowFee: number;
+  logisticsCost: number;
+  total: number;
+} => {
+  const subtotal = productPrice * quantity;
+  const escrowFee = subtotal * 0.025; // 2.5%
+  const total = subtotal + escrowFee + logisticsCost;
+
+  return {
+    subtotal,
+    escrowFee,
+    logisticsCost,
+    total,
+  };
+};
+
+export const formatOrderAmount = (
+  calculation: ReturnType<typeof calculateTotalOrderAmount>
+): string => {
+  return `Total: ${calculation.total.toFixed(
+    2
+  )} USDT (Product: ${calculation.subtotal.toFixed(
+    2
+  )} + Fee: ${calculation.escrowFee.toFixed(
+    2
+  )} + Logistics: ${calculation.logisticsCost.toFixed(2)})`;
+};

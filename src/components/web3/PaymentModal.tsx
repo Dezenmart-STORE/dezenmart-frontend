@@ -287,6 +287,19 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
         );
       }
 
+      // Calculate logistics cost
+      const logisticsProvider = orderDetails.logisticsProviderWalletAddress[0];
+      const logisticsIndex = orderDetails.product.logisticsProviders.findIndex(
+        (provider: string) =>
+          provider.toLowerCase() === logisticsProvider.toLowerCase()
+      );
+      const logisticsCost =
+        logisticsIndex >= 0
+          ? parseFloat(
+              orderDetails.product.logisticsCost[logisticsIndex] || "0"
+            )
+          : 0;
+
       if (needsApproval) {
         showSnackbar(
           `Requesting ${selectedToken.symbol} spending approval...`,
@@ -305,7 +318,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
             );
             let confirmed = false;
             let attempts = 0;
-            const maxAttempts = 20; // 40 seconds total
+            const maxAttempts = 20;
             while (!confirmed && attempts < maxAttempts) {
               await new Promise((resolve) => setTimeout(resolve, 2000));
               try {
@@ -328,14 +341,12 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
             }
           }
           showSnackbar(`${selectedToken.symbol} spending approved!`, "success");
-          if (onPaymentSuccess && transaction) {
-            onPaymentSuccess(transaction);
-          }
         } catch (approvalError) {
           console.error("Approval failed:", approvalError);
           throw new Error(`Approval failed: ${parseWeb3Error(approvalError)}`);
         }
       }
+
       await new Promise((resolve) => setTimeout(resolve, 1000));
       let retryAttempts = 0;
       const maxRetries = 3;
@@ -346,8 +357,10 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
             tradeId: orderDetails.product.tradeId,
             quantity: orderDetails.quantity.toString(),
             logisticsProvider: orderDetails.logisticsProviderWalletAddress[0],
-            // paymentToken: selectedToken.symbol,
+            productCost: orderDetails.product.price, // Add product cost
+            logisticsCost: logisticsCost, // Add logistics cost
           });
+
           setTransaction(paymentTransaction);
           setStep("success");
           onPaymentSuccess(paymentTransaction);
