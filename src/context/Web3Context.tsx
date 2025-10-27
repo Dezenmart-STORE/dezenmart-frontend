@@ -816,8 +816,6 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   // buy trade function
-  // src/context/Web3Context.tsx - Update buyTrade function
-
   const buyTrade = useCallback(
     async (params: BuyTradeParams): Promise<PaymentTransaction> => {
       if (!address || !chain?.id) {

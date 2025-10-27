@@ -232,12 +232,46 @@ const SwapConfirmationModal: React.FC<SwapConfirmationModalProps> = ({
   const isQuoteExpired = countdown <= 0;
   const isQuoteExpiring = countdown <= 5 && countdown > 0;
   const isLoading = quote.isLoading || uniswap?.isSwapping;
-  const canConfirm =
-    quote.data &&
-    !isQuoteExpired &&
-    !uniswap?.isSwapping &&
-    !quote.error &&
-    !uniswap?.error;
+  const canConfirm = useMemo(() => {
+    if (!quote.data) return false;
+    if (isQuoteExpired) return false;
+
+    if (uniswap?.isSwapping) return false;
+
+    if (quote.error || uniswap?.error) return false;
+
+    if (quote.isLoading || uniswap?.isInitializing) return false;
+
+    return true;
+  }, [
+    quote.data,
+    quote.error,
+    quote.isLoading,
+    isQuoteExpired,
+    uniswap?.isSwapping,
+    uniswap?.error,
+    uniswap?.isInitializing,
+  ]);
+
+  useEffect(() => {
+    console.log("🔘 Swap Button State:", {
+      hasQuote: !!quote.data,
+      isExpired: isQuoteExpired,
+      isSwapping: uniswap?.isSwapping,
+      hasError: !!(quote.error || uniswap?.error),
+      isLoading: quote.isLoading || uniswap?.isInitializing,
+      canConfirm,
+    });
+  }, [
+    quote.data,
+    isQuoteExpired,
+    uniswap?.isSwapping,
+    quote.error,
+    uniswap?.error,
+    quote.isLoading,
+    uniswap?.isInitializing,
+    canConfirm,
+  ]);
 
   const minReceive = useMemo(() => {
     if (!quote.data?.minAmountOut) return null;
@@ -629,7 +663,9 @@ const SwapConfirmationModal: React.FC<SwapConfirmationModalProps> = ({
                 <div className="flex items-center justify-center gap-2">
                   <FaSpinner className="animate-spin w-4 h-4" />
                   <span>
-                    {uniswap?.isSwapping ? "Swapping..." : "Approving..."}
+                    {uniswap?.currentStep && uniswap?.totalSteps
+                      ? `Step ${uniswap.currentStep}/${uniswap.totalSteps}`
+                      : "Swapping..."}
                   </span>
                 </div>
               ) : isQuoteExpired ? (
@@ -639,17 +675,30 @@ const SwapConfirmationModal: React.FC<SwapConfirmationModalProps> = ({
               )
             }
             onClick={isQuoteExpired ? () => fetchQuote() : handleConfirm}
-            // onClick={handleConfirm}
-            disabled={!canConfirm || isLoading}
+            disabled={!canConfirm && !isQuoteExpired}
             className={`flex-1 ${
               uniswap?.isSwapping
                 ? "bg-blue-600 hover:bg-blue-700"
                 : isQuoteExpired
                 ? "bg-yellow-600 hover:bg-yellow-700"
                 : "bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600"
-            } text-white text-sm px-4 py-3 rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg`}
+            } text-white text-sm px-4 py-3 rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg ${
+              !canConfirm && !isQuoteExpired && !uniswap?.isSwapping
+                ? "cursor-not-allowed opacity-50"
+                : ""
+            }`}
           />
         </div>
+        {/* Debug info in development */}
+        {import.meta.env.DEV && (
+          <div className="text-xs text-gray-500 p-2 bg-gray-800 rounded">
+            <div>Quote: {quote.data ? "✓" : "✗"}</div>
+            <div>Expired: {isQuoteExpired ? "✓" : "✗"}</div>
+            <div>Swapping: {uniswap?.isSwapping ? "✓" : "✗"}</div>
+            <div>Error: {quote.error || uniswap?.error || "none"}</div>
+            <div>Can Confirm: {canConfirm ? "✓" : "✗"}</div>
+          </div>
+        )}
       </div>
     </Modal>
   );

@@ -41,12 +41,12 @@ export const useOrderData = () => {
   const currentOrder = useAppSelector(selectCurrentOrder);
   const loading = useAppSelector(selectOrderLoading);
   const error = useAppSelector(selectOrderError);
-  console.log("🎣 useOrderData - Raw orders from selector:", orders);
-  console.log("🎣 useOrderData - Orders type:", typeof orders);
-  console.log("🎣 useOrderData - Is array:", Array.isArray(orders));
-  console.log("🎣 useOrderData - Orders length:", orders?.length);
-  console.log("🎣 useOrderData - Loading:", loading);
-  console.log("🎣 useOrderData - Error:", error);
+  // console.log("useOrderData - Raw orders from selector:", orders);
+  // console.log("useOrderData - Orders type:", typeof orders);
+  // console.log("useOrderData - Is array:", Array.isArray(orders));
+  // console.log("useOrderData - Orders length:", orders?.length);
+  // console.log("useOrderData - Loading:", loading);
+  // console.log("useOrderData - Error:", error);
 
   const tokenSymbol = useMemo(
     () => wallet.selectedToken.symbol,
