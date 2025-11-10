@@ -4,7 +4,7 @@ import { LiaAngleLeftSolid } from "react-icons/lia";
 import { FaRegHeart, FaHeart } from "react-icons/fa";
 import { IoShareSocialOutline } from "react-icons/io5";
 import { motion } from "framer-motion";
-import { useCheckWatchlistQuery, useToggleWatchlistMutation } from "../store/api/watchlistApi";
+import { useCheckWatchlistQuery, useAddToWatchlistMutation, useRemoveFromWatchlistMutation } from "../store/api/watchlistApi";
 
 import ProductImage from "../components/product/singleProduct/ProductImage";
 import ProductTabs from "../components/product/singleProduct/ProductTabs";
@@ -35,7 +35,8 @@ const SingleProduct = () => {
     skip: !productId,
   });
 
-  const [toggleWatchlistMutation] = useToggleWatchlistMutation();
+  const [addToWatchlist] = useAddToWatchlistMutation();
+  const [removeFromWatchlist] = useRemoveFromWatchlistMutation();
 
   // Get related products based on category
   const { data: categoryProducts = [] } = useGetProductsByCategoryQuery(
@@ -76,7 +77,11 @@ const SingleProduct = () => {
   const handleToggleFavorite = async () => {
     if (productId) {
       try {
-        await toggleWatchlistMutation(productId).unwrap();
+        if (watchlistStatus?.isWatchlist) {
+          await removeFromWatchlist(productId).unwrap();
+        } else {
+          await addToWatchlist(productId).unwrap();
+        }
       } catch (error) {
         console.error("Failed to toggle watchlist:", error);
       }

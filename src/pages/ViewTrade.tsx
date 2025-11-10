@@ -252,7 +252,7 @@ import CompletedTradeCard from "../components/trade/view/CompletedTradeCard";
 import Tab from "../components/trade/Tab";
 import EmptyState from "../components/trade/view/EmptyState";
 import { useNavigate } from "react-router-dom";
-import { useGetBuyerOrdersQuery, useGetSellerOrdersQuery } from "../store/api";
+import { useGetUserOrdersQuery } from "../store/api";
 import { useWeb3 } from "../context/Web3Context";
 import WalletConnectionModal from "../components/web3/WalletConnectionModal";
 
@@ -265,15 +265,21 @@ const ViewTrade = () => {
   const { wallet } = useWeb3();
 
   // RTK Query hooks - only fetch when wallet is connected
-  const { data: buyerOrders, isLoading: buyerLoading } = useGetBuyerOrdersQuery(undefined, {
-    skip: !wallet.isConnected,
-    pollingInterval: 30000, // Refresh every 30 seconds
-  });
+  const { data: buyerOrders, isLoading: buyerLoading } = useGetUserOrdersQuery(
+    { type: 'buyer' },
+    {
+      skip: !wallet.isConnected,
+      pollingInterval: 30000, // Refresh every 30 seconds
+    }
+  );
 
-  const { data: sellerOrders, isLoading: sellerLoading } = useGetSellerOrdersQuery(undefined, {
-    skip: !wallet.isConnected,
-    pollingInterval: 30000,
-  });
+  const { data: sellerOrders, isLoading: sellerLoading } = useGetUserOrdersQuery(
+    { type: 'seller' },
+    {
+      skip: !wallet.isConnected,
+      pollingInterval: 30000,
+    }
+  );
 
   const orderLoading = buyerLoading || sellerLoading;
 

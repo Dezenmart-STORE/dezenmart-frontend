@@ -15,18 +15,6 @@ export const reviewsApi = baseApi.injectEndpoints({
           : [{ type: 'Reviews', id: `USER_${userId}` }],
     }),
 
-    // Get reviews by a user (as reviewer)
-    getReviewsByUser: builder.query<Review[], string>({
-      query: (userId) => `/reviews/by-user/${userId}`,
-      providesTags: (result, error, userId) =>
-        result
-          ? [
-              ...result.map(({ _id }) => ({ type: 'Reviews' as const, id: _id })),
-              { type: 'Reviews', id: `BY_USER_${userId}` },
-            ]
-          : [{ type: 'Reviews', id: `BY_USER_${userId}` }],
-    }),
-
     // Get review for an order
     getOrderReview: builder.query<Review, string>({
       query: (orderId) => `/reviews/order/${orderId}`,
@@ -62,42 +50,12 @@ export const reviewsApi = baseApi.injectEndpoints({
         { type: 'User', id: userId },
       ],
     }),
-
-    // Update review
-    updateReview: builder.mutation<
-      Review,
-      { reviewId: string; rating?: number; comment?: string }
-    >({
-      query: ({ reviewId, ...data }) => ({
-        url: `/reviews/${reviewId}`,
-        method: 'PUT',
-        body: data,
-      }),
-      invalidatesTags: (result, error, { reviewId }) => [
-        { type: 'Reviews', id: reviewId },
-      ],
-    }),
-
-    // Delete review
-    deleteReview: builder.mutation<void, string>({
-      query: (reviewId) => ({
-        url: `/reviews/${reviewId}`,
-        method: 'DELETE',
-      }),
-      invalidatesTags: (result, error, reviewId) => [
-        { type: 'Reviews', id: reviewId },
-        { type: 'Reviews', id: 'LIST' },
-      ],
-    }),
   }),
 });
 
 export const {
   useGetReviewsForUserQuery,
-  useGetReviewsByUserQuery,
   useGetOrderReviewQuery,
   useCreateReviewMutation,
   useUpdateUserRatingMutation,
-  useUpdateReviewMutation,
-  useDeleteReviewMutation,
 } = reviewsApi;

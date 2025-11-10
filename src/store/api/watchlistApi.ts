@@ -17,7 +17,7 @@ export const watchlistApi = baseApi.injectEndpoints({
 
     // Check if product is in watchlist
     checkWatchlist: builder.query<WatchlistCheck, string>({
-      query: (productId) => `/watchlist/check/${productId}`,
+      query: (productId) => `/watchlist/${productId}/check`,
       providesTags: (result, error, productId) => [
         { type: 'Watchlist', id: `CHECK_${productId}` },
       ],
@@ -26,9 +26,8 @@ export const watchlistApi = baseApi.injectEndpoints({
     // Add to watchlist
     addToWatchlist: builder.mutation<WatchlistItem, string>({
       query: (productId) => ({
-        url: '/watchlist',
+        url: `/watchlist/${productId}`,
         method: 'POST',
-        body: { productId },
       }),
       invalidatesTags: (result, error, productId) => [
         { type: 'Watchlist', id: 'LIST' },
@@ -73,32 +72,6 @@ export const watchlistApi = baseApi.injectEndpoints({
         }
       },
     }),
-
-    // Toggle watchlist (add or remove)
-    toggleWatchlist: builder.mutation<{ isWatchlist: boolean }, string>({
-      query: (productId) => ({
-        url: `/watchlist/toggle/${productId}`,
-        method: 'POST',
-      }),
-      invalidatesTags: (result, error, productId) => [
-        { type: 'Watchlist', id: 'LIST' },
-        { type: 'Watchlist', id: `CHECK_${productId}` },
-      ],
-      // Optimistic update
-      async onQueryStarted(productId, { dispatch, queryFulfilled }) {
-        // Toggle the current state optimistically
-        const patchResult = dispatch(
-          watchlistApi.util.updateQueryData('checkWatchlist', productId, (draft) => {
-            draft.isWatchlist = !draft.isWatchlist;
-          })
-        );
-        try {
-          await queryFulfilled;
-        } catch {
-          patchResult.undo();
-        }
-      },
-    }),
   }),
 });
 
@@ -107,5 +80,4 @@ export const {
   useCheckWatchlistQuery,
   useAddToWatchlistMutation,
   useRemoveFromWatchlistMutation,
-  useToggleWatchlistMutation,
 } = watchlistApi;

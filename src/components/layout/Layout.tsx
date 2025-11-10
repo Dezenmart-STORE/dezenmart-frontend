@@ -15,7 +15,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
   // Pages that should not display header/footer
   const isAuthPage = ["/login", "/auth/google"].includes(location.pathname);
 
-  // Register service worker and setup offline sync
+  // Register service worker and setup offline sync (only once)
   useEffect(() => {
     // Register service worker
     registerServiceWorker({
@@ -37,6 +37,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
 
   // Scroll to top on route change
   useEffect(() => {
+    // Immediate scroll without animation for faster navigation
     window.scrollTo(0, 0);
   }, [location.pathname]);
 

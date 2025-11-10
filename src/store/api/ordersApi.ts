@@ -33,30 +33,6 @@ export const ordersApi = baseApi.injectEndpoints({
       providesTags: (result, error, orderId) => [{ type: 'Order', id: orderId }],
     }),
 
-    // Get buyer orders
-    getBuyerOrders: builder.query<Order[], void>({
-      query: () => '/orders/buyer',
-      providesTags: (result) =>
-        result
-          ? [
-              ...result.map(({ _id }) => ({ type: 'Orders' as const, id: _id })),
-              { type: 'Orders', id: 'BUYER' },
-            ]
-          : [{ type: 'Orders', id: 'BUYER' }],
-    }),
-
-    // Get seller orders
-    getSellerOrders: builder.query<Order[], void>({
-      query: () => '/orders/seller',
-      providesTags: (result) =>
-        result
-          ? [
-              ...result.map(({ _id }) => ({ type: 'Orders' as const, id: _id })),
-              { type: 'Orders', id: 'SELLER' },
-            ]
-          : [{ type: 'Orders', id: 'SELLER' }],
-    }),
-
     // Create order
     createOrder: builder.mutation<Order, Partial<Order>>({
       query: (orderData) => ({
@@ -101,19 +77,6 @@ export const ordersApi = baseApi.injectEndpoints({
         { type: 'Orders', id: 'LIST' },
       ],
     }),
-
-    // Resolve dispute
-    resolveDispute: builder.mutation<Order, { orderId: string; resolution: string }>({
-      query: ({ orderId, resolution }) => ({
-        url: `/orders/${orderId}/dispute/resolve`,
-        method: 'PATCH',
-        body: { resolution },
-      }),
-      invalidatesTags: (result, error, { orderId }) => [
-        { type: 'Order', id: orderId },
-        { type: 'Orders', id: 'LIST' },
-      ],
-    }),
   }),
 });
 
@@ -121,10 +84,7 @@ export const {
   useGetUserOrdersQuery,
   useGetOrdersQuery,
   useGetOrderByIdQuery,
-  useGetBuyerOrdersQuery,
-  useGetSellerOrdersQuery,
   useCreateOrderMutation,
   useUpdateOrderStatusMutation,
   useRaiseDisputeMutation,
-  useResolveDisputeMutation,
 } = ordersApi;

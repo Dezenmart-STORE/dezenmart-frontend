@@ -99,7 +99,7 @@ const useCalculatedTotals = ({
   walletSelectedToken: any;
 }) => {
   return useMemo(() => {
-    if (!product || !selectedLogistics) {
+    if (!product) {
       return { grandTotalUsd: 0, totalInSelected: 0, totalInPayment: 0 };
     }
 
@@ -109,8 +109,8 @@ const useCalculatedTotals = ({
     // Calculate escrow fee (2.5%)
     const escrowFee = subtotal * TRANSACTION_FEE_RATE; // 0.025
 
-    // Get logistics cost from filtered provider
-    const logisticsCost = selectedLogistics.cost;
+    // Get logistics cost from filtered provider (0 if not selected)
+    const logisticsCost = selectedLogistics?.cost || 0;
 
     // Calculate grand total in USD
     const grandTotalUsd = subtotal + escrowFee + logisticsCost;
@@ -524,7 +524,7 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = memo(
 
     // Execute order
     const executeOrder = useCallback(async () => {
-      if (!product || !state.selectedLogistics) return;
+      if (!product) return;
 
       updateState({ isProcessing: true, purchaseError: null });
 
@@ -538,13 +538,20 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = memo(
           await new Promise((resolve) => setTimeout(resolve, 2000));
         }
 
-        const order = await createOrder({
+        // Temporarily handle order creation without logistics until delivery address API goes live
+        const orderData: any = {
           product: product._id as any,
           quantity: state.quantity,
-          logisticsProviderWalletAddress: [
+        };
+
+        // Only add logistics if selected
+        if (state.selectedLogistics) {
+          orderData.logisticsProviderWalletAddress = [
             state.selectedLogistics.provider.walletAddress,
-          ] as any,
-        }).unwrap();
+          ];
+        }
+
+        const order = await createOrder(orderData).unwrap();
 
         if (!order?._id) {
           throw new Error("Order creation failed");
@@ -581,15 +588,22 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = memo(
         return navigate("/login");
       }
 
-      if (!state.selectedAddress) {
-        updateState({ purchaseError: "Please select a delivery address" });
+      // Temporarily make delivery address optional until API goes live
+      // if (!state.selectedAddress) {
+      //   updateState({ purchaseError: "Please select a delivery address" });
+      //   return;
+      // }
+
+      if (!product) {
+        updateState({ purchaseError: "Product information is missing" });
         return;
       }
 
-      if (!product || !state.selectedLogistics) {
-        updateState({ purchaseError: "Please select a delivery service" });
-        return;
-      }
+      // Temporarily make logistics selection optional until delivery address API goes live
+      // if (!state.selectedLogistics) {
+      //   updateState({ purchaseError: "Please select a delivery service" });
+      //   return;
+      // }
 
       if (!wallet.isConnected) {
         updateState({ showWalletModal: true });

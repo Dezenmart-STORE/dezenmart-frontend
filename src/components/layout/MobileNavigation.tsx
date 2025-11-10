@@ -6,6 +6,7 @@ import { IoSwapHorizontalOutline } from "react-icons/io5";
 import { BsPeople } from "react-icons/bs";
 import { RiUser3Line } from "react-icons/ri";
 import { useGetConversationsQuery } from "../../store/api";
+import { useAuth } from "../../context/AuthContext";
 
 const navItems = [
   { icon: <AiOutlineHome size={22} />, label: "Home", path: "/" },
@@ -26,9 +27,12 @@ const navItems = [
 ];
 
 const MobileNavigation = () => {
-  // RTK Query hook - polling for real-time updates
+  const { isAuthenticated } = useAuth();
+
+  // RTK Query hook - polling for real-time updates, only when authenticated
   const { data: conversations = [] } = useGetConversationsQuery(undefined, {
     pollingInterval: 30000,
+    skip: !isAuthenticated, // Skip when not logged in
   });
 
   const totalUnreadMessages = useMemo(() =>

@@ -1,36 +1,48 @@
-import { baseApi } from './baseApi';
-import type { Product } from '../../utils/types';
+import { baseApi } from "./baseApi";
+import type { Product } from "../../utils/types";
 
 export const productsApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     // Get all products
     getProducts: builder.query<Product[], void>({
-      query: () => '/products',
+      query: () => "/products",
       providesTags: (result) =>
         result
           ? [
-              ...result.map(({ _id }) => ({ type: 'Products' as const, id: _id })),
-              { type: 'Products', id: 'LIST' },
+              ...result.map(({ _id }) => ({
+                type: "Products" as const,
+                id: _id,
+              })),
+              { type: "Products", id: "LIST" },
             ]
-          : [{ type: 'Products', id: 'LIST' }],
+          : [{ type: "Products", id: "LIST" }],
     }),
 
     // Get product by ID
     getProductById: builder.query<Product, string>({
       query: (id) => `/products/${id}`,
-      providesTags: (result, error, id) => [{ type: 'Product', id }],
+      providesTags: (result, error, id) => [{ type: "Product", id }],
     }),
 
-    // Get products by category
+    // Get products by category (client-side filtering)
     getProductsByCategory: builder.query<Product[], string>({
-      query: (category) => `/products/category/${category}`,
+      query: () => "/products",
+      transformResponse: (response: Product[], meta, category) => {
+        return response.filter(
+          (product) =>
+            product.category?.toLowerCase() === category.toLowerCase()
+        );
+      },
       providesTags: (result) =>
         result
           ? [
-              ...result.map(({ _id }) => ({ type: 'Products' as const, id: _id })),
-              { type: 'Products', id: 'CATEGORY' },
+              ...result.map(({ _id }) => ({
+                type: "Products" as const,
+                id: _id,
+              })),
+              { type: "Products", id: "CATEGORY" },
             ]
-          : [{ type: 'Products', id: 'CATEGORY' }],
+          : [{ type: "Products", id: "CATEGORY" }],
     }),
 
     // Get products by seller
@@ -39,56 +51,66 @@ export const productsApi = baseApi.injectEndpoints({
       providesTags: (result) =>
         result
           ? [
-              ...result.map(({ _id }) => ({ type: 'Products' as const, id: _id })),
-              { type: 'Products', id: 'SELLER' },
+              ...result.map(({ _id }) => ({
+                type: "Products" as const,
+                id: _id,
+              })),
+              { type: "Products", id: "SELLER" },
             ]
-          : [{ type: 'Products', id: 'SELLER' }],
+          : [{ type: "Products", id: "SELLER" }],
     }),
 
     // Search products
     searchProducts: builder.query<Product[], string>({
-      query: (searchTerm) => `/products/search?q=${encodeURIComponent(searchTerm)}`,
+      query: (searchTerm) =>
+        `/products/search?q=${encodeURIComponent(searchTerm)}`,
       providesTags: (result) =>
         result
           ? [
-              ...result.map(({ _id }) => ({ type: 'Products' as const, id: _id })),
-              { type: 'Products', id: 'SEARCH' },
+              ...result.map(({ _id }) => ({
+                type: "Products" as const,
+                id: _id,
+              })),
+              { type: "Products", id: "SEARCH" },
             ]
-          : [{ type: 'Products', id: 'SEARCH' }],
+          : [{ type: "Products", id: "SEARCH" }],
     }),
 
     // Get sponsored products
     getSponsoredProducts: builder.query<Product[], void>({
-      query: () => '/products/sponsored',
+      query: () => "/products/sponsored",
       providesTags: (result) =>
         result
           ? [
-              ...result.map(({ _id }) => ({ type: 'Products' as const, id: _id })),
-              { type: 'Products', id: 'SPONSORED' },
+              ...result.map(({ _id }) => ({
+                type: "Products" as const,
+                id: _id,
+              })),
+              { type: "Products", id: "SPONSORED" },
             ]
-          : [{ type: 'Products', id: 'SPONSORED' }],
+          : [{ type: "Products", id: "SPONSORED" }],
     }),
 
     // Create product
     createProduct: builder.mutation<Product, FormData>({
       query: (formData) => ({
-        url: '/products',
-        method: 'POST',
+        url: "/products",
+        method: "POST",
         body: formData,
       }),
-      invalidatesTags: [{ type: 'Products', id: 'LIST' }],
+      invalidatesTags: [{ type: "Products", id: "LIST" }],
     }),
 
     // Update product
     updateProduct: builder.mutation<Product, { id: string; data: FormData }>({
       query: ({ id, data }) => ({
         url: `/products/${id}`,
-        method: 'PUT',
+        method: "PUT",
         body: data,
       }),
       invalidatesTags: (result, error, { id }) => [
-        { type: 'Product', id },
-        { type: 'Products', id: 'LIST' },
+        { type: "Product", id },
+        { type: "Products", id: "LIST" },
       ],
     }),
 
@@ -96,23 +118,11 @@ export const productsApi = baseApi.injectEndpoints({
     deleteProduct: builder.mutation<void, string>({
       query: (id) => ({
         url: `/products/${id}`,
-        method: 'DELETE',
+        method: "DELETE",
       }),
       invalidatesTags: (result, error, id) => [
-        { type: 'Product', id },
-        { type: 'Products', id: 'LIST' },
-      ],
-    }),
-
-    // Toggle product active status
-    toggleProductStatus: builder.mutation<Product, string>({
-      query: (id) => ({
-        url: `/products/${id}/toggle-status`,
-        method: 'PATCH',
-      }),
-      invalidatesTags: (result, error, id) => [
-        { type: 'Product', id },
-        { type: 'Products', id: 'LIST' },
+        { type: "Product", id },
+        { type: "Products", id: "LIST" },
       ],
     }),
   }),
@@ -128,5 +138,4 @@ export const {
   useCreateProductMutation,
   useUpdateProductMutation,
   useDeleteProductMutation,
-  useToggleProductStatusMutation,
 } = productsApi;

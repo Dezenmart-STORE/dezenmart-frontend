@@ -23,26 +23,30 @@ const NavList = [
 ] as const;
 
 const Header = () => {
-  const { data: selectedUser } = useGetUserProfileQuery();
   const navigate = useNavigate();
   const { user, isAuthenticated, logout } = useAuth();
+  const { data: selectedUser } = useGetUserProfileQuery(undefined, {
+    skip: !isAuthenticated, // Skip when not logged in
+  });
   const { wallet, disconnectWallet } = useWeb3();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showVerifyModal, setShowVerifyModal] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
-  // RTK Query hooks with polling
+  // RTK Query hooks with polling - only when authenticated
   const { data: unreadCountData } = useGetUnreadNotificationCountQuery(undefined, {
     pollingInterval: 30000, // Poll every 30 seconds
+    skip: !isAuthenticated, // Skip when not logged in
   });
   const unreadCount = unreadCountData?.count || 0;
 
   const { data: conversations = [] } = useGetConversationsQuery(undefined, {
     pollingInterval: 30000,
+    skip: !isAuthenticated, // Skip when not logged in
   });
 
   useGetSelfVerificationStatusQuery(undefined, {
-    skip: !selectedUser?._id,
+    skip: !selectedUser?._id || !isAuthenticated, // Skip when not logged in
   });
 
   // Calculate unread messages from conversations

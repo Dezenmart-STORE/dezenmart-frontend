@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { IoChevronBackOutline } from "react-icons/io5";
-import { useGetUserNotificationsQuery, useMarkAllReadMutation, useMarkNotificationsAsReadMutation } from "../store/api/notificationsApi";
+import { useGetUserNotificationsQuery, useMarkNotificationsAsReadMutation } from "../store/api/notificationsApi";
 import { HiChevronRight } from "react-icons/hi";
 import NotificationItem from "../components/notifications/NotificationItem";
 import EmptyNotifications from "../components/notifications/EmptyNotifications";
@@ -10,7 +10,6 @@ const NotificationPage = () => {
   // RTK Query hooks
   const { data: notifications = [], isLoading } = useGetUserNotificationsQuery();
   const [markAsReadMutation] = useMarkNotificationsAsReadMutation();
-  const [markAllAsReadMutation] = useMarkAllReadMutation();
 
   const hasUnread = notifications.some((n: any) => !n.read);
 
@@ -24,7 +23,9 @@ const NotificationPage = () => {
 
   const markAllAsRead = async () => {
     try {
-      await markAllAsReadMutation().unwrap();
+      // Mark all notifications as read by passing all notification IDs
+      const allNotificationIds = notifications.map((n: any) => n._id);
+      await markAsReadMutation({ notificationIds: allNotificationIds }).unwrap();
     } catch (error) {
       console.error("Failed to mark all as read:", error);
     }

@@ -46,24 +46,6 @@ export const notificationsApi = baseApi.injectEndpoints({
         }
       },
     }),
-
-    // Mark all as read
-    markAllRead: builder.mutation<{ success: boolean }, void>({
-      query: () => ({
-        url: '/notifications/mark-all-read',
-        method: 'PATCH',
-      }),
-      invalidatesTags: ['Notifications'],
-    }),
-
-    // Delete notification
-    deleteNotification: builder.mutation<void, string>({
-      query: (notificationId) => ({
-        url: `/notifications/${notificationId}`,
-        method: 'DELETE',
-      }),
-      invalidatesTags: ['Notifications'],
-    }),
   }),
 });
 
@@ -71,6 +53,4 @@ export const {
   useGetUserNotificationsQuery,
   useGetUnreadNotificationCountQuery,
   useMarkNotificationsAsReadMutation,
-  useMarkAllReadMutation,
-  useDeleteNotificationMutation,
 } = notificationsApi;

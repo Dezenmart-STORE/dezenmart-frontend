@@ -71,15 +71,15 @@ const queryClient = new QueryClient({
     queries: {
       retry: 1,
       refetchOnWindowFocus: false,
-      staleTime: 30000,
+      staleTime: 30000, // 30 seconds
+      gcTime: 5 * 60 * 1000, // 5 minutes
+      refetchOnMount: false, // Don't refetch on mount to improve navigation speed
     },
   },
 });
 setupGlobalErrorHandling();
 
 const RouterLayout = () => {
-  const location = useLocation();
-
   return (
     <Configuration>
       <SnackbarProvider>
@@ -92,7 +92,7 @@ const RouterLayout = () => {
                     <CurrencyProvider>
                       <Layout>
                         <Suspense fallback={<Loadscreen />}>
-                          <Outlet key={location.pathname} />
+                          <Outlet />
                         </Suspense>
                         <ReferralHandler />
                         <TermsModal />

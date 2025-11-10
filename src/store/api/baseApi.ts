@@ -25,10 +25,14 @@ const baseQueryWithAuth: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQuery
 
   // Handle 401 unauthorized - token expired
   if (result.error && result.error.status === 401) {
-    // Clear auth state
-    localStorage.removeItem('auth_token');
-    // Optionally redirect to login
-    window.location.href = '/login';
+    // Clear auth state only if there was a token (meaning it expired)
+    const hadToken = localStorage.getItem('auth_token');
+    if (hadToken) {
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('auth_user');
+      console.log('Token expired, cleared auth state');
+    }
+    // Don't redirect - let ProtectedRoute handle redirects for protected pages
   }
 
   return result;

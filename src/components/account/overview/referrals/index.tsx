@@ -4,9 +4,9 @@ import PointsDisplay from "./PointsDisplay";
 import ReferralInvite from "./Invite";
 import ReferralHistory from "./History";
 import ReferralSkeleton from "./Skeleton";
-import { RewardItem } from "../../../../utils/types";
+import { RewardItem, Reward } from "../../../../utils/types";
 import { useGetReferralInfoQuery } from "../../../../store/api/referralsApi";
-import { useGetRewardHistoryQuery, useGetRewardSummaryQuery } from "../../../../store/api/rewardsApi";
+import { useGetRewardsQuery, useGetRewardsSummaryQuery } from "../../../../store/api/rewardsApi";
 
 const ReferralsTab = () => {
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
@@ -14,8 +14,8 @@ const ReferralsTab = () => {
 
   // RTK Query hooks
   const { data: referralInfo, isLoading: referralLoading, error: referralError } = useGetReferralInfoQuery();
-  const { data: rewardSummary, isLoading: summaryLoading } = useGetRewardSummaryQuery();
-  const { data: rewards = [], isLoading: rewardsLoading, error: rewardsError } = useGetRewardHistoryQuery();
+  const { data: rewardSummary, isLoading: summaryLoading } = useGetRewardsSummaryQuery();
+  const { data: rewards = [], isLoading: rewardsLoading, error: rewardsError } = useGetRewardsQuery();
 
   const loading = referralLoading || rewardsLoading || summaryLoading;
   const error = referralError || rewardsError;
@@ -30,7 +30,7 @@ const ReferralsTab = () => {
   const formatRewardsHistory = useCallback(() => {
     if (!rewards || rewards.length === 0) return [];
 
-    return rewards.map((reward): RewardItem => {
+    return rewards.map((reward: Reward): RewardItem => {
       const getActionTypeDisplay = (actionType: string) => {
         const actionMap: { [key: string]: string } = {
           FIRST_PURCHASE: "First Purchase Bonus",

@@ -14,8 +14,9 @@ import React, {
   useRef,
 } from "react";
 import LoadingSpinner from "../../common/LoadingSpinner";
-import { useGetBuyerOrdersQuery } from "../../../store/api/ordersApi";
+import { useGetUserOrdersQuery } from "../../../store/api/ordersApi";
 import { useGetWatchlistQuery, useRemoveFromWatchlistMutation } from "../../../store/api/watchlistApi";
+import { Order } from "../../../utils/types";
 
 const ProductContainer = lazy(() => import("./products/Container"));
 
@@ -35,9 +36,12 @@ interface TabContentProps {
 
 const TabContent: React.FC<TabContentProps> = React.memo(({ activeTab }) => {
   // RTK Query hooks
-  const { data: ordersData, isLoading: isOrdersLoading, error: orderError, refetch: refetchOrders } = useGetBuyerOrdersQuery(undefined, {
-    skip: !["3", "4"].includes(activeTab),
-  });
+  const { data: ordersData, isLoading: isOrdersLoading, error: orderError, refetch: refetchOrders } = useGetUserOrdersQuery(
+    { type: 'buyer' },
+    {
+      skip: !["3", "4"].includes(activeTab),
+    }
+  );
 
   const { data: watchlistData, isLoading: isWatchlistLoading, error: watchlistError, refetch: refetchWatchlist } = useGetWatchlistQuery(undefined, {
     skip: activeTab !== "1",
@@ -46,8 +50,8 @@ const TabContent: React.FC<TabContentProps> = React.memo(({ activeTab }) => {
   const [removeFromWatchlist] = useRemoveFromWatchlistMutation();
 
   // Process orders data
-  const disputeOrders = ordersData?.filter((order: any) => order.dispute?.raised) || [];
-  const nonDisputeOrders = ordersData?.filter((order: any) => !order.dispute?.raised) || [];
+  const disputeOrders = ordersData?.filter((order: Order) => order.dispute?.raisedBy) || [];
+  const nonDisputeOrders = ordersData?.filter((order: Order) => !order.dispute?.raisedBy) || [];
   const watchlistItems = watchlistData || [];
 
   // Manual retry handlers with RTK Query
@@ -226,8 +230,8 @@ const TabContent: React.FC<TabContentProps> = React.memo(({ activeTab }) => {
             nonDisputeOrders.length > 0 && (
               <div className="space-y-4">
                 {nonDisputeOrders
-                  .filter((order) => order?._id && order?.product?._id)
-                  .map((order, index) => (
+                  .filter((order: Order) => order?._id && order?.product?._id)
+                  .map((order: Order, index: number) => (
                     <OrderHistoryItem
                       key={`order-${order._id}`}
                       {...order}
@@ -284,8 +288,8 @@ const TabContent: React.FC<TabContentProps> = React.memo(({ activeTab }) => {
             disputeOrders.length > 0 && (
               <div className="mt-6 space-y-4">
                 {disputeOrders
-                  .filter((order) => order?._id && order?.product?._id)
-                  .map((order) => (
+                  .filter((order: Order) => order?._id && order?.product?._id)
+                  .map((order: Order) => (
                     <DisputeItem
                       key={`dispute-${order._id}`}
                       disputeStatus={

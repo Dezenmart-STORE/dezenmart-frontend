@@ -19,8 +19,13 @@ const DeliveryAddressSelector: React.FC<DeliveryAddressSelectorProps> = ({
   selectedAddress,
   onAddressSelect,
 }) => {
-  const { data: addresses = [], isLoading } = useGetDeliveryAddressesQuery();
-  const { data: defaultAddress } = useGetDefaultDeliveryAddressQuery();
+  const { data: addresses = [], isLoading, error: fetchError } = useGetDeliveryAddressesQuery(undefined, {
+    // Temporarily skip this query until delivery address API goes live
+    skip: true,
+  });
+  const { data: defaultAddress } = useGetDefaultDeliveryAddressQuery(undefined, {
+    skip: true,
+  });
   const [createAddress, { isLoading: isCreating }] = useCreateDeliveryAddressMutation();
 
   const [showAddForm, setShowAddForm] = useState(false);

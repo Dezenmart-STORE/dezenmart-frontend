@@ -2,10 +2,12 @@ import React, { useMemo } from "react";
 import { FaRegHeart, FaHeart } from "react-icons/fa";
 import { Link, useNavigate } from "react-router-dom";
 import { Product } from "../../utils/types";
-import { useCheckWatchlistQuery, useToggleWatchlistMutation } from "../../store/api";
+import { useCheckWatchlistQuery, useAddToWatchlistMutation, useRemoveFromWatchlistMutation } from "../../store/api";
 import { useCurrency } from "../../context/CurrencyContext";
 import { useCurrencyConverter } from "../../utils/hooks/useCurrencyConverter";
 import { motion } from "framer-motion";
+import { useAuth } from "../../context/AuthContext";
+import { useSnackbar } from "../../context/SnackbarContext";
 
 interface ProductCardProps {
   product: Product;
@@ -15,16 +17,21 @@ interface ProductCardProps {
 const ProductCard = React.memo(
   ({ product, isNew = false }: ProductCardProps) => {
     const navigate = useNavigate();
+    const { isAuthenticated } = useAuth();
+    const { showSnackbar } = useSnackbar();
     const { _id, name, description, images, isSponsored, price, paymentToken } = product;
     const { secondaryCurrency, fiatCurrency, selectedTokenSymbol } =
       useCurrency();
     const { convertPrice, formatPrice } = useCurrencyConverter();
 
-    // RTK Query hooks
-    const { data: isInWatchlist = false } = useCheckWatchlistQuery(_id);
-    const [toggleWatchlist] = useToggleWatchlistMutation();
+    // RTK Query hooks - only fetch watchlist status when authenticated
+    const { data: watchlistData } = useCheckWatchlistQuery(_id, {
+      skip: !isAuthenticated,
+    });
+    const [addToWatchlist] = useAddToWatchlistMutation();
+    const [removeFromWatchlist] = useRemoveFromWatchlistMutation();
 
-    const isFavorite = isInWatchlist;
+    const isFavorite = watchlistData?.isWatchlist || false;
 
     // Calculate formatted prices
     const formattedPrices = useMemo(() => {
@@ -54,7 +61,17 @@ const ProductCard = React.memo(
     const handleToggleFavorite = async (e: React.MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
-      await toggleWatchlist(_id);
+
+      if (!isAuthenticated) {
+        showSnackbar("Please log in to save products to your wishlist", "info");
+        return;
+      }
+
+      if (isFavorite) {
+        await removeFromWatchlist(_id);
+      } else {
+        await addToWatchlist(_id);
+      }
     };
 
     const navigateToProduct = (e: React.MouseEvent) => {
