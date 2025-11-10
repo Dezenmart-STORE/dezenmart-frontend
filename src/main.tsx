@@ -1,6 +1,6 @@
 import { lazy, StrictMode, Suspense } from "react";
 import "./index.css";
-import { createBrowserRouter, Outlet, RouterProvider } from "react-router-dom";
+import { createBrowserRouter, Outlet, RouterProvider, useLocation } from "react-router-dom";
 import { createRoot } from "react-dom/client";
 import { Configuration } from "@react-md/layout";
 import Layout from "./components/layout/Layout.tsx";
@@ -78,6 +78,8 @@ const queryClient = new QueryClient({
 setupGlobalErrorHandling();
 
 const RouterLayout = () => {
+  const location = useLocation();
+
   return (
     <Configuration>
       <SnackbarProvider>
@@ -90,7 +92,7 @@ const RouterLayout = () => {
                     <CurrencyProvider>
                       <Layout>
                         <Suspense fallback={<Loadscreen />}>
-                          <Outlet />
+                          <Outlet key={location.pathname} />
                         </Suspense>
                         <ReferralHandler />
                         <TermsModal />
