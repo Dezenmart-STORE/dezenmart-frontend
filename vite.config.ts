@@ -18,7 +18,7 @@ export default defineConfig({
     // PWA Plugin
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["favicon.ico", "robots.txt", "icons/*.png"],
+      includeAssets: ["robots.txt", "icons/*.png", "images/logo.png"],
       manifest: {
         name: "Dezenmart - Decentralized Marketplace",
         short_name: "Dezenmart",
@@ -28,14 +28,52 @@ export default defineConfig({
         display: "standalone",
         icons: [
           {
+            src: "/icons/icon-72x72.png",
+            sizes: "72x72",
+            type: "image/png",
+            purpose: "any maskable",
+          },
+          {
+            src: "/icons/icon-96x96.png",
+            sizes: "96x96",
+            type: "image/png",
+            purpose: "any maskable",
+          },
+          {
+            src: "/icons/icon-128x128.png",
+            sizes: "128x128",
+            type: "image/png",
+            purpose: "any maskable",
+          },
+          {
+            src: "/icons/icon-144x144.png",
+            sizes: "144x144",
+            type: "image/png",
+            purpose: "any maskable",
+          },
+          {
+            src: "/icons/icon-152x152.png",
+            sizes: "152x152",
+            type: "image/png",
+            purpose: "any maskable",
+          },
+          {
             src: "/icons/icon-192x192.png",
             sizes: "192x192",
             type: "image/png",
+            purpose: "any maskable",
+          },
+          {
+            src: "/icons/icon-384x384.png",
+            sizes: "384x384",
+            type: "image/png",
+            purpose: "any maskable",
           },
           {
             src: "/icons/icon-512x512.png",
             sizes: "512x512",
             type: "image/png",
+            purpose: "any maskable",
           },
         ],
       },
@@ -199,10 +237,14 @@ export default defineConfig({
             "@uniswap/smart-order-router",
           ],
 
-          // Other Web3 libraries
-          "vendor-web3-misc": [
-            "ethers",
-            "@mento-protocol/mento-sdk",
+          // Ethers separately to avoid circular dependency
+          "vendor-ethers": ["ethers"],
+
+          // Mento SDK
+          "vendor-mento": ["@mento-protocol/mento-sdk"],
+
+          // WalletConnect
+          "vendor-walletconnect": [
             "@walletconnect/ethereum-provider",
             "@walletconnect/modal",
           ],
@@ -255,6 +297,7 @@ export default defineConfig({
 
     commonjsOptions: {
       transformMixedEsModules: true,
+      ignoreTryCatch: true, // Prevent issues with try-catch detection
     },
 
     // Minification options
