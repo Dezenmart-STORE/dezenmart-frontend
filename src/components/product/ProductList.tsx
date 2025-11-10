@@ -3,7 +3,12 @@ import { twMerge } from "tailwind-merge";
 import ProductCard from "./ProductCard";
 import Title from "../common/Title";
 import { Link } from "react-router-dom";
-import { useGetProductsQuery, useGetSponsoredProductsQuery, useGetProductsByCategoryQuery, useGetProductsBySellerQuery } from "../../store/api";
+import {
+  useGetProductsQuery,
+  useGetSponsoredProductsQuery,
+  useGetProductsByCategoryQuery,
+  useGetProductsBySellerQuery,
+} from "../../store/api";
 import { Product } from "../../utils/types";
 import LoadingSpinner from "../common/LoadingSpinner";
 import { useIntersectionObserver } from "../../utils/hooks/useIntersectionObserver";
@@ -21,18 +26,7 @@ interface Props {
   showViewAll?: boolean;
 }
 
-interface FormattedProductProp extends Product {
-  celoPrice: number;
-  fiatPrice: number;
-  formattedCeloPrice: string;
-  formattedFiatPrice: string;
-  formattedUsdtPrice: string;
-  formattedTokenPrice: string;
-}
-
-// const ITEMS_PER_PAGE = window.innerWidth < 768 ? 6 : 12;
-// const HOME_PAGE_LIMIT = window.innerWidth < 768 ? 6 : 12;
-// const CATEGORY_SPONSORED_LIMIT = window.innerWidth < 768 ? 4 : 8;
+const ITEMS_PER_PAGE = 12;
 
 const ProductList = ({
   title,
@@ -47,89 +41,96 @@ const ProductList = ({
 }: Props) => {
   const { user } = useAuth();
 
-  // RTK Query hooks - conditional fetching based on props
-  const { data: fetchedAllProducts = [], isLoading: loadingAll } = useGetProductsQuery(undefined, {
-    skip: isFeatured || !!category || isUserProducts,
+  // Determine which query to use based on props
+  const shouldFetchAll = !isFeatured && !category && !isUserProducts;
+  const shouldFetchCategory = !!category && category !== "All";
+  const shouldFetchSponsored = isFeatured || !!category || isUserProducts;
+  const shouldFetchUser = isUserProducts && !!user?._id;
+
+  // RTK Query hooks - conditional fetching
+  const {
+    data: allProducts = [],
+    isLoading: loadingAll,
+    isFetching: fetchingAll,
+  } = useGetProductsQuery(undefined, {
+    skip: !shouldFetchAll && category !== "All",
   });
 
-  const { data: sponsoredProducts = [], isLoading: loadingSponsored } = useGetSponsoredProductsQuery(undefined, {
-    skip: !isFeatured,
+  const {
+    data: sponsoredProducts = [],
+    isLoading: loadingSponsored,
+  } = useGetSponsoredProductsQuery(undefined, {
+    skip: !shouldFetchSponsored,
   });
 
-  const { data: categoryProducts = [], isLoading: loadingCategory } = useGetProductsByCategoryQuery(category!, {
-    skip: !category,
+  const {
+    data: categoryProducts = [],
+    isLoading: loadingCategory,
+  } = useGetProductsByCategoryQuery(category!, {
+    skip: !shouldFetchCategory,
   });
 
-  const { data: userProducts = [], isLoading: loadingUser } = useGetProductsBySellerQuery(user?._id!, {
-    skip: !isUserProducts || !user?._id,
+  const {
+    data: userProducts = [],
+    isLoading: loadingUser,
+  } = useGetProductsBySellerQuery(user?._id!, {
+    skip: !shouldFetchUser,
   });
 
-  // Determine which products to use
-  const products = isFeatured ? sponsoredProducts : category ? categoryProducts : isUserProducts ? userProducts : fetchedAllProducts;
-  const loading = loadingAll || loadingSponsored || loadingCategory || loadingUser;
-  const error = null; // RTK Query handles errors internally
-
-  const [displayProducts, setDisplayProducts] = useState<Product[]>([]);
-  const [sponsoredDisplayProducts, setSponsoredDisplayProducts] = useState<Product[]>([]);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
+  // State for pagination
+  const [displayedCount, setDisplayedCount] = useState(maxItems || ITEMS_PER_PAGE);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [isInitialLoading, setIsInitialLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
 
-  // Intersection observer
+  // Intersection observer for infinite scroll
   const { targetRef, isIntersecting } = useIntersectionObserver({
     threshold: 0.1,
-    rootMargin: "100px",
+    rootMargin: "200px",
   });
 
-  // filtered products
-  const { allProducts, categorySponsored } = useMemo(() => {
-    let allProducts: Product[] = [];
-    let categorySponsored: Product[] = [];
+  // Compute final product lists
+  const { regularProducts, sponsoredList } = useMemo(() => {
+    let sponsored: Product[] = [];
+    let regular: Product[] = [];
 
     if (isFeatured) {
-      allProducts = sponsoredProducts || [];
+      // Featured view: only show sponsored products
+      regular = sponsoredProducts || [];
+    } else if (category === "All") {
+      // All products view
+      sponsored = sponsoredProducts || [];
+      const sponsoredIds = new Set(sponsored.map((p) => p._id));
+      regular = (allProducts || []).filter((p) => !sponsoredIds.has(p._id));
     } else if (category && category !== "All") {
-      // Use categoryProducts from RTK Query
-      const categoryProductsData = categoryProducts || [];
-      // Filter sponsored products for this category
-      categorySponsored = (sponsoredProducts || []).filter(
-        (product) => product.category?.toLowerCase() === category.toLowerCase()
+      // Specific category view
+      sponsored = (sponsoredProducts || []).filter(
+        (p) => p.category?.toLowerCase() === category.toLowerCase()
       );
-
-      // Get non-sponsored products for this category
-      const sponsoredIds = new Set(categorySponsored.map((p) => p._id));
-      allProducts = categoryProductsData.filter(
-        (product) => !sponsoredIds.has(product._id)
-      );
+      const sponsoredIds = new Set(sponsored.map((p) => p._id));
+      regular = (categoryProducts || []).filter((p) => !sponsoredIds.has(p._id));
     } else if (isUserProducts) {
-      // Use userProducts from RTK Query
-      const userProductsData = userProducts || [];
-      categorySponsored = (sponsoredProducts || []).filter((product) => {
+      // User products view
+      sponsored = (sponsoredProducts || []).filter((product) => {
         if (!product || !user) return false;
         if (typeof product.seller === "object" && product.seller) {
-          return (
-            product.seller._id === user._id || product.seller.name === user.name
-          );
+          return product.seller._id === user._id || product.seller.name === user.name;
         }
-
         return product.seller === user._id;
       });
-      const sponsoredIds = new Set(categorySponsored.map((p) => p._id));
-      allProducts = userProductsData.filter(
-        (product) => !sponsoredIds.has(product._id)
-      );
+      const sponsoredIds = new Set(sponsored.map((p) => p._id));
+      regular = (userProducts || []).filter((p) => !sponsoredIds.has(p._id));
     } else {
-      const sponsoredIds = new Set((sponsoredProducts || []).map((p) => p._id));
-      allProducts = (fetchedAllProducts || []).filter(
-        (product) => !sponsoredIds.has(product._id)
-      );
+      // Default: all products
+      sponsored = sponsoredProducts || [];
+      const sponsoredIds = new Set(sponsored.map((p) => p._id));
+      regular = (allProducts || []).filter((p) => !sponsoredIds.has(p._id));
     }
 
-    return { allProducts, categorySponsored };
+    return {
+      regularProducts: regular,
+      sponsoredList: sponsored,
+    };
   }, [
-    fetchedAllProducts,
+    allProducts,
     sponsoredProducts,
     categoryProducts,
     userProducts,
@@ -139,99 +140,60 @@ const ProductList = ({
     user,
   ]);
 
-  // RTK Query handles initial data loading automatically
-  // Update isInitialLoading based on RTK Query loading states
+  // Loading states
+  const isInitialLoading = loadingAll || loadingSponsored || loadingCategory || loadingUser;
+  const totalProducts = regularProducts.length;
+  const hasMore = displayedCount < totalProducts;
+
+  // Reset displayed count when products change
   useEffect(() => {
-    setIsInitialLoading(loading);
-  }, [loading]);
+    setDisplayedCount(maxItems || ITEMS_PER_PAGE);
+  }, [category, isFeatured, isUserProducts, maxItems]);
 
-  useEffect(() => {
-    if (isInitialLoading || loading) return;
-
-    // Handle sponsored products for category view
-    if (
-      ((isCategoryView && category) || isUserProducts) &&
-      categorySponsored.length > 0
-    ) {
-      setSponsoredDisplayProducts(categorySponsored);
-    }
-
-    // Determine how many items to show initially
-    // let initialLimit = maxItems || ITEMS_PER_PAGE;
-    // if (!isCategoryView && !isFeatured) {
-    //   initialLimit = HOME_PAGE_LIMIT;
-    // }
-
-    const initialProducts = allProducts;
-    // .slice(0, initialLimit);
-    setDisplayProducts(initialProducts);
-    setCurrentPage(1);
-    // setHasMore(allProducts.length > initialLimit);
-  }, [
-    allProducts,
-    categorySponsored,
-    category,
-    isCategoryView,
-    isFeatured,
-    maxItems,
-    isInitialLoading,
-    loading,
-  ]);
-
-  // Load more products
-  const loadMoreProducts = useCallback(async () => {
+  // Load more handler
+  const loadMore = useCallback(async () => {
     if (isLoadingMore || !hasMore || isInitialLoading) return;
 
     setIsLoadingMore(true);
 
+    // Simulate loading delay for better UX
     await new Promise((resolve) => setTimeout(resolve, 300));
 
-    const nextPage = currentPage + 1;
-    const startIndex = nextPage - 1;
-    // * ITEMS_PER_PAGE;
-    const endIndex = startIndex;
-    // + ITEMS_PER_PAGE;
-
-    const newProducts = allProducts.slice(startIndex, endIndex);
-
-    if (newProducts.length > 0) {
-      setDisplayProducts((prev) => [...prev, ...newProducts]);
-      setCurrentPage(nextPage);
-      setHasMore(endIndex < allProducts.length);
-    } else {
-      setHasMore(false);
-    }
-
+    setDisplayedCount((prev) => Math.min(prev + ITEMS_PER_PAGE, totalProducts));
     setIsLoadingMore(false);
-  }, [currentPage, allProducts, hasMore, isLoadingMore, isInitialLoading]);
+  }, [isLoadingMore, hasMore, isInitialLoading, totalProducts]);
 
+  // Trigger load more on intersection
   useEffect(() => {
     if (isIntersecting && !isLoadingMore && hasMore && !isInitialLoading) {
-      loadMoreProducts();
+      loadMore();
     }
-  }, [
-    isIntersecting,
-    loadMoreProducts,
-    isLoadingMore,
-    hasMore,
-    isInitialLoading,
-  ]);
+  }, [isIntersecting, loadMore, isLoadingMore, hasMore, isInitialLoading]);
 
+  // Helper to check if product is new
+  const isNewProduct = useCallback((createdAt: string) => {
+    const createdDate = new Date(createdAt);
+    const now = new Date();
+    const diffInMs = now.getTime() - createdDate.getTime();
+    const diffInDays = diffInMs / (1000 * 60 * 60 * 24);
+    return diffInDays < 7;
+  }, []);
+
+  // Get products to display
+  const productsToDisplay = regularProducts.slice(0, displayedCount);
+
+  // Early return if no products and not in category view
   if (
     !isCategoryView &&
     !isInitialLoading &&
-    !loadError &&
-    displayProducts.length === 0 &&
-    sponsoredDisplayProducts.length === 0
+    productsToDisplay.length === 0 &&
+    sponsoredList.length === 0
   ) {
     return null;
   }
 
   const newClass = twMerge("", className);
-  const shouldShowLoadMore =
-    (isCategoryView || isFeatured) && hasMore && !isLoadingMore;
-  const totalProducts =
-    displayProducts.length + sponsoredDisplayProducts.length;
+  const totalDisplayed = productsToDisplay.length + sponsoredList.length;
 
   return (
     <section className={newClass}>
@@ -256,108 +218,81 @@ const ProductList = ({
           <div className="flex justify-center items-center py-12">
             <LoadingSpinner size="md" />
           </div>
-        ) : loadError || error ? (
-          <div className="text-Red text-center py-8">
-            {loadError ||
-              error ||
-              "Failed to load products. Please try again later."}
-          </div>
-        ) : totalProducts === 0 ? (
+        ) : totalDisplayed === 0 ? (
           <div className="text-gray-400 text-center py-8">
-            No products found{category ? ` in ${category}` : ""}.
+            No products found{category && category !== "All" ? ` in ${category}` : ""}.
           </div>
         ) : (
           <>
-            {/* Sponsored products section for category view */}
-            {(isCategoryView || isUserProducts) &&
-              sponsoredDisplayProducts.length > 0 && (
-                <div className="mb-8">
-                  <h3 className="text-white text-lg font-semibold mb-4 flex items-center gap-2">
-                    <span className="text-Green text-sm bg-Green/10 px-2 py-1 rounded border border-Green/20">
-                      Sponsored
-                    </span>
-                    {!isUserProducts && `Featured in ${category}`}
-                  </h3>
-                  <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 md:gap-5">
-                    {sponsoredDisplayProducts.map((product) => {
-                      const isNew = (() => {
-                        const createdDate = new Date(product.createdAt);
-                        const now = new Date();
-                        const diffInMs = now.getTime() - createdDate.getTime();
-                        const diffInDays = diffInMs / (1000 * 60 * 60 * 24);
-                        return diffInDays < 7;
-                      })();
-
-                      return (
-                        <ProductCard
-                          key={`sponsored-${product._id}`}
-                          product={product}
-                          isNew={isNew}
-                        />
-                      );
-                    })}
-                  </div>
-
-                  {/* Divider */}
-                  <div className="border-t border-gray-700 my-8"></div>
-                  <h3 className="text-white text-lg font-semibold mb-4">
-                    All {category !== "All" && category} Products
-                  </h3>
+            {/* Sponsored products section */}
+            {(isCategoryView || isUserProducts) && sponsoredList.length > 0 && (
+              <div className="mb-8">
+                <h3 className="text-white text-lg font-semibold mb-4 flex items-center gap-2">
+                  <span className="text-Green text-sm bg-Green/10 px-2 py-1 rounded border border-Green/20">
+                    Sponsored
+                  </span>
+                  {!isUserProducts && category && category !== "All" && `Featured in ${category}`}
+                </h3>
+                <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 md:gap-5">
+                  {sponsoredList.map((product) => (
+                    <ProductCard
+                      key={`sponsored-${product._id}`}
+                      product={product}
+                      isNew={isNewProduct(product.createdAt)}
+                    />
+                  ))}
                 </div>
-              )}
+
+                {/* Divider */}
+                {productsToDisplay.length > 0 && (
+                  <>
+                    <div className="border-t border-gray-700 my-8"></div>
+                    <h3 className="text-white text-lg font-semibold mb-4">
+                      {category && category !== "All" ? `All ${category} Products` : "All Products"}
+                    </h3>
+                  </>
+                )}
+              </div>
+            )}
 
             {/* Main products grid */}
-            <div className="grid grid-cols-1 xxs:grid-cols-2 gap-4 lg:grid-cols-4">
-              {displayProducts.map((product, index) => {
-                const isNew = (() => {
-                  const createdDate = new Date(product.createdAt);
-                  const now = new Date();
-                  const diffInMs = now.getTime() - createdDate.getTime();
-                  const diffInDays = diffInMs / (1000 * 60 * 60 * 24);
-                  return diffInDays < 7;
-                })();
-
-                return (
+            {productsToDisplay.length > 0 && (
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 md:gap-5">
+                {productsToDisplay.map((product, index) => (
                   <ProductCard
                     key={`${product._id}-${index}`}
                     product={product}
-                    isNew={isNew}
+                    isNew={isNewProduct(product.createdAt)}
                   />
-                );
-              })}
-            </div>
+                ))}
+              </div>
+            )}
 
             {/* Loading more indicator */}
             {isLoadingMore && (
-              <div className="flex justify-center items-center py-8">
+              <div className="flex justify-center items-center py-8 gap-2">
                 <LoadingSpinner size="sm" />
-                <span className="ml-2 text-gray-400">
-                  Loading more products...
-                </span>
+                <span className="text-gray-400">Loading more products...</span>
               </div>
             )}
 
-            {shouldShowLoadMore && (
-              <div
-                ref={targetRef}
-                className="h-10 flex items-center justify-center"
-              >
-                <div className="w-1 h-1 bg-transparent"></div>
-              </div>
+            {/* Intersection observer target */}
+            {hasMore && !isLoadingMore && (
+              <div ref={targetRef} className="h-10 w-full" aria-hidden="true" />
             )}
 
             {/* End of results indicator */}
-            {/* {!hasMore &&
-              totalProducts > 0 &&
-              (isCategoryView || isFeatured) && (
-                <div className="text-center py-8 text-gray-400">
-                  <div className="inline-flex items-center gap-2">
-                    <div className="h-px bg-gray-600 w-8"></div>
-                    <span className="text-sm">You've seen all products</span>
-                    <div className="h-px bg-gray-600 w-8"></div>
-                  </div>
+            {!hasMore && totalDisplayed > ITEMS_PER_PAGE && (
+              <div className="text-center py-8 text-gray-400">
+                <div className="inline-flex items-center gap-2">
+                  <div className="h-px bg-gray-600 w-8"></div>
+                  <span className="text-sm">
+                    You've seen all {totalDisplayed} product{totalDisplayed !== 1 ? "s" : ""}
+                  </span>
+                  <div className="h-px bg-gray-600 w-8"></div>
                 </div>
-              )} */}
+              </div>
+            )}
           </>
         )}
       </div>
