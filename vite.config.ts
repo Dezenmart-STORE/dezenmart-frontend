@@ -230,15 +230,13 @@ export default defineConfig({
             "@wagmi/core",
           ],
 
-          // Uniswap SDKs (heavy)
+          // Uniswap SDKs + Ethers (bundled together to avoid circular dependency)
           "vendor-uniswap": [
             "@uniswap/sdk-core",
             "@uniswap/v3-sdk",
             "@uniswap/smart-order-router",
+            "ethers",
           ],
-
-          // Ethers separately to avoid circular dependency
-          "vendor-ethers": ["ethers"],
 
           // Mento SDK
           "vendor-mento": ["@mento-protocol/mento-sdk"],
