@@ -26,6 +26,17 @@ export const registerServiceWorker = (config?: ServiceWorkerConfig) => {
     return;
   }
 
+  // Suppress "message channel closed" errors from browser extensions
+  window.addEventListener('unhandledrejection', (event) => {
+    if (
+      event.reason?.message?.includes('message channel closed') ||
+      event.reason?.message?.includes('A listener indicated an asynchronous response')
+    ) {
+      event.preventDefault();
+      console.debug('[PWA] Suppressed extension-related error:', event.reason.message);
+    }
+  });
+
   try {
     updateSW = registerSW({
       immediate: true,
@@ -52,7 +63,9 @@ export const registerServiceWorker = (config?: ServiceWorkerConfig) => {
         // Check for updates every hour
         if (registration) {
           setInterval(() => {
-            registration.update();
+            registration.update().catch(() => {
+              // Silently ignore update check failures
+            });
           }, 60 * 60 * 1000); // 1 hour
         }
       },

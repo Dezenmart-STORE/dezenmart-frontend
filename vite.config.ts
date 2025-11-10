@@ -23,8 +23,8 @@ export default defineConfig({
         name: "Dezenmart - Decentralized Marketplace",
         short_name: "Dezenmart",
         description: "Decentralized Web3 marketplace on Celo blockchain",
-        theme_color: "#6366F1",
-        background_color: "#1A1B1F",
+        theme_color: "#ff343f",
+        background_color: "#212428",
         display: "standalone",
         icons: [
           {

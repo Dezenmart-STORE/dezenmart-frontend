@@ -120,7 +120,7 @@ export const InstallPrompt: React.FC = () => {
             className="fixed bottom-4 left-4 right-4 md:left-auto md:right-8 md:w-96 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl z-50 overflow-hidden"
           >
             {/* Header */}
-            <div className="bg-gradient-to-r from-indigo-500 to-purple-600 p-4 text-white">
+            <div className="bg-gradient-to-r from-Red to-red-600 p-4 text-white">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
                   <div className="bg-white bg-opacity-20 p-2 rounded-lg">
@@ -166,7 +166,7 @@ export const InstallPrompt: React.FC = () => {
               <div className="flex gap-3">
                 <button
                   onClick={handleInstallClick}
-                  className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
+                  className="flex-1 bg-Red hover:bg-red-600 text-white font-semibold py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
                 >
                   <FiDownload className="text-lg" />
                   Install App
@@ -238,7 +238,7 @@ export const InstallButton: React.FC = () => {
   return (
     <button
       onClick={handleInstallClick}
-      className="flex items-center gap-2 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors"
+      className="flex items-center gap-2 px-3 py-2 bg-Red hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors"
       aria-label="Install app"
     >
       <FiDownload />
