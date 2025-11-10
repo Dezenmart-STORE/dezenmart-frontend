@@ -17,7 +17,7 @@ export const watchlistApi = baseApi.injectEndpoints({
 
     // Check if product is in watchlist
     checkWatchlist: builder.query<WatchlistCheck, string>({
-      query: (productId) => `/watchlist/${productId}/check`,
+      query: (productId) => `/watchlist/check/${productId}`,
       providesTags: (result, error, productId) => [
         { type: 'Watchlist', id: `CHECK_${productId}` },
       ],
