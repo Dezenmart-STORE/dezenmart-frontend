@@ -22,6 +22,28 @@ import { Web3Provider } from "./context/Web3Context.tsx";
 import { wagmiConfig } from "./utils/config/web3.config.ts";
 import TermsModal from "./components/common/TermsModal.tsx";
 import { TermsProvider } from "./context/TermsContext.tsx";
+import { initSentry } from "./utils/sentry.config.ts";
+import { initPerformanceMonitoring, monitorResourceTiming } from "./utils/performance.ts";
+import { registerServiceWorker } from "./utils/pwa/index.ts";
+
+// Initialize Sentry error tracking
+initSentry();
+
+// Initialize performance monitoring
+if (import.meta.env.PROD) {
+  initPerformanceMonitoring();
+  monitorResourceTiming();
+}
+
+// Register service worker for PWA functionality
+registerServiceWorker({
+  onNeedRefresh: () => {
+    console.log('[PWA] New version available');
+  },
+  onOfflineReady: () => {
+    console.log('[PWA] App ready to work offline');
+  },
+});
 
 // import GoogleCallback from "./pages/GoogleCallback.tsx";
 
@@ -41,6 +63,7 @@ const Community = lazy(() => import("./pages/Community.tsx"));
 const ReferralLanding = lazy(() => import("./pages/ReferralLanding.tsx"));
 const Chat = lazy(() => import("./pages/Chat.tsx"));
 const ChatDetail = lazy(() => import("./pages/ChatDetail.tsx"));
+const Offline = lazy(() => import("./pages/Offline.tsx"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
 
 const queryClient = new QueryClient({
@@ -181,29 +204,10 @@ const router = createBrowserRouter([
         path: "/load",
         element: <Loadscreen />,
       },
-
-      // {
-      //   path: "/member/:id",
-      //   element: <Members />,
-      // },
-      // {
-      //   path: "/heros",
-      //   element: <Heros />,
-      // },
-      // {
-      //   path: "/article",
-      //   element: <Article />,
-      // },
-      // {
-      //   path: "/article/:id",
-      //   element: <Article />,
-      // },
-      // {
-      //   path: "/contact",
-      //   element: <Contact />,
-      // },
-      // {
-
+      {
+        path: "/offline",
+        element: <Offline />,
+      },
       {
         path: "*",
         element: <NotFound />,

@@ -1,122 +1,259 @@
-export interface SwapError {
-  code: string;
+/**
+ * Swap Error Handler
+ * Converts technical swap errors into user-friendly messages
+ */
+
+export interface SwapErrorInfo {
+  title: string;
   message: string;
-  details?: string;
+  suggestion?: string;
   recoverable: boolean;
-  userAction?: string;
 }
 
-export const parseSwapError = (error: any): SwapError => {
-  const message = error?.message || error?.toString() || "";
+export class SwapError extends Error {
+  public readonly title: string;
+  public readonly suggestion?: string;
+  public readonly recoverable: boolean;
+  public readonly originalError?: Error;
+
+  constructor(
+    message: string,
+    title: string = "Swap Failed",
+    suggestion?: string,
+    recoverable: boolean = true,
+    originalError?: Error
+  ) {
+    super(message);
+    this.name = "SwapError";
+    this.title = title;
+    this.suggestion = suggestion;
+    this.recoverable = recoverable;
+    this.originalError = originalError;
+  }
+
+  toErrorInfo(): SwapErrorInfo {
+    return {
+      title: this.title,
+      message: this.message,
+      suggestion: this.suggestion,
+      recoverable: this.recoverable,
+    };
+  }
+}
+
+/**
+ * Parse raw error and convert to user-friendly SwapError
+ */
+export function parseSwapError(error: unknown, context?: string): SwapError {
+  const errorStr = String(error).toLowerCase();
+  const errorMessage = error instanceof Error ? error.message : String(error);
+
+  // Insufficient funds errors
+  if (
+    errorStr.includes("insufficient") &&
+    (errorStr.includes("funds") || errorStr.includes("balance"))
+  ) {
+    return new SwapError(
+      "You don't have enough tokens to complete this swap.",
+      "Insufficient Funds",
+      "Please check your balance and try a smaller amount.",
+      true,
+      error instanceof Error ? error : undefined
+    );
+  }
+
+  // Insufficient gas errors
+  if (errorStr.includes("gas") && errorStr.includes("insufficient")) {
+    return new SwapError(
+      "You don't have enough CELO to pay for transaction fees.",
+      "Insufficient Gas",
+      "Please add CELO to your wallet to cover gas fees.",
+      true,
+      error instanceof Error ? error : undefined
+    );
+  }
+
+  // User rejected transaction
+  if (
+    errorStr.includes("user rejected") ||
+    errorStr.includes("user denied") ||
+    errorStr.includes("user cancelled")
+  ) {
+    return new SwapError(
+      "Transaction was cancelled.",
+      "Transaction Cancelled",
+      undefined,
+      true,
+      error instanceof Error ? error : undefined
+    );
+  }
+
+  // Slippage tolerance exceeded
+  if (
+    errorStr.includes("slippage") ||
+    errorStr.includes("price movement") ||
+    errorStr.includes("too old")
+  ) {
+    return new SwapError(
+      "Price changed too much during the swap.",
+      "Price Changed",
+      "Please try again with a higher slippage tolerance or wait a moment.",
+      true,
+      error instanceof Error ? error : undefined
+    );
+  }
+
+  // Liquidity errors
+  if (
+    errorStr.includes("liquidity") ||
+    errorStr.includes("insufficient reserves")
+  ) {
+    return new SwapError(
+      "Not enough liquidity available for this swap.",
+      "Insufficient Liquidity",
+      "Try a smaller amount or use a different token pair.",
+      true,
+      error instanceof Error ? error : undefined
+    );
+  }
+
+  // Token approval errors
+  if (errorStr.includes("allowance") || errorStr.includes("approval")) {
+    return new SwapError(
+      "Token approval is required before swapping.",
+      "Approval Required",
+      "Please approve the token and try again.",
+      true,
+      error instanceof Error ? error : undefined
+    );
+  }
 
   // Network errors
-  if (message.includes("network") || message.includes("connection")) {
-    return {
-      code: "NETWORK_ERROR",
-      message: "Network connection issue",
-      details: "Please check your internet connection and try again.",
-      recoverable: true,
-      userAction: "retry",
-    };
-  }
-
-  // Insufficient balance
-  if (message.includes("insufficient") && message.includes("balance")) {
-    return {
-      code: "INSUFFICIENT_BALANCE",
-      message: "Insufficient token balance",
-      details: "You don't have enough tokens to complete this swap.",
-      recoverable: false,
-      userAction: "add_funds",
-    };
-  }
-
-  // Allowance issues
   if (
-    message.includes("allowance") ||
-    message.includes("transferFrom failed")
+    errorStr.includes("network") ||
+    errorStr.includes("connection") ||
+    errorStr.includes("timeout")
   ) {
-    return {
-      code: "ALLOWANCE_ERROR",
-      message: "Token approval required",
-      details: "Please approve the token spend and try again.",
-      recoverable: true,
-      userAction: "approve",
-    };
+    return new SwapError(
+      "Network connection issue occurred.",
+      "Network Error",
+      "Please check your internet connection and try again.",
+      true,
+      error instanceof Error ? error : undefined
+    );
   }
 
-  // Slippage exceeded
-  if (message.includes("slippage") || message.includes("price")) {
-    return {
-      code: "SLIPPAGE_EXCEEDED",
-      message: "Price moved beyond acceptable range",
-      details:
-        "Market conditions changed. Please try again or increase slippage tolerance.",
-      recoverable: true,
-      userAction: "retry_or_adjust_slippage",
-    };
+  // RPC errors
+  if (errorStr.includes("rpc") || errorStr.includes("provider")) {
+    return new SwapError(
+      "Unable to connect to the blockchain network.",
+      "Connection Error",
+      "Please try again in a moment.",
+      true,
+      error instanceof Error ? error : undefined
+    );
   }
 
-  // Pair not available
-  if (message.includes("pair") || message.includes("route")) {
-    return {
-      code: "PAIR_NOT_AVAILABLE",
-      message: "Trading pair not available",
-      details:
-        "This token pair cannot be swapped directly. Try routing through CELO.",
-      recoverable: true,
-      userAction: "use_different_route",
-    };
+  // Wrong network
+  if (
+    errorStr.includes("wrong network") ||
+    errorStr.includes("unsupported chain")
+  ) {
+    return new SwapError(
+      "You're connected to the wrong network.",
+      "Wrong Network",
+      "Please switch to Celo network in your wallet.",
+      true,
+      error instanceof Error ? error : undefined
+    );
   }
 
-  // User rejection
-  if (message.includes("rejected") || message.includes("denied")) {
-    return {
-      code: "USER_REJECTED",
-      message: "Transaction cancelled",
-      details: "You cancelled the transaction.",
-      recoverable: true,
-      userAction: "retry",
-    };
+  // Transaction failed
+  if (
+    errorStr.includes("transaction failed") ||
+    errorStr.includes("reverted")
+  ) {
+    return new SwapError(
+      "The transaction failed during execution.",
+      "Transaction Failed",
+      "Please try again. If the problem persists, try a different amount.",
+      true,
+      error instanceof Error ? error : undefined
+    );
   }
 
-  // Gas estimation failed
-  if (message.includes("gas") || message.includes("UNPREDICTABLE_GAS_LIMIT")) {
-    return {
-      code: "GAS_ESTIMATION_FAILED",
-      message: "Cannot estimate transaction cost",
-      details:
-        "Unable to calculate gas fees. Please check your balance and try again.",
-      recoverable: true,
-      userAction: "check_balance_and_retry",
-    };
+  // Deadline exceeded
+  if (errorStr.includes("deadline") || errorStr.includes("expired")) {
+    return new SwapError(
+      "The transaction took too long to process.",
+      "Transaction Expired",
+      "Please try again.",
+      true,
+      error instanceof Error ? error : undefined
+    );
   }
 
-  // Default error
-  return {
-    code: "UNKNOWN_ERROR",
-    message: "Swap failed",
-    details: message || "An unexpected error occurred.",
-    recoverable: true,
-    userAction: "retry",
-  };
-};
-
-export const getErrorActionText = (userAction?: string): string => {
-  switch (userAction) {
-    case "retry":
-      return "Try Again";
-    case "approve":
-      return "Approve Tokens";
-    case "add_funds":
-      return "Add Funds";
-    case "retry_or_adjust_slippage":
-      return "Adjust Slippage";
-    case "use_different_route":
-      return "Change Route";
-    case "check_balance_and_retry":
-      return "Check Balance";
-    default:
-      return "Try Again";
+  // Quote fetch errors
+  if (context === "quote") {
+    return new SwapError(
+      "Unable to get swap quote at this time.",
+      "Quote Unavailable",
+      "Please wait a moment and try again.",
+      true,
+      error instanceof Error ? error : undefined
+    );
   }
-};
+
+  // Protocol unavailable
+  if (errorStr.includes("not ready") || errorStr.includes("unavailable")) {
+    return new SwapError(
+      "Swap service is temporarily unavailable.",
+      "Service Unavailable",
+      "Please try again in a few moments.",
+      true,
+      error instanceof Error ? error : undefined
+    );
+  }
+
+  // Generic fallback
+  return new SwapError(
+    errorMessage || "An unexpected error occurred during the swap.",
+    "Swap Error",
+    "Please try again. If the problem persists, contact support.",
+    true,
+    error instanceof Error ? error : undefined
+  );
+}
+
+/**
+ * Format error for display to user
+ */
+export function formatSwapError(error: unknown, context?: string): string {
+  const swapError = parseSwapError(error, context);
+
+  if (swapError.suggestion) {
+    return `${swapError.message} ${swapError.suggestion}`;
+  }
+
+  return swapError.message;
+}
+
+/**
+ * Log error with context for debugging
+ */
+export function logSwapError(
+  error: unknown,
+  context: string,
+  additionalInfo?: Record<string, any>
+): void {
+  const swapError = parseSwapError(error, context);
+
+  console.error(`[Swap Error - ${context}]`, {
+    title: swapError.title,
+    message: swapError.message,
+    suggestion: swapError.suggestion,
+    recoverable: swapError.recoverable,
+    originalError: swapError.originalError,
+    ...additionalInfo,
+  });
+}

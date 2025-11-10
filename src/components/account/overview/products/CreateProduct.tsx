@@ -18,8 +18,7 @@ import {
   FiCheck,
   FiChevronDown,
 } from "react-icons/fi";
-// import { useNavigate } from "react-router-dom";
-import { useProductData } from "../../../../utils/hooks/useProduct";
+import { useCreateProductMutation, useGetLogisticsProvidersQuery } from "../../../../store/api";
 import Button from "../../../common/Button";
 import { useCurrencyConverter } from "../../../../utils/hooks/useCurrencyConverter";
 import { Logistics } from "../../../../utils/types";
@@ -83,9 +82,9 @@ const fadeInAnimation = {
 };
 
 const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
-  // const navigate = useNavigate();
   const { wallet, availableTokens } = useWeb3();
-  const { createProduct, loading, getLogisticsProviders } = useProductData();
+  const [createProduct, { isLoading: loading }] = useCreateProductMutation();
+  const { data: logisticsProviders = [], isLoading: logisticsProviderLoading } = useGetLogisticsProvidersQuery();
   const { showSnackbar } = useSnackbar();
   const { convertPrice, userCountry } = useCurrencyConverter();
 
@@ -96,9 +95,6 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
-  const [logisticsProviders, setLogisticsProviders] = useState<Logistics[]>([]);
-  const [logisticsProviderLoading, setLogisticsProviderLoading] =
-    useState(true);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -471,19 +467,8 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
     setErrors((prev) => ({ ...prev, logistics: undefined }));
   }, []);
 
-  useEffect(() => {
-    const fetchLogistics = async () => {
-      setLogisticsProviderLoading(true);
-      const result = await getLogisticsProviders();
-
-      const providers = Array.isArray(result?.data?.logisticsProviders)
-        ? result.data.logisticsProviders
-        : [];
-      setLogisticsProviders(providers);
-      setLogisticsProviderLoading(false);
-    };
-    fetchLogistics();
-  }, [getLogisticsProviders]);
+  // Logistics providers are now loaded via RTK Query hook above
+  // No need for manual useEffect fetch
 
   const filteredLogistics = useMemo(() => {
     if (!debouncedSearchTerm.trim()) {
@@ -690,36 +675,31 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
         formData.append(`images`, media.file);
       });
 
-      const result = await createProduct(formData);
+      const result = await createProduct(formData).unwrap();
       console.log(result);
-      if (result.data) {
-        setSuccessMessage("Product created successfully! Redirecting...");
-        showSnackbar("Product created successfully!", "success");
+      setSuccessMessage("Product created successfully! Redirecting...");
+      showSnackbar("Product created successfully!", "success");
 
-        onProductCreated?.();
+      onProductCreated?.();
 
-        // console.log(result, "kk");
-        // setTimeout(() => {
-        //   navigate(`/product/${result.data._id}`);
-        // }, 1500);
-        setTimeout(() => {
-          setFormState({
-            name: "",
-            description: "",
-            category: "",
-            stock: "",
-            sellerWalletAddress: "",
-            priceInUSDT: "",
-            priceInFiat: "",
-          });
-          setMediaFiles([]);
-          setVariants([
-            { id: `variant-${Date.now()}`, properties: [], quantity: 0 },
-          ]);
-          setSelectedLogistics([]);
-          setSuccessMessage(null);
-        }, 1500);
-      }
+      // Reset form after success
+      setTimeout(() => {
+        setFormState({
+          name: "",
+          description: "",
+          category: "",
+          stock: "",
+          sellerWalletAddress: "",
+          priceInUSDT: "",
+          priceInFiat: "",
+        });
+        setMediaFiles([]);
+        setVariants([
+          { id: `variant-${Date.now()}`, properties: [], quantity: 0 },
+        ]);
+        setSelectedLogistics([]);
+        setSuccessMessage(null);
+      }, 1500);
     } catch (error) {
       console.error("Error creating product:", error);
       setErrors((prev) => ({
@@ -1463,7 +1443,8 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
             </div>
           </section>
 
-          {/* Logistics Providers */}
+          {/* Logistics Providers - COMMENTED OUT: Now handled at checkout based on delivery address */}
+          {/*
           <section aria-labelledby="logistics-section">
             <h3 id="logistics-section" className="block text-white mb-2">
               Logistics Providers <span className="text-Red">*</span>
@@ -1503,10 +1484,10 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
                         className={`flex items-center justify-between p-3 hover:bg-[#3A3B3F] cursor-pointer ${
                           isSelected ? "bg-[#3A3B3F]" : ""
                         }`}
-                        onClick={() => toggleLogisticsProvider(provider)}
+                        onClick={() => toggleLogisticsProvider({...provider, createdAt: '', updatedAt: ''})}
                         onKeyDown={(e) =>
                           handleKeyPress(e, () =>
-                            toggleLogisticsProvider(provider)
+                            toggleLogisticsProvider({...provider, createdAt: '', updatedAt: ''})
                           )
                         }
                         role="option"
@@ -1517,9 +1498,6 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
                           <div className="text-white font-medium truncate">
                             {provider.name}
                           </div>
-                          {/* <div className="text-gray-400 text-sm truncate">
-                            {provider.walletAddress}
-                          </div> */}
                         </div>
                         <div
                           className={`w-5 h-5 rounded border ${
@@ -1553,7 +1531,6 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
               </div>
             </div>
 
-            {/* Selected logistics */}
             {selectedLogistics.length > 0 && (
               <div className="mt-3 p-3 bg-[#2A2C31] rounded-lg">
                 <h4 className="text-white mb-2">Selected Providers</h4>
@@ -1600,13 +1577,13 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
               </div>
             )}
 
-            {/* Error for logistics */}
             {errors.logistics && (
               <p className="text-Red text-sm mt-1" role="alert">
                 {errors.logistics}
               </p>
             )}
           </section>
+          */}
 
           {/* Submit Button */}
           <div className="pt-4">

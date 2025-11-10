@@ -1,16 +1,21 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { useUserManagement } from "../utils/hooks/useUser";
+import { useGetUserProfileQuery } from "../store/api";
 import Loadscreen from "./Loadscreen";
 
 const AuthCallback = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { handleAuthCallback } = useAuth();
-  const { fetchUserById } = useUserManagement();
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(true);
+  const [shouldFetch, setShouldFetch] = useState(false);
+
+  // Only fetch profile after token is set
+  const { data: userProfile } = useGetUserProfileQuery(undefined, {
+    skip: !shouldFetch,
+  });
 
   useEffect(() => {
     const processAuth = async () => {
@@ -18,37 +23,13 @@ const AuthCallback = () => {
         const token = searchParams.get("token");
         const userId = searchParams.get("userId");
 
-        // console.log("Auth callback received:", {
-        //   token: token?.substring(0, 10) + "...",
-        //   userId,
-        // });
-
         if (!token || !userId) {
           throw new Error("Authentication failed: Missing token or user ID");
         }
 
         localStorage.setItem("auth_token", token);
-        setTimeout(() => {
-          import("../utils/services/apiService").then(({ api }) => {
-            api
-              .getUserProfile(true)
-              .then((response) => {
-                if (response && response.ok && response.data) {
-                  handleAuthCallback(token, response.data);
-                  const redirectPath = "/";
-                  navigate(redirectPath, { replace: true });
-                }
-              })
-              .catch((err) => {
-                if (err && err.name !== "AbortError") {
-                  setError(
-                    err instanceof Error ? err.message : "Authentication failed"
-                  );
-                  setIsProcessing(false);
-                }
-              });
-          });
-        }, 100);
+        // Trigger the profile fetch after token is stored
+        setShouldFetch(true);
       } catch (err) {
         console.error("Auth callback error:", err);
         setError(err instanceof Error ? err.message : "Authentication failed");
@@ -57,7 +38,18 @@ const AuthCallback = () => {
     };
 
     processAuth();
-  }, [searchParams, navigate, handleAuthCallback, fetchUserById]);
+  }, [searchParams]);
+
+  // Handle successful profile fetch
+  useEffect(() => {
+    if (userProfile && shouldFetch) {
+      const token = searchParams.get("token");
+      if (token) {
+        handleAuthCallback(token, userProfile);
+        navigate("/", { replace: true });
+      }
+    }
+  }, [userProfile, shouldFetch, searchParams, handleAuthCallback, navigate]);
 
   if (error) {
     return (

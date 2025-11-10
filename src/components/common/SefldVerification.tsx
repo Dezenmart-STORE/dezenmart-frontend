@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
 import Modal from "./Modal";
-import { FullLogo } from "../../pages";
 import { v4 as uuidv4 } from "uuid";
 import { SelfQRcodeWrapper } from "@selfxyz/qrcode";
 import { getUniversalLink, SelfAppBuilder } from "@selfxyz/core";
@@ -122,7 +121,7 @@ function SefldVerification({ isOpen, onClose }: props) {
             </div>
           )}
           <SelfQRcodeWrapper
-            selfApp={selfApp as any}
+            selfApp={selfApp as SelfApp}
             onSuccess={handleVerificationSuccess}
             onError={() => {
               console.error("Error scanning QR code");

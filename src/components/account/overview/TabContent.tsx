@@ -14,8 +14,8 @@ import React, {
   useRef,
 } from "react";
 import LoadingSpinner from "../../common/LoadingSpinner";
-import { useOrderData } from "../../../utils/hooks/useOrder";
-import { useWatchlist } from "../../../utils/hooks/useWatchlist";
+import { useGetBuyerOrdersQuery } from "../../../store/api/ordersApi";
+import { useGetWatchlistQuery, useRemoveFromWatchlistMutation } from "../../../store/api/watchlistApi";
 
 const ProductContainer = lazy(() => import("./products/Container"));
 
@@ -34,138 +34,55 @@ interface TabContentProps {
 }
 
 const TabContent: React.FC<TabContentProps> = React.memo(({ activeTab }) => {
-  const {
-    fetchBuyerOrders,
-    disputeOrders,
-    nonDisputeOrders,
-    loading: orderLoading,
-    error: orderError,
-  } = useOrderData();
+  // RTK Query hooks
+  const { data: ordersData, isLoading: isOrdersLoading, error: orderError, refetch: refetchOrders } = useGetBuyerOrdersQuery(undefined, {
+    skip: !["3", "4"].includes(activeTab),
+  });
 
-  const {
-    watchlistItems,
-    fetchUserWatchlist,
-    removeProductFromWatchlist,
-    isLoading: watchlistLoading,
-    error: watchlistError,
-  } = useWatchlist();
+  const { data: watchlistData, isLoading: isWatchlistLoading, error: watchlistError, refetch: refetchWatchlist } = useGetWatchlistQuery(undefined, {
+    skip: activeTab !== "1",
+  });
 
-  // Track initialization per tab
-  const [tabInitialized, setTabInitialized] = useState<Record<string, boolean>>(
-    {}
-  );
-  const [isInitializing, setIsInitializing] = useState<Record<string, boolean>>(
-    {}
-  );
+  const [removeFromWatchlist] = useRemoveFromWatchlistMutation();
 
-  // Refs to prevent concurrent fetches
-  const initializationInProgressRef = useRef<Set<string>>(new Set());
-  const mountedRef = useRef(true);
+  // Process orders data
+  const disputeOrders = ordersData?.filter((order: any) => order.dispute?.raised) || [];
+  const nonDisputeOrders = ordersData?.filter((order: any) => !order.dispute?.raised) || [];
+  const watchlistItems = watchlistData || [];
 
-  // Initialize tab data
-  const initializeTab = useCallback(
-    async (tabId: string) => {
-      // Prevent concurrent initialization
-      if (
-        initializationInProgressRef.current.has(tabId) ||
-        tabInitialized[tabId]
-      ) {
-        console.log(`Tab ${tabId} already initialized or in progress`);
-        return;
-      }
-
-      console.log(`Initializing tab ${tabId}`);
-      initializationInProgressRef.current.add(tabId);
-      setIsInitializing((prev) => ({ ...prev, [tabId]: true }));
-
-      try {
-        let success = false;
-
-        switch (tabId) {
-          case "1":
-            success = await fetchUserWatchlist(false, true);
-            break;
-          case "3":
-          case "4":
-            const orders = await fetchBuyerOrders(false, true);
-            success = Array.isArray(orders) && orders.length >= 0;
-            break;
-          default:
-            success = true;
-        }
-
-        if (success && mountedRef.current) {
-          console.log(`Tab ${tabId} initialized successfully`);
-          setTabInitialized((prev) => ({ ...prev, [tabId]: true }));
-        }
-      } catch (error: any) {
-        console.error(`Failed to initialize tab ${tabId}:`, error);
-        if (error?.name !== "AbortError") {
-          setTabInitialized((prev) => ({ ...prev, [tabId]: false }));
-        }
-      } finally {
-        if (mountedRef.current) {
-          initializationInProgressRef.current.delete(tabId);
-          setIsInitializing((prev) => ({ ...prev, [tabId]: false }));
-        }
-      }
-    },
-    [tabInitialized, fetchUserWatchlist, fetchBuyerOrders]
-  );
-
-  // Effect to handle tab changes
-  useEffect(() => {
-    if (["1", "3", "4"].includes(activeTab) && !tabInitialized[activeTab]) {
-      initializeTab(activeTab);
-    }
-  }, [activeTab]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    mountedRef.current = true;
-
-    return () => {
-      mountedRef.current = false;
-      initializationInProgressRef.current.clear();
-    };
-  }, []);
-
-  // Manual retry handlers
+  // Manual retry handlers with RTK Query
   const handleRetryWatchlist = useCallback(() => {
     console.log("🔄 Manual retry for watchlist");
-    setTabInitialized((prev) => ({ ...prev, "1": false }));
-    initializeTab("1");
-  }, [initializeTab]);
+    refetchWatchlist();
+  }, [refetchWatchlist]);
 
   const handleRetryOrders = useCallback(() => {
-    const tabId = activeTab;
-    console.log(`🔄 Manual retry for orders tab ${tabId}`);
-    setTabInitialized((prev) => ({ ...prev, [tabId]: false }));
-    initializeTab(tabId);
-  }, [activeTab, initializeTab]);
+    console.log(`🔄 Manual retry for orders tab ${activeTab}`);
+    refetchOrders();
+  }, [activeTab, refetchOrders]);
 
-  // Check if tab is loading
+  // Handle remove from watchlist
+  const removeProductFromWatchlist = useCallback(async (productId: string): Promise<boolean> => {
+    try {
+      await removeFromWatchlist(productId).unwrap();
+      return true;
+    } catch (error) {
+      console.error("Failed to remove from watchlist:", error);
+      return false;
+    }
+  }, [removeFromWatchlist]);
+
+  // Check if tab is loading - simplified with RTK Query
   const isTabLoading = useCallback(
     (tabId: string) => {
-      const hasData =
-        (tabId === "1" && watchlistItems.length > 0) ||
-        (tabId === "3" && nonDisputeOrders && nonDisputeOrders.length > 0) ||
-        (tabId === "4" && disputeOrders && disputeOrders.length > 0);
-
-      if (hasData) return false;
-
-      return isInitializing[tabId] || !tabInitialized[tabId];
+      if (tabId === "1") return isWatchlistLoading;
+      if (tabId === "3" || tabId === "4") return isOrdersLoading;
+      return false;
     },
-    [
-      isInitializing,
-      tabInitialized,
-      watchlistItems,
-      nonDisputeOrders,
-      disputeOrders,
-    ]
+    [isWatchlistLoading, isOrdersLoading]
   );
 
-  // Check if should show error
+  // Check if should show error - simplified with RTK Query
   const shouldShowError = useCallback(
     (tabId: string) => {
       const hasError =
@@ -177,15 +94,11 @@ const TabContent: React.FC<TabContentProps> = React.memo(({ activeTab }) => {
         (tabId === "3" && nonDisputeOrders && nonDisputeOrders.length > 0) ||
         (tabId === "4" && disputeOrders && disputeOrders.length > 0);
 
-      return (
-        hasError && tabInitialized[tabId] && !isInitializing[tabId] && !hasData
-      );
+      return hasError && !hasData;
     },
     [
       watchlistError,
       orderError,
-      tabInitialized,
-      isInitializing,
       watchlistItems,
       nonDisputeOrders,
       disputeOrders,
@@ -214,7 +127,7 @@ const TabContent: React.FC<TabContentProps> = React.memo(({ activeTab }) => {
           {shouldShowError("1") && (
             <div className="text-center py-8">
               <p className="text-Red mb-2">Error loading saved items</p>
-              <p className="text-gray-400 text-sm mb-4">{watchlistError}</p>
+              <p className="text-gray-400 text-sm mb-4">Failed to load watchlist. Please try again.</p>
               <button
                 onClick={handleRetryWatchlist}
                 disabled={isTabLoading("1")}
@@ -286,7 +199,7 @@ const TabContent: React.FC<TabContentProps> = React.memo(({ activeTab }) => {
           {shouldShowError("3") && (
             <div className="text-center py-8">
               <p className="text-Red mb-2">Error loading orders</p>
-              <p className="text-gray-400 text-sm mb-4">{orderError}</p>
+              <p className="text-gray-400 text-sm mb-4">Failed to load orders. Please try again.</p>
               <button
                 onClick={handleRetryOrders}
                 disabled={isTabLoading("3")}
@@ -344,7 +257,7 @@ const TabContent: React.FC<TabContentProps> = React.memo(({ activeTab }) => {
           {shouldShowError("4") && (
             <div className="text-center py-8">
               <p className="text-Red mb-2">Error loading disputes</p>
-              <p className="text-gray-400 text-sm mb-4">{orderError}</p>
+              <p className="text-gray-400 text-sm mb-4">Failed to load disputes. Please try again.</p>
               <button
                 onClick={handleRetryOrders}
                 disabled={isTabLoading("4")}

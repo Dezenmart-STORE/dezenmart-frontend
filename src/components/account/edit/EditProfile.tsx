@@ -8,11 +8,10 @@ import ProfilePicture from "./ProfilePicture";
 import ProfileField from "./ProfileField";
 import PhoneInput from "./PhoneInput";
 import DatePickerField from "./DatePickerField";
-// import Button from "../../common/Button";
 import { useSnackbar } from "../../../context/SnackbarContext";
 import { ErrorBoundary } from "react-error-boundary";
 import ErrorFallback from "../../common/ErrorFallback";
-import { useUserManagement } from "../../../utils/hooks/useUser";
+import { useUpdateUserProfileMutation } from "../../../store/api";
 
 // Validation schema
 const profileSchema = z.object({
@@ -45,7 +44,7 @@ const EditProfile: React.FC<EditProfileProps> = ({
   setViewState,
   currentProfile,
 }) => {
-  const { updateProfile } = useUserManagement();
+  const [updateProfile, { isLoading: isUpdating }] = useUpdateUserProfileMutation();
   const { showSnackbar } = useSnackbar();
   const [countryCode, setCountryCode] = useState("US");
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -134,17 +133,21 @@ const EditProfile: React.FC<EditProfileProps> = ({
 
   const onSubmit = async (data: ProfileFormData) => {
     try {
-      const submitData = { ...data };
+      const formData = new FormData();
+      formData.append("name", data.name);
+      formData.append("dateOfBirth", data.dateOfBirth);
+      if (data.email) formData.append("email", data.email);
+      formData.append("phoneNumber", data.phoneNumber);
+      formData.append("address", data.address || "");
       if (profileImageFile) {
-        submitData.profileImage = profileImageFile;
+        formData.append("profileImage", profileImageFile);
       }
-      const success = await updateProfile(data);
-      // await dispatch(updateUserProfile(submitData)).unwrap();
-      if (success) {
-        showSnackbar("Profile updated successfully", "success");
-      }
+
+      await updateProfile(formData).unwrap();
+      showSnackbar("Profile updated successfully", "success");
+      setViewState();
     } catch (error) {
-      showSnackbar((error as string) || "Failed to update profile", "error");
+      showSnackbar((error as any)?.data?.message || "Failed to update profile", "error");
     }
   };
 

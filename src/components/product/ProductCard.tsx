@@ -1,39 +1,51 @@
 import React, { useMemo } from "react";
 import { FaRegHeart, FaHeart } from "react-icons/fa";
-// import { RiVerifiedBadgeFill } from "react-icons/ri";
 import { Link, useNavigate } from "react-router-dom";
-// import { BsCart3 } from "react-icons/bs";
 import { Product } from "../../utils/types";
-import { useWatchlist } from "../../utils/hooks/useWatchlist";
+import { useCheckWatchlistQuery, useToggleWatchlistMutation } from "../../store/api";
 import { useCurrency } from "../../context/CurrencyContext";
+import { useCurrencyConverter } from "../../utils/hooks/useCurrencyConverter";
 import { motion } from "framer-motion";
 
 interface ProductCardProps {
-  product: Product & {
-    formattedCeloPrice: string;
-    formattedFiatPrice: string;
-    formattedUsdtPrice: string;
-    formattedTokenPrice: string;
-  };
+  product: Product;
   isNew?: boolean;
 }
 
 const ProductCard = React.memo(
   ({ product, isNew = false }: ProductCardProps) => {
     const navigate = useNavigate();
-    const { _id, name, description, images, isSponsored } = product;
-    const { isProductInWatchlist, toggleWatchlist } = useWatchlist();
+    const { _id, name, description, images, isSponsored, price, paymentToken } = product;
     const { secondaryCurrency, fiatCurrency, selectedTokenSymbol } =
       useCurrency();
-    const isFavorite = isProductInWatchlist(_id);
+    const { convertPrice, formatPrice } = useCurrencyConverter();
+
+    // RTK Query hooks
+    const { data: isInWatchlist = false } = useCheckWatchlistQuery(_id);
+    const [toggleWatchlist] = useToggleWatchlistMutation();
+
+    const isFavorite = isInWatchlist;
+
+    // Calculate formatted prices
+    const formattedPrices = useMemo(() => {
+      const usdtPrice = convertPrice(price, paymentToken, "USDT");
+      const fiatPrice = convertPrice(price, paymentToken, "FIAT");
+      const tokenPrice = convertPrice(price, paymentToken, selectedTokenSymbol);
+
+      return {
+        formattedUsdtPrice: formatPrice(usdtPrice, "USDT"),
+        formattedFiatPrice: formatPrice(fiatPrice, "FIAT"),
+        formattedTokenPrice: formatPrice(tokenPrice, selectedTokenSymbol),
+      };
+    }, [price, paymentToken, selectedTokenSymbol, convertPrice, formatPrice]);
 
     const secondaryPrice =
       secondaryCurrency === "TOKEN"
-        ? product.formattedTokenPrice
+        ? formattedPrices.formattedTokenPrice
         : fiatCurrency === selectedTokenSymbol.replace(/^c/, "")
-        ? product.formattedUsdtPrice
-        : product.formattedFiatPrice;
-    // }, [secondaryCurrency, selectedTokenSymbol, fiatCurrency]);
+        ? formattedPrices.formattedUsdtPrice
+        : formattedPrices.formattedFiatPrice;
+
     const imageUrl =
       images && images.length > 0
         ? images[0]
@@ -42,8 +54,7 @@ const ProductCard = React.memo(
     const handleToggleFavorite = async (e: React.MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
-      // console.log("toggleWatchlist", _id);
-      await toggleWatchlist(_id, false);
+      await toggleWatchlist(_id);
     };
 
     const navigateToProduct = (e: React.MouseEvent) => {

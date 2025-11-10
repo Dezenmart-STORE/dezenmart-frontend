@@ -15,8 +15,7 @@ import { FiEdit2 } from "react-icons/fi";
 import LogisticsSelector from "../../product/singleProduct/LogisticsSelector";
 import { useSnackbar } from "../../../context/SnackbarContext";
 import { useWeb3 } from "../../../context/Web3Context";
-// import { useWalletBalance } from "../../../utils/hooks/useWalletBalance";
-import { useOrderData } from "../../../utils/hooks/useOrder";
+import { useUpdateOrderStatusMutation } from "../../../store/api";
 import { ESCROW_ADDRESSES } from "../../../utils/config/web3.config";
 import PaymentModal from "../../web3/PaymentModal";
 import WalletConnectionModal from "../../web3/WalletConnectionModal";
@@ -71,8 +70,7 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
     refreshTokenBalance,
   } = useWeb3();
   const { convertPrice, formatPrice } = useCurrencyConverter();
-  // const { usdtBalance, refetch: refetchBalance } = useWalletBalance();
-  const { changeOrderStatus, currentOrder } = useOrderData();
+  const [updateOrderStatus] = useUpdateOrderStatusMutation();
 
   const [showWalletModal, setShowWalletModal] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -459,25 +457,24 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
   const handlePaymentSuccess = useCallback(
     async (transaction: PaymentTransaction) => {
       setIsPaymentModalOpen(false);
-      console.log("currentOrder befor", currentOrder);
+      console.log("orderDetails before", orderDetails);
       // if (!mountedRef.current) return;
 
-      console.log("currentOrder after", currentOrder);
+      console.log("orderDetails after", orderDetails);
       try {
         const currentOrderId = getStoredOrderId();
 
-        console.log("currentOrder inside", currentOrder);
+        console.log("orderDetails inside", orderDetails);
         console.log("rest", transaction);
-        if (currentOrder?._id) {
-          console.log("currentOrder inside if", currentOrder);
-          await changeOrderStatus(
-            currentOrder._id,
-            {
+        if (orderDetails?._id) {
+          console.log("orderDetails inside if", orderDetails);
+          await updateOrderStatus({
+            orderId: orderDetails._id,
+            details: {
               status: "accepted",
               purchaseId: transaction.purchaseId,
             },
-            true
-          );
+          }).unwrap();
         }
         // else if (orderDetails?._id) {
         //   await changeOrderStatus(orderDetails._id, "accepted", true);
@@ -501,7 +498,7 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
         // }
       }
     },
-    [navigate, navigatePath, showSnackbar, changeOrderStatus]
+    [navigate, navigatePath, showSnackbar]
   );
 
   const handleUpdateOrder = useCallback(async () => {

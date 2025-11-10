@@ -5,7 +5,7 @@ import { FaCheck, FaCopy, FaStar } from "react-icons/fa";
 import { IoChevronBack, IoChevronDown, IoChevronUp } from "react-icons/io5";
 import { LuMessageSquare } from "react-icons/lu";
 import Button from "../../common/Button";
-import { useReviewData } from "../../../utils/hooks/useReview";
+import { useCreateReviewMutation } from "../../../store/api";
 import { BsShieldExclamation } from "react-icons/bs";
 
 interface CompletedStatusProps {
@@ -26,7 +26,7 @@ const CompletedStatus: FC<CompletedStatusProps> = ({
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState("");
   const [hoveredRating, setHoveredRating] = useState(0);
-  const { submitReview, loading } = useReviewData();
+  const [createReview, { isLoading: loading }] = useCreateReviewMutation();
   const [copied, setCopied] = useState(false);
 
   if (!tradeDetails && !orderDetails) {
@@ -46,16 +46,22 @@ const CompletedStatus: FC<CompletedStatusProps> = ({
     const orderId = tradeDetails
       ? tradeDetails?.orderNo
       : orderDetails?._id || "";
-    await submitReview({
-      reviewed: productId,
-      order: orderId,
-      rating,
-      comment,
-    });
 
-    setRating(0);
-    setComment("");
-    setShowReviewForm(false);
+    try {
+      await createReview({
+        reviewed: productId,
+        order: orderId,
+        rating,
+        comment,
+      }).unwrap();
+
+      setRating(0);
+      setComment("");
+      setShowReviewForm(false);
+    } catch (error) {
+      console.error("Failed to submit review:", error);
+      alert("Failed to submit review. Please try again.");
+    }
   };
 
   const copyOrderId = (id: string) => {

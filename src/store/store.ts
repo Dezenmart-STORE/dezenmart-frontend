@@ -9,9 +9,13 @@ import watchlistReducer from "./slices/watchlistSlice";
 import rewardsReducer from "./slices/rewardsSlice";
 import notificationsReducer from "./slices/notificationsSlice";
 import chatsReducer from "./slices/chatSlice";
+import { baseApi } from "./api/baseApi";
 
 export const store = configureStore({
   reducer: {
+    // RTK Query API reducer
+    [baseApi.reducerPath]: baseApi.reducer,
+    // Legacy reducers (will be gradually migrated to RTK Query)
     user: userReducer,
     products: productReducer,
     reviews: reviewReducer,
@@ -25,7 +29,6 @@ export const store = configureStore({
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
-      // serializableCheck: false,
       serializableCheck: {
         ignoredActions: [
           "products/fetchAll/fulfilled",
@@ -33,7 +36,7 @@ export const store = configureStore({
         ],
         ignoredPaths: ["products.currentProduct", "products.products"],
       },
-    }),
+    }).concat(baseApi.middleware),
 });
 
 export type RootState = ReturnType<typeof store.getState>;

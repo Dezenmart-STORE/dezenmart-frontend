@@ -18,12 +18,11 @@ import {
 } from "react-icons/hi2";
 import { Product, ProductVariant } from "../../../utils/types";
 import { useWeb3 } from "../../../context/Web3Context";
-import { useOrderData } from "../../../utils/hooks/useOrder";
+import { useCreateOrderMutation } from "../../../store/api";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../../context/AuthContext";
 import { useCurrencyConverter } from "../../../utils/hooks/useCurrencyConverter";
 import { STABLE_TOKENS } from "../../../utils/config/web3.config";
-// import { useMento } from "../../../utils/hooks/useMento";
 import { debounce } from "lodash-es";
 
 // Lazy load heavy modals
@@ -34,9 +33,11 @@ const SwapConfirmationModal = lazy(
   () => import("../../common/SwapConfirmationModal")
 );
 
-// Lightweight components
 import QuantitySelector from "./QuantitySelector";
-import LogisticsSelector, { LogisticsProvider } from "./LogisticsSelector";
+import DeliveryAddressSelector from "./DeliveryAddressSelector";
+import FilteredLogisticsSelector from "./FilteredLogisticsSelector";
+import type { FilteredLogisticsProvider } from "./FilteredLogisticsSelector";
+import type { DeliveryAddress } from "../../../utils/types";
 
 // Types
 interface FormattedProduct extends Product {
@@ -65,7 +66,8 @@ const MIN_STOCK_THRESHOLD = 10;
 const usePurchaseState = () => {
   const [state, setState] = useState({
     quantity: 1,
-    selectedLogistics: null as LogisticsProvider | null,
+    selectedAddress: null as DeliveryAddress | null,
+    selectedLogistics: null as FilteredLogisticsProvider | null,
     isProcessing: false,
     purchaseError: null as string | null,
     showWalletModal: false,
@@ -91,7 +93,7 @@ const useCalculatedTotals = ({
   walletSelectedToken,
 }: {
   product?: FormattedProduct;
-  selectedLogistics: LogisticsProvider | null;
+  selectedLogistics: FilteredLogisticsProvider | null;
   quantity: number;
   convertPrice: (amount: number, from: string, to: string) => number;
   walletSelectedToken: any;
@@ -107,7 +109,7 @@ const useCalculatedTotals = ({
     // Calculate escrow fee (2.5%)
     const escrowFee = subtotal * TRANSACTION_FEE_RATE; // 0.025
 
-    // Get logistics cost
+    // Get logistics cost from filtered provider
     const logisticsCost = selectedLogistics.cost;
 
     // Calculate grand total in USD
@@ -281,7 +283,7 @@ const WalletInfo = memo(
 const PurchaseSection: React.FC<PurchaseSectionProps> = memo(
   ({ product, selectedVariant }) => {
     const navigate = useNavigate();
-    const { placeOrder } = useOrderData();
+    const [createOrder] = useCreateOrderMutation();
     const { convertPrice } = useCurrencyConverter();
     const {
       wallet,
@@ -536,11 +538,13 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = memo(
           await new Promise((resolve) => setTimeout(resolve, 2000));
         }
 
-        const order = await placeOrder({
-          product: product._id,
+        const order = await createOrder({
+          product: product._id as any,
           quantity: state.quantity,
-          logisticsProviderWalletAddress: state.selectedLogistics.walletAddress,
-        });
+          logisticsProviderWalletAddress: [
+            state.selectedLogistics.provider.walletAddress,
+          ] as any,
+        }).unwrap();
 
         if (!order?._id) {
           throw new Error("Order creation failed");
@@ -563,7 +567,7 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = memo(
       computedTotals,
       getTokenAllowance,
       approveToken,
-      placeOrder,
+      createOrder,
       refreshTokenBalance,
       navigate,
       updateState,
@@ -577,8 +581,13 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = memo(
         return navigate("/login");
       }
 
+      if (!state.selectedAddress) {
+        updateState({ purchaseError: "Please select a delivery address" });
+        return;
+      }
+
       if (!product || !state.selectedLogistics) {
-        updateState({ purchaseError: "Please select a delivery method" });
+        updateState({ purchaseError: "Please select a delivery service" });
         return;
       }
 
@@ -710,15 +719,25 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = memo(
             <StockStatus availableQty={availableQty} />
           </div>
 
-          {/* Logistics Selection */}
-          <LogisticsSelector
-            logisticsCost={product?.logisticsCost || []}
-            logisticsProviders={product?.logisticsProviders || []}
-            selectedProvider={state.selectedLogistics}
-            onSelect={(logistics) =>
-              updateState({ selectedLogistics: logistics })
+          {/* Delivery Address Selection */}
+          <DeliveryAddressSelector
+            selectedAddress={state.selectedAddress}
+            onAddressSelect={(address) =>
+              updateState({ selectedAddress: address, selectedLogistics: null })
             }
           />
+
+          {/* Filtered Logistics Selection */}
+          {state.selectedAddress && (
+            <FilteredLogisticsSelector
+              deliveryAddress={state.selectedAddress}
+              selectedProvider={state.selectedLogistics}
+              onProviderSelect={(provider) =>
+                updateState({ selectedLogistics: provider })
+              }
+              productPrice={product?.price || 0}
+            />
+          )}
 
           {/* Balance Warning */}
           <BalanceWarning

@@ -252,7 +252,7 @@ import CompletedTradeCard from "../components/trade/view/CompletedTradeCard";
 import Tab from "../components/trade/Tab";
 import EmptyState from "../components/trade/view/EmptyState";
 import { useNavigate } from "react-router-dom";
-import { useOrderData } from "../utils/hooks/useOrder";
+import { useGetBuyerOrdersQuery, useGetSellerOrdersQuery } from "../store/api";
 import { useWeb3 } from "../context/Web3Context";
 import WalletConnectionModal from "../components/web3/WalletConnectionModal";
 
@@ -264,21 +264,57 @@ const ViewTrade = () => {
   const [showComingSoon, setShowComingSoon] = useState(false);
   const { wallet } = useWeb3();
 
-  const {
-    activeTrades,
-    completedTrades,
-    fetchBuyerOrders,
-    fetchMerchantOrders,
-    loading: orderLoading,
-  } = useOrderData();
+  // RTK Query hooks - only fetch when wallet is connected
+  const { data: buyerOrders, isLoading: buyerLoading } = useGetBuyerOrdersQuery(undefined, {
+    skip: !wallet.isConnected,
+    pollingInterval: 30000, // Refresh every 30 seconds
+  });
+
+  const { data: sellerOrders, isLoading: sellerLoading } = useGetSellerOrdersQuery(undefined, {
+    skip: !wallet.isConnected,
+    pollingInterval: 30000,
+  });
+
+  const orderLoading = buyerLoading || sellerLoading;
 
   const filteredActiveTrades = useMemo(() => {
-    return activeTrades?.filter((trade) => trade && trade.product) || [];
-  }, [activeTrades]);
+    const allOrders = [...(buyerOrders || []), ...(sellerOrders || [])];
+    return allOrders
+      .filter(
+        (trade) =>
+          trade &&
+          trade.product &&
+          trade.status !== 'completed' &&
+          (trade.status as any) !== 'cancelled'
+      )
+      .map(trade => ({
+        ...trade,
+        formattedUsdtAmount: `$${trade.amount?.toFixed(2) || '0.00'}`,
+        formattedCeloAmount: `${trade.amount?.toFixed(4) || '0.0000'} CELO`,
+        formattedFiatAmount: `$${trade.amount?.toFixed(2) || '0.00'}`,
+        formattedTokenAmount: `${trade.amount?.toFixed(2) || '0.00'}`,
+        formattedDate: trade.createdAt ? new Date(trade.createdAt).toLocaleDateString() : '',
+      }));
+  }, [buyerOrders, sellerOrders]);
 
   const filteredCompletedTrades = useMemo(() => {
-    return completedTrades?.filter((trade) => trade && trade.product) || [];
-  }, [completedTrades]);
+    const allOrders = [...(buyerOrders || []), ...(sellerOrders || [])];
+    return allOrders
+      .filter(
+        (trade) =>
+          trade &&
+          trade.product &&
+          (trade.status === 'completed' || (trade.status as any) === 'cancelled')
+      )
+      .map(trade => ({
+        ...trade,
+        formattedUsdtAmount: `$${trade.amount?.toFixed(2) || '0.00'}`,
+        formattedCeloAmount: `${trade.amount?.toFixed(4) || '0.0000'} CELO`,
+        formattedTokenAmount: `${trade.amount?.toFixed(2) || '0.00'}`,
+        formattedFiatAmount: `$${trade.amount?.toFixed(2) || '0.00'}`,
+        formattedDate: trade.createdAt ? new Date(trade.createdAt).toLocaleDateString() : '',
+      }));
+  }, [buyerOrders, sellerOrders]);
 
   // Tab change handler
   const handleTabChange = useCallback((tab: TradeTab) => {
@@ -307,83 +343,18 @@ const ViewTrade = () => {
     }
   }, []);
 
-  const loadOrders = useCallback(
-    async (silent = false) => {
-      if (!wallet.isConnected) return;
-
-      try {
-        if (!silent) {
-          setIsLoading(true);
-        }
-
-        const [buyerResult, merchantResult] = await Promise.allSettled([
-          fetchBuyerOrders(false, silent),
-          fetchMerchantOrders(false, silent),
-        ]);
-
-        if (buyerResult.status === "rejected") {
-          console.warn("Failed to fetch buyer orders:", buyerResult.reason);
-        }
-        if (merchantResult.status === "rejected") {
-          console.warn(
-            "Failed to fetch merchant orders:",
-            merchantResult.reason
-          );
-        }
-      } catch (error) {
-        console.error("Failed to load orders:", error);
-      } finally {
-        if (!silent) {
-          setTimeout(() => {
-            setIsLoading(false);
-          }, 600);
-        }
-      }
-    },
-    [wallet.isConnected, fetchBuyerOrders, fetchMerchantOrders]
-  );
-
-  // Initial data fetch effect
+  // Handle initial loading and show coming soon overlay
   useEffect(() => {
-    let isMounted = true;
-
-    const initializeOrders = async () => {
-      if (!wallet.isConnected) return;
-
-      await loadOrders(false);
-
+    if (wallet.isConnected && !orderLoading) {
       setTimeout(() => {
-        if (isMounted) {
-          setShowComingSoon(true);
-        }
-      }, 800);
-
-      if (isMounted) {
-        const refreshInterval = setInterval(() => {
-          if (activeTab === "active") {
-            loadOrders(true);
-          }
-        }, 30000);
-
-        return () => clearInterval(refreshInterval);
-      }
-    };
-
-    initializeOrders();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [wallet.isConnected, loadOrders, activeTab]);
-
-  useEffect(() => {
-    if (!orderLoading && wallet.isConnected) {
-      const timer = setTimeout(() => {
         setIsLoading(false);
+        setTimeout(() => {
+          setShowComingSoon(true);
+        }, 800);
       }, 300);
-      return () => clearTimeout(timer);
     }
-  }, [orderLoading, wallet.isConnected]);
+  }, [wallet.isConnected, orderLoading]);
+
   useEffect(() => {
     if (!wallet.isConnected && !wallet.isConnecting) {
       setShowConnectionModal(true);

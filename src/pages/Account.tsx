@@ -6,7 +6,7 @@ import TabNavigation from "../components/account/overview/TabNavigation";
 import { LiaAngleDownSolid } from "react-icons/lia";
 import Button from "../components/common/Button";
 import LoadingSpinner from "../components/common/LoadingSpinner";
-import { useUserManagement } from "../utils/hooks/useUser";
+import { useGetUserProfileQuery } from "../store/api";
 import { TabOption, TabType } from "../utils/types";
 
 import { useAuth } from "../context/AuthContext";
@@ -52,14 +52,7 @@ const ErrorState = ({ error, retry }: { error: string; retry: () => void }) => (
 export type AccountViewState = "overview" | "settings" | "edit-profile";
 
 const Account = () => {
-  const {
-    selectedUser,
-    formattedSelectedUser,
-    isLoading,
-    error,
-    fetchProfile,
-    isError,
-  } = useUserManagement();
+  const { data: selectedUser, isLoading, error, refetch } = useGetUserProfileQuery();
   const { user } = useAuth();
 
   const [activeTab, setActiveTab] = useState<TabType>("1");
@@ -67,9 +60,8 @@ const Account = () => {
 
   const [showVerifyModal, setShowVerifyModal] = useState(false);
 
-  useEffect(() => {
-    fetchProfile(false, false);
-  }, [fetchProfile]);
+  // RTK Query handles fetching automatically on mount
+  // No need for manual useEffect
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -80,11 +72,10 @@ const Account = () => {
     []
   );
   const handleShowSettings = useCallback(() => setViewState("settings"), []);
-  // const handleBackToOverview = useCallback(() => setViewState("overview"), []);
 
   const handleRetryFetch = useCallback(() => {
-    fetchProfile(true, true);
-  }, [fetchProfile]);
+    refetch();
+  }, [refetch]);
 
   // Loading state
   if (isLoading && !selectedUser) {
@@ -96,28 +87,16 @@ const Account = () => {
   }
 
   // Error state
-  if (isError && !selectedUser) {
+  if (error && !selectedUser) {
     return (
       <div className="bg-Dark min-h-screen text-white flex items-center justify-center">
         <ErrorState
-          error={error || "Failed to load profile"}
+          error={typeof error === 'string' ? error : "Failed to load profile"}
           retry={handleRetryFetch}
         />
       </div>
     );
   }
-
-  // if (!selectedUser) {
-  //   return (
-  //     <div className="bg-Dark min-h-screen text-white flex items-center justify-center">
-  //       <Button
-  //         title="Load Profile"
-  //         onClick={() => fetchProfile(true, true)}
-  //         className="mx-auto bg-Red hover:bg-[#e02d37] text-white px-6 py-2 rounded-lg transition-colors"
-  //       />
-  //     </div>
-  //   );
-  // }
 
   if (!selectedUser) {
     return (
@@ -133,7 +112,11 @@ const Account = () => {
           <Suspense fallback={<LoadingFallback />}>
             <Settings
               setViewState={(state) => setViewState(state)}
-              profileData={formattedSelectedUser}
+              profileData={{
+                ...(selectedUser || {}),
+                dob: (selectedUser as any)?.dob || "",
+                phone: (selectedUser as any)?.phone || "",
+              }}
             />
           </Suspense>
         ) : viewState === "edit-profile" ? (
@@ -145,11 +128,14 @@ const Account = () => {
                   : ""
               }
               setViewState={() => setViewState("overview")}
-              currentProfile={formattedSelectedUser}
+              currentProfile={{
+                ...(selectedUser || {}),
+                dob: (selectedUser as any)?.dob || "",
+                phone: (selectedUser as any)?.phone || "",
+              }}
             />
           </Suspense>
         ) : (
-          // selectedUser && (
           <>
             <ProfileHeader
               avatar={
@@ -161,7 +147,7 @@ const Account = () => {
               id={selectedUser._id}
               email={selectedUser.email}
               showSettings={handleShowSettings}
-              isVerified={selectedUser.selfVerification.isVerified || false}
+              isVerified={selectedUser.selfVerification?.isVerified || false}
             />
             {/* {selfApp && (
               <div className="my-6">
@@ -185,7 +171,7 @@ const Account = () => {
                 className="bg-white text-black text-lg font-bold h-11 rounded-none flex justify-center w-full border-none outline-none text-center my-2 hover:bg-gray-100 transition-colors"
               />
             </motion.div>
-            {!selectedUser.selfVerification.isVerified && (
+            {!selectedUser.selfVerification?.isVerified && (
               <motion.div
                 className="w-full max-w-[650px] mx-auto"
                 initial={{ opacity: 0, y: 20 }}

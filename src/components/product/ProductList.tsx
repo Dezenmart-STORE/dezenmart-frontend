@@ -1,9 +1,9 @@
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { twMerge } from "tailwind-merge";
 import ProductCard from "./ProductCard";
 import Title from "../common/Title";
 import { Link } from "react-router-dom";
-import { useProductData } from "../../utils/hooks/useProduct";
+import { useGetProductsQuery, useGetSponsoredProductsQuery, useGetProductsByCategoryQuery, useGetProductsBySellerQuery } from "../../store/api";
 import { Product } from "../../utils/types";
 import LoadingSpinner from "../common/LoadingSpinner";
 import { useIntersectionObserver } from "../../utils/hooks/useIntersectionObserver";
@@ -46,23 +46,31 @@ const ProductList = ({
   isUserProducts = false,
 }: Props) => {
   const { user } = useAuth();
-  const {
-    products,
-    sponsoredProducts,
-    loading,
-    error,
-    fetchAllProducts,
-    fetchSponsoredProducts,
-    getProductsByCategory,
-    productsByUser,
-  } = useProductData();
 
-  const [displayProducts, setDisplayProducts] = useState<
-    FormattedProductProp[]
-  >([]);
-  const [sponsoredDisplayProducts, setSponsoredDisplayProducts] = useState<
-    FormattedProductProp[]
-  >([]);
+  // RTK Query hooks - conditional fetching based on props
+  const { data: fetchedAllProducts = [], isLoading: loadingAll } = useGetProductsQuery(undefined, {
+    skip: isFeatured || !!category || isUserProducts,
+  });
+
+  const { data: sponsoredProducts = [], isLoading: loadingSponsored } = useGetSponsoredProductsQuery(undefined, {
+    skip: !isFeatured,
+  });
+
+  const { data: categoryProducts = [], isLoading: loadingCategory } = useGetProductsByCategoryQuery(category!, {
+    skip: !category,
+  });
+
+  const { data: userProducts = [], isLoading: loadingUser } = useGetProductsBySellerQuery(user?._id!, {
+    skip: !isUserProducts || !user?._id,
+  });
+
+  // Determine which products to use
+  const products = isFeatured ? sponsoredProducts : category ? categoryProducts : isUserProducts ? userProducts : fetchedAllProducts;
+  const loading = loadingAll || loadingSponsored || loadingCategory || loadingUser;
+  const error = null; // RTK Query handles errors internally
+
+  const [displayProducts, setDisplayProducts] = useState<Product[]>([]);
+  const [sponsoredDisplayProducts, setSponsoredDisplayProducts] = useState<Product[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -77,28 +85,29 @@ const ProductList = ({
 
   // filtered products
   const { allProducts, categorySponsored } = useMemo(() => {
-    let allProducts: FormattedProductProp[] = [];
-    let categorySponsored: FormattedProductProp[] = [];
+    let allProducts: Product[] = [];
+    let categorySponsored: Product[] = [];
 
     if (isFeatured) {
       allProducts = sponsoredProducts || [];
     } else if (category && category !== "All") {
-      const categoryProducts = getProductsByCategory(category);
+      // Use categoryProducts from RTK Query
+      const categoryProductsData = categoryProducts || [];
       // Filter sponsored products for this category
       categorySponsored = (sponsoredProducts || []).filter(
         (product) => product.category?.toLowerCase() === category.toLowerCase()
       );
-      // .slice(0, CATEGORY_SPONSORED_LIMIT);
 
       // Get non-sponsored products for this category
       const sponsoredIds = new Set(categorySponsored.map((p) => p._id));
-      allProducts = categoryProducts.filter(
+      allProducts = categoryProductsData.filter(
         (product) => !sponsoredIds.has(product._id)
       );
     } else if (isUserProducts) {
-      const userProducts = productsByUser;
+      // Use userProducts from RTK Query
+      const userProductsData = userProducts || [];
       categorySponsored = (sponsoredProducts || []).filter((product) => {
-        if (!product || !user) return [];
+        if (!product || !user) return false;
         if (typeof product.seller === "object" && product.seller) {
           return (
             product.seller._id === user._id || product.seller.name === user.name
@@ -108,52 +117,33 @@ const ProductList = ({
         return product.seller === user._id;
       });
       const sponsoredIds = new Set(categorySponsored.map((p) => p._id));
-      allProducts = userProducts.filter(
+      allProducts = userProductsData.filter(
         (product) => !sponsoredIds.has(product._id)
       );
     } else {
       const sponsoredIds = new Set((sponsoredProducts || []).map((p) => p._id));
-      allProducts = (products || []).filter(
+      allProducts = (fetchedAllProducts || []).filter(
         (product) => !sponsoredIds.has(product._id)
       );
     }
 
     return { allProducts, categorySponsored };
   }, [
-    products,
+    fetchedAllProducts,
     sponsoredProducts,
+    categoryProducts,
+    userProducts,
     category,
     isFeatured,
-    productsByUser,
-    getProductsByCategory,
+    isUserProducts,
+    user,
   ]);
 
-  // Load initial data
+  // RTK Query handles initial data loading automatically
+  // Update isInitialLoading based on RTK Query loading states
   useEffect(() => {
-    const loadInitialData = async () => {
-      setIsInitialLoading(true);
-      setLoadError(null);
-
-      try {
-        if (isFeatured) {
-          await fetchSponsoredProducts(false, false, true);
-        } else {
-          await Promise.all([
-            fetchAllProducts(false, false, true),
-            fetchSponsoredProducts(false, false, true),
-          ]);
-        }
-      } catch (err: any) {
-        if (err.name !== "AbortError") {
-          setLoadError("Failed to load products. Please try again later.");
-        }
-      } finally {
-        setIsInitialLoading(false);
-      }
-    };
-
-    loadInitialData();
-  }, [isFeatured, fetchAllProducts, fetchSponsoredProducts]);
+    setIsInitialLoading(loading);
+  }, [loading]);
 
   useEffect(() => {
     if (isInitialLoading || loading) return;

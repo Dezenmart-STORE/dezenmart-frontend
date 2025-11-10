@@ -7,6 +7,7 @@ import {
 } from "react-icons/fa";
 import { motion } from "framer-motion";
 import { useContract } from "../../utils/hooks/useContract";
+import { useUpdateOrderStatusMutation } from "../../store/api";
 
 interface ConfirmDeliveryProps {
   tradeId: string;
@@ -15,6 +16,7 @@ interface ConfirmDeliveryProps {
 
 const ConfirmDelivery: FC<ConfirmDeliveryProps> = ({ tradeId, onComplete }) => {
   const { confirmDelivery, deliveryConfirmLoading } = useContract();
+  const [updateOrderStatus] = useUpdateOrderStatusMutation();
   const [status, setStatus] = useState<
     "pending" | "confirming" | "success" | "error"
   >("pending");
@@ -23,8 +25,16 @@ const ConfirmDelivery: FC<ConfirmDeliveryProps> = ({ tradeId, onComplete }) => {
   const handleConfirm = async () => {
     setStatus("confirming");
     try {
+      // Confirm on smart contract
       const result = await confirmDelivery(tradeId);
+
       if (result.success) {
+        // Update order status in database
+        await updateOrderStatus({
+          orderId: tradeId,
+          details: { status: "completed" },
+        }).unwrap();
+
         setStatus("success");
         setTimeout(() => {
           onComplete();
@@ -36,7 +46,7 @@ const ConfirmDelivery: FC<ConfirmDeliveryProps> = ({ tradeId, onComplete }) => {
     } catch (error: any) {
       console.error("Delivery confirmation error:", error);
       setStatus("error");
-      setErrorMessage(error.message || "An unexpected error occurred");
+      setErrorMessage(error?.data?.message || error.message || "An unexpected error occurred");
     }
   };
 

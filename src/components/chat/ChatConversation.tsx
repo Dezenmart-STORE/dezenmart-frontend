@@ -5,7 +5,7 @@ import ChatHeader from "./ChatHeader";
 import ChatMessage from "./ChatMessage";
 import ChatInput from "./ChatInput";
 import { Message } from "../../utils/types";
-import { useChat } from "../../utils/hooks/useChat";
+import { useSendMessageMutation } from "../../store/api";
 
 interface ChatConversationProps {
   messages: (Message & { formattedTime: string })[];
@@ -25,10 +25,9 @@ const ChatConversation: React.FC<ChatConversationProps> = ({
   isLoading,
 }) => {
   const [newMessage, setNewMessage] = useState("");
-  const [isSending, setIsSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
-  const { sendMessage } = useChat();
+  const [sendMessage, { isLoading: isSending }] = useSendMessageMutation();
 
   const sortedMessages = [...messages].sort((a, b) => {
     return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
@@ -41,17 +40,14 @@ const ChatConversation: React.FC<ChatConversationProps> = ({
   const handleSendMessage = async () => {
     if (!newMessage.trim()) return;
 
-    setIsSending(true);
     try {
       await sendMessage({
         recipient: recipientId,
         content: newMessage.trim(),
-      });
+      }).unwrap();
       setNewMessage("");
     } catch (error) {
       console.error("Failed to send message:", error);
-    } finally {
-      setIsSending(false);
     }
   };
 

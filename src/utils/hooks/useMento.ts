@@ -79,7 +79,7 @@ interface SwapResult {
 }
 
 // Constants
-const QUOTE_CACHE_DURATION = 15000;
+const QUOTE_CACHE_DURATION = 10000; // 10 seconds - reduced for security
 const SLIPPAGE_DEFAULT = 0.01;
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1500;
@@ -893,7 +893,7 @@ export function useMento() {
           throw new Error("Swap transaction failed");
         }
 
-        let result: SwapResult = {
+        const result: SwapResult = {
           success: true,
           hash: swapHash,
           amountOut: quote.amountOut,

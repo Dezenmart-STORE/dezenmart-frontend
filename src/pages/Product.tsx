@@ -3,7 +3,7 @@ import { Link, useLocation, useParams } from "react-router-dom";
 import Container from "../components/common/Container";
 import { IoChevronBackOutline, IoSearch } from "react-icons/io5";
 import ProductList from "../components/product/ProductList";
-import { useProductData } from "../utils/hooks/useProduct";
+import { useSearchProductsQuery } from "../store/api/productsApi";
 import { debounce } from "../utils/helpers";
 import ProductCard from "../components/product/ProductCard";
 
@@ -19,47 +19,29 @@ const categories = [
 
 const Product = () => {
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
   const location = useLocation();
   const params = useParams();
   const categoryParam = params.categoryName;
 
-  const {
-    searchProducts,
-    searchResults,
-    loading,
-    fetchAllProducts,
-    fetchSponsoredProducts,
-  } = useProductData();
-
-  const [isSearching, setIsSearching] = useState(false);
   const [activeCategory, setActiveCategory] = useState(categoryParam || "All");
 
-  // search
-  const debouncedSearch = useMemo(
-    () =>
-      debounce(async (query: string) => {
-        if (query.trim()) {
-          setIsSearching(true);
-          try {
-            await searchProducts(query);
-          } finally {
-            setIsSearching(false);
-          }
-        }
-      }, 300),
-    [searchProducts]
+  // RTK Query hook for search with skip option
+  const { data: searchResults = [], isLoading: isSearching } = useSearchProductsQuery(
+    debouncedQuery,
+    {
+      skip: !debouncedQuery.trim(),
+    }
   );
 
-  // Load initial data
-  useEffect(() => {
-    const loadData = async () => {
-      await Promise.all([
-        fetchAllProducts(false, false, true),
-        fetchSponsoredProducts(false, false, true),
-      ]);
-    };
-    loadData();
-  }, [fetchAllProducts, fetchSponsoredProducts]);
+  // Debounced search input
+  const debouncedSearch = useMemo(
+    () =>
+      debounce((query: string) => {
+        setDebouncedQuery(query);
+      }, 300),
+    []
+  );
 
   // Update active category based on URL
   useEffect(() => {

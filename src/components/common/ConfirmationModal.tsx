@@ -57,7 +57,9 @@ const ConfirmationModal: FC<ConfirmationModalProps> = ({
 
     try {
       await onConfirm();
-    } catch (error) {}
+    } catch {
+      // Error handled by parent
+    }
   };
 
   const handleClose = () => {

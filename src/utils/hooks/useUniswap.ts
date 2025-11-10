@@ -157,12 +157,12 @@ interface SwapResult {
 }
 
 // Constants
-const QUOTE_CACHE_DURATION = 15000; // 15 seconds
+const QUOTE_CACHE_DURATION = 10000; // 10 seconds - reduced for security
 const SLIPPAGE_DEFAULT = 0.01; // 1%
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1500;
 const INITIALIZATION_TIMEOUT = 30000;
-const DEADLINE_MINUTES = 30;
+const DEADLINE_MINUTES = 5; // Shorter deadline for MEV protection (was 30)
 
 // Error types
 enum SwapErrorType {

@@ -1,8 +1,6 @@
 import { motion } from "framer-motion";
 import { RiSettings3Fill } from "react-icons/ri";
 import { GoVerified, GoUnverified } from "react-icons/go";
-import { useCallback } from "react";
-import { FiCopy } from "react-icons/fi";
 
 interface ProfileHeaderProps {
   avatar: string;
@@ -17,21 +15,10 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
   avatar,
   name,
   email,
-  id,
+  id: _id,
   isVerified,
   showSettings,
 }) => {
-  const handleCopyId = useCallback(() => {
-    if (!id) return;
-
-    navigator.clipboard
-      .writeText(id)
-      // .then(() => {
-      //   setCopied(true);
-      //   setTimeout(() => setCopied(false), 2000);
-      // })
-      .catch((err) => console.error("Failed to copy code:", err));
-  }, [id]);
   return (
     <>
       <motion.div

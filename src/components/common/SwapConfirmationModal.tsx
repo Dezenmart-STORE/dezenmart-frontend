@@ -18,7 +18,6 @@ import {
   FaGasPump,
   FaShieldAlt,
 } from "react-icons/fa";
-import { formatUnits, parseUnits } from "viem";
 import { useWeb3 } from "../../context/Web3Context";
 import { STABLE_TOKENS } from "../../utils/config/web3.config";
 import { useSnackbar } from "../../context/SnackbarContext";
@@ -34,15 +33,30 @@ interface SwapConfirmationModalProps {
   recipientAddress?: string;
 }
 
+interface QuoteData {
+  amountOut?: string;
+  outputAmount?: string;
+  priceImpact?: number | string;
+  estimatedGas?: string;
+  gasEstimate?: string;
+  route?: string[];
+  exchangeRate?: string;
+  minAmountOut?: string;
+  fees?: {
+    networkFee?: string;
+    protocolFee?: string;
+  };
+  [key: string]: unknown;
+}
+
 interface QuoteState {
-  data: any | null;
+  data: QuoteData | null;
   isLoading: boolean;
   error: string | null;
   lastUpdated: number;
 }
 
-const QUOTE_REFRESH_INTERVAL = 15000; // 15 seconds
-const QUOTE_EXPIRY_WARNING = 5000; // Show warning when 5s left
+const QUOTE_REFRESH_INTERVAL = 10000; // 10 seconds - shorter for better security
 
 const SwapConfirmationModal: React.FC<SwapConfirmationModalProps> = ({
   isOpen,
@@ -54,7 +68,7 @@ const SwapConfirmationModal: React.FC<SwapConfirmationModalProps> = ({
   slippage = 1,
   recipientAddress,
 }) => {
-  const { uniswap, wallet } = useWeb3();
+  const { uniswap } = useWeb3();
   const { showSnackbar } = useSnackbar();
   // State management
   const [quote, setQuote] = useState<QuoteState>({
@@ -64,7 +78,7 @@ const SwapConfirmationModal: React.FC<SwapConfirmationModalProps> = ({
     lastUpdated: 0,
   });
 
-  const [countdown, setCountdown] = useState(15);
+  const [countdown, setCountdown] = useState(10);
   const [mounted, setMounted] = useState(false);
 
   // Refs
@@ -113,23 +127,37 @@ const SwapConfirmationModal: React.FC<SwapConfirmationModalProps> = ({
 
         if (!abortControllerRef.current?.signal.aborted) {
           setQuote({
-            data: quoteData,
+            data: quoteData as unknown as QuoteData,
             isLoading: false,
             error: null,
             lastUpdated: Date.now(),
           });
-          setCountdown(15); // Reset countdown
+          setCountdown(10); // Reset countdown
         }
-      } catch (error: any) {
-        if (error.name === "AbortError") return;
+      } catch (error: unknown) {
+        const err = error as Error;
+        if (err.name === "AbortError") return;
 
-        const errorMessage = error.message || "Failed to get quote";
+        let errorMessage = err.message || "Failed to get quote";
+
+        // Make errors more user-friendly
+        if (errorMessage.includes("network") || errorMessage.includes("connection")) {
+          errorMessage = "Network connection issue. Please check your internet and try again.";
+        } else if (errorMessage.includes("timeout")) {
+          errorMessage = "Request timed out. The network may be congested. Please try again.";
+        } else if (errorMessage.includes("liquidity")) {
+          errorMessage = "Insufficient liquidity for this trade. Try a smaller amount or different tokens.";
+        } else if (errorMessage.includes("invalid") || errorMessage.includes("unsupported")) {
+          errorMessage = "This token pair is not currently supported. Please select different tokens.";
+        } else if (errorMessage.includes("initialization")) {
+          errorMessage = "Swap service is starting up. Please wait a moment and try again.";
+        }
 
         if (
           retryCount < 2 &&
-          (errorMessage.includes("network") ||
-            errorMessage.includes("connection") ||
-            errorMessage.includes("timeout"))
+          (err.message?.includes("network") ||
+            err.message?.includes("connection") ||
+            err.message?.includes("timeout"))
         ) {
           setTimeout(() => fetchQuote(retryCount + 1), 1000 * (retryCount + 1));
           return;
@@ -181,13 +209,13 @@ const SwapConfirmationModal: React.FC<SwapConfirmationModalProps> = ({
     if (!isOpen || !quote.data || quote.isLoading) return;
 
     countdownIntervalRef.current = setInterval(() => {
-      setCountdown((prev) => {
+      setCountdown(() => {
         const timeElapsed = (Date.now() - quote.lastUpdated) / 1000;
-        const remaining = Math.max(0, 15 - timeElapsed);
+        const remaining = Math.max(0, 10 - timeElapsed);
 
         if (remaining <= 0) {
           fetchQuote(); // Auto-refresh when expired
-          return 15;
+          return 10;
         }
 
         return Math.ceil(remaining);
@@ -230,7 +258,7 @@ const SwapConfirmationModal: React.FC<SwapConfirmationModalProps> = ({
 
   // Computed values
   const isQuoteExpired = countdown <= 0;
-  const isQuoteExpiring = countdown <= 5 && countdown > 0;
+  const isQuoteExpiring = countdown <= 3 && countdown > 0; // Warn when 3s or less remaining
   const isLoading = quote.isLoading || uniswap?.isSwapping;
   const canConfirm = useMemo(() => {
     if (!quote.data) return false;
@@ -275,12 +303,17 @@ const SwapConfirmationModal: React.FC<SwapConfirmationModalProps> = ({
 
   const minReceive = useMemo(() => {
     if (!quote.data?.minAmountOut) return null;
-    return parseFloat(quote.data.minAmountOut);
+    const minAmountStr = String(quote.data.minAmountOut);
+    const parsed = parseFloat(minAmountStr);
+    return isNaN(parsed) ? null : parsed;
   }, [quote.data?.minAmountOut]);
 
   const priceImpact = useMemo(() => {
     if (!quote.data?.priceImpact) return null;
-    return parseFloat(quote.data.priceImpact);
+    const impact = typeof quote.data.priceImpact === 'number'
+      ? quote.data.priceImpact
+      : parseFloat(String(quote.data.priceImpact));
+    return isNaN(impact) ? null : impact;
   }, [quote.data?.priceImpact]);
 
   // Execute swap
@@ -296,14 +329,18 @@ const SwapConfirmationModal: React.FC<SwapConfirmationModalProps> = ({
       }
 
       // Check slippage tolerance
-      const priceImpact = parseFloat(quote.data.priceImpact || "0");
-      if (priceImpact > 10) {
-        showSnackbar(
-          `High price impact (${priceImpact.toFixed(
-            2
-          )}%). Please confirm you want to proceed.`,
-          "error"
-        );
+      if (quote.data.priceImpact) {
+        const impactValue = typeof quote.data.priceImpact === 'number'
+          ? quote.data.priceImpact
+          : parseFloat(String(quote.data.priceImpact));
+        if (!isNaN(impactValue) && impactValue > 10) {
+          showSnackbar(
+            `High price impact (${impactValue.toFixed(
+              2
+            )}%). Please confirm you want to proceed.`,
+            "warning"
+          );
+        }
       }
 
       const result = await uniswap.performSwap({
@@ -321,9 +358,28 @@ const SwapConfirmationModal: React.FC<SwapConfirmationModalProps> = ({
           handleClose();
         }, 2000);
       }
-    } catch (error: any) {
-      console.error("Swap execution failed:", error);
-      showSnackbar(error.message || "Swap failed. Please try again.", "error");
+    } catch (error: unknown) {
+      const err = error as Error;
+      console.error("Swap execution failed:", err);
+
+      // Provide user-friendly error messages
+      let errorMessage = err.message || "Swap failed. Please try again.";
+
+      if (errorMessage.includes("user rejected") || errorMessage.includes("denied")) {
+        errorMessage = "Transaction was cancelled. No funds were transferred.";
+      } else if (errorMessage.includes("insufficient funds") || errorMessage.includes("balance")) {
+        errorMessage = "Insufficient balance to complete the swap. Please check your wallet balance.";
+      } else if (errorMessage.includes("slippage")) {
+        errorMessage = "Price moved too much during the swap. Try increasing slippage tolerance or refreshing the quote.";
+      } else if (errorMessage.includes("gas") || errorMessage.includes("fee")) {
+        errorMessage = "Insufficient CELO for gas fees. Please add CELO to your wallet.";
+      } else if (errorMessage.includes("liquidity")) {
+        errorMessage = "Insufficient liquidity for this trade size. Try a smaller amount.";
+      } else if (errorMessage.includes("network") || errorMessage.includes("timeout")) {
+        errorMessage = "Network issue encountered. Please check your connection and try again.";
+      }
+
+      showSnackbar(errorMessage, "error");
     }
   }, [
     uniswap,
@@ -348,6 +404,15 @@ const SwapConfirmationModal: React.FC<SwapConfirmationModalProps> = ({
     });
   }, []);
 
+  // Skeleton loader component
+  const SkeletonLoader = () => (
+    <div className="animate-pulse space-y-4">
+      <div className="h-4 bg-gray-700 rounded w-3/4"></div>
+      <div className="h-8 bg-gray-700 rounded"></div>
+      <div className="h-4 bg-gray-700 rounded w-1/2"></div>
+    </div>
+  );
+
   if (!mounted || !isOpen) return null;
 
   return (
@@ -355,9 +420,27 @@ const SwapConfirmationModal: React.FC<SwapConfirmationModalProps> = ({
       isOpen={isOpen}
       onClose={handleClose}
       title="Confirm Swap"
-      maxWidth="md:max-w-xl"
+      maxWidth="md:max-w-xl max-h-[90vh] overflow-y-auto"
     >
-      <div className="space-y-6">
+      <div className="space-y-4 md:space-y-6">
+        {/* Initial Loading State */}
+        {!quote.data && quote.isLoading && !quote.error && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-6 space-y-4 border border-gray-700/50"
+          >
+            <div className="flex items-center justify-center gap-3 py-8">
+              <FaSpinner className="animate-spin w-6 h-6 text-blue-400" />
+              <div>
+                <p className="text-white font-medium">Fetching best swap rate...</p>
+                <p className="text-gray-400 text-sm mt-1">This may take a few seconds</p>
+              </div>
+            </div>
+            <SkeletonLoader />
+          </motion.div>
+        )}
+
         {/* Quote Status Bar */}
         <AnimatePresence mode="wait">
           {quote.data && (
@@ -385,10 +468,13 @@ const SwapConfirmationModal: React.FC<SwapConfirmationModalProps> = ({
                       ? "Quote Expired"
                       : `Quote expires in ${countdown}s`}
                   </span>
-                  {quote.data.exchangeRate && (
+                  {quote.data?.exchangeRate && (
                     <div className="text-xs opacity-80 mt-1">
                       1 {fromToken} ={" "}
-                      {formatNumber(parseFloat(quote.data.exchangeRate), 6)}{" "}
+                      {(() => {
+                        const rate = parseFloat(String(quote.data.exchangeRate));
+                        return isNaN(rate) ? "--" : formatNumber(rate, 6);
+                      })()}{" "}
                       {toToken}
                     </div>
                   )}
@@ -405,23 +491,23 @@ const SwapConfirmationModal: React.FC<SwapConfirmationModalProps> = ({
         </AnimatePresence>
 
         {/* Swap Preview Card */}
-        <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-6 space-y-4 border border-gray-700/50">
+        <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-4 md:p-6 space-y-3 md:space-y-4 border border-gray-700/50">
           {/* From Token */}
-          <div className="flex items-center justify-between p-4 bg-gray-700/30 rounded-xl">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold">
+          <div className="flex items-center justify-between p-3 md:p-4 bg-gray-700/30 rounded-xl">
+            <div className="flex items-center gap-2 md:gap-3">
+              <div className="w-8 h-8 md:w-10 md:h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-sm md:text-base">
                 {fromToken.charAt(0)}
               </div>
               <div>
-                <div className="text-sm text-gray-400">From</div>
-                <div className="font-medium text-white">{fromToken}</div>
+                <div className="text-xs md:text-sm text-gray-400">From</div>
+                <div className="font-medium text-white text-sm md:text-base">{fromToken}</div>
               </div>
             </div>
             <div className="text-right">
-              <div className="text-2xl font-bold text-white">
+              <div className="text-xl md:text-2xl font-bold text-white">
                 {formatNumber(amountIn, 4)}
               </div>
-              <div className="text-sm text-gray-400">
+              <div className="text-xs md:text-sm text-gray-400">
                 ${formatNumber(amountIn * 1, 2)}{" "}
                 {/* Add price conversion here */}
               </div>
@@ -444,56 +530,67 @@ const SwapConfirmationModal: React.FC<SwapConfirmationModalProps> = ({
           </div>
 
           {/* To Token */}
-          <div className="flex items-center justify-between p-4 bg-gray-700/30 rounded-xl">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center text-white font-bold">
+          <div className="flex items-center justify-between p-3 md:p-4 bg-gray-700/30 rounded-xl">
+            <div className="flex items-center gap-2 md:gap-3">
+              <div className="w-8 h-8 md:w-10 md:h-10 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center text-white font-bold text-sm md:text-base">
                 {toToken.charAt(0)}
               </div>
               <div>
-                <div className="text-sm text-gray-400">To (estimated)</div>
-                <div className="font-medium text-white">{toToken}</div>
+                <div className="text-xs md:text-sm text-gray-400">To (estimated)</div>
+                <div className="font-medium text-white text-sm md:text-base">{toToken}</div>
               </div>
             </div>
             <div className="text-right">
               {quote.data ? (
                 <>
-                  <div className="text-2xl font-bold text-white">
-                    {formatNumber(parseFloat(quote.data.amountOut), 4)}
+                  <div className="text-xl md:text-2xl font-bold text-white">
+                    {(() => {
+                      const amountStr = String(quote.data.amountOut || quote.data.outputAmount || '0');
+                      const amount = parseFloat(amountStr);
+                      return isNaN(amount) ? "--" : formatNumber(amount, 4);
+                    })()}
                   </div>
-                  <div className="text-sm text-gray-400">
-                    ${formatNumber(parseFloat(quote.data.amountOut) * 1, 2)}{" "}
+                  <div className="text-xs md:text-sm text-gray-400">
+                    ${(() => {
+                      const amountStr = String(quote.data.amountOut || quote.data.outputAmount || '0');
+                      const amount = parseFloat(amountStr);
+                      return isNaN(amount) ? "--" : formatNumber(amount * 1, 2);
+                    })()}{" "}
                     {/* Add price conversion */}
                   </div>
                 </>
               ) : quote.isLoading ? (
                 <div className="flex items-center gap-2 text-gray-400">
-                  <FaSpinner className="animate-spin w-4 h-4" />
-                  <span className="text-sm">Calculating...</span>
+                  <FaSpinner className="animate-spin w-3 h-3 md:w-4 md:h-4" />
+                  <span className="text-xs md:text-sm">Calculating...</span>
                 </div>
               ) : (
-                <div className="text-gray-500">--</div>
+                <div className="text-gray-500 text-sm md:text-base">--</div>
               )}
             </div>
           </div>
 
           {/* Route Visualization */}
-          {quote.data?.route && quote.data.route.length > 2 && (
-            <div className="flex items-center justify-center gap-2 py-2">
-              <FaRoute className="w-3 h-3 text-gray-500" />
-              <div className="flex items-center gap-1">
-                {quote.data.route.map((token: string, index: number) => (
-                  <React.Fragment key={token + index}>
-                    <span className="text-xs text-gray-400 px-2 py-1 bg-gray-700 rounded">
-                      {token}
-                    </span>
-                    {index < quote.data.route.length - 1 && (
-                      <FaArrowDown className="w-2 h-2 text-gray-500 rotate-90" />
-                    )}
-                  </React.Fragment>
-                ))}
+          {quote.data?.route && Array.isArray(quote.data.route) && quote.data.route.length > 2 && (() => {
+            const route = quote.data.route!;
+            return (
+              <div className="flex items-center justify-center gap-2 py-2">
+                <FaRoute className="w-3 h-3 text-gray-500" />
+                <div className="flex items-center gap-1">
+                  {route.map((token: string, index: number) => (
+                    <React.Fragment key={token + index}>
+                      <span className="text-xs text-gray-400 px-2 py-1 bg-gray-700 rounded">
+                        {token}
+                      </span>
+                      {index < route.length - 1 && (
+                        <FaArrowDown className="w-2 h-2 text-gray-500 rotate-90" />
+                      )}
+                    </React.Fragment>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
         </div>
 
         {/* Transaction Details */}
@@ -570,10 +667,11 @@ const SwapConfirmationModal: React.FC<SwapConfirmationModalProps> = ({
             <div className="flex items-start gap-2 p-3 bg-blue-900/20 border border-blue-500/20 rounded-lg mt-4">
               <FaShieldAlt className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" />
               <div className="text-xs text-blue-300 space-y-1">
-                <p>• Swap executed through uniswap Protocol</p>
+                <p>• Swap executed through Uniswap Protocol</p>
                 <p>• Transaction is irreversible once confirmed</p>
                 <p>• Gas fees are paid in CELO</p>
-                {quote.data.route?.length > 2 && (
+                <p>• 5-minute deadline for MEV protection</p>
+                {quote.data?.route && Array.isArray(quote.data.route) && quote.data.route.length > 2 && (
                   <p>• Multi-hop routing for optimal rates</p>
                 )}
               </div>
@@ -616,34 +714,50 @@ const SwapConfirmationModal: React.FC<SwapConfirmationModalProps> = ({
                 : "bg-blue-900/20 border-blue-500/30"
             }`}
           >
-            <div className="flex items-center gap-3">
-              {uniswap?.error ? (
-                <FaExclamationTriangle className="w-5 h-5 text-red-400" />
-              ) : (
-                <FaSpinner className="w-5 h-5 text-blue-400 animate-spin" />
-              )}
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                {uniswap?.error ? (
+                  <FaExclamationTriangle className="w-5 h-5 text-red-400" />
+                ) : (
+                  <FaSpinner className="w-5 h-5 text-blue-400 animate-spin" />
+                )}
 
-              <div className="flex-1">
-                <div
-                  className={`font-medium ${
-                    uniswap?.error ? "text-red-400" : "text-blue-400"
-                  }`}
-                >
-                  {uniswap?.error ? "Swap failed" : "Executing swap..."}
+                <div className="flex-1">
+                  <div
+                    className={`font-medium ${
+                      uniswap?.error ? "text-red-400" : "text-blue-400"
+                    }`}
+                  >
+                    {uniswap?.error ? "Swap failed" : "Executing swap..."}
+                  </div>
+
+                  {uniswap?.error && (
+                    <div className="text-sm text-red-300 mt-1">
+                      {uniswap?.error}
+                    </div>
+                  )}
+
+                  {uniswap?.isSwapping && uniswap.totalSteps > 0 && (
+                    <div className="text-sm text-gray-400 mt-1">
+                      Step {uniswap.currentStep} of {uniswap.totalSteps}
+                    </div>
+                  )}
                 </div>
-
-                {uniswap?.error && (
-                  <div className="text-sm text-red-300 mt-1">
-                    {uniswap?.error}
-                  </div>
-                )}
-
-                {uniswap?.isSwapping && (
-                  <div className="text-sm text-gray-400 mt-1">
-                    Step {uniswap.currentStep} of {uniswap.totalSteps}
-                  </div>
-                )}
               </div>
+
+              {/* Progress Bar */}
+              {uniswap?.isSwapping && uniswap.totalSteps > 0 && (
+                <div className="w-full bg-gray-700 rounded-full h-2 overflow-hidden">
+                  <motion.div
+                    className="h-full bg-gradient-to-r from-blue-500 to-blue-400"
+                    initial={{ width: 0 }}
+                    animate={{
+                      width: `${(uniswap.currentStep / uniswap.totalSteps) * 100}%`,
+                    }}
+                    transition={{ duration: 0.3 }}
+                  />
+                </div>
+              )}
             </div>
           </motion.div>
         )}

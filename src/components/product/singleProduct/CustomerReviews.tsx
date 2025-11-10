@@ -6,7 +6,7 @@ import {
 } from "react-icons/md";
 import { BiSolidQuoteRight } from "react-icons/bi";
 import { motion, AnimatePresence } from "framer-motion";
-import { useReviewData } from "../../../utils/hooks/useReview";
+import { useGetReviewsForUserQuery } from "../../../store/api";
 
 interface CustomerReviewsProps {
   productId?: string;
@@ -24,27 +24,14 @@ interface ReviewWithFormatting {
 
 const CustomerReviews = ({ productId, reviewcount }: CustomerReviewsProps) => {
   const [visibleReviews, setVisibleReviews] = useState<number>(3);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [formattedReviews, setFormattedReviews] = useState<
     ReviewWithFormatting[]
   >([]);
 
-  const { getProductReviews, reviews } = useReviewData();
-
-  useEffect(() => {
-    const loadReviews = async () => {
-      if (!productId) return;
-
-      setIsLoading(true);
-      try {
-        await getProductReviews(productId, false, true);
-      } catch (error) {
-        console.error("Error fetching reviews:", error);
-      }
-    };
-
-    loadReviews();
-  }, [productId, getProductReviews]);
+  // RTK Query hook - auto-fetches reviews
+  const { data: reviews = [], isLoading } = useGetReviewsForUserQuery(productId!, {
+    skip: !productId,
+  });
 
   useEffect(() => {
     if (reviews) {
@@ -74,15 +61,12 @@ const CustomerReviews = ({ productId, reviewcount }: CustomerReviewsProps) => {
       });
       reviewcount(formatted.length);
       setFormattedReviews(formatted);
-      setIsLoading(false);
     }
   }, [reviews, reviewcount]);
 
   const loadMoreReviews = () => {
-    setIsLoading(true);
     setTimeout(() => {
       setVisibleReviews(formattedReviews.length);
-      setIsLoading(false);
     }, 800);
   };
 

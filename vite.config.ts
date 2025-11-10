@@ -1,7 +1,8 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-// import path from "path";
+import { visualizer } from "rollup-plugin-visualizer";
 import { nodePolyfills } from "vite-plugin-node-polyfills";
+import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig({
   plugins: [
@@ -14,6 +15,120 @@ export default defineConfig({
         process: true,
       },
     }),
+    // PWA Plugin
+    VitePWA({
+      registerType: "autoUpdate",
+      includeAssets: ["favicon.ico", "robots.txt", "icons/*.png"],
+      manifest: {
+        name: "Dezenmart - Decentralized Marketplace",
+        short_name: "Dezenmart",
+        description: "Decentralized Web3 marketplace on Celo blockchain",
+        theme_color: "#6366F1",
+        background_color: "#1A1B1F",
+        display: "standalone",
+        icons: [
+          {
+            src: "/icons/icon-192x192.png",
+            sizes: "192x192",
+            type: "image/png",
+          },
+          {
+            src: "/icons/icon-512x512.png",
+            sizes: "512x512",
+            type: "image/png",
+          },
+        ],
+      },
+      workbox: {
+        // Cache strategies
+        runtimeCaching: [
+          // API calls - Network First (try network, fallback to cache)
+          {
+            urlPattern: ({ url }) => url.pathname.startsWith("/api/"),
+            handler: "NetworkFirst",
+            options: {
+              cacheName: "api-cache",
+              expiration: {
+                maxEntries: 100,
+                maxAgeSeconds: 60 * 60, // 1 hour
+              },
+              networkTimeoutSeconds: 10,
+              cacheableResponse: {
+                statuses: [0, 200],
+              },
+            },
+          },
+          // Images - Cache First (use cache, update in background)
+          {
+            urlPattern: ({ request }) => request.destination === "image",
+            handler: "CacheFirst",
+            options: {
+              cacheName: "images-cache",
+              expiration: {
+                maxEntries: 200,
+                maxAgeSeconds: 60 * 60 * 24 * 30, // 30 days
+              },
+            },
+          },
+          // Product images from external sources
+          {
+            urlPattern: /^https:\/\/.*\.(png|jpg|jpeg|svg|gif|webp)$/,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "external-images-cache",
+              expiration: {
+                maxEntries: 100,
+                maxAgeSeconds: 60 * 60 * 24 * 7, // 7 days
+              },
+            },
+          },
+          // Google Fonts
+          {
+            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "google-fonts-cache",
+              expiration: {
+                maxEntries: 10,
+                maxAgeSeconds: 60 * 60 * 24 * 365, // 1 year
+              },
+            },
+          },
+          // Static assets - Cache First
+          {
+            urlPattern: ({ request }) =>
+              request.destination === "style" ||
+              request.destination === "script" ||
+              request.destination === "worker",
+            handler: "StaleWhileRevalidate",
+            options: {
+              cacheName: "static-assets-cache",
+              expiration: {
+                maxEntries: 60,
+                maxAgeSeconds: 60 * 60 * 24 * 7, // 7 days
+              },
+            },
+          },
+        ],
+        // Precache important routes
+        navigateFallback: "/index.html",
+        navigateFallbackDenylist: [/^\/api\//, /^\/auth\//],
+        cleanupOutdatedCaches: true,
+        skipWaiting: true,
+        clientsClaim: true,
+      },
+      devOptions: {
+        enabled: false, // Enable in development if needed
+        type: "module",
+      },
+    }),
+    // Bundle analyzer (only in analyze mode)
+    visualizer({
+      open: process.env.ANALYZE === "true",
+      filename: "dist/stats.html",
+      gzipSize: true,
+      brotliSize: true,
+    }) as any,
   ],
   resolve: {
     alias: {
@@ -38,8 +153,85 @@ export default defineConfig({
     ],
   },
   build: {
+    // Target modern browsers for smaller bundles
+    target: "es2020",
+
+    // Enable source maps for production debugging (Sentry)
+    sourcemap: true,
+
+    // Increase chunk size warning limit (Web3 libraries are large)
+    chunkSizeWarningLimit: 1000,
+
     rollupOptions: {
       external: [],
+      output: {
+        // Manual chunk splitting for better caching
+        manualChunks: {
+          // React core
+          "vendor-react": ["react", "react-dom", "react-router-dom"],
+
+          // Redux ecosystem
+          "vendor-redux": [
+            "@reduxjs/toolkit",
+            "react-redux",
+          ],
+
+          // Web3 core (wagmi, viem)
+          "vendor-web3-core": [
+            "wagmi",
+            "viem",
+            "@wagmi/core",
+          ],
+
+          // Uniswap SDKs (heavy)
+          "vendor-uniswap": [
+            "@uniswap/sdk-core",
+            "@uniswap/v3-sdk",
+            "@uniswap/smart-order-router",
+          ],
+
+          // Other Web3 libraries
+          "vendor-web3-misc": [
+            "ethers",
+            "@mento-protocol/mento-sdk",
+            "@walletconnect/ethereum-provider",
+            "@walletconnect/modal",
+          ],
+
+          // UI libraries
+          "vendor-ui": [
+            "framer-motion",
+            "@react-md/layout",
+            "@react-md/app-bar",
+            "@react-md/form",
+            "@react-md/tabs",
+          ],
+
+          // Utilities
+          "vendor-utils": [
+            "lodash-es",
+            "uuid",
+          ],
+
+          // Self verification
+          "vendor-self": [
+            "@selfxyz/core",
+            "@selfxyz/qrcode",
+          ],
+        },
+
+        // Optimize chunk names for better caching
+        chunkFileNames: (chunkInfo) => {
+          const facadeModuleId = chunkInfo.facadeModuleId
+            ? chunkInfo.facadeModuleId.split("/").pop()
+            : "chunk";
+          return `assets/js/[name]-[hash].js`;
+        },
+
+        entryFileNames: "assets/js/[name]-[hash].js",
+        assetFileNames: "assets/[ext]/[name]-[hash].[ext]",
+      },
+
       onwarn(warning, warn) {
         if (
           warning.code === "MISSING_EXPORT" &&
@@ -51,11 +243,22 @@ export default defineConfig({
         warn(warning);
       },
     },
+
     commonjsOptions: {
       transformMixedEsModules: true,
     },
+
+    // Minification options
+    minify: "terser",
+    terserOptions: {
+      compress: {
+        drop_console: true, // Remove console.logs in production
+        drop_debugger: true,
+        pure_funcs: ["console.log", "console.info"], // Remove specific console methods
+      },
+      format: {
+        comments: false, // Remove comments
+      },
+    },
   },
-  // build: {
-  //   minify: false,
-  // },
 });

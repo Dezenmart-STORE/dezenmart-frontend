@@ -1,21 +1,19 @@
-import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { HiOutlineBell } from "react-icons/hi";
 import { BiLogIn, BiWallet } from "react-icons/bi";
 import { FullLogo, Logo } from "../../pages";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import Container from "../common/Container";
-import { useNotifications } from "../../utils/hooks/useNotifications";
+import { useGetUnreadNotificationCountQuery, useGetConversationsQuery, useGetUserProfileQuery, useGetSelfVerificationStatusQuery } from "../../store/api";
 import NotificationBadge from "../notifications/NotificationBadge";
 import { useAuth } from "../../context/AuthContext";
 import Button from "../common/Button";
-import { useChat } from "../../utils/hooks/useChat";
 import CurrencyToggle from "../common/CurrencyToggle";
 import WalletConnectButton from "../web3/WalletConnectButton";
 import TokenSelector from "./TokenSelector";
 import { useWeb3 } from "../../context/Web3Context";
 import { FiInfo } from "react-icons/fi";
 import SefldVerification from "../common/SefldVerification";
-import { useUserManagement } from "../../utils/hooks/useUser";
 
 const NavList = [
   { title: "Home", path: "/" },
@@ -25,60 +23,33 @@ const NavList = [
 ] as const;
 
 const Header = () => {
-  const { selectedUser, checkVerificationStatus } = useUserManagement();
+  const { data: selectedUser } = useGetUserProfileQuery();
   const navigate = useNavigate();
   const { user, isAuthenticated, logout } = useAuth();
   const { wallet, disconnectWallet } = useWeb3();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showVerifyModal, setShowVerifyModal] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
-  const { unreadCount, fetchUserUnreadCount } = useNotifications();
-  const { loadConversations, totalUnreadMessages } = useChat();
 
-  useEffect(() => {
-    if (selectedUser?._id) {
-      checkVerificationStatus(false);
-    }
-  }, [selectedUser?._id, checkVerificationStatus]);
+  // RTK Query hooks with polling
+  const { data: unreadCountData } = useGetUnreadNotificationCountQuery(undefined, {
+    pollingInterval: 30000, // Poll every 30 seconds
+  });
+  const unreadCount = unreadCountData?.count || 0;
 
-  const fetchData = useCallback(
-    async (silent = false) => {
-      try {
-        await Promise.allSettled([
-          fetchUserUnreadCount(false, silent),
-          loadConversations(false, silent),
-        ]);
-      } catch (error) {
-        if (!silent) {
-          console.error("Failed to fetch header data:", error);
-        }
-      }
-    },
-    [fetchUserUnreadCount, loadConversations]
+  const { data: conversations = [] } = useGetConversationsQuery(undefined, {
+    pollingInterval: 30000,
+  });
+
+  useGetSelfVerificationStatusQuery(undefined, {
+    skip: !selectedUser?._id,
+  });
+
+  // Calculate unread messages from conversations
+  const totalUnreadMessages = conversations.reduce(
+    (total, conv) => total + (conv.unreadCount || 0),
+    0
   );
-
-  useEffect(() => {
-    let mounted = true;
-    let intervalId: NodeJS.Timeout;
-
-    const initializeFetch = async () => {
-      if (!mounted) return;
-      await fetchData();
-
-      if (mounted) {
-        intervalId = setInterval(() => fetchData(true), 30000);
-      }
-    };
-
-    initializeFetch();
-
-    return () => {
-      mounted = false;
-      if (intervalId) {
-        clearInterval(intervalId);
-      }
-    };
-  }, [fetchData]);
 
   // Click outside handler for user menu
   useEffect(() => {

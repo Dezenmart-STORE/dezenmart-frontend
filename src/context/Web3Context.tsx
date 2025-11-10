@@ -53,6 +53,11 @@ import { useCurrencyConverter } from "../utils/hooks/useCurrencyConverter";
 import { DEZENMART_ABI } from "../utils/abi/dezenmartAbi.json";
 import { ESCROW_ADDRESSES } from "../utils/config/web3.config";
 import { parseWeb3Error } from "../utils/errorParser";
+import {
+  parseSwapError,
+  logSwapError,
+  formatSwapError,
+} from "../utils/swapErrorHandler";
 // import { Mento } from "@mento-protocol/mento-sdk";
 import { useUniswap } from "../utils/hooks/useUniswap";
 import {
@@ -61,7 +66,7 @@ import {
   waitForTransactionReceipt,
 } from "@wagmi/core";
 // import { ethers } from "ethers";
-// import { useMento } from "../utils/hooks/useMento";
+import { useMento } from "../utils/hooks/useMento";
 import { useDivvi } from "../utils/hooks/useDivvi";
 import { ensure0xPrefix } from "../utils/services/divvi.service";
 import {
@@ -147,7 +152,7 @@ interface BalanceCache {
   };
 }
 
-const Web3Context = createContext<ExtendedWeb3ContextType | undefined>(
+export const Web3Context = createContext<ExtendedWeb3ContextType | undefined>(
   undefined
 );
 
@@ -164,7 +169,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
   // const publicClient = usePublicClient();
   // const chainId = useChainId();
   const uniswap = useUniswap();
-  // const mento = useMento();
+  const mento = useMento();
   const divvi = useDivvi();
   const {
     connect,
@@ -701,15 +706,17 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
           return "0x0"; // Already approved
         }
 
-        const maxApproval = BigInt(
-          "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
-        );
+        // SECURITY FIX: Approve exact amount + 5% buffer instead of infinite approval
+        // This limits exposure if the contract is compromised
+        const amountBigInt = parseUnits(amount, tokenDecimals ?? 18);
+        const bufferMultiplier = BigInt(105); // 105% (5% buffer)
+        const approvalAmount = (amountBigInt * bufferMultiplier) / BigInt(100);
 
         const hash = await writeContractAsync({
           address: tokenAddress as `0x${string}`,
           abi: erc20Abi,
           functionName: "approve",
-          args: [escrowAddress as `0x${string}`, maxApproval],
+          args: [escrowAddress as `0x${string}`, approvalAmount],
           gas: BigInt(150000),
         });
 
@@ -731,13 +738,59 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   // Helper function to convert tokens using Uniswao SDK
+  // Helper function to determine which protocol to use for a swap
+  const shouldUseMento = useCallback((from: string, to: string): boolean => {
+    // Mento is optimized for these Celo native stablecoin pairs
+    const mentoPairs = [
+      "cUSD-cEUR",
+      "cEUR-cUSD",
+      "cUSD-cREAL",
+      "cREAL-cUSD",
+      "cUSD-cKES",
+      "cKES-cUSD",
+      "cEUR-cREAL",
+      "cREAL-cEUR",
+      "cEUR-cKES",
+      "cKES-cEUR",
+      "cREAL-cKES",
+      "cKES-cREAL",
+    ];
+    const pair = `${from}-${to}`;
+    return mentoPairs.includes(pair);
+  }, []);
+
   const convertTokens = useCallback(
     async (
       fromToken: string,
       toToken: string,
-      amount: number
+      amount: number,
+      preferredProtocol?: "mento" | "uniswap"
     ): Promise<string> => {
-      if (!uniswap?.isReady) {
+      // Determine which protocol to use
+      let useMentoProtocol = shouldUseMento(fromToken, toToken);
+
+      // Override with preferred protocol if specified
+      if (preferredProtocol) {
+        useMentoProtocol = preferredProtocol === "mento";
+      }
+
+      const protocol = useMentoProtocol ? mento : uniswap;
+      const protocolName = useMentoProtocol ? "Mento" : "Uniswap";
+
+      // Check if the selected protocol is ready
+      if (!protocol?.isReady) {
+        // Try to fallback to the other protocol
+        const fallbackProtocol = useMentoProtocol ? uniswap : mento;
+        const fallbackName = useMentoProtocol ? "Uniswap" : "Mento";
+
+        if (fallbackProtocol?.isReady && !preferredProtocol) {
+          console.log(
+            `${protocolName} not ready, falling back to ${fallbackName}`
+          );
+          const fallbackPreference = useMentoProtocol ? "uniswap" : "mento";
+          return convertTokens(fromToken, toToken, amount, fallbackPreference);
+        }
+
         throw new Error(
           "Token conversion not available. Please try again later."
         );
@@ -745,7 +798,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
 
       try {
         // First, get a quote to check if conversion is possible
-        const quote = await uniswap.getSwapQuote(fromToken, toToken, amount);
+        const quote = await protocol.getSwapQuote(fromToken, toToken, amount);
 
         if (!quote || parseFloat(quote.amountOut) <= 0) {
           throw new Error(
@@ -766,11 +819,11 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
         showSnackbar(
           `Converting ${amount} ${fromToken} to approximately ${parseFloat(
             quote.amountOut
-          ).toFixed(6)} ${toToken}...`,
+          ).toFixed(6)} ${toToken} via ${protocolName}...`,
           "info"
         );
 
-        const swapResult = await uniswap.performSwap({
+        const swapResult = await protocol.performSwap({
           fromSymbol: fromToken,
           toSymbol: toToken,
           amount: amount,
@@ -784,35 +837,17 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
         showSnackbar("Token conversion completed successfully!", "success");
         return swapResult.hash;
       } catch (error: any) {
-        console.error("Token conversion failed:", error);
-
-        // Provide more specific error messages
-        if (error.message?.includes("insufficient balance")) {
-          throw new Error(`Insufficient ${fromToken} balance for conversion`);
-        } else if (error.message?.includes("slippage")) {
-          throw new Error(
-            `Price moved too much during conversion. Please try again.`
-          );
-        } else if (error.message?.includes("liquidity")) {
-          throw new Error(
-            `Insufficient liquidity for ${fromToken} to ${toToken} conversion`
-          );
-        } else if (error.message?.includes("user rejected")) {
-          throw new Error("Token conversion was cancelled by user");
-        } else if (error.message?.includes("network")) {
-          throw new Error(
-            "Network error during conversion. Please check your connection and try again."
-          );
-        } else {
-          throw new Error(
-            `Failed to convert ${fromToken} to ${toToken}: ${
-              error.message || "Unknown error"
-            }`
-          );
-        }
+        logSwapError(error, `convertTokens-${protocolName}`, {
+          fromToken,
+          toToken,
+          amount,
+        });
+        const swapError = parseSwapError(error);
+        showSnackbar(formatSwapError(error), "error");
+        throw swapError;
       }
     },
-    [uniswap, showSnackbar]
+    [shouldUseMento, mento, uniswap, showSnackbar]
   );
 
   // buy trade function
@@ -1371,8 +1406,9 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
   const value: ExtendedWeb3ContextType = useMemo(
     () => ({
       wallet,
-      // mento: mento.isReady ? mento : undefined,
-      mento: uniswap.isReady ? uniswap : undefined,
+      // Expose both protocols, prioritizing based on readiness
+      mento: mento.isReady ? mento : undefined,
+      uniswap: uniswap.isReady ? uniswap : undefined,
       connectWallet,
       disconnectWallet,
       switchToCorrectNetwork,
@@ -1383,14 +1419,50 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
         to: string,
         amount: number
       ): Promise<void> => {
+        // Determine which protocol to use
+        const useMentoProtocol = shouldUseMento(from, to);
+        const protocol = useMentoProtocol ? mento : uniswap;
+        const protocolName = useMentoProtocol ? "Mento" : "Uniswap";
+
+        // Check if protocol is ready
+        if (!protocol?.isReady) {
+          // Try fallback protocol
+          const fallbackProtocol = useMentoProtocol ? uniswap : mento;
+          const fallbackName = useMentoProtocol ? "Uniswap" : "Mento";
+
+          if (fallbackProtocol?.isReady) {
+            console.log(
+              `[Web3Context] ${protocolName} not ready, using ${fallbackName} as fallback`
+            );
+            await fallbackProtocol.performSwap({
+              fromSymbol: from,
+              toSymbol: to,
+              amount: amount,
+            });
+            return;
+          }
+
+          throw new Error(
+            "Swap service is currently unavailable. Please try again later."
+          );
+        }
+
         try {
-          await uniswap.performSwap({
+          console.log(`[Web3Context] Performing swap via ${protocolName}`);
+          await protocol.performSwap({
             fromSymbol: from,
             toSymbol: to,
             amount: amount,
           });
         } catch (error) {
-          throw error;
+          logSwapError(error, `performSwap-${protocolName}`, {
+            from,
+            to,
+            amount,
+          });
+          const swapError = parseSwapError(error);
+          showSnackbar(formatSwapError(error), "error");
+          throw swapError;
         }
       },
       getSwapQuote: async (
@@ -1398,11 +1470,42 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
         to: string,
         amount: number
       ): Promise<string> => {
+        // Determine which protocol to use
+        const useMentoProtocol = shouldUseMento(from, to);
+        const protocol = useMentoProtocol ? mento : uniswap;
+        const protocolName = useMentoProtocol ? "Mento" : "Uniswap";
+
+        // Check if protocol is ready
+        if (!protocol?.isReady) {
+          // Try fallback protocol
+          const fallbackProtocol = useMentoProtocol ? uniswap : mento;
+          const fallbackName = useMentoProtocol ? "Uniswap" : "Mento";
+
+          if (fallbackProtocol?.isReady) {
+            console.log(
+              `[Web3Context] ${protocolName} not ready, using ${fallbackName} for quote`
+            );
+            const quote = await fallbackProtocol.getSwapQuote(from, to, amount);
+            return quote?.amountOut || "0";
+          }
+
+          throw new Error(
+            "Quote service is currently unavailable. Please try again later."
+          );
+        }
+
         try {
-          const quote = await uniswap.getSwapQuote(from, to, amount);
+          console.log(`[Web3Context] Getting swap quote via ${protocolName}`);
+          const quote = await protocol.getSwapQuote(from, to, amount);
           return quote?.amountOut || "0";
         } catch (error) {
-          throw error;
+          logSwapError(error, `getSwapQuote-${protocolName}`, {
+            from,
+            to,
+            amount,
+          });
+          const swapError = parseSwapError(error, "quote");
+          throw swapError;
         }
       },
       initializeUniswap: uniswap.initializeUniswap,
@@ -1430,7 +1533,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
     }),
     [
       wallet,
-      // mento,
+      mento,
       uniswap,
       connectWallet,
       disconnectWallet,
@@ -1444,11 +1547,11 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
       usdtDecimals,
       getCurrentAllowance,
       getUSDTBalance,
-      buyTrade,
       approveUSDT,
       validateTradeBeforePurchase,
       isCorrectNetwork,
       divvi,
+      shouldUseMento,
     ]
   );
 

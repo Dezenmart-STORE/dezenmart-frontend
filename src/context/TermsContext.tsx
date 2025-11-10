@@ -7,7 +7,7 @@ import {
   useMemo,
 } from "react";
 import { useAuth } from "./AuthContext";
-import { useUserManagement } from "../utils/hooks/useUser";
+import { useAcceptTermsMutation, useGetUserProfileQuery } from "../store/api";
 
 interface TermsContextType {
   showTermsModal: boolean;
@@ -25,12 +25,11 @@ export const TermsProvider = ({ children }: { children: ReactNode }) => {
     isLoading: authLoading,
     handleUserUpdate,
   } = useAuth();
-  const {
-    acceptTerms: acceptUserTerms,
-    isLoading: userLoading,
-    fetchProfile,
-    selectedUser,
-  } = useUserManagement();
+
+  const { data: selectedUser } = useGetUserProfileQuery(undefined, {
+    skip: !isAuthenticated,
+  });
+  const [acceptUserTerms, { isLoading: userLoading }] = useAcceptTermsMutation();
 
   const [isLoading, setIsLoading] = useState(false);
 
@@ -49,12 +48,10 @@ export const TermsProvider = ({ children }: { children: ReactNode }) => {
 
     setIsLoading(true);
     try {
-      await acceptUserTerms(false);
+      const result = await acceptUserTerms().unwrap();
 
-      await fetchProfile(false, true);
-
-      if (selectedUser) {
-        handleUserUpdate(selectedUser);
+      if (result) {
+        handleUserUpdate(result);
       }
 
       await new Promise((resolve) => setTimeout(resolve, 100));
@@ -69,8 +66,6 @@ export const TermsProvider = ({ children }: { children: ReactNode }) => {
     isLoading,
     userLoading,
     acceptUserTerms,
-    fetchProfile,
-    selectedUser,
     handleUserUpdate,
   ]);
 

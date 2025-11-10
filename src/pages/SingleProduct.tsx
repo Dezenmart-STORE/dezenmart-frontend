@@ -4,7 +4,7 @@ import { LiaAngleLeftSolid } from "react-icons/lia";
 import { FaRegHeart, FaHeart } from "react-icons/fa";
 import { IoShareSocialOutline } from "react-icons/io5";
 import { motion } from "framer-motion";
-import { useWatchlist } from "../utils/hooks/useWatchlist";
+import { useCheckWatchlistQuery, useToggleWatchlistMutation } from "../store/api/watchlistApi";
 
 import ProductImage from "../components/product/singleProduct/ProductImage";
 import ProductTabs from "../components/product/singleProduct/ProductTabs";
@@ -13,9 +13,10 @@ import CustomerReviews from "../components/product/singleProduct/CustomerReviews
 import PurchaseSection from "../components/product/singleProduct/PurchaseSection";
 import ProductLoadingSkeleton from "../components/product/singleProduct/LoadingSkeleton";
 import ProductCard from "../components/product/ProductCard";
-import { useProductData } from "../utils/hooks/useProduct";
+import { useGetProductByIdQuery, useGetProductsByCategoryQuery } from "../store/api/productsApi";
 import { useCurrency } from "../context/CurrencyContext";
-import { ProductVariant } from "../utils/types";
+import { useCurrencyConverter } from "../utils/hooks/useCurrencyConverter";
+import { ProductVariant, Product as ProductType } from "../utils/types";
 import { useAuth } from "../context/AuthContext";
 
 type TabType = "details" | "reviews";
@@ -24,29 +25,61 @@ const SingleProduct = () => {
   const { user } = useAuth();
   const { productId } = useParams();
   const navigate = useNavigate();
-  const {
-    formattedProduct,
-    loading,
-    error,
-    fetchProductById,
-    relatedProducts,
-  } = useProductData();
+
+  // RTK Query hooks
+  const { data: product, isLoading: loading, error } = useGetProductByIdQuery(productId!, {
+    skip: !productId,
+  });
+
+  const { data: watchlistStatus } = useCheckWatchlistQuery(productId!, {
+    skip: !productId,
+  });
+
+  const [toggleWatchlistMutation] = useToggleWatchlistMutation();
+
+  // Get related products based on category
+  const { data: categoryProducts = [] } = useGetProductsByCategoryQuery(
+    (product as ProductType)?.category || "",
+    {
+      skip: !(product as ProductType)?.category,
+    }
+  );
+
+  const relatedProducts = categoryProducts
+    .filter((p: ProductType) => p._id !== productId)
+    .slice(0, 5);
+
   const { secondaryCurrency, fiatCurrency, selectedTokenSymbol } =
     useCurrency();
+  const { formatPrice } = useCurrencyConverter();
   const [activeTab, setActiveTab] = useState<TabType>("details");
   const [reviewCount, setReviewCount] = useState(0);
-  const { isProductInWatchlist, toggleWatchlist, checkProductWatchlist } =
-    useWatchlist();
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(
     null
   );
-  const isFavorite = productId ? isProductInWatchlist(productId) : false;
+  const isFavorite = watchlistStatus?.isWatchlist || false;
+
+  // Format product with prices
+  const formattedProduct = product ? {
+    ...product as ProductType,
+    celoPrice: (product as ProductType).price,
+    fiatPrice: (product as ProductType).price,
+    tokenPrice: (product as ProductType).price,
+    formattedCeloPrice: formatPrice((product as ProductType).price, "CELO"),
+    formattedTokenPrice: formatPrice((product as ProductType).price, selectedTokenSymbol),
+    formattedUsdtPrice: formatPrice((product as ProductType).price, "USDT"),
+    formattedFiatPrice: formatPrice((product as ProductType).price, fiatCurrency as string),
+  } : null;
 
   const handleGoBack = () => navigate(-1);
 
-  const handleToggleFavorite = () => {
+  const handleToggleFavorite = async () => {
     if (productId) {
-      toggleWatchlist(productId);
+      try {
+        await toggleWatchlistMutation(productId).unwrap();
+      } catch (error) {
+        console.error("Failed to toggle watchlist:", error);
+      }
     }
   };
 
@@ -82,20 +115,10 @@ const SingleProduct = () => {
   };
 
   useEffect(() => {
-    const loadProduct = async () => {
-      if (productId) {
-        await fetchProductById(productId);
-        await checkProductWatchlist(productId);
-        setActiveTab("details");
-      }
-    };
-    loadProduct();
-
+    // Reset tab when product changes
+    setActiveTab("details");
     window.scrollTo(0, 0);
-
-    // Cleanup
-    return () => {};
-  }, [productId, fetchProductById, checkProductWatchlist]);
+  }, [productId]);
 
   // Initialize with first available variant when product loads
   useEffect(() => {

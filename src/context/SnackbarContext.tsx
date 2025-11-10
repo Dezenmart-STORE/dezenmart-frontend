@@ -1,13 +1,13 @@
 import React, { createContext, useState, useContext, ReactNode } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
-type SnackbarType = "success" | "error" | "info";
+type SnackbarType = "success" | "error" | "info" | "warning";
 
 interface SnackbarContextType {
   showSnackbar: (message: string, type?: SnackbarType) => void;
 }
 
-const SnackbarContext = createContext<SnackbarContextType | undefined>(
+export const SnackbarContext = createContext<SnackbarContextType | undefined>(
   undefined
 );
 

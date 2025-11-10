@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, memo, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, memo } from "react";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import Container from "../components/common/Container";
@@ -6,7 +6,7 @@ import { TradeStatusType } from "../utils/types";
 import TradeStatus from "../components/trade/status/TradeStatus";
 import { toast } from "react-toastify";
 import LoadingSpinner from "../components/common/LoadingSpinner";
-import { useOrderData } from "../utils/hooks/useOrder";
+import { useGetOrderByIdQuery, useUpdateOrderStatusMutation, useRaiseDisputeMutation } from "../store/api";
 import { useSnackbar } from "../context/SnackbarContext";
 import { getStoredOrderId, storeOrderId } from "../utils/helpers";
 
@@ -15,15 +15,6 @@ const ViewOrderDetail = memo(() => {
   const location = useLocation();
   const navigate = useNavigate();
   const { showSnackbar } = useSnackbar();
-
-  // Track if there is already an initiated a fetch for this orderId
-  const hasFetchedRef = useRef<Set<string>>(new Set());
-  const isMountedRef = useRef(true);
-  // Determine if validation is needed based on status
-  const needsValidation = useMemo(() => {
-    const statusParam = new URLSearchParams(location.search).get("status");
-    return statusParam === "pending" || !statusParam;
-  }, [location.search]);
 
   // Store orderId when it changes
   useEffect(() => {
@@ -48,14 +39,12 @@ const ViewOrderDetail = memo(() => {
   const [orderStatus, setOrderStatus] =
     useState<TradeStatusType>(initialStatus);
 
-  const {
-    getOrderByIdWithValidation,
-    currentOrder: orderDetails,
-    loading,
-    error,
-    changeOrderStatus,
-    raiseDispute,
-  } = useOrderData();
+  // RTK Query hooks
+  const { data: orderDetails, isLoading: loading, error } = useGetOrderByIdQuery(orderId!, {
+    skip: !orderId,
+  });
+  const [updateOrderStatus] = useUpdateOrderStatusMutation();
+  const [raiseOrderDispute] = useRaiseDisputeMutation();
 
   const statusMapping = useMemo(
     () => ({
@@ -97,41 +86,8 @@ const ViewOrderDetail = memo(() => {
     };
   }, [orderDetails?.buyer, orderDetails?.seller]);
 
-  // fetch order data
-  useEffect(() => {
-    const fetchOrder = async () => {
-      if (!orderId || hasFetchedRef.current.has(orderId)) {
-        return;
-      }
-
-      // Mark as fetched immediately to prevent duplicate calls
-      hasFetchedRef.current.add(orderId);
-
-      try {
-        await getOrderByIdWithValidation(
-          orderId,
-          needsValidation,
-          false,
-          false
-        );
-      } catch (error) {
-        console.error("Error fetching order:", error);
-        // Remove from set on error so it can be retried
-        if (isMountedRef.current) {
-          hasFetchedRef.current.delete(orderId);
-        }
-      }
-    };
-
-    fetchOrder();
-
-    // Cleanup function
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, [orderId, needsValidation, getOrderByIdWithValidation]);
-
-  // status updates
+  // RTK Query automatically fetches when orderId changes
+  // Update status when orderDetails changes
   useEffect(() => {
     if (orderDetails?.status) {
       const key =
@@ -169,29 +125,22 @@ const ViewOrderDetail = memo(() => {
       if (!currentOrderId) return;
 
       try {
-        const [disputeRes, changeOrderRes] = await Promise.all([
-          raiseDispute(currentOrderId, reason, false),
-          changeOrderStatus(
-            currentOrderId,
-            {
-              status: "disputed",
-            },
-            false
-          ),
-        ]);
+        await raiseOrderDispute({ orderId: currentOrderId, reason }).unwrap();
+        await updateOrderStatus({
+          orderId: currentOrderId,
+          details: { status: "disputed" },
+        }).unwrap();
 
-        if (disputeRes && changeOrderRes?.status === "disputed") {
-          showSnackbar("Dispute has been filed successfully", "success");
-          navigate(`/trades/viewtrades/${currentOrderId}?status=cancelled`, {
-            replace: true,
-          });
-        }
+        showSnackbar("Dispute has been filed successfully", "success");
+        navigate(`/trades/viewtrades/${currentOrderId}?status=cancelled`, {
+          replace: true,
+        });
       } catch (error) {
         showSnackbar("Failed to file dispute. Please try again.", "error");
         console.error("Dispute error:", error);
       }
     },
-    [orderId, raiseDispute, changeOrderStatus, navigate, showSnackbar]
+    [orderId, raiseOrderDispute, updateOrderStatus, navigate, showSnackbar]
   );
 
   const handleReleaseNow = useCallback(async () => {
@@ -213,13 +162,11 @@ const ViewOrderDetail = memo(() => {
     if (!currentOrderId) return;
 
     try {
-      await changeOrderStatus(
-        currentOrderId,
-        {
-          status: "completed",
-        },
-        false
-      );
+      await updateOrderStatus({
+        orderId: currentOrderId,
+        details: { status: "completed" },
+      }).unwrap();
+
       setOrderStatus("completed");
       navigate(`/trades/viewtrades/${currentOrderId}?status=completed`, {
         replace: true,
@@ -229,7 +176,7 @@ const ViewOrderDetail = memo(() => {
       toast.error("Failed to complete the order. Please try again.");
       console.error("Confirm delivery error:", error);
     }
-  }, [orderId, changeOrderStatus, navigate]);
+  }, [orderId, updateOrderStatus, navigate]);
 
   const navigatePath = useMemo(() => {
     const currentOrderId = orderId || getStoredOrderId();
@@ -291,7 +238,11 @@ const ViewOrderDetail = memo(() => {
         >
           <TradeStatus
             status={orderStatus}
-            orderDetails={orderDetails}
+            orderDetails={orderDetails ? {
+              ...orderDetails,
+              formattedDate: orderDetails.createdAt ? new Date(orderDetails.createdAt).toLocaleDateString() : '',
+              formattedAmount: `$${orderDetails.amount?.toFixed(2) || '0.00'}`,
+            } : undefined}
             transactionInfo={transactionInfo}
             onContactSeller={
               orderStatus !== "pending" ? handleContactSeller : undefined

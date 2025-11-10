@@ -14,7 +14,7 @@ import { motion } from "framer-motion";
 import { useWeb3 } from "../../../context/Web3Context";
 import { useSnackbar } from "../../../context/SnackbarContext";
 import { useContract } from "../../../utils/hooks/useSmartContract";
-import { useOrderData } from "../../../utils/hooks/useOrder";
+import { useUpdateOrderStatusMutation } from "../../../store/api";
 
 interface FundsReleaseStatusProps {
   tradeDetails?: TradeDetails;
@@ -43,7 +43,7 @@ const FundsReleaseStatus: FC<FundsReleaseStatusProps> = ({
   showTimer,
 }) => {
   const { showSnackbar } = useSnackbar();
-  const { changeOrderStatus } = useOrderData();
+  const [updateOrderStatus] = useUpdateOrderStatusMutation();
   const [processingState, setProcessingState] = useState<ProcessingState>({
     confirmDelivery: false,
     raiseDispute: false,
@@ -103,13 +103,12 @@ const FundsReleaseStatus: FC<FundsReleaseStatusProps> = ({
         throw new Error(result.message || "Failed to confirm delivery");
       }
       // Update order status in backend
-      await changeOrderStatus(
-        orderId,
-        {
+      await updateOrderStatus({
+        orderId: orderId!,
+        details: {
           status: "completed",
         },
-        false
-      );
+      }).unwrap();
 
       showSnackbar(
         "Delivery confirmed successfully! Order has been completed.",
@@ -138,9 +137,8 @@ const FundsReleaseStatus: FC<FundsReleaseStatusProps> = ({
     wallet.isConnected,
     orderId,
     orderDetails?.purchaseId,
-    ,
     confirmDeliveryAndPurchase,
-    changeOrderStatus,
+    updateOrderStatus,
     onConfirmDelivery,
     showSnackbar,
   ]);

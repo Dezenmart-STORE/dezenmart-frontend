@@ -1,0 +1,8 @@
+# Dezenmart - Robots.txt
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /auth/
+
+# Sitemaps
+Sitemap: https://dezenmart.com/sitemap.xml

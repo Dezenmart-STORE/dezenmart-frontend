@@ -1,37 +1,27 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import PointsDisplay from "./PointsDisplay";
 import ReferralInvite from "./Invite";
 import ReferralHistory from "./History";
 import ReferralSkeleton from "./Skeleton";
 import { RewardItem } from "../../../../utils/types";
-import { useReferralData } from "../../../../utils/hooks/useReferral";
-import { useRewards } from "../../../../utils/hooks/useRewards";
+import { useGetReferralInfoQuery } from "../../../../store/api/referralsApi";
+import { useGetRewardHistoryQuery, useGetRewardSummaryQuery } from "../../../../store/api/rewardsApi";
 
 const ReferralsTab = () => {
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const inviteRef = useRef(null);
 
-  const {
-    referralInfo,
-    formattedReferralInfo,
-    loading: referralLoading,
-    error: referralError,
-    getReferralInfo,
-  } = useReferralData();
+  // RTK Query hooks
+  const { data: referralInfo, isLoading: referralLoading, error: referralError } = useGetReferralInfoQuery();
+  const { data: rewardSummary, isLoading: summaryLoading } = useGetRewardSummaryQuery();
+  const { data: rewards = [], isLoading: rewardsLoading, error: rewardsError } = useGetRewardHistoryQuery();
 
-  const {
-    availablePoints,
-    totalPoints,
-    rewards,
-    isLoading: rewardsLoading,
-    error: rewardsError,
-    fetchRewards,
-    fetchSummary,
-  } = useRewards();
-
-  const loading = referralLoading || rewardsLoading;
+  const loading = referralLoading || rewardsLoading || summaryLoading;
   const error = referralError || rewardsError;
+
+  const availablePoints = rewardSummary?.availablePoints || 0;
+  const totalPoints = rewardSummary?.totalPoints || 0;
 
   // const handleInviteFriends = useCallback(() => {
   //   setIsShareModalOpen(true);
@@ -72,21 +62,8 @@ const ReferralsTab = () => {
     });
   }, [rewards]);
 
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        await Promise.all([
-          getReferralInfo(false, true),
-          fetchRewards(false, true),
-          fetchSummary(false, true),
-        ]);
-      } catch (err) {
-        console.error("Error loading referral data:", err);
-      }
-    };
-
-    loadData();
-  }, [getReferralInfo, fetchRewards, fetchSummary]);
+  // RTK Query handles data fetching automatically
+  // No need for manual useEffect
 
   if (loading) {
     return <ReferralSkeleton />;
@@ -99,17 +76,7 @@ const ReferralsTab = () => {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
       >
-        <p className="text-red-400">{error}</p>
-        <button
-          className="mt-4 bg-Red text-white py-2 px-4 rounded"
-          onClick={() => {
-            getReferralInfo(false, true);
-            fetchRewards(false, true);
-            fetchSummary(false, true);
-          }}
-        >
-          Try Again
-        </button>
+        <p className="text-red-400">Failed to load referral data. Please try again later.</p>
       </motion.div>
     );
   }
@@ -129,7 +96,7 @@ const ReferralsTab = () => {
 
       <ReferralInvite
         promoCode={referralInfo?.referralCode || ""}
-        shareLink={formattedReferralInfo?.shareLink || ""}
+        shareLink={referralInfo?.referralCode ? `${window.location.origin}/referral?code=${referralInfo.referralCode}` : ""}
         isShareModalOpen={isShareModalOpen}
         setIsShareModalOpen={setIsShareModalOpen}
         referralCount={referralInfo?.referralCount || 0}

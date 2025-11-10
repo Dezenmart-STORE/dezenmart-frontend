@@ -81,12 +81,30 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   // Get selected token and its balance
   const selectedToken = wallet.selectedToken;
   const selectedTokenBalance = wallet.tokenBalances[selectedToken.symbol];
-  const orderAmount = useMemo(() => {
-    return (
-      orderDetails?.amount ||
-      (orderDetails?.product?.price || 0) * (orderDetails?.quantity || 1)
+
+  // Calculate logistics fee
+  const logisticsFee = useMemo(() => {
+    const logisticsProvider = orderDetails?.logisticsProviderWalletAddress?.[0];
+    if (!logisticsProvider) return 0;
+
+    const logisticsIndex = orderDetails?.product.logisticsProviders.findIndex(
+      (provider: string) =>
+        provider.toLowerCase() === logisticsProvider.toLowerCase()
     );
+
+    return logisticsIndex >= 0
+      ? parseFloat(orderDetails?.product.logisticsCost[logisticsIndex] || "0")
+      : 0;
   }, [orderDetails]);
+
+  // Calculate TOTAL order amount: product + escrow fee (2.5%) + logistics
+  const orderAmount = useMemo(() => {
+    const productPrice = orderDetails?.product?.price || 0;
+    const quantity = orderDetails?.quantity || 1;
+    const subtotal = productPrice * quantity;
+    const escrowFee = subtotal * 0.025; // 2.5%
+    return subtotal + escrowFee + logisticsFee;
+  }, [orderDetails, logisticsFee]);
 
   const balanceNumber = useMemo(() => {
     if (!selectedTokenBalance?.raw) return 0;
@@ -287,18 +305,9 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
         );
       }
 
-      // Calculate logistics cost
-      const logisticsProvider = orderDetails.logisticsProviderWalletAddress[0];
-      const logisticsIndex = orderDetails.product.logisticsProviders.findIndex(
-        (provider: string) =>
-          provider.toLowerCase() === logisticsProvider.toLowerCase()
-      );
-      const logisticsCost =
-        logisticsIndex >= 0
-          ? parseFloat(
-              orderDetails.product.logisticsCost[logisticsIndex] || "0"
-            )
-          : 0;
+      // Use the logistics fee calculated in useMemo
+      const productPrice = orderDetails.product.price;
+      const quantity = orderDetails.quantity;
 
       if (needsApproval) {
         showSnackbar(
@@ -306,6 +315,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
           "info"
         );
         try {
+          // Approve the TOTAL amount (product + escrow fee + logistics fee)
           const approvalTx = await approveToken(
             selectedToken.symbol,
             orderAmount.toString()
@@ -357,8 +367,8 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
             tradeId: orderDetails.product.tradeId,
             quantity: orderDetails.quantity.toString(),
             logisticsProvider: orderDetails.logisticsProviderWalletAddress[0],
-            productCost: orderDetails.product.price, // Add product cost
-            logisticsCost: logisticsCost, // Add logistics cost
+            productCost: productPrice,
+            logisticsCost: logisticsFee,
           });
 
           setTransaction(paymentTransaction);
@@ -474,17 +484,43 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                 Order Summary
               </h3>
               <div className="bg-Dark/50 border border-Red/20 rounded-lg p-4 space-y-3">
+                {/* Product */}
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-300">
                     {orderDetails.product?.name} × {orderDetails.quantity}
                   </span>
                   <span className="text-white font-medium">
-                    {formatCurrency(orderAmount)} {selectedToken.symbol}
+                    {formatCurrency(
+                      (orderDetails.product?.price || 0) * orderDetails.quantity
+                    )}{" "}
+                    {selectedToken.symbol}
                   </span>
                 </div>
+
+                {/* Escrow Fee */}
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-400">Escrow Fee (2.5%)</span>
+                  <span className="text-gray-300">
+                    {formatCurrency(
+                      (orderDetails.product?.price || 0) *
+                        orderDetails.quantity *
+                        0.025
+                    )}{" "}
+                    {selectedToken.symbol}
+                  </span>
+                </div>
+
+                {/* Logistics Fee */}
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-400">Logistics Fee</span>
+                  <span className="text-gray-300">
+                    {formatCurrency(logisticsFee)} {selectedToken.symbol}
+                  </span>
+                </div>
+
                 <div className="border-t border-Red/20 pt-3">
                   <div className="flex justify-between text-lg font-bold">
-                    <span className="text-white">Total</span>
+                    <span className="text-white">Total Amount</span>
                     <span className="text-Red">
                       {formatCurrency(orderAmount)} {selectedToken.symbol}
                     </span>

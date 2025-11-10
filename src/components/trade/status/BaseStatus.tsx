@@ -74,11 +74,27 @@ const BaseStatus: FC<BaseStatusProps> = memo(
 
       const paymentMethod = tradeDetails?.paymentMethod || "CRYPTO";
 
-      // Calculate total amount: subtotal + fee + fixed charge
+      // Calculate logistics fee from order details
+      const logisticsProviderWallet =
+        orderDetails?.logisticsProviderWalletAddress?.[0];
+      const logisticsIndex = logisticsProviderWallet
+        ? orderDetails?.product.logisticsProviders.findIndex(
+            (provider: string) =>
+              provider.toLowerCase() === logisticsProviderWallet.toLowerCase()
+          )
+        : -1;
+      const logisticsFee =
+        logisticsIndex !== undefined && logisticsIndex >= 0
+          ? parseFloat(
+              orderDetails?.product.logisticsCost[logisticsIndex] || "0"
+            )
+          : 0;
+
+      // Calculate total amount: subtotal + escrow fee (2.5%) + logistics fee
       const subtotal = amount * Number(quantity);
       const escrowFeeRate = 0.025; // 2.5%
-      const fixedCharge = 2;
-      const totalAmount = subtotal + subtotal * escrowFeeRate + fixedCharge;
+      const escrowFee = subtotal * escrowFeeRate;
+      const totalAmount = subtotal + escrowFee + logisticsFee;
       return {
         productName,
         orderId,
@@ -88,6 +104,10 @@ const BaseStatus: FC<BaseStatusProps> = memo(
         tradeType,
         paymentMethod,
         totalAmount,
+        // Price breakdown
+        subtotal,
+        escrowFee,
+        logisticsFee,
       };
     }, [
       tradeDetails?.productName,
@@ -99,9 +119,15 @@ const BaseStatus: FC<BaseStatusProps> = memo(
       tradeDetails?.paymentMethod,
       orderDetails?.product?.name,
       orderDetails?.product?.price,
+      orderDetails?.product?.paymentToken,
       orderDetails?._id,
       orderDetails?.quantity,
       orderDetails?.formattedDate,
+      orderDetails?.logisticsProviderWalletAddress,
+      orderDetails?.product.logisticsProviders,
+      orderDetails?.product.logisticsCost,
+      convertPrice,
+      formatPrice,
     ]);
 
     const copyOrderId = useCallback((id: string) => {
@@ -303,10 +329,73 @@ const BaseStatus: FC<BaseStatusProps> = memo(
                 transition={{ delay: 0.2 }}
               >
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-400 text-sm">Amount</span>
+                  <span className="text-gray-400 text-sm">Total Amount</span>
                   <span className="text-red-500 text-xl font-bold">
-                    {derivedData.totalAmount}
+                    {formatPrice(
+                      convertPrice(
+                        derivedData.totalAmount,
+                        "USDT",
+                        orderDetails?.product.paymentToken || "cUSD"
+                      ),
+                      orderDetails?.product.paymentToken || "cUSD"
+                    )}
                   </span>
+                </div>
+
+                {/* Price Breakdown */}
+                <div className="bg-gray-800/50 rounded-lg p-4 space-y-2 text-sm">
+                  <div className="flex justify-between items-center text-gray-300">
+                    <span>Product Price × {derivedData.quantity}</span>
+                    <span>
+                      {formatPrice(
+                        convertPrice(
+                          derivedData.subtotal,
+                          "USDT",
+                          orderDetails?.product.paymentToken || "cUSD"
+                        ),
+                        orderDetails?.product.paymentToken || "cUSD"
+                      )}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center text-gray-300">
+                    <span>Escrow Fee (2.5%)</span>
+                    <span>
+                      {formatPrice(
+                        convertPrice(
+                          derivedData.escrowFee,
+                          "USDT",
+                          orderDetails?.product.paymentToken || "cUSD"
+                        ),
+                        orderDetails?.product.paymentToken || "cUSD"
+                      )}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center text-gray-300">
+                    <span>Logistics Fee</span>
+                    <span>
+                      {formatPrice(
+                        convertPrice(
+                          derivedData.logisticsFee,
+                          "USDT",
+                          orderDetails?.product.paymentToken || "cUSD"
+                        ),
+                        orderDetails?.product.paymentToken || "cUSD"
+                      )}
+                    </span>
+                  </div>
+                  <div className="border-t border-gray-700 pt-2 flex justify-between items-center font-medium text-white">
+                    <span>Total</span>
+                    <span className="text-red-500">
+                      {formatPrice(
+                        convertPrice(
+                          derivedData.totalAmount,
+                          "USDT",
+                          orderDetails?.product.paymentToken || "cUSD"
+                        ),
+                        orderDetails?.product.paymentToken || "cUSD"
+                      )}
+                    </span>
+                  </div>
                 </div>
 
                 <div className="space-y-2">

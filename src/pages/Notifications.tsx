@@ -1,29 +1,33 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { IoChevronBackOutline } from "react-icons/io5";
-import { useNotifications } from "../utils/hooks/useNotifications";
+import { useGetUserNotificationsQuery, useMarkAllReadMutation, useMarkNotificationsAsReadMutation } from "../store/api/notificationsApi";
 import { HiChevronRight } from "react-icons/hi";
 import NotificationItem from "../components/notifications/NotificationItem";
 import EmptyNotifications from "../components/notifications/EmptyNotifications";
 import Container from "../components/common/Container";
-import { useEffect } from "react";
 
 const NotificationPage = () => {
-  const {
-    notifications,
-    isLoading,
-    markAsRead,
-    markAllAsRead,
-    hasUnread,
-    fetchUserNotifications,
-  } = useNotifications();
+  // RTK Query hooks
+  const { data: notifications = [], isLoading } = useGetUserNotificationsQuery();
+  const [markAsReadMutation] = useMarkNotificationsAsReadMutation();
+  const [markAllAsReadMutation] = useMarkAllReadMutation();
 
-  // Fetch notifications when the page loads
-  useEffect(() => {
-    fetchUserNotifications(false, true);
-  }, [fetchUserNotifications]);
+  const hasUnread = notifications.some((n: any) => !n.read);
 
-  const handleMarkAsRead = (id: string) => {
-    markAsRead([id]);
+  const handleMarkAsRead = async (id: string) => {
+    try {
+      await markAsReadMutation({ notificationIds: [id] }).unwrap();
+    } catch (error) {
+      console.error("Failed to mark notification as read:", error);
+    }
+  };
+
+  const markAllAsRead = async () => {
+    try {
+      await markAllAsReadMutation().unwrap();
+    } catch (error) {
+      console.error("Failed to mark all as read:", error);
+    }
   };
 
   return (

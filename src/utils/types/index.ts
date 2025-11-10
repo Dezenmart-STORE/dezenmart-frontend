@@ -406,3 +406,57 @@ export interface SendMessageParams {
 export interface MarkReadParams {
   messageIds: string[];
 }
+
+// Delivery Address
+export interface DeliveryAddress {
+  _id: string;
+  user: string;
+  label: string; // e.g., "Home", "Office", "Mom's place"
+  recipientName: string;
+  phoneNumber: string;
+  address: string;
+  city: string;
+  state: string;
+  country: string;
+  zipCode: string;
+  isDefault: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateDeliveryAddressParams {
+  label: string;
+  recipientName: string;
+  phoneNumber: string;
+  address: string;
+  city: string;
+  state: string;
+  country: string;
+  zipCode: string;
+  isDefault?: boolean;
+}
+
+export interface UpdateDeliveryAddressParams extends Partial<CreateDeliveryAddressParams> {
+  _id: string;
+}
+
+// Enhanced Logistics Provider with location and delivery details
+export interface EnhancedLogisticsProvider {
+  _id: string;
+  name: string;
+  walletAddress: string;
+  serviceAreas: string[]; // List of cities/states they serve
+  deliverySpeed: "standard" | "express" | "same-day"; // Delivery speed
+  estimatedDays: string; // e.g., "2-3 days", "24 hours"
+  baseCost: number; // Base delivery cost
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Filtered logistics based on delivery location
+export interface FilteredLogisticsProvider {
+  provider: EnhancedLogisticsProvider;
+  cost: number; // Calculated cost for this specific delivery
+  available: boolean; // Whether they serve this location
+}

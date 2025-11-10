@@ -1,12 +1,11 @@
-import { memo } from "react";
+import { memo, useMemo } from "react";
 import { NavLink } from "react-router-dom";
 import { AiOutlineHome } from "react-icons/ai";
 import { BiPackage } from "react-icons/bi";
 import { IoSwapHorizontalOutline } from "react-icons/io5";
 import { BsPeople } from "react-icons/bs";
 import { RiUser3Line } from "react-icons/ri";
-import { IoChatbubbleOutline } from "react-icons/io5";
-import { useChat } from "../../utils/hooks/useChat";
+import { useGetConversationsQuery } from "../../store/api";
 
 const navItems = [
   { icon: <AiOutlineHome size={22} />, label: "Home", path: "/" },
@@ -27,7 +26,15 @@ const navItems = [
 ];
 
 const MobileNavigation = () => {
-  const { totalUnreadMessages } = useChat();
+  // RTK Query hook - polling for real-time updates
+  const { data: conversations = [] } = useGetConversationsQuery(undefined, {
+    pollingInterval: 30000,
+  });
+
+  const totalUnreadMessages = useMemo(() =>
+    conversations.reduce((total, conv) => total + (conv.unreadCount || 0), 0),
+    [conversations]
+  );
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-[#212428] flex justify-evenly items-center px-2 py-1.5 md:hidden z-50 border-t border-[#292B30]">

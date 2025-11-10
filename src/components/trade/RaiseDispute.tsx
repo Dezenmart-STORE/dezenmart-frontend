@@ -6,7 +6,7 @@ import {
   FaExclamationTriangle,
 } from "react-icons/fa";
 import { motion } from "framer-motion";
-import { useOrderData } from "../../utils/hooks/useOrder";
+import { useRaiseDisputeMutation } from "../../store/api";
 
 interface RaiseDisputeProps {
   tradeId: string;
@@ -14,7 +14,7 @@ interface RaiseDisputeProps {
 }
 
 const RaiseDispute: FC<RaiseDisputeProps> = ({ tradeId, onComplete }) => {
-  const { raiseDispute } = useOrderData();
+  const [raiseDispute] = useRaiseDisputeMutation();
   const [status, setStatus] = useState<
     "pending" | "processing" | "success" | "error"
   >("pending");
@@ -32,21 +32,15 @@ const RaiseDispute: FC<RaiseDisputeProps> = ({ tradeId, onComplete }) => {
     setStatus("processing");
 
     try {
-      const result = await raiseDispute(tradeId, reason);
-      if (result) {
-        setStatus("success");
-        setTimeout(() => {
-          onComplete(true);
-        }, 2000);
-      } else {
-        setStatus("error");
-        setErrorMessage("Failed to raise dispute");
-        onComplete(false);
-      }
+      await raiseDispute({ orderId: tradeId, reason }).unwrap();
+      setStatus("success");
+      setTimeout(() => {
+        onComplete(true);
+      }, 2000);
     } catch (error: any) {
       console.error("Dispute creation error:", error);
       setStatus("error");
-      setErrorMessage(error.message || "An unexpected error occurred");
+      setErrorMessage(error?.data?.message || "An unexpected error occurred");
       onComplete(false);
     } finally {
       setIsSubmitting(false);
