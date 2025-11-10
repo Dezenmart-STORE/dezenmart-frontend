@@ -5,7 +5,7 @@ export const referralsApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     // Get referral info
     getReferralInfo: builder.query<ReferralInfo, void>({
-      query: () => '/referrals',
+      query: () => '/referrals/info',
       providesTags: ['Referrals'],
     }),
 
