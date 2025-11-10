@@ -40,6 +40,11 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // Increase file size limit to allow larger assets
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5 MB
+        // Exclude stats.html and other large files from precaching
+        globPatterns: ["**/*.{js,css,html,ico,png,svg,jpg,jpeg,webp,woff,woff2}"],
+        globIgnores: ["**/stats.html", "**/node_modules/**"],
         // Cache strategies
         runtimeCaching: [
           // API calls - Network First (try network, fallback to cache)
@@ -122,13 +127,17 @@ export default defineConfig({
         type: "module",
       },
     }),
-    // Bundle analyzer (only in analyze mode)
-    visualizer({
-      open: process.env.ANALYZE === "true",
-      filename: "dist/stats.html",
-      gzipSize: true,
-      brotliSize: true,
-    }) as any,
+    // Bundle analyzer (only in analyze mode) - conditionally included
+    ...(process.env.ANALYZE === "true"
+      ? [
+          visualizer({
+            open: true,
+            filename: "dist/stats.html",
+            gzipSize: true,
+            brotliSize: true,
+          }) as any,
+        ]
+      : []),
   ],
   resolve: {
     alias: {

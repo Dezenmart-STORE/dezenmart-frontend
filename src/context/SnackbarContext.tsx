@@ -45,11 +45,13 @@ export const SnackbarProvider: React.FC<{ children: ReactNode }> = ({
       <AnimatePresence>
         {snackbar.visible && (
           <motion.div
-            className={`fixed bottom-4 left-1/2 transform -translate-x-1/2 px-4 py-3 rounded-lg shadow-lg z-50 ${
+            className={`fixed bottom-4 left-1/2 transform -translate-x-1/2 px-4 py-3 rounded-lg shadow-lg z-[9999] ${
               snackbar.type === "success"
                 ? "bg-green-600"
                 : snackbar.type === "error"
                 ? "bg-red-600"
+                : snackbar.type === "warning"
+                ? "bg-yellow-600"
                 : "bg-gray-800"
             } text-white`}
             initial={{ y: 50, opacity: 0 }}
