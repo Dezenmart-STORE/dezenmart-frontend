@@ -1,5 +1,6 @@
 import { useState, useEffect, lazy, Suspense, useCallback } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { useSearchParams } from "react-router-dom";
 import Container from "../components/common/Container";
 import ProfileHeader from "../components/account/ProfileHeader";
 import TabNavigation from "../components/account/overview/TabNavigation";
@@ -54,6 +55,7 @@ export type AccountViewState = "overview" | "settings" | "edit-profile";
 const Account = () => {
   const { data: selectedUser, isLoading, error, refetch } = useGetUserProfileQuery();
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [activeTab, setActiveTab] = useState<TabType>("1");
   const [viewState, setViewState] = useState<AccountViewState>("overview");
@@ -62,6 +64,18 @@ const Account = () => {
 
   // RTK Query handles fetching automatically on mount
   // No need for manual useEffect
+
+  // Handle tab parameter from URL
+  useEffect(() => {
+    const tabParam = searchParams.get("tab");
+    if (tabParam && TAB_OPTIONS.some(option => option.id === tabParam)) {
+      setActiveTab(tabParam as TabType);
+      setViewState("overview");
+      // Clear the tab param after setting it
+      searchParams.delete("tab");
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });

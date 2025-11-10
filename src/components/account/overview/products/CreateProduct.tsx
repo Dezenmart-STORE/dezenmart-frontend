@@ -17,8 +17,12 @@ import {
   FiVideo,
   FiCheck,
   FiChevronDown,
+  FiInfo,
 } from "react-icons/fi";
-import { useCreateProductMutation, useGetLogisticsProvidersQuery } from "../../../../store/api";
+import {
+  useCreateProductMutation,
+  useGetLogisticsProvidersQuery,
+} from "../../../../store/api";
 import Button from "../../../common/Button";
 import { useCurrencyConverter } from "../../../../utils/hooks/useCurrencyConverter";
 import { Logistics } from "../../../../utils/types";
@@ -84,7 +88,8 @@ const fadeInAnimation = {
 const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
   const { wallet, availableTokens } = useWeb3();
   const [createProduct, { isLoading: loading }] = useCreateProductMutation();
-  const { data: logisticsProviders = [], isLoading: logisticsProviderLoading } = useGetLogisticsProvidersQuery();
+  const { data: logisticsProviders = [], isLoading: logisticsProviderLoading } =
+    useGetLogisticsProvidersQuery();
   const { showSnackbar } = useSnackbar();
   const { convertPrice, userCountry } = useCurrencyConverter();
 
@@ -422,19 +427,9 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
   }, [variants]);
 
   const handleVariantSelection = (idx: number) => {
-    if (currentVariantProperty.variantIndex === idx) return;
-
-    setVariants((prev) => {
-      const newVariants = [...prev];
-      const [selectedVariant] = newVariants.splice(idx, 1);
-      newVariants.unshift(selectedVariant);
-
-      setCurrentVariantProperty({
-        ...currentVariantProperty,
-        variantIndex: 0,
-      });
-
-      return newVariants;
+    setCurrentVariantProperty({
+      ...currentVariantProperty,
+      variantIndex: idx,
     });
   };
 
@@ -528,17 +523,17 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
     }
 
     // Logistics provider validation
-    if (selectedLogistics.length === 0) {
-      newErrors.logistics = "Please select athdhd least one logistics provider";
-    } else {
-      const missingCost = selectedLogistics.some(
-        (p) => !logisticsCosts[p.walletAddress]
-      );
-      if (missingCost) {
-        newErrors.logistics =
-          "Please enter a cost for all selected logistics providers";
-      }
-    }
+    // if (selectedLogistics.length === 0) {
+    //   newErrors.logistics = "Please select athdhd least one logistics provider";
+    // } else {
+    //   const missingCost = selectedLogistics.some(
+    //     (p) => !logisticsCosts[p.walletAddress]
+    //   );
+    //   if (missingCost) {
+    //     newErrors.logistics =
+    //       "Please enter a cost for all selected logistics providers";
+    //   }
+    // }
 
     // Media file validation
     if (mediaFiles.length === 0) {
@@ -557,7 +552,6 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
       }
     }
 
-    console.log("dd", errors.media);
     // Check for variants with no properties
     const nonEmptyVariants = variants.filter((v) => v.properties.length > 0);
     if (variants.length > 1 && nonEmptyVariants.length < variants.length) {
@@ -575,7 +569,11 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
     const stockQuantity = parseInt(formState.stock, 10) || 0;
 
     if (nonEmptyVariants.length > 0 && totalVariantQuantity !== stockQuantity) {
-      newErrors.variants = `Total variant quantity (${totalVariantQuantity}) exceeds available stock (${stockQuantity})`;
+      if (totalVariantQuantity > stockQuantity) {
+        newErrors.variants = `Total variant quantity (${totalVariantQuantity}) exceeds available stock (${stockQuantity})`;
+      } else {
+        newErrors.variants = `Total variant quantity (${totalVariantQuantity}) must equal product stock (${stockQuantity})`;
+      }
     }
     if (!paymentToken && !wallet?.selectedToken?.symbol) {
       newErrors.submit = "Please select a payment token";
@@ -1062,8 +1060,8 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
                   <div>• Color: Red, Blue, Black</div>
                   <div>• Material: Cotton, Silk</div>
                   <div>• Style: Classic, Modern</div>
-                  <div>
-                    • Each variant requires quantity (must total ≤ stock)
+                  <div className="md:col-span-2 text-yellow-400 mt-1">
+                    <span className="font-medium">Important:</span> Each variant requires a quantity. The sum of all variant quantities must equal your total stock.
                   </div>
                 </div>
               </div>
@@ -1236,27 +1234,51 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
               </div>
               {/* Display variant quantity summary if variants exist */}
               {variants.some((v) => v.properties.length > 0) && (
-                <div className="mt-2 bg-[#2A2C31] p-3 rounded-lg border border-[#444] text-sm">
-                  <div className="flex justify-between">
+                <div className={`mt-2 p-3 rounded-lg border text-sm ${
+                  getTotalVariantQuantity() === parseInt(formState.stock || "0", 10)
+                    ? "bg-green-900/20 border-green-500/30"
+                    : getTotalVariantQuantity() > parseInt(formState.stock || "0", 10)
+                    ? "bg-red-900/20 border-red-500/30"
+                    : "bg-yellow-900/20 border-yellow-500/30"
+                }`}>
+                  <div className="flex justify-between items-center">
                     <span className="text-gray-300">
                       Total variant quantity:
                     </span>
-                    <span className="text-white font-medium">
+                    <span className={`font-bold text-lg ${
+                      getTotalVariantQuantity() === parseInt(formState.stock || "0", 10)
+                        ? "text-green-400"
+                        : getTotalVariantQuantity() > parseInt(formState.stock || "0", 10)
+                        ? "text-red-400"
+                        : "text-yellow-400"
+                    }`}>
                       {getTotalVariantQuantity()}
                     </span>
                   </div>
-                  <div className="flex justify-between mt-1">
+                  <div className="flex justify-between items-center mt-1">
                     <span className="text-gray-300">Product stock:</span>
-                    <span className="text-white font-medium">
+                    <span className="text-white font-medium text-lg">
                       {formState.stock || 0}
                     </span>
                   </div>
-                  {getTotalVariantQuantity() >
-                    parseInt(formState.stock || "0", 10) && (
-                    <p className="text-Red text-sm mt-2">
-                      Total variant quantity exceeds available stock
-                    </p>
-                  )}
+                  <div className="mt-2 pt-2 border-t border-gray-600">
+                    {getTotalVariantQuantity() === parseInt(formState.stock || "0", 10) ? (
+                      <p className="text-green-400 text-sm flex items-center gap-2">
+                        <FiCheck className="flex-shrink-0" />
+                        <span>Variant quantities match stock perfectly!</span>
+                      </p>
+                    ) : getTotalVariantQuantity() > parseInt(formState.stock || "0", 10) ? (
+                      <p className="text-red-400 text-sm flex items-center gap-2">
+                        <FiX className="flex-shrink-0" />
+                        <span>Total variant quantity exceeds available stock by {getTotalVariantQuantity() - parseInt(formState.stock || "0", 10)}</span>
+                      </p>
+                    ) : (
+                      <p className="text-yellow-400 text-sm flex items-center gap-2">
+                        <FiInfo className="flex-shrink-0" />
+                        <span>Need to allocate {parseInt(formState.stock || "0", 10) - getTotalVariantQuantity()} more units to variants</span>
+                      </p>
+                    )}
+                  </div>
                 </div>
               )}
             </div>

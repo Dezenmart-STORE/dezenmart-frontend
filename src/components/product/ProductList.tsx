@@ -13,6 +13,7 @@ import { Product } from "../../utils/types";
 import LoadingSpinner from "../common/LoadingSpinner";
 import { useIntersectionObserver } from "../../utils/hooks/useIntersectionObserver";
 import { useAuth } from "../../context/AuthContext";
+import EmptyState from "../account/overview/EmptyState";
 
 interface Props {
   title: string;
@@ -219,9 +220,17 @@ const ProductList = ({
             <LoadingSpinner size="md" />
           </div>
         ) : totalDisplayed === 0 ? (
-          <div className="text-gray-400 text-center py-8">
-            No products found{category && category !== "All" ? ` in ${category}` : ""}.
-          </div>
+          isUserProducts ? (
+            <EmptyState
+              message="You haven't created any products yet."
+              buttonText="Create Product"
+              buttonPath="/account?tab=5&action=create"
+            />
+          ) : (
+            <div className="text-gray-400 text-center py-8">
+              No products found{category && category !== "All" ? ` in ${category}` : ""}.
+            </div>
+          )
         ) : (
           <>
             {/* Sponsored products section */}

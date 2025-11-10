@@ -1,5 +1,6 @@
-import { useState, useCallback, lazy, Suspense } from "react";
+import { useState, useCallback, lazy, Suspense, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useSearchParams } from "react-router-dom";
 import SubTabs from "./Tabs";
 import LoadingSpinner from "../../../common/LoadingSpinner";
 
@@ -7,7 +8,19 @@ const CreateProduct = lazy(() => import("./CreateProduct"));
 const ProductList = lazy(() => import("../../../product/ProductList"));
 
 const ProductContainer: React.FC = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [activeSubTab, setActiveSubTab] = useState<"create" | "view">("create");
+
+  // Check if we should navigate to create tab from URL
+  useEffect(() => {
+    const action = searchParams.get("action");
+    if (action === "create") {
+      setActiveSubTab("create");
+      // Clear the action param after setting it
+      searchParams.delete("action");
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const handleSubTabChange = useCallback((tab: "create" | "view") => {
     setActiveSubTab(tab);
