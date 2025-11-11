@@ -513,12 +513,16 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = memo(
         }
 
         abortControllerRef.current = new AbortController();
-        updateState({ isGettingQuote: true });
+
+        // ✅ Wrap state update in startTransition
+        startTransition(() => {
+          updateState({ isGettingQuote: true });
+        });
 
         try {
-          // FETCH LIVE PRICES FIRST for accuracy
+          // Fetch live prices first (non-blocking)
           console.log("🔄 Fetching live prices before swap quote...");
-          await fetchLivePrices();
+          await fetchLivePrices(true);
 
           console.log("🔄 Getting swap quote with fresh prices:", {
             from: wallet.selectedToken.symbol,
@@ -535,12 +539,18 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = memo(
           console.log("✅ Swap quote received:", quote);
 
           if (!abortControllerRef.current.signal.aborted) {
-            updateState({ swapQuote: quote, isGettingQuote: false });
+            // ✅ Wrap state update in startTransition
+            startTransition(() => {
+              updateState({ swapQuote: quote, isGettingQuote: false });
+            });
           }
         } catch (error) {
           if (!abortControllerRef.current?.signal.aborted) {
             console.error("❌ Failed to get swap quote:", error);
-            updateState({ swapQuote: "", isGettingQuote: false });
+            // ✅ Wrap state update in startTransition
+            startTransition(() => {
+              updateState({ swapQuote: "", isGettingQuote: false });
+            });
           }
         }
       }, QUOTE_DEBOUNCE_MS),
@@ -550,7 +560,7 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = memo(
         wallet.selectedToken.symbol,
         computedTotals.totalInSelected,
         getSwapQuote,
-        fetchLivePrices, // Add this dependency
+        fetchLivePrices,
         updateState,
       ]
     );

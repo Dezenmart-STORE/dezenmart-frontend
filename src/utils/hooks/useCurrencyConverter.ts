@@ -13,16 +13,6 @@ interface PriceData {
   };
 }
 
-// Coin IDs for CoinGecko API
-const COIN_IDS = {
-  CELO: "celo",
-  USDT: "tether",
-  G$: "gooddollar",
-  cUSD: "celo-dollar",
-  cEUR: "celo-euro",
-  cREAL: "celo-brazilian-real",
-};
-
 // Default fallback rates (used only if API fails)
 const DEFAULT_RATES: Omit<ExchangeRates, "lastUpdated"> = {
   USDT_CELO: 2.0,
@@ -38,7 +28,6 @@ const DEFAULT_RATES: Omit<ExchangeRates, "lastUpdated"> = {
 const CACHE_KEYS = {
   RATES: "currency_exchange_rates",
   GEO: "user_geo_data",
-  LAST_FETCH: "last_price_fetch",
 };
 
 interface GeoData {
@@ -74,7 +63,6 @@ export const useCurrencyConverter = () => {
     if (cachedRates) {
       try {
         const parsed = JSON.parse(cachedRates);
-        // Use cache if less than 2 minutes old
         if (Date.now() - parsed.lastUpdated < 2 * 60 * 1000) {
           return parsed;
         }
@@ -126,20 +114,21 @@ export const useCurrencyConverter = () => {
 
   /**
    * Fetch live prices from CoinGecko API
+   * This ensures we always have the most accurate rates
    */
   const fetchLivePrices = useCallback(
-    async (forceRefresh = false): Promise<ExchangeRates> => {
+    async (forceRefresh = false): Promise<ExchangeRates | null> => {
       // Prevent concurrent fetches
       if (fetchInProgressRef.current && !forceRefresh) {
         console.log("⏳ Price fetch already in progress");
-        return rates;
+        return null;
       }
 
       // Don't fetch too frequently (min 30 seconds between fetches)
       const now = Date.now();
       if (!forceRefresh && now - lastFetchTimeRef.current < 30 * 1000) {
         console.log("⏰ Using recent price data");
-        return rates;
+        return null;
       }
 
       fetchInProgressRef.current = true;
@@ -182,7 +171,7 @@ export const useCurrencyConverter = () => {
         ).join(",");
         const currencyList = `${localCurrency.toLowerCase()},${allFiatCurrencies.toLowerCase()}`;
 
-        console.log("Fetching live prices from CoinGecko...");
+        console.log("🌐 Fetching live prices from CoinGecko...");
 
         // Fetch live prices from CoinGecko
         const response = await fetchWithRetry(
@@ -195,7 +184,7 @@ export const useCurrencyConverter = () => {
 
         // Extract base rates in USD
         const usdtToUsd = data.tether?.usd || 1.0;
-        const celoToUsd = data.celo?.usd || 0.25;
+        const celoToUsd = data.celo?.usd || 0.5;
         const gdToUsd = data.gooddollar?.usd || 0.0001022;
 
         // Mento stablecoins should be very close to 1:1 with their fiat
@@ -250,7 +239,7 @@ export const useCurrencyConverter = () => {
           lastUpdated: Date.now(),
         };
 
-        // cross-rates for other stable tokens (these maintain peg to their fiat)
+        // Add cross-rates for other stable tokens (these maintain peg to their fiat)
         Object.entries(STABLE_TOKEN_TO_FIAT_MAP).forEach(
           ([token, fiatCode]) => {
             if (["cUSD", "cEUR", "cREAL", "G$", "USDT"].includes(token)) return;
@@ -296,11 +285,11 @@ export const useCurrencyConverter = () => {
         fetchInProgressRef.current = false;
       }
     },
-    [userCountry, rates]
+    [userCountry]
   );
 
   /**
-   * Convert price with live rate checking
+   * Convert price with current rates
    */
   const convertPrice = useCallback(
     (price: number, from: Currency, to: Currency): number => {
@@ -420,17 +409,21 @@ export const useCurrencyConverter = () => {
   );
 
   const refreshRates = useCallback(() => {
-    return fetchLivePrices(true);
+    setLoading(true);
+    return fetchLivePrices(true).finally(() => setLoading(false));
   }, [fetchLivePrices]);
 
-  // Initial fetch on mount
+  // Initial fetch on mount - NON-BLOCKING
   useEffect(() => {
     const shouldFetch =
       !rates.lastUpdated || Date.now() - rates.lastUpdated > 2 * 60 * 1000;
 
     if (shouldFetch) {
       setLoading(true);
-      fetchLivePrices().finally(() => setLoading(false));
+      // Use setTimeout to make it async and prevent blocking
+      setTimeout(() => {
+        fetchLivePrices().finally(() => setLoading(false));
+      }, 0);
     }
 
     // Auto-refresh every 3 minutes
@@ -439,7 +432,7 @@ export const useCurrencyConverter = () => {
     }, 3 * 60 * 1000);
 
     return () => clearInterval(interval);
-  }, [fetchLivePrices]);
+  }, []); // Empty dependency array - only run once on mount
 
   return {
     rates,
@@ -451,7 +444,7 @@ export const useCurrencyConverter = () => {
     convertPrice,
     formatPrice,
     refreshRates,
-    fetchLivePrices,
+    fetchLivePrices, // Export for manual refresh
     lastUpdated: rates.lastUpdated,
   };
 };

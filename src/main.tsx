@@ -122,12 +122,11 @@ const router = createBrowserRouter([
     path: "/",
     element: <RouterLayout />,
 
-    // errorElement: (
-    //   <ErrorBoundary>
-    //     <NotFound />
-    //   </ErrorBoundary>
-    // ),
-    errorElement: <NotFound />,
+    errorElement: (
+      <ErrorBoundary>
+        <NotFound />
+      </ErrorBoundary>
+    ),
     children: [
       {
         index: true,
