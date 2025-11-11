@@ -132,19 +132,11 @@ const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: (
-          <Suspense fallback={<Loadscreen />}>
-            <Home />
-          </Suspense>
-        ),
+        element: <Home />,
       },
       {
         path: "/login",
-        element: (
-          <Suspense fallback={<Loadscreen />}>
-            <Login />
-          </Suspense>
-        ),
+        element: <Login />,
       },
       {
         path: "/auth/google",
@@ -159,126 +151,66 @@ const router = createBrowserRouter([
         children: [
           {
             path: "/account",
-            element: (
-              <Suspense fallback={<Loadscreen />}>
-                <Account />
-              </Suspense>
-            ),
+            element: <Account />,
           },
           {
             path: "/notifications",
-            element: (
-              <Suspense fallback={<Loadscreen />}>
-                <Notifications />
-              </Suspense>
-            ),
+            element: <Notifications />,
           },
           {
             path: "/trades/viewtrades",
-            element: (
-              <Suspense fallback={<Loadscreen />}>
-                <ViewTrade />
-              </Suspense>
-            ),
+            element: <ViewTrade />,
           },
           {
             path: "/trades/buy/:productId",
-            element: (
-              <Suspense fallback={<Loadscreen />}>
-                <BuyCheckout />
-              </Suspense>
-            ),
+            element: <BuyCheckout />,
           },
           {
             path: "/trades/sell/:productId",
-            element: (
-              <Suspense fallback={<Loadscreen />}>
-                <SellCheckout />
-              </Suspense>
-            ),
+            element: <SellCheckout />,
           },
           {
             path: "/trades/viewtrades/:tradeId",
-            element: (
-              <Suspense fallback={<Loadscreen />}>
-                <ViewTradeDetail />
-              </Suspense>
-            ),
+            element: <ViewTradeDetail />,
           },
           {
             path: "/orders/:orderId",
-            element: (
-              <Suspense fallback={<Loadscreen />}>
-                <ViewOrderDetail />
-              </Suspense>
-            ),
+            element: <ViewOrderDetail />,
           },
           {
             path: "/chat",
-            element: (
-              <Suspense fallback={<Loadscreen />}>
-                <Chat />
-              </Suspense>
-            ),
+            element: <Chat />,
           },
           {
             path: "/chat/:userId",
-            element: (
-              <Suspense fallback={<Loadscreen />}>
-                <ChatDetail />
-              </Suspense>
-            ),
+            element: <ChatDetail />,
           },
         ],
       },
 
       {
         path: "/product",
-        element: (
-          <Suspense fallback={<Loadscreen />}>
-            <Product />
-          </Suspense>
-        ),
+        element: <Product />,
       },
       {
         path: "/product/category/:categoryName",
-        element: (
-          <Suspense fallback={<Loadscreen />}>
-            <Product />
-          </Suspense>
-        ),
+        element: <Product />,
       },
       {
         path: "/product/:productId",
-        element: (
-          <Suspense fallback={<Loadscreen />}>
-            <SingleProduct />
-          </Suspense>
-        ),
+        element: <SingleProduct />,
       },
       {
         path: "/trades",
-        element: (
-          <Suspense fallback={<Loadscreen />}>
-            <Trade />
-          </Suspense>
-        ),
+        element: <Trade />,
       },
       {
         path: "/community",
-        element: (
-          <Suspense fallback={<Loadscreen />}>
-            <Community />
-          </Suspense>
-        ),
+        element: <Community />,
       },
       {
         path: "/referral",
-        element: (
-          <Suspense fallback={<Loadscreen />}>
-            <ReferralLanding />
-          </Suspense>
-        ),
+        element: <ReferralLanding />,
       },
       {
         path: "/load",
@@ -286,19 +218,11 @@ const router = createBrowserRouter([
       },
       {
         path: "/offline",
-        element: (
-          <Suspense fallback={<Loadscreen />}>
-            <Offline />
-          </Suspense>
-        ),
+        element: <Offline />,
       },
       {
         path: "*",
-        element: (
-          <Suspense fallback={<Loadscreen />}>
-            <NotFound />
-          </Suspense>
-        ),
+        element: <NotFound />,
       },
     ],
   },
