@@ -1,6 +1,11 @@
 import { lazy, StrictMode, Suspense } from "react";
 import "./index.css";
-import { createBrowserRouter, Outlet, RouterProvider, useLocation } from "react-router-dom";
+import {
+  createBrowserRouter,
+  Outlet,
+  RouterProvider,
+  useLocation,
+} from "react-router-dom";
 import { createRoot } from "react-dom/client";
 import { Configuration } from "@react-md/layout";
 import Layout from "./components/layout/Layout.tsx";
@@ -23,7 +28,10 @@ import { wagmiConfig } from "./utils/config/web3.config.ts";
 import TermsModal from "./components/common/TermsModal.tsx";
 import { TermsProvider } from "./context/TermsContext.tsx";
 import { initSentry } from "./utils/sentry.config.ts";
-import { initPerformanceMonitoring, monitorResourceTiming } from "./utils/performance.ts";
+import {
+  initPerformanceMonitoring,
+  monitorResourceTiming,
+} from "./utils/performance.ts";
 import { registerServiceWorker } from "./utils/pwa/index.ts";
 
 // Initialize Sentry error tracking
@@ -38,10 +46,10 @@ if (import.meta.env.PROD) {
 // Register service worker for PWA functionality
 registerServiceWorker({
   onNeedRefresh: () => {
-    console.log('[PWA] New version available');
+    console.log("[PWA] New version available");
   },
   onOfflineReady: () => {
-    console.log('[PWA] App ready to work offline');
+    console.log("[PWA] App ready to work offline");
   },
 });
 
@@ -114,11 +122,12 @@ const router = createBrowserRouter([
     path: "/",
     element: <RouterLayout />,
 
-    errorElement: (
-      <ErrorBoundary>
-        <NotFound />
-      </ErrorBoundary>
-    ),
+    // errorElement: (
+    //   <ErrorBoundary>
+    //     <NotFound />
+    //   </ErrorBoundary>
+    // ),
+    errorElement: <NotFound />,
     children: [
       {
         index: true,
