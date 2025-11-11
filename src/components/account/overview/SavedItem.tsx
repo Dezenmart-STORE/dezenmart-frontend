@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, startTransition } from "react";
 import { motion } from "framer-motion";
 import { RiVerifiedBadgeFill } from "react-icons/ri";
 import Button from "../../common/Button";
@@ -58,7 +58,9 @@ const SavedItem: React.FC<SavedItemProps> = React.memo(
     );
 
     const viewProductDetails = () => {
-      navigate(`/product/${item.product._id}`);
+      startTransition(() => {
+        navigate(`/product/${item.product._id}`);
+      });
     };
 
     const handleRemoveFromWatchlist = async (e: React.MouseEvent) => {

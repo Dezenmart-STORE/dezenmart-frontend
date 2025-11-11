@@ -1,8 +1,12 @@
-import React, { useMemo } from "react";
+import React, { useMemo, startTransition } from "react";
 import { FaRegHeart, FaHeart } from "react-icons/fa";
 import { Link, useNavigate } from "react-router-dom";
 import { Product } from "../../utils/types";
-import { useCheckWatchlistQuery, useAddToWatchlistMutation, useRemoveFromWatchlistMutation } from "../../store/api";
+import {
+  useCheckWatchlistQuery,
+  useAddToWatchlistMutation,
+  useRemoveFromWatchlistMutation,
+} from "../../store/api";
 import { useCurrency } from "../../context/CurrencyContext";
 import { useCurrencyConverter } from "../../utils/hooks/useCurrencyConverter";
 import { motion } from "framer-motion";
@@ -19,7 +23,8 @@ const ProductCard = React.memo(
     const navigate = useNavigate();
     const { isAuthenticated } = useAuth();
     const { showSnackbar } = useSnackbar();
-    const { _id, name, description, images, isSponsored, price, paymentToken } = product;
+    const { _id, name, description, images, isSponsored, price, paymentToken } =
+      product;
     const { secondaryCurrency, fiatCurrency, selectedTokenSymbol } =
       useCurrency();
     const { convertPrice, formatPrice } = useCurrencyConverter();
@@ -76,7 +81,9 @@ const ProductCard = React.memo(
 
     const navigateToProduct = (e: React.MouseEvent) => {
       e.preventDefault();
-      navigate(`/product/${_id}`);
+      startTransition(() => {
+        navigate(`/product/${_id}`);
+      });
     };
 
     return (

@@ -672,7 +672,9 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = memo(
         }
 
         await refreshTokenBalance();
-        navigate(`/orders/${order._id}?status=pending`);
+        startTransition(() => {
+          navigate(`/orders/${order._id}?status=pending`);
+        });
       } catch (err: any) {
         console.error("Purchase failed:", err);
         updateState({
@@ -699,7 +701,7 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = memo(
       updateState({ purchaseError: null });
 
       if (!isAuthenticated) {
-        return navigate("/login");
+        return startTransition(() => navigate("/login"));
       }
 
       if (!product) {

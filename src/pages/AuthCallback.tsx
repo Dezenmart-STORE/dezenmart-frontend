@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, startTransition } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useGetUserProfileQuery } from "../store/api";
@@ -46,7 +46,9 @@ const AuthCallback = () => {
       const token = searchParams.get("token");
       if (token) {
         handleAuthCallback(token, userProfile);
-        navigate("/", { replace: true });
+        startTransition(() => {
+          navigate("/", { replace: true });
+        });
       }
     }
   }, [userProfile, shouldFetch, searchParams, handleAuthCallback, navigate]);
@@ -60,7 +62,7 @@ const AuthCallback = () => {
           </h2>
           <p className="text-white mb-6">{error}</p>
           <button
-            onClick={() => navigate("/login")}
+            onClick={() => startTransition(() => navigate("/login"))}
             className="bg-Red text-white px-4 py-2 rounded hover:bg-opacity-90 transition-all w-full"
           >
             Back to Login

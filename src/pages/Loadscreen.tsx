@@ -1,15 +1,6 @@
-import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import { Logo } from ".";
 
 const Loadscreen = () => {
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    const timer = setTimeout(() => {}, 2000);
-
-    return () => clearTimeout(timer);
-  }, [navigate]);
 
   return (
     <div className="w-full h-screen bg-Dark flex flex-col items-center justify-center">

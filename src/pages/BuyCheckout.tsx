@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, startTransition } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import CheckoutLayout from "../components/trade/checkout/CheckoutLayout";
@@ -102,7 +102,9 @@ const BuyCheckout = () => {
       // if (result) {
       //   navigate(`/orders/${result._id}?status=pending`);
       // }
-      navigate(`/trades/viewtrades/${product._id}?status=pending`);
+      startTransition(() => {
+        navigate(`/trades/viewtrades/${product._id}?status=pending`);
+      });
     } catch (error) {
       console.error("Order creation error:", error);
       setError(error);

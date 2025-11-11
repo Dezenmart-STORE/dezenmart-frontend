@@ -1,10 +1,21 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import {
+  useState,
+  useRef,
+  useEffect,
+  useCallback,
+  startTransition,
+} from "react";
 import { HiOutlineBell } from "react-icons/hi";
 import { BiLogIn, BiWallet } from "react-icons/bi";
 import { FullLogo, Logo } from "../../pages";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import Container from "../common/Container";
-import { useGetUnreadNotificationCountQuery, useGetConversationsQuery, useGetUserProfileQuery, useGetSelfVerificationStatusQuery } from "../../store/api";
+import {
+  useGetUnreadNotificationCountQuery,
+  useGetConversationsQuery,
+  useGetUserProfileQuery,
+  useGetSelfVerificationStatusQuery,
+} from "../../store/api";
 import NotificationBadge from "../notifications/NotificationBadge";
 import { useAuth } from "../../context/AuthContext";
 import Button from "../common/Button";
@@ -34,10 +45,13 @@ const Header = () => {
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   // RTK Query hooks with polling - only when authenticated
-  const { data: unreadCountData } = useGetUnreadNotificationCountQuery(undefined, {
-    pollingInterval: 30000, // Poll every 30 seconds
-    skip: !isAuthenticated, // Skip when not logged in
-  });
+  const { data: unreadCountData } = useGetUnreadNotificationCountQuery(
+    undefined,
+    {
+      pollingInterval: 30000, // Poll every 30 seconds
+      skip: !isAuthenticated, // Skip when not logged in
+    }
+  );
   const unreadCount = unreadCountData?.count || 0;
 
   const { data: conversations = [] } = useGetConversationsQuery(undefined, {
@@ -83,11 +97,15 @@ const Header = () => {
       }
 
       logout();
-      navigate("/", { replace: true });
+      startTransition(() => {
+        navigate("/", { replace: true });
+      });
     } catch (error) {
       console.error("Error during logout:", error);
       logout();
-      navigate("/", { replace: true });
+      startTransition(() => {
+        navigate("/", { replace: true });
+      });
     }
   }, [disconnectWallet, logout, navigate, wallet.isConnected]);
 
@@ -97,7 +115,9 @@ const Header = () => {
 
   const handleProfileNavigation = useCallback(() => {
     setShowUserMenu(false);
-    navigate("/account");
+    startTransition(() => {
+      navigate("/account");
+    });
   }, [navigate]);
 
   return (
@@ -163,7 +183,9 @@ const Header = () => {
                   unreadCount > 0 ? ", " + unreadCount + " unread" : ""
                 }`}
                 className="p-1.5 rounded-full hover:bg-[#292B30] transition-colors relative active:scale-95"
-                onClick={() => navigate("/notifications")}
+                onClick={() =>
+                  startTransition(() => navigate("/notifications"))
+                }
               >
                 <HiOutlineBell className="text-xl text-white" />
                 <NotificationBadge count={unreadCount} />
@@ -257,7 +279,7 @@ const Header = () => {
             <Button
               title="Sign In"
               className="bg-Red text-white px-2 md:pl-2 md:pr-3 py-1.5 md:py-2 rounded-md hover:bg-opacity-90 transition-all active:scale-95"
-              onClick={() => navigate("/login")}
+              onClick={() => startTransition(() => navigate("/login"))}
               icon={<BiLogIn className="text-lg" />}
               iconPosition="start"
               aria-label="Sign in"

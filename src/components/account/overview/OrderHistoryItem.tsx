@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, startTransition } from "react";
 import { motion } from "framer-motion";
 import { RiVerifiedBadgeFill } from "react-icons/ri";
 import Button from "../../common/Button";
@@ -90,7 +90,9 @@ const OrderHistoryItem: React.FC<EnhancedOrder> = React.memo((item) => {
   );
 
   const viewOrderDetails = () => {
-    navigate(`/orders/${item._id}`);
+    startTransition(() => {
+      navigate(`/orders/${item._id}`);
+    });
   };
 
   return (
