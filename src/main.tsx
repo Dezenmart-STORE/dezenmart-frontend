@@ -228,8 +228,6 @@ const router = createBrowserRouter([
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <Suspense fallback={<Loadscreen />}>
-      <RouterProvider router={router} />
-    </Suspense>
+    <RouterProvider router={router} />
   </StrictMode>
 );

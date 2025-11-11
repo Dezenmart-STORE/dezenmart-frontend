@@ -1,7 +1,6 @@
 import { Logo } from ".";
 
 const Loadscreen = () => {
-
   return (
     <div className="w-full h-screen bg-Dark flex flex-col items-center justify-center">
       <div className="animate-pulse">
