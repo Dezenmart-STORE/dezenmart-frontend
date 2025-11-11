@@ -121,14 +121,39 @@ const router = createBrowserRouter([
   {
     path: "/",
     element: <RouterLayout />,
-
     errorElement: (
-      <ErrorBoundary>
-        <Suspense fallback={<Loadscreen />}>
-          <NotFound />
-        </Suspense>
-      </ErrorBoundary>
+      <Configuration>
+        <SnackbarProvider>
+          <Provider store={store}>
+            <WagmiProvider config={wagmiConfig}>
+              <QueryClientProvider client={queryClient}>
+                <Web3Provider>
+                  <AuthProvider>
+                    <TermsProvider>
+                      <CurrencyProvider>
+                        <Layout>
+                          <Suspense fallback={<Loadscreen />}>
+                            <FallbackError />
+                          </Suspense>
+                        </Layout>
+                      </CurrencyProvider>
+                    </TermsProvider>
+                  </AuthProvider>
+                </Web3Provider>
+              </QueryClientProvider>
+            </WagmiProvider>
+          </Provider>
+        </SnackbarProvider>
+      </Configuration>
     ),
+
+    // errorElement: (
+    //   <ErrorBoundary>
+    //     <Suspense fallback={<Loadscreen />}>
+    //       <NotFound />
+    //     </Suspense>
+    //   </ErrorBoundary>
+    // ),
     children: [
       {
         index: true,
