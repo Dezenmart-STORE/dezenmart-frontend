@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 
 export type Currency = "USDT" | "CELO" | "FIAT" | string;
 
@@ -7,34 +7,38 @@ interface ExchangeRates {
   lastUpdated: number;
 }
 
-// Default fallback rates
+interface PriceData {
+  [coinId: string]: {
+    [currency: string]: number;
+  };
+}
+
+// Coin IDs for CoinGecko API
+const COIN_IDS = {
+  CELO: "celo",
+  USDT: "tether",
+  G$: "gooddollar",
+  cUSD: "celo-dollar",
+  cEUR: "celo-euro",
+  cREAL: "celo-brazilian-real",
+};
+
+// Default fallback rates (used only if API fails)
 const DEFAULT_RATES: Omit<ExchangeRates, "lastUpdated"> = {
-  USDT_CELO: 0.5,
+  USDT_CELO: 2.0,
   USDT_FIAT: 1,
-  CELO_FIAT: 2,
-  // default rates for stable tokens (1:1 with FIAT for stable tokens)
-  cUSD_FIAT: 1,
-  cEUR_FIAT: 0.85,
-  cREAL_FIAT: 0.2,
-  cKES_FIAT: 0.007,
-  PUSO_FIAT: 0.018,
-  cCOP_FIAT: 0.00025,
-  eXOF_FIAT: 0.0017,
-  cNGN_FIAT: 0.0024,
-  cJPY_FIAT: 0.0067,
-  cCHF_FIAT: 1.1,
-  cZAR_FIAT: 0.055,
-  cGBP_FIAT: 1.27,
-  cAUD_FIAT: 0.67,
-  cCAD_FIAT: 0.74,
-  cGHS_FIAT: 0.083,
-  G$_FIAT: 1,
+  CELO_FIAT: 0.5,
+  cUSD_USD: 1.0,
+  cEUR_USD: 1.07,
+  cREAL_USD: 0.17,
+  G$_USD: 0.0001022,
 };
 
 // Cache keys
 const CACHE_KEYS = {
   RATES: "currency_exchange_rates",
   GEO: "user_geo_data",
+  LAST_FETCH: "last_price_fetch",
 };
 
 interface GeoData {
@@ -70,17 +74,18 @@ export const useCurrencyConverter = () => {
     if (cachedRates) {
       try {
         const parsed = JSON.parse(cachedRates);
-        if (Date.now() - parsed.lastUpdated < 60 * 60 * 1000) {
+        // Use cache if less than 2 minutes old
+        if (Date.now() - parsed.lastUpdated < 2 * 60 * 1000) {
           return parsed;
         }
       } catch (e) {
-        // Invalid cache, ignore
+        console.warn("Invalid cached rates");
       }
     }
     return { ...DEFAULT_RATES, lastUpdated: 0 };
   });
 
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [userCountry, setUserCountry] = useState<string>(() => {
     const cachedGeo = localStorage.getItem(CACHE_KEYS.GEO);
@@ -91,13 +96,15 @@ export const useCurrencyConverter = () => {
           return parsed.currency;
         }
       } catch (e) {
-        // Invalid cache, ignore
+        console.warn("Invalid cached geo data");
       }
     }
     return "USD";
   });
 
   const [selectedCurrency, setSelectedCurrency] = useState<Currency>("USDT");
+  const fetchInProgressRef = useRef(false);
+  const lastFetchTimeRef = useRef(0);
 
   const fetchWithRetry = async (
     url: string,
@@ -117,25 +124,30 @@ export const useCurrencyConverter = () => {
     }
   };
 
-  const fetchRates = useCallback(
-    async (forceRefresh = false) => {
-      if (
-        !forceRefresh &&
-        rates.lastUpdated &&
-        Date.now() - rates.lastUpdated < 5 * 60 * 1000
-      ) {
-        setLoading(false);
-        return;
+  /**
+   * Fetch live prices from CoinGecko API
+   */
+  const fetchLivePrices = useCallback(
+    async (forceRefresh = false): Promise<ExchangeRates> => {
+      // Prevent concurrent fetches
+      if (fetchInProgressRef.current && !forceRefresh) {
+        console.log("⏳ Price fetch already in progress");
+        return rates;
       }
 
-      setLoading(true);
-      setError(null);
+      // Don't fetch too frequently (min 30 seconds between fetches)
+      const now = Date.now();
+      if (!forceRefresh && now - lastFetchTimeRef.current < 30 * 1000) {
+        console.log("⏰ Using recent price data");
+        return rates;
+      }
+
+      fetchInProgressRef.current = true;
+      lastFetchTimeRef.current = now;
 
       try {
+        // Fetch geolocation if needed
         let localCurrency = userCountry;
-        let shouldUpdateGeo = true;
-
-        // Get geolocation data
         try {
           const cachedGeo = localStorage.getItem(CACHE_KEYS.GEO);
           const shouldRefreshGeo =
@@ -144,7 +156,9 @@ export const useCurrencyConverter = () => {
               24 * 60 * 60 * 1000;
 
           if (shouldRefreshGeo) {
-            const geoResponse = await fetch("https://ipapi.co/json/");
+            const geoResponse = await fetch("https://ipapi.co/json/", {
+              signal: AbortSignal.timeout(5000),
+            });
             if (geoResponse.ok) {
               const geoData = await geoResponse.json();
               localCurrency = geoData.currency || "USD";
@@ -156,218 +170,215 @@ export const useCurrencyConverter = () => {
               };
               localStorage.setItem(CACHE_KEYS.GEO, JSON.stringify(geoCache));
               setUserCountry(localCurrency);
-            } else {
-              shouldUpdateGeo = false;
             }
-          } else {
-            shouldUpdateGeo = false;
           }
         } catch (geoError) {
-          console.warn("Failed to fetch geolocation data:", geoError);
-          shouldUpdateGeo = false;
+          console.warn("Failed to fetch geolocation:", geoError);
         }
 
-        if (!shouldUpdateGeo && userCountry !== "USD") {
-          localCurrency = userCountry;
-        }
+        // Build comprehensive currency list
+        const allFiatCurrencies = Array.from(
+          new Set(Object.values(STABLE_TOKEN_TO_FIAT_MAP))
+        ).join(",");
+        const currencyList = `${localCurrency.toLowerCase()},${allFiatCurrencies.toLowerCase()}`;
 
-        // Build currency list for API call
-        const stableCurrencies = Object.values(STABLE_TOKEN_TO_FIAT_MAP).join(
-          ","
-        );
-        const allCurrencies = `${localCurrency.toLowerCase()},usd,${stableCurrencies.toLowerCase()}`;
+        console.log("Fetching live prices from CoinGecko...");
 
+        // Fetch live prices from CoinGecko
         const response = await fetchWithRetry(
-          `https://api.coingecko.com/api/v3/simple/price?ids=tether,celo,gooddollar&vs_currencies=${allCurrencies}`
+          `https://api.coingecko.com/api/v3/simple/price?ids=tether,celo,gooddollar,celo-dollar,celo-euro,celo-brazilian-real&vs_currencies=${currencyList}&precision=8`
         );
 
-        const data = await response.json();
+        const data: PriceData = await response.json();
 
-        // Calculate base rates
-        const usdtToUserFiat =
-          data.tether[localCurrency.toLowerCase()] || data.tether.usd;
-        const celoToUserFiat =
-          data.celo[localCurrency.toLowerCase()] || data.celo.usd;
-        const usdtToCelo = data.tether.usd / data.celo.usd;
+        console.log("📊 Live Price Data:", data);
+
+        // Extract base rates in USD
+        const usdtToUsd = data.tether?.usd || 1.0;
+        const celoToUsd = data.celo?.usd || 0.25;
+        const gdToUsd = data.gooddollar?.usd || 0.0001022;
+
+        // Mento stablecoins should be very close to 1:1 with their fiat
+        const cUsdToUsd = data["celo-dollar"]?.usd || 1.0;
+        const cEurToUsd = data["celo-euro"]?.usd || 1.07;
+        const cRealToUsd = data["celo-brazilian-real"]?.usd || 0.17;
+
+        // User's local currency rate
+        const usdToUserFiat = data.tether?.[localCurrency.toLowerCase()] || 1.0;
 
         const newRates: ExchangeRates = {
-          USDT_CELO: usdtToCelo,
-          USDT_FIAT: usdtToUserFiat,
-          CELO_FIAT: celoToUserFiat,
+          // Base conversions
+          USDT_USD: usdtToUsd,
+          USDT_CELO: usdtToUsd / celoToUsd,
+          USDT_FIAT: usdToUserFiat,
+
+          CELO_USD: celoToUsd,
+          CELO_FIAT:
+            data.celo?.[localCurrency.toLowerCase()] ||
+            celoToUsd * usdToUserFiat,
+
+          // GoodDollar
+          G$_USD: gdToUsd,
+          G$_USDT: gdToUsd / usdtToUsd,
+          G$_CELO: gdToUsd / celoToUsd,
+          G$_FIAT:
+            data.gooddollar?.[localCurrency.toLowerCase()] ||
+            gdToUsd * usdToUserFiat,
+
+          // Mento Stablecoins
+          cUSD_USD: cUsdToUsd,
+          cUSD_USDT: cUsdToUsd / usdtToUsd,
+          cUSD_CELO: cUsdToUsd / celoToUsd,
+          cUSD_FIAT:
+            data["celo-dollar"]?.[localCurrency.toLowerCase()] ||
+            cUsdToUsd * usdToUserFiat,
+
+          cEUR_USD: cEurToUsd,
+          cEUR_USDT: cEurToUsd / usdtToUsd,
+          cEUR_CELO: cEurToUsd / celoToUsd,
+          cEUR_FIAT:
+            data["celo-euro"]?.[localCurrency.toLowerCase()] ||
+            cEurToUsd * usdToUserFiat,
+
+          cREAL_USD: cRealToUsd,
+          cREAL_USDT: cRealToUsd / usdtToUsd,
+          cREAL_CELO: cRealToUsd / celoToUsd,
+          cREAL_FIAT:
+            data["celo-brazilian-real"]?.[localCurrency.toLowerCase()] ||
+            cRealToUsd * usdToUserFiat,
+
           lastUpdated: Date.now(),
         };
 
-        if (data.gooddollar) {
-          const gdToUserFiat =
-            data.gooddollar[localCurrency.toLowerCase()] || data.gooddollar.usd;
-          newRates["G$_FIAT"] = gdToUserFiat;
-          newRates["G$_USDT"] = data.gooddollar.usd;
-          newRates["G$_CELO"] = gdToUserFiat / celoToUserFiat;
-        }
-
-        // Add stable token rates
+        // cross-rates for other stable tokens (these maintain peg to their fiat)
         Object.entries(STABLE_TOKEN_TO_FIAT_MAP).forEach(
-          ([token, fiatCurrency]) => {
-            // Get the exchange rate from API: 1 USDT = X units of fiat currency
-            const usdtToTargetFiat =
-              data.tether[fiatCurrency.toLowerCase()] || 1;
+          ([token, fiatCode]) => {
+            if (["cUSD", "cEUR", "cREAL", "G$", "USDT"].includes(token)) return;
 
-            // For stable tokens, 1 stable token ≈ 1 unit of its pegged currency
-            // Calculate: 1 stable token = ? user's local currency
-            if (fiatCurrency === localCurrency) {
-              // If the stable token matches user's currency, it's 1:1
-              newRates[`${token}_FIAT`] = 1;
-            } else {
-              // Convert: 1 stable token → 1 target fiat → user's local fiat
-              // 1 stable token = 1 target fiat
-              // 1 target fiat = 1/usdtToTargetFiat USDT
-              // 1 USDT = usdtToUserFiat user's local fiat
-              newRates[`${token}_FIAT`] = usdtToUserFiat / usdtToTargetFiat;
-            }
+            // For stable tokens without live data, assume 1:1 peg with their fiat
+            const fiatToUsd = data.tether?.[fiatCode.toLowerCase()] || 1.0;
+            const tokenToUsd = 1 / fiatToUsd; // 1 token = 1 fiat unit = X USD
 
-            // Add other conversion rates
-            newRates[`${token}_USDT`] = 1 / usdtToTargetFiat;
-            newRates[`${token}_CELO`] =
-              newRates[`${token}_FIAT`] / celoToUserFiat;
+            newRates[`${token}_USD`] = tokenToUsd;
+            newRates[`${token}_USDT`] = tokenToUsd / usdtToUsd;
+            newRates[`${token}_CELO`] = tokenToUsd / celoToUsd;
+            newRates[`${token}_FIAT`] = tokenToUsd * usdToUserFiat;
           }
         );
 
+        console.log("✅ Updated Exchange Rates:", newRates);
+
         setRates(newRates);
         localStorage.setItem(CACHE_KEYS.RATES, JSON.stringify(newRates));
+        setError(null);
+
+        return newRates;
       } catch (err) {
+        console.error("❌ Failed to fetch live prices:", err);
         setError((err as Error).message || "Failed to fetch exchange rates");
 
+        // Try to use cached data
         const cachedRates = localStorage.getItem(CACHE_KEYS.RATES);
         if (cachedRates) {
           try {
-            setRates(JSON.parse(cachedRates));
+            const parsed = JSON.parse(cachedRates);
+            setRates(parsed);
+            return parsed;
           } catch (e) {
-            setRates({ ...DEFAULT_RATES, lastUpdated: Date.now() });
+            // Fall back to defaults
           }
-        } else {
-          setRates({ ...DEFAULT_RATES, lastUpdated: Date.now() });
         }
+
+        const fallbackRates = { ...DEFAULT_RATES, lastUpdated: Date.now() };
+        setRates(fallbackRates);
+        return fallbackRates;
       } finally {
-        setLoading(false);
+        fetchInProgressRef.current = false;
       }
     },
-    [userCountry, rates.lastUpdated]
+    [userCountry, rates]
   );
 
+  /**
+   * Convert price with live rate checking
+   */
   const convertPrice = useCallback(
     (price: number, from: Currency, to: Currency): number => {
       if (from === to) return price;
       if (isNaN(price) || price === 0) return 0;
 
-      const rateKey = `${from}_${to}`;
-      const reverseRateKey = `${to}_${from}`;
+      const normalizedFrom = from.toUpperCase();
+      const normalizedTo = to.toUpperCase();
+
+      console.log(
+        `🔄 Converting ${price} from ${normalizedFrom} to ${normalizedTo}`
+      );
 
       // Direct rate lookup
+      const rateKey = `${normalizedFrom}_${normalizedTo}`;
+      const reverseRateKey = `${normalizedTo}_${normalizedFrom}`;
+
       if (rates[rateKey]) {
-        return price * rates[rateKey];
+        const result = price * rates[rateKey];
+        console.log(`✅ Direct: ${price} × ${rates[rateKey]} = ${result}`);
+        return result;
       }
 
-      // Reverse rate lookup
       if (rates[reverseRateKey]) {
-        return price / rates[reverseRateKey];
+        const result = price / rates[reverseRateKey];
+        console.log(
+          `✅ Reverse: ${price} ÷ ${rates[reverseRateKey]} = ${result}`
+        );
+        return result;
       }
 
-      // Handle conversions TO stable tokens
-      if (STABLE_TOKEN_TO_FIAT_MAP[to as string]) {
-        const targetFiatCurrency = STABLE_TOKEN_TO_FIAT_MAP[to as string];
+      // Convert through USD
+      const fromToUsd = rates[`${normalizedFrom}_USD`];
+      const toToUsd = rates[`${normalizedTo}_USD`];
 
-        if (from === "USDT") {
-          // Convert USDT to stable token via USD
-          const usdtToUsd = rates.USDT_FIAT || DEFAULT_RATES.USDT_FIAT;
-          const usdToTargetFiat = rates[`${to}_FIAT`] || 1;
-          return (price * usdtToUsd) / usdToTargetFiat;
-        }
-
-        if (from === "CELO") {
-          // Convert CELO to stable token via USD
-          const celoToUsd = rates.CELO_FIAT || DEFAULT_RATES.CELO_FIAT;
-          const usdToTargetFiat = rates[`${to}_FIAT`] || 1;
-          return (price * celoToUsd) / usdToTargetFiat;
-        }
-
-        if (from === "FIAT") {
-          // Convert user's local fiat to stable token
-          const userFiatToUsd = rates.USDT_FIAT || DEFAULT_RATES.USDT_FIAT;
-          const usdToTargetFiat = rates[`${to}_FIAT`] || 1;
-          return (price / userFiatToUsd) * usdToTargetFiat;
-        }
+      if (fromToUsd && toToUsd) {
+        const result = (price * fromToUsd) / toToUsd;
+        console.log(
+          `✅ Via USD: ${price} × ${fromToUsd} ÷ ${toToUsd} = ${result}`
+        );
+        return result;
       }
 
-      // Handle conversions FROM stable tokens
-      if (STABLE_TOKEN_TO_FIAT_MAP[from as string]) {
-        const sourceFiatCurrency = STABLE_TOKEN_TO_FIAT_MAP[from as string];
-
-        if (to === "USDT") {
-          // Convert stable token to USDT via USD
-          const stableTokenToUsd = rates[`${from}_FIAT`] || 1;
-          const usdToUsdt = 1 / (rates.USDT_FIAT || DEFAULT_RATES.USDT_FIAT);
-          return price * stableTokenToUsd * usdToUsdt;
-        }
-
-        if (to === "CELO") {
-          // Convert stable token to CELO via USD
-          const stableTokenToUsd = rates[`${from}_FIAT`] || 1;
-          const usdToCelo = 1 / (rates.CELO_FIAT || DEFAULT_RATES.CELO_FIAT);
-          return price * stableTokenToUsd * usdToCelo;
-        }
-
-        if (to === "FIAT") {
-          // Convert stable token to user's local fiat
-          const stableTokenToUsd = rates[`${from}_FIAT`] || 1;
-          const usdToUserFiat = rates.USDT_FIAT || DEFAULT_RATES.USDT_FIAT;
-          return price * stableTokenToUsd * usdToUserFiat;
+      // FIAT conversions
+      if (normalizedTo === "FIAT") {
+        const fromToFiat = rates[`${normalizedFrom}_FIAT`];
+        if (fromToFiat) {
+          return price * fromToFiat;
         }
       }
 
-      // Cross-conversion between stable tokens
-      if (
-        STABLE_TOKEN_TO_FIAT_MAP[from as string] &&
-        STABLE_TOKEN_TO_FIAT_MAP[to as string]
-      ) {
-        const fromTokenToUsd = rates[`${from}_FIAT`] || 1;
-        const toTokenToUsd = rates[`${to}_FIAT`] || 1;
-        return (price * fromTokenToUsd) / toTokenToUsd;
+      if (normalizedFrom === "FIAT") {
+        const toToFiat = rates[`${normalizedTo}_FIAT`];
+        if (toToFiat) {
+          return price / toToFiat;
+        }
       }
 
-      // Fallback conversions for base currencies
-      switch (`${from}_${to}`) {
-        case "USDT_CELO":
-          return price * (rates.USDT_CELO || DEFAULT_RATES.USDT_CELO);
-        case "USDT_FIAT":
-          return price * (rates.USDT_FIAT || DEFAULT_RATES.USDT_FIAT);
-        case "CELO_USDT":
-          return price / (rates.USDT_CELO || DEFAULT_RATES.USDT_CELO);
-        case "CELO_FIAT":
-          return price * (rates.CELO_FIAT || DEFAULT_RATES.CELO_FIAT);
-        case "FIAT_USDT":
-          return price / (rates.USDT_FIAT || DEFAULT_RATES.USDT_FIAT);
-        case "FIAT_CELO":
-          return price / (rates.CELO_FIAT || DEFAULT_RATES.CELO_FIAT);
-        default:
-          return price;
-      }
+      console.warn(
+        `⚠️ No conversion path for ${normalizedFrom} → ${normalizedTo}`
+      );
+      return price;
     },
-    [rates, userCountry]
+    [rates]
   );
 
   const formatPrice = useCallback(
     (price: number, currency: Currency): string => {
       if (isNaN(price)) return "—";
 
-      // Handle stable tokens
-      if (STABLE_TOKEN_TO_FIAT_MAP[currency as string]) {
-        const fiatCurrency = STABLE_TOKEN_TO_FIAT_MAP[currency as string];
+      const fiatCurrency = STABLE_TOKEN_TO_FIAT_MAP[currency as string];
+      if (fiatCurrency) {
         try {
           return new Intl.NumberFormat(navigator.language, {
             style: "currency",
             currency: fiatCurrency,
             minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
+            maximumFractionDigits: 6,
           }).format(price);
         } catch (e) {
           return `${price.toFixed(2)} ${currency}`;
@@ -380,7 +391,7 @@ export const useCurrencyConverter = () => {
             style: "currency",
             currency: "USD",
             minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
+            maximumFractionDigits: 6,
           }).format(price);
         } catch (e) {
           return `$${price.toFixed(2)}`;
@@ -394,7 +405,6 @@ export const useCurrencyConverter = () => {
         })} CELO`;
       }
 
-      // Format fiat with local currency symbol
       try {
         return new Intl.NumberFormat(navigator.language, {
           style: "currency",
@@ -410,21 +420,26 @@ export const useCurrencyConverter = () => {
   );
 
   const refreshRates = useCallback(() => {
-    return fetchRates(true);
-  }, [fetchRates]);
+    return fetchLivePrices(true);
+  }, [fetchLivePrices]);
 
+  // Initial fetch on mount
   useEffect(() => {
-    if (!rates.lastUpdated || Date.now() - rates.lastUpdated > 5 * 60 * 1000) {
+    const shouldFetch =
+      !rates.lastUpdated || Date.now() - rates.lastUpdated > 2 * 60 * 1000;
+
+    if (shouldFetch) {
       setLoading(true);
-    } else {
-      setLoading(false);
+      fetchLivePrices().finally(() => setLoading(false));
     }
 
-    fetchRates();
+    // Auto-refresh every 3 minutes
+    const interval = setInterval(() => {
+      fetchLivePrices();
+    }, 3 * 60 * 1000);
 
-    const interval = setInterval(() => fetchRates(), 5 * 60 * 1000);
     return () => clearInterval(interval);
-  }, [fetchRates]);
+  }, [fetchLivePrices]);
 
   return {
     rates,
@@ -436,6 +451,7 @@ export const useCurrencyConverter = () => {
     convertPrice,
     formatPrice,
     refreshRates,
+    fetchLivePrices,
     lastUpdated: rates.lastUpdated,
   };
 };

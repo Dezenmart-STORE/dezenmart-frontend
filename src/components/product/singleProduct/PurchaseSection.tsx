@@ -15,6 +15,7 @@ import {
   HiSignal,
   HiExclamationTriangle,
   HiCheckCircle,
+  HiArrowPath,
 } from "react-icons/hi2";
 import { Product, ProductVariant } from "../../../utils/types";
 import { useWeb3 } from "../../../context/Web3Context";
@@ -100,50 +101,60 @@ const useCalculatedTotals = ({
 }) => {
   return useMemo(() => {
     if (!product) {
-      return { grandTotalUsd: 0, totalInSelected: 0, totalInPayment: 0 };
+      return {
+        grandTotalUsd: 0,
+        totalInSelected: 0,
+        totalInPayment: 0,
+        subtotal: 0,
+        escrowFee: 0,
+        logisticsCost: 0,
+      };
     }
 
-    // Calculate subtotal
+    // Product price is in USD
     const subtotal = product.price * quantity;
-
-    // Calculate escrow fee (2.5%)
-    const escrowFee = subtotal * TRANSACTION_FEE_RATE; // 0.025
-
-    // Get logistics cost from filtered provider (0 if not selected)
+    const escrowFee = subtotal * TRANSACTION_FEE_RATE;
     const logisticsCost = selectedLogistics?.cost || 0;
-
-    // Calculate grand total in USD
     const grandTotalUsd = subtotal + escrowFee + logisticsCost;
 
     const selectedTokenSymbol = walletSelectedToken.symbol;
     const paymentTokenSymbol = product.paymentToken;
 
-    // Convert to selected wallet token (for display)
+    // Convert from USD to selected wallet token
     const totalInSelected = convertPrice(
       grandTotalUsd,
-      "USDT",
+      "USDT", // Use USDT as proxy for USD
       selectedTokenSymbol
     );
 
-    // Convert to payment token (what will actually be charged)
+    // Convert from USD to payment token
     const totalInPayment = convertPrice(
       grandTotalUsd,
-      "USDT",
+      "USDT", // Use USDT as proxy for USD
       paymentTokenSymbol
     );
 
     console.log("💰 Total Calculation:", {
+      productPrice: product.price,
+      quantity,
       subtotal,
       escrowFee,
       logisticsCost,
       grandTotalUsd,
-      totalInSelected,
-      totalInPayment,
       selectedTokenSymbol,
       paymentTokenSymbol,
+      totalInSelected,
+      totalInPayment,
     });
 
-    return { grandTotalUsd, totalInSelected, totalInPayment };
+    return {
+      grandTotalUsd,
+      totalInSelected,
+      totalInPayment,
+      subtotal,
+      escrowFee,
+      logisticsCost,
+    };
   }, [product, selectedLogistics, quantity, convertPrice, walletSelectedToken]);
 };
 
@@ -206,39 +217,80 @@ const BalanceWarning = memo(
   }
 );
 
-// Swap preview component
+// Swap preview component with enhanced UX
 const SwapPreview = memo(
   ({
     isVisible,
     fromAmount,
     fromToken,
+    toAmount,
     toToken,
     isGettingQuote,
-    swapQuote,
+    onRefresh,
   }: {
     isVisible: boolean;
     fromAmount: number;
     fromToken: string;
+    toAmount: number;
     toToken: string;
     isGettingQuote: boolean;
-    swapQuote: string;
+    onRefresh: () => void;
   }) => {
     if (!isVisible) return null;
 
     return (
-      <div className="bg-red-900/20 border border-red-500/30 rounded-lg p-3 animate-in fade-in-0 duration-300">
-        <div className="flex items-center gap-2 text-red-300 text-sm">
-          <FaExchangeAlt className="w-3 h-3" />
-          <span>
-            Will swap {fromAmount.toFixed(4)} {fromToken}
-            {isGettingQuote ? (
-              <FaSpinner className="inline ml-2 animate-spin w-3 h-3" />
-            ) : swapQuote ? (
-              <span className="text-green-400">
-                → {parseFloat(swapQuote).toFixed(4)} {toToken}
-              </span>
-            ) : null}
-          </span>
+      <div className="bg-red-900/10 border border-red-500/20 rounded-lg p-4 animate-in fade-in-0 duration-300">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1">
+            <div className="flex items-center gap-2 text-red-400 text-sm font-medium mb-2">
+              <FaExchangeAlt className="w-4 h-4" />
+              <span>Token Swap Required</span>
+            </div>
+
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-400">You'll swap:</span>
+                <span className="text-white font-medium">
+                  {fromAmount.toFixed(4)} {fromToken}
+                </span>
+              </div>
+
+              {isGettingQuote ? (
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-400">To receive:</span>
+                  <div className="flex items-center gap-2">
+                    <FaSpinner className="animate-spin w-3 h-3 text-red-400" />
+                    <span className="text-gray-400">Calculating...</span>
+                  </div>
+                </div>
+              ) : toAmount > 0 ? (
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-400">To receive:</span>
+                  <span className="text-green-400 font-medium">
+                    ≈ {toAmount.toFixed(4)} {toToken}
+                  </span>
+                </div>
+              ) : null}
+            </div>
+          </div>
+
+          <button
+            onClick={onRefresh}
+            disabled={isGettingQuote}
+            className="p-2 hover:bg-red-500/10 rounded-lg transition-colors disabled:opacity-50"
+            title="Refresh quote"
+          >
+            <HiArrowPath
+              className={`w-4 h-4 text-red-400 ${
+                isGettingQuote ? "animate-spin" : ""
+              }`}
+            />
+          </button>
+        </div>
+
+        <div className="mt-3 pt-3 border-t border-red-500/20 text-xs text-red-300/80">
+          <p>• Swap will be executed before purchase</p>
+          <p>• Gas fees apply for the swap transaction</p>
         </div>
       </div>
     );
@@ -279,12 +331,50 @@ const WalletInfo = memo(
   }
 );
 
+// Price breakdown component
+const PriceBreakdown = memo(
+  ({
+    totals,
+    formatPrice,
+  }: {
+    totals: any;
+    formatPrice: (price: number, currency: string) => string;
+  }) => {
+    return (
+      <div className="bg-gray-800/50 border border-gray-700/50 rounded-lg p-3 space-y-2 text-sm">
+        <div className="flex justify-between text-gray-400">
+          <span>Subtotal:</span>
+          <span>{formatPrice(totals.subtotal, "USDT")}</span>
+        </div>
+
+        <div className="flex justify-between text-gray-400">
+          <span>Escrow Fee (2.5%):</span>
+          <span>{formatPrice(totals.escrowFee, "USDT")}</span>
+        </div>
+
+        {totals.logisticsCost > 0 && (
+          <div className="flex justify-between text-gray-400">
+            <span>Delivery:</span>
+            <span>{formatPrice(totals.logisticsCost, "USDT")}</span>
+          </div>
+        )}
+
+        <div className="flex justify-between text-white font-semibold pt-2 border-t border-gray-700">
+          <span>Total:</span>
+          <span>{formatPrice(totals.grandTotalUsd, "USDT")}</span>
+        </div>
+      </div>
+    );
+  }
+);
+
 // Main component
 const PurchaseSection: React.FC<PurchaseSectionProps> = memo(
   ({ product, selectedVariant }) => {
     const navigate = useNavigate();
     const [createOrder] = useCreateOrderMutation();
-    const { convertPrice } = useCurrencyConverter();
+    const { convertPrice, formatPrice, fetchLivePrices } =
+      useCurrencyConverter();
     const {
       wallet,
       performSwap,
@@ -358,8 +448,12 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = memo(
       const currentBalance = wallet.tokenBalances[wallet.selectedToken.symbol];
       if (!currentBalance) return false;
 
-      // console.log("parseFloat(currentBalance.raw)", parseFloat(currentBalance.raw));
-      // console.log("requiredAmount", requiredAmount);
+      console.log("💵 Balance Check:", {
+        requiredAmount,
+        currentBalance: parseFloat(currentBalance.raw),
+        hasEnough: parseFloat(currentBalance.raw) >= requiredAmount,
+      });
+
       return parseFloat(currentBalance.raw) >= requiredAmount;
     }, [wallet, product, computedTotals, state.mounted]);
 
@@ -400,7 +494,7 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = memo(
       wallet.isConnected,
     ]);
 
-    // Debounced quote fetching
+    // quote fetching
     const updateSwapQuote = useCallback(
       debounce(async () => {
         if (
@@ -408,13 +502,12 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = memo(
           !wallet.isConnected ||
           wallet.selectedToken.symbol === product.paymentToken
         ) {
-          updateState({ swapQuote: "" });
+          updateState({ swapQuote: "", isGettingQuote: false });
           return;
         }
 
         if (computedTotals.totalInSelected <= 0) return;
 
-        // Cancel previous request
         if (abortControllerRef.current) {
           abortControllerRef.current.abort();
         }
@@ -423,18 +516,30 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = memo(
         updateState({ isGettingQuote: true });
 
         try {
+          // FETCH LIVE PRICES FIRST for accuracy
+          console.log("🔄 Fetching live prices before swap quote...");
+          await fetchLivePrices();
+
+          console.log("🔄 Getting swap quote with fresh prices:", {
+            from: wallet.selectedToken.symbol,
+            to: product.paymentToken,
+            amount: computedTotals.totalInSelected,
+          });
+
           const quote = await getSwapQuote(
             wallet.selectedToken.symbol,
             product.paymentToken,
             computedTotals.totalInSelected
           );
 
+          console.log("✅ Swap quote received:", quote);
+
           if (!abortControllerRef.current.signal.aborted) {
             updateState({ swapQuote: quote, isGettingQuote: false });
           }
         } catch (error) {
           if (!abortControllerRef.current?.signal.aborted) {
-            console.error("Failed to get swap quote:", error);
+            console.error("❌ Failed to get swap quote:", error);
             updateState({ swapQuote: "", isGettingQuote: false });
           }
         }
@@ -445,6 +550,7 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = memo(
         wallet.selectedToken.symbol,
         computedTotals.totalInSelected,
         getSwapQuote,
+        fetchLivePrices, // Add this dependency
         updateState,
       ]
     );
@@ -538,13 +644,11 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = memo(
           await new Promise((resolve) => setTimeout(resolve, 2000));
         }
 
-        // Temporarily handle order creation without logistics until delivery address API goes live
         const orderData: any = {
           product: product._id as any,
           quantity: state.quantity,
         };
 
-        // Only add logistics if selected
         if (state.selectedLogistics) {
           orderData.logisticsProviderWalletAddress = [
             state.selectedLogistics.provider.walletAddress,
@@ -588,22 +692,10 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = memo(
         return navigate("/login");
       }
 
-      // Temporarily make delivery address optional until API goes live
-      // if (!state.selectedAddress) {
-      //   updateState({ purchaseError: "Please select a delivery address" });
-      //   return;
-      // }
-
       if (!product) {
         updateState({ purchaseError: "Product information is missing" });
         return;
       }
-
-      // Temporarily make logistics selection optional until delivery address API goes live
-      // if (!state.selectedLogistics) {
-      //   updateState({ purchaseError: "Please select a delivery service" });
-      //   return;
-      // }
 
       if (!wallet.isConnected) {
         updateState({ showWalletModal: true });
@@ -622,7 +714,6 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = memo(
         if (!canSwap) return;
 
         updateState({ showSwapModal: true });
-        console.log("should show modal", state);
         return;
       }
 
@@ -630,10 +721,9 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = memo(
     }, [
       isAuthenticated,
       product,
-      state.selectedLogistics,
       wallet,
       hasSufficientBalance,
-      // validateSwapRequirements,
+      validateSwapRequirements,
       executeOrder,
       navigate,
       updateState,
@@ -716,6 +806,8 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = memo(
         computedTotals.totalInSelected > 0
     );
 
+    const swapOutputAmount = state.swapQuote ? parseFloat(state.swapQuote) : 0;
+
     return (
       <>
         <div className="bg-[#212428] p-4 md:p-6 space-y-4">
@@ -732,6 +824,11 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = memo(
             />
             <StockStatus availableQty={availableQty} />
           </div>
+
+          {/* Price Breakdown */}
+          {product && (
+            <PriceBreakdown totals={computedTotals} formatPrice={formatPrice} />
+          )}
 
           {/* Delivery Address Selection */}
           <DeliveryAddressSelector
@@ -764,16 +861,17 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = memo(
             isVisible={needsSwap}
             fromAmount={computedTotals.totalInSelected}
             fromToken={wallet.selectedToken.symbol}
+            toAmount={swapOutputAmount}
             toToken={product?.paymentToken || ""}
             isGettingQuote={state.isGettingQuote}
-            swapQuote={state.swapQuote}
+            onRefresh={() => updateSwapQuote()}
           />
 
           {/* Purchase Button */}
           <button
             onClick={handleButtonClick}
             disabled={isLoading || stockStatus.isOutOfStock}
-            className="bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white py-3 px-6 rounded-lg w-full flex justify-center items-center gap-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-gray-800"
+            className="bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600 disabled:from-gray-600 disabled:to-gray-600 text-white py-3 px-6 rounded-lg w-full flex justify-center items-center gap-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-gray-800 shadow-lg hover:shadow-xl font-semibold"
             aria-label={
               !isAuthenticated
                 ? "Login to buy this product"
@@ -797,6 +895,8 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = memo(
                     ? "Connect Wallet"
                     : stockStatus.isOutOfStock
                     ? "Out of Stock"
+                    : needsSwap
+                    ? "Swap & Buy Now"
                     : "Buy Now"}
                 </span>
               </>
@@ -810,7 +910,7 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = memo(
         {/* Lazy-loaded Modals */}
         <Suspense
           fallback={
-            <div className="fixed inset-0 bg-black/50 flex items-center justify-center">
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
               <FaSpinner className="animate-spin w-8 h-8 text-white" />
             </div>
           }
@@ -825,9 +925,6 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = memo(
             fromToken={wallet.selectedToken.symbol}
             toToken={product?.paymentToken || ""}
             amountIn={computedTotals.totalInSelected}
-            // amountOut={state.swapQuote}
-            // isProcessing={swapState.isSwapping}
-            // error={swapState.error || undefined}
             onClose={() => updateState({ showSwapModal: false })}
             onConfirm={handleConfirmSwap}
             slippage={5}

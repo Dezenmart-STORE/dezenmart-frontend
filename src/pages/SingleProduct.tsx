@@ -1,10 +1,14 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { LiaAngleLeftSolid } from "react-icons/lia";
 import { FaRegHeart, FaHeart } from "react-icons/fa";
 import { IoShareSocialOutline } from "react-icons/io5";
 import { motion } from "framer-motion";
-import { useCheckWatchlistQuery, useAddToWatchlistMutation, useRemoveFromWatchlistMutation } from "../store/api/watchlistApi";
+import {
+  useCheckWatchlistQuery,
+  useAddToWatchlistMutation,
+  useRemoveFromWatchlistMutation,
+} from "../store/api/watchlistApi";
 
 import ProductImage from "../components/product/singleProduct/ProductImage";
 import ProductTabs from "../components/product/singleProduct/ProductTabs";
@@ -13,7 +17,10 @@ import CustomerReviews from "../components/product/singleProduct/CustomerReviews
 import PurchaseSection from "../components/product/singleProduct/PurchaseSection";
 import ProductLoadingSkeleton from "../components/product/singleProduct/LoadingSkeleton";
 import ProductCard from "../components/product/ProductCard";
-import { useGetProductByIdQuery, useGetProductsByCategoryQuery } from "../store/api/productsApi";
+import {
+  useGetProductByIdQuery,
+  useGetProductsByCategoryQuery,
+} from "../store/api/productsApi";
 import { useCurrency } from "../context/CurrencyContext";
 import { useCurrencyConverter } from "../utils/hooks/useCurrencyConverter";
 import { ProductVariant, Product as ProductType } from "../utils/types";
@@ -27,7 +34,11 @@ const SingleProduct = () => {
   const navigate = useNavigate();
 
   // RTK Query hooks
-  const { data: product, isLoading: loading, error } = useGetProductByIdQuery(productId!, {
+  const {
+    data: product,
+    isLoading: loading,
+    error,
+  } = useGetProductByIdQuery(productId!, {
     skip: !productId,
   });
 
@@ -38,7 +49,6 @@ const SingleProduct = () => {
   const [addToWatchlist] = useAddToWatchlistMutation();
   const [removeFromWatchlist] = useRemoveFromWatchlistMutation();
 
-  // Get related products based on category
   const { data: categoryProducts = [] } = useGetProductsByCategoryQuery(
     (product as ProductType)?.category || "",
     {
@@ -52,7 +62,8 @@ const SingleProduct = () => {
 
   const { secondaryCurrency, fiatCurrency, selectedTokenSymbol } =
     useCurrency();
-  const { formatPrice } = useCurrencyConverter();
+  const { formatPrice, convertPrice } = useCurrencyConverter();
+
   const [activeTab, setActiveTab] = useState<TabType>("details");
   const [reviewCount, setReviewCount] = useState(0);
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(
@@ -60,17 +71,41 @@ const SingleProduct = () => {
   );
   const isFavorite = watchlistStatus?.isWatchlist || false;
 
-  // Format product with prices
-  const formattedProduct = product ? {
-    ...product as ProductType,
-    celoPrice: (product as ProductType).price,
-    fiatPrice: (product as ProductType).price,
-    tokenPrice: (product as ProductType).price,
-    formattedCeloPrice: formatPrice((product as ProductType).price, "CELO"),
-    formattedTokenPrice: formatPrice((product as ProductType).price, selectedTokenSymbol),
-    formattedUsdtPrice: formatPrice((product as ProductType).price, "USDT"),
-    formattedFiatPrice: formatPrice((product as ProductType).price, fiatCurrency as string),
-  } : null;
+  // Format product with CORRECT prices
+  const formattedProduct = useMemo(() => {
+    if (!product) return null;
+
+    const baseProduct = product as ProductType;
+    const productPriceUsd = baseProduct.price; // Product price is in USD
+
+    // Convert USD price to different currencies
+    const priceInToken = convertPrice(
+      productPriceUsd,
+      "USDT",
+      selectedTokenSymbol
+    );
+    const priceInFiat = convertPrice(productPriceUsd, "USDT", fiatCurrency);
+    const priceInCelo = convertPrice(productPriceUsd, "USDT", "CELO");
+
+    console.log("💲 Product Price Conversion:", {
+      usdPrice: productPriceUsd,
+      selectedToken: selectedTokenSymbol,
+      priceInToken,
+      fiatCurrency,
+      priceInFiat,
+    });
+
+    return {
+      ...baseProduct,
+      celoPrice: priceInCelo,
+      fiatPrice: priceInFiat,
+      tokenPrice: priceInToken,
+      formattedCeloPrice: formatPrice(priceInCelo, "CELO"),
+      formattedTokenPrice: formatPrice(priceInToken, selectedTokenSymbol),
+      formattedUsdtPrice: formatPrice(productPriceUsd, "USDT"),
+      formattedFiatPrice: formatPrice(priceInFiat, fiatCurrency),
+    };
+  }, [product, selectedTokenSymbol, fiatCurrency, convertPrice, formatPrice]);
 
   const handleGoBack = () => navigate(-1);
 
@@ -90,12 +125,6 @@ const SingleProduct = () => {
 
   const handleVariantSelect = (variant: ProductVariant) => {
     if (!variant) return;
-
-    // if (typeof variant.quantity !== "number") {
-    //   console.warn("Invalid variant selected: missing quantity");
-    //   return;
-    // }
-
     setSelectedVariant(variant);
   };
 
@@ -120,12 +149,10 @@ const SingleProduct = () => {
   };
 
   useEffect(() => {
-    // Reset tab when product changes
     setActiveTab("details");
     window.scrollTo(0, 0);
   }, [productId]);
 
-  // Initialize with first available variant when product loads
   useEffect(() => {
     if (
       !loading &&
@@ -133,7 +160,6 @@ const SingleProduct = () => {
       Array.isArray(formattedProduct.type) &&
       formattedProduct.type.length > 0
     ) {
-      // Find first variant with quantity > 0
       const firstAvailableVariant =
         formattedProduct.type.find(
           (variant: ProductVariant) => variant.quantity > 0
@@ -171,6 +197,14 @@ const SingleProduct = () => {
   const backgroundStyle = {
     background: `linear-gradient(to bottom, #292B30 0%, rgba(41, 43, 48, 0.95) 100%)`,
   };
+
+  // Determine which price to display
+  const displayPrice =
+    secondaryCurrency === "TOKEN"
+      ? formattedProduct.formattedTokenPrice
+      : fiatCurrency === selectedTokenSymbol.replace(/^c/, "")
+      ? formattedProduct.formattedUsdtPrice
+      : formattedProduct.formattedFiatPrice;
 
   return (
     <motion.div
@@ -235,21 +269,13 @@ const SingleProduct = () => {
                   </h1>
                   <div className="flex flex-col gap-1 text-right">
                     <div className="flex items-center gap-2">
-                      <span className="text-2xl font-bold">
-                        {/* {formattedProduct.formattedCeloPrice} */}
-                        {secondaryCurrency === "TOKEN"
-                          ? formattedProduct.formattedTokenPrice
-                          : fiatCurrency ===
-                            selectedTokenSymbol.replace(/^c/, "")
-                          ? formattedProduct.formattedUsdtPrice
-                          : formattedProduct.formattedFiatPrice}
+                      <span className="text-2xl font-bold text-red-500">
+                        {displayPrice}
                       </span>
                     </div>
-                    {/* <span className="text-sm text-gray-400 justify-self-start sm:justify-self-end">
-                      {secondaryCurrency === "USDT"
-                        ? formattedProduct.formattedUsdtPrice
-                        : formattedProduct.formattedFiatPrice}
-                    </span> */}
+                    <span className="text-sm text-gray-400">
+                      {formattedProduct.formattedUsdtPrice}
+                    </span>
                   </div>
                 </div>
               </div>
