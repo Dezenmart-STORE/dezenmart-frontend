@@ -33,7 +33,6 @@ import {
   monitorResourceTiming,
 } from "./utils/performance.ts";
 import { registerServiceWorker } from "./utils/pwa/index.ts";
-import FallbackError from "./components/error/FallbackError.tsx";
 
 // Initialize Sentry error tracking
 initSentry();
@@ -122,39 +121,12 @@ const router = createBrowserRouter([
   {
     path: "/",
     element: <RouterLayout />,
-    errorElement: (
-      <Configuration>
-        <SnackbarProvider>
-          <Provider store={store}>
-            <WagmiProvider config={wagmiConfig}>
-              <QueryClientProvider client={queryClient}>
-                <Web3Provider>
-                  <AuthProvider>
-                    <TermsProvider>
-                      <CurrencyProvider>
-                        <Layout>
-                          <Suspense fallback={<Loadscreen />}>
-                            <FallbackError />
-                          </Suspense>
-                        </Layout>
-                      </CurrencyProvider>
-                    </TermsProvider>
-                  </AuthProvider>
-                </Web3Provider>
-              </QueryClientProvider>
-            </WagmiProvider>
-          </Provider>
-        </SnackbarProvider>
-      </Configuration>
-    ),
 
-    // errorElement: (
-    //   <ErrorBoundary>
-    //     <Suspense fallback={<Loadscreen />}>
-    //       <NotFound />
-    //     </Suspense>
-    //   </ErrorBoundary>
-    // ),
+    errorElement: (
+      <ErrorBoundary>
+        <NotFound />
+      </ErrorBoundary>
+    ),
     children: [
       {
         index: true,

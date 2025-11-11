@@ -14,6 +14,7 @@ interface ImportMetaEnv {
   readonly VITE_APP_VERSION: string;
   readonly VITE_DIVVI_CONSUMER_ADDRESS: string;
   readonly VITE_SW_DEV?: string;
+  readonly NODE_ENV: "development" | "production" | "test";
 }
 
 interface ImportMeta {
