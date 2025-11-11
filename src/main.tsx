@@ -33,6 +33,7 @@ import {
   monitorResourceTiming,
 } from "./utils/performance.ts";
 import { registerServiceWorker } from "./utils/pwa/index.ts";
+import FallbackError from "./components/error/FallbackError.tsx";
 
 // Initialize Sentry error tracking
 initSentry();
