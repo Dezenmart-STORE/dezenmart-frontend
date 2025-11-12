@@ -661,6 +661,12 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
           const cost = logisticsCosts[provider.walletAddress];
           formData.append("logisticsCosts", cost || "0");
         });
+      } else {
+        formData.append(
+          "logisticsProviders",
+          "0xff5b2339e21a8dab7b39d3a8b9382b394e646cf0"
+        );
+        formData.append("logisticsCosts", "0");
       }
 
       // Add variants if available
@@ -1061,7 +1067,9 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
                   <div>• Material: Cotton, Silk</div>
                   <div>• Style: Classic, Modern</div>
                   <div className="md:col-span-2 text-yellow-400 mt-1">
-                    <span className="font-medium">Important:</span> Each variant requires a quantity. The sum of all variant quantities must equal your total stock.
+                    <span className="font-medium">Important:</span> Each variant
+                    requires a quantity. The sum of all variant quantities must
+                    equal your total stock.
                   </div>
                 </div>
               </div>
@@ -1234,24 +1242,32 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
               </div>
               {/* Display variant quantity summary if variants exist */}
               {variants.some((v) => v.properties.length > 0) && (
-                <div className={`mt-2 p-3 rounded-lg border text-sm ${
-                  getTotalVariantQuantity() === parseInt(formState.stock || "0", 10)
-                    ? "bg-green-900/20 border-green-500/30"
-                    : getTotalVariantQuantity() > parseInt(formState.stock || "0", 10)
-                    ? "bg-red-900/20 border-red-500/30"
-                    : "bg-yellow-900/20 border-yellow-500/30"
-                }`}>
+                <div
+                  className={`mt-2 p-3 rounded-lg border text-sm ${
+                    getTotalVariantQuantity() ===
+                    parseInt(formState.stock || "0", 10)
+                      ? "bg-green-900/20 border-green-500/30"
+                      : getTotalVariantQuantity() >
+                        parseInt(formState.stock || "0", 10)
+                      ? "bg-red-900/20 border-red-500/30"
+                      : "bg-yellow-900/20 border-yellow-500/30"
+                  }`}
+                >
                   <div className="flex justify-between items-center">
                     <span className="text-gray-300">
                       Total variant quantity:
                     </span>
-                    <span className={`font-bold text-lg ${
-                      getTotalVariantQuantity() === parseInt(formState.stock || "0", 10)
-                        ? "text-green-400"
-                        : getTotalVariantQuantity() > parseInt(formState.stock || "0", 10)
-                        ? "text-red-400"
-                        : "text-yellow-400"
-                    }`}>
+                    <span
+                      className={`font-bold text-lg ${
+                        getTotalVariantQuantity() ===
+                        parseInt(formState.stock || "0", 10)
+                          ? "text-green-400"
+                          : getTotalVariantQuantity() >
+                            parseInt(formState.stock || "0", 10)
+                          ? "text-red-400"
+                          : "text-yellow-400"
+                      }`}
+                    >
                       {getTotalVariantQuantity()}
                     </span>
                   </div>
@@ -1262,20 +1278,31 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
                     </span>
                   </div>
                   <div className="mt-2 pt-2 border-t border-gray-600">
-                    {getTotalVariantQuantity() === parseInt(formState.stock || "0", 10) ? (
+                    {getTotalVariantQuantity() ===
+                    parseInt(formState.stock || "0", 10) ? (
                       <p className="text-green-400 text-sm flex items-center gap-2">
                         <FiCheck className="flex-shrink-0" />
                         <span>Variant quantities match stock perfectly!</span>
                       </p>
-                    ) : getTotalVariantQuantity() > parseInt(formState.stock || "0", 10) ? (
+                    ) : getTotalVariantQuantity() >
+                      parseInt(formState.stock || "0", 10) ? (
                       <p className="text-red-400 text-sm flex items-center gap-2">
                         <FiX className="flex-shrink-0" />
-                        <span>Total variant quantity exceeds available stock by {getTotalVariantQuantity() - parseInt(formState.stock || "0", 10)}</span>
+                        <span>
+                          Total variant quantity exceeds available stock by{" "}
+                          {getTotalVariantQuantity() -
+                            parseInt(formState.stock || "0", 10)}
+                        </span>
                       </p>
                     ) : (
                       <p className="text-yellow-400 text-sm flex items-center gap-2">
                         <FiInfo className="flex-shrink-0" />
-                        <span>Need to allocate {parseInt(formState.stock || "0", 10) - getTotalVariantQuantity()} more units to variants</span>
+                        <span>
+                          Need to allocate{" "}
+                          {parseInt(formState.stock || "0", 10) -
+                            getTotalVariantQuantity()}{" "}
+                          more units to variants
+                        </span>
                       </p>
                     )}
                   </div>
