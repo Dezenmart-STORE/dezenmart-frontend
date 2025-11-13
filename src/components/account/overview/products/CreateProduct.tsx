@@ -623,9 +623,9 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
 
       // Get the selected token symbol
       const selectedTokenSymbol = paymentToken || "USDT";
+
       formData.append("paymentToken", selectedTokenSymbol);
 
-      // Add the actual token contract address for the smart contract
       const selectedToken = availableTokens.find(
         (t) => t.symbol === selectedTokenSymbol
       );
@@ -637,16 +637,20 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
           // create trade parameters for the smart contract
           const tradeParams = createTradeParams(
             parseFloat(priceInUSDT),
-            selectedLogistics.map((p) => p.walletAddress),
-            // ["0xff5b2339e21a8dab7b39d3a8b9382b394e646cf0"],
-            // [0],
-            selectedLogistics.map((p) =>
-              parseFloat(logisticsCosts[p.walletAddress] || "0")
-            ),
+            // selectedLogistics.map((p) => p.walletAddress),
+            ["0xff5b2339e21a8dab7b39d3a8b9382b394e646cf0"],
+            [0],
+            // selectedLogistics.map((p) =>
+            //   parseFloat(logisticsCosts[p.walletAddress] || "0")
+            // ),
             // stockQuantity,
             parsedStockQuantity,
             selectedTokenSymbol,
             wallet.chainId // take note
+            //           {
+            //     "status": "fail",
+            //     "message": "File upload only supports the following filetypes - /jpeg|jpg|png|gif|webp|mp4/"
+            // }
           );
 
           // Add trade parameters to form data
