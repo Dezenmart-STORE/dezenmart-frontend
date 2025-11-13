@@ -608,10 +608,10 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
         stock,
         sellerWalletAddress,
       } = formState;
-      const parsedStockQuantity = parseInt(stock, 10);
-      // const stockQuantity = Number.isNaN(parsedStockQuantity)
-      //   ? 0
-      //   : parsedStockQuantity;
+      const parsedStockQuantity = parseInt(stock.trim(), 10);
+      const stockQuantity = Number.isNaN(parsedStockQuantity)
+        ? 0
+        : parsedStockQuantity;
 
       formData.append("name", name);
       formData.append("description", description);
@@ -644,7 +644,7 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
             //   parseFloat(logisticsCosts[p.walletAddress] || "0")
             // ),
             // stockQuantity,
-            parsedStockQuantity,
+            stockQuantity,
             selectedTokenSymbol,
             wallet.chainId // take note
             //           {
