@@ -608,6 +608,10 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
         stock,
         sellerWalletAddress,
       } = formState;
+      const parsedStockQuantity = parseInt(stock, 10);
+      // const stockQuantity = Number.isNaN(parsedStockQuantity)
+      //   ? 0
+      //   : parsedStockQuantity;
 
       formData.append("name", name);
       formData.append("description", description);
@@ -634,12 +638,15 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
           const tradeParams = createTradeParams(
             parseFloat(priceInUSDT),
             selectedLogistics.map((p) => p.walletAddress),
+            // ["0xff5b2339e21a8dab7b39d3a8b9382b394e646cf0"],
+            // [0],
             selectedLogistics.map((p) =>
               parseFloat(logisticsCosts[p.walletAddress] || "0")
             ),
-            stock,
+            // stockQuantity,
+            parsedStockQuantity,
             selectedTokenSymbol,
-            wallet.chainId
+            wallet.chainId // take note
           );
 
           // Add trade parameters to form data

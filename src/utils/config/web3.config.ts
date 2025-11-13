@@ -334,10 +334,14 @@ export const createTradeParams = (
   productCost: number,
   logisticsProviders: string[],
   logisticsCosts: number[],
-  totalQuantity: string,
+  //  totalQuantity: string,
+  totalQuantity: number,
   paymentToken: string,
   chainId: number
 ) => {
+  const normalizedQuantity = Number.isFinite(totalQuantity)
+    ? Math.floor(totalQuantity)
+    : 0;
   const tokenAddress = getTokenAddressBySymbol(paymentToken, chainId);
 
   return {
@@ -345,7 +349,8 @@ export const createTradeParams = (
     logisticsProvider: logisticsProviders,
     logisticsCost: logisticsCosts,
     useUSDT: paymentToken === "USDT",
-    totalQuantity,
+    // totalQuantity,
+    totalQuantity: normalizedQuantity,
     paymentToken,
     tokenAddress, // This will be used by the smart contract
   };
