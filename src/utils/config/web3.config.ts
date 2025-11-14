@@ -1,6 +1,6 @@
 import { http, createConfig, fallback } from "wagmi";
 import { celo, celoAlfajores } from "wagmi/chains";
-import { coinbaseWallet, metaMask, walletConnect } from "wagmi/connectors";
+import { coinbaseWallet, metaMask, walletConnect, injected } from "wagmi/connectors";
 import cUSDIcon from "../../assets/icons/cUSD.svg";
 import cEURIcon from "../../assets/icons/cEUR.svg";
 import cREALIcon from "../../assets/icons/cREAL.svg";
@@ -228,17 +228,24 @@ export const TARGET_CHAIN = celo;
 export const wagmiConfig = createConfig({
   chains: [celo, celoAlfajores],
   connectors: [
+    // Coinbase Wallet with smart wallet support for email/social login
+    coinbaseWallet({
+      appName: "Dezenmart",
+      appLogoUrl: `${window.location.origin}/images/logo-full.png`,
+      preference: "smartWalletOnly", // Enable smart wallet (email/social login)
+    }),
+    // Coinbase Wallet - traditional option
+    coinbaseWallet({
+      appName: "Dezenmart",
+      appLogoUrl: `${window.location.origin}/images/logo-full.png`,
+      preference: "eoaOnly", // Traditional EOA wallet
+    }),
     metaMask({
       dappMetadata: {
         name: "Dezenmart",
         url: window.location.origin,
       },
       enableAnalytics: false,
-    }),
-    coinbaseWallet({
-      appName: "Dezenmart",
-      appLogoUrl: `${window.location.origin}/images/logo-full.png`,
-      // enableAnalytics: false,
     }),
     ...(import.meta.env.VITE_WALLETCONNECT_PROJECT_ID
       ? [
@@ -252,9 +259,14 @@ export const wagmiConfig = createConfig({
               icons: [`${window.location.origin}/images/logo-full.png`],
             },
             showQrModal: true,
-            // qrModalOptions: {
-            //   enableAnalytics: false,
-            // },
+            qrModalOptions: {
+              themeMode: "dark",
+              themeVariables: {
+                "--wcm-z-index": "9999",
+              },
+            },
+            // Support for mobile deep linking
+            isNewChainsStale: false,
           }),
         ]
       : []),

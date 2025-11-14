@@ -1186,16 +1186,47 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   // Legacy functions for backward compatibility
-  const connectWallet = useCallback(async () => {
+  const connectWallet = useCallback(async (connectorName?: string) => {
     try {
-      const connector =
-        connectors.find((c) => c.name === "MetaMask") || connectors[0];
-      if (connector) {
-        connect({ connector });
+      // If a specific connector is provided, use it
+      // Otherwise, intelligently select based on device and available wallets
+      let connector;
+
+      if (connectorName) {
+        connector = connectors.find((c) => c.name === connectorName);
+      } else {
+        // Auto-detect best connector for the user's device
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+        if (isMobile) {
+          // On mobile, prefer WalletConnect for better compatibility with mobile wallets
+          connector = connectors.find((c) => c.name.toLowerCase().includes("walletconnect")) ||
+                     connectors.find((c) => c.name === "Coinbase Wallet") ||
+                     connectors[0];
+        } else {
+          // On desktop, prefer MetaMask if installed, otherwise Coinbase Wallet
+          connector = connectors.find((c) => c.name === "MetaMask") ||
+                     connectors.find((c) => c.name === "Coinbase Wallet") ||
+                     connectors[0];
+        }
       }
-    } catch (error) {
+
+      if (connector) {
+        await connect({ connector });
+      } else {
+        throw new Error("No wallet connector available");
+      }
+    } catch (error: any) {
       console.error("Failed to connect wallet:", error);
-      showSnackbar("Failed to connect wallet. Please try again.", "error");
+
+      // Provide user-friendly error messages
+      if (error.message?.includes("User rejected")) {
+        showSnackbar("Connection cancelled", "info");
+      } else if (error.message?.includes("No wallet connector")) {
+        showSnackbar("No wallet found. Please install a wallet extension.", "error");
+      } else {
+        showSnackbar("Failed to connect wallet. Please try again.", "error");
+      }
     }
   }, [connect, connectors, showSnackbar]);
 

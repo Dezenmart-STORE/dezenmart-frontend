@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useConnect } from "wagmi";
-import { SiCoinbase } from "react-icons/si";
+import { SiCoinbase, SiGoogle, SiFacebook, SiApple } from "react-icons/si";
 import {
   HiDevicePhoneMobile,
   HiQuestionMarkCircle,
@@ -9,6 +9,8 @@ import {
   HiXMark,
   HiArrowPath,
   HiShieldCheck,
+  HiEnvelope,
+  HiSparkles,
 } from "react-icons/hi2";
 import Modal from "../common/Modal";
 import Button from "../common/Button";
@@ -45,6 +47,27 @@ const WalletConnectionModal: React.FC<WalletConnectionModalProps> = ({
       return true;
     });
   }, [connectors]);
+
+  // Separate Web2 (email/social) from traditional crypto wallets
+  const web2Connectors = useMemo(() => {
+    // Filter for Coinbase Smart Wallet (first Coinbase connector is smartWalletOnly)
+    return availableConnectors.filter((connector, index) => {
+      const isCoinbase = connector.name.toLowerCase().includes("coinbase");
+      // First Coinbase connector is the smart wallet
+      const isFirstCoinbase = isCoinbase && availableConnectors.findIndex(c => c.name.toLowerCase().includes("coinbase")) === index;
+      return isFirstCoinbase;
+    });
+  }, [availableConnectors]);
+
+  const cryptoWallets = useMemo(() => {
+    // Filter for traditional wallets (MetaMask, WalletConnect, and second Coinbase)
+    return availableConnectors.filter((connector, index) => {
+      const isCoinbase = connector.name.toLowerCase().includes("coinbase");
+      const isFirstCoinbase = isCoinbase && availableConnectors.findIndex(c => c.name.toLowerCase().includes("coinbase")) === index;
+      // Exclude the first Coinbase connector (which is smart wallet)
+      return !isFirstCoinbase;
+    });
+  }, [availableConnectors]);
 
   // Handle successful connection
   useEffect(() => {
@@ -134,17 +157,57 @@ const WalletConnectionModal: React.FC<WalletConnectionModalProps> = ({
     }
   };
 
-  const getWalletIcon = (name: string) => {
-    switch (name.toLowerCase()) {
-      case "metamask":
-        return <img src={metamaskLogo} alt="Metamask" className="w-8 h-8" />;
-      case "coinbase wallet":
-        return <SiCoinbase className="w-8 h-8 text-blue-500" />;
-      case "walletconnect":
-        return <HiDevicePhoneMobile className="w-8 h-8 text-blue-400" />;
-      default:
-        return <HiDevicePhoneMobile className="w-8 h-8 text-gray-400" />;
+  const isSmartWallet = (connector: any, index: number) => {
+    const isCoinbase = connector.name.toLowerCase().includes("coinbase");
+    const isFirstCoinbase = isCoinbase && availableConnectors.findIndex(c => c.name.toLowerCase().includes("coinbase")) === index;
+    return isFirstCoinbase;
+  };
+
+  const getWalletIcon = (connector: any, index: number) => {
+    const name = connector.name.toLowerCase();
+
+    // Check if this is the smart wallet (first Coinbase connector)
+    if (isSmartWallet(connector, index)) {
+      return <HiSparkles className="w-8 h-8 text-purple-500" />;
     }
+
+    // Traditional crypto wallets
+    if (name.includes("metamask")) {
+      return <img src={metamaskLogo} alt="Metamask" className="w-8 h-8" />;
+    } else if (name.includes("coinbase")) {
+      return <SiCoinbase className="w-8 h-8 text-blue-500" />;
+    } else if (name.includes("walletconnect")) {
+      return <HiDevicePhoneMobile className="w-8 h-8 text-blue-400" />;
+    }
+
+    return <HiDevicePhoneMobile className="w-8 h-8 text-gray-400" />;
+  };
+
+  const getWalletName = (connector: any, index: number) => {
+    if (isSmartWallet(connector, index)) {
+      return "Email or Social Sign-In";
+    }
+    return connector.name;
+  };
+
+  const getWalletDescription = (connector: any, index: number) => {
+    const name = connector.name.toLowerCase();
+
+    // Check if this is the smart wallet
+    if (isSmartWallet(connector, index)) {
+      return "Create a wallet instantly with email, Google, Apple, or phone";
+    }
+
+    // Traditional crypto wallets
+    if (name.includes("walletconnect")) {
+      return "Connect with mobile wallet apps";
+    } else if (name.includes("metamask")) {
+      return "Popular browser extension wallet";
+    } else if (name.includes("coinbase")) {
+      return "Secure wallet from Coinbase";
+    }
+
+    return "Connect your crypto wallet";
   };
 
   const getConnectionMessage = () => {
@@ -199,7 +262,7 @@ const WalletConnectionModal: React.FC<WalletConnectionModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={handleClose}
-      title="Connect Your Wallet"
+      title="Sign In to Get Started"
       maxWidth="md:max-w-lg"
       showCloseButton={!connectingWallet}
     >
@@ -258,7 +321,7 @@ const WalletConnectionModal: React.FC<WalletConnectionModalProps> = ({
         {!connectingWallet && (
           <div className="text-center space-y-4">
             <p className="text-gray-300">
-              Choose your preferred wallet to start shopping with crypto
+              Choose your preferred way to start shopping with crypto
             </p>
             <div className="flex items-center justify-center gap-2 text-sm text-Red bg-Red/10 rounded-lg p-3 border border-Red/20">
               <HiShieldCheck className="w-4 h-4 flex-shrink-0" />
@@ -270,48 +333,128 @@ const WalletConnectionModal: React.FC<WalletConnectionModalProps> = ({
           </div>
         )}
 
-        {/* Wallet Options */}
-        <div className="space-y-3">
-          {availableConnectors.map((connector) => (
-            <motion.div
-              key={connector.id}
-              whileHover={!connectingWallet ? { scale: 1.01 } : {}}
-              whileTap={!connectingWallet ? { scale: 0.99 } : {}}
-              transition={{ type: "spring", stiffness: 400, damping: 30 }}
-            >
-              <button
-                onClick={() => handleConnect(connector)}
-                disabled={!!connectingWallet}
-                className={`w-full flex items-center gap-4 p-4 rounded-xl border transition-all duration-200 ${
-                  connectingWallet === connector.name
-                    ? "bg-Red/20 border-Red/50 text-white shadow-lg shadow-Red/10"
-                    : connectingWallet
-                    ? "bg-Dark/50 border-gray-700/30 text-gray-500 cursor-not-allowed"
-                    : "bg-Dark hover:bg-Dark/80 border-gray-700/50 text-white hover:border-Red/30 hover:shadow-lg hover:shadow-Red/5"
-                }`}
+        {/* Web2 Easy Sign-In Options */}
+        {!connectingWallet && web2Connectors.length > 0 && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <HiSparkles className="w-5 h-5 text-purple-400" />
+              <h3 className="font-semibold text-white">Easy Sign-In</h3>
+              <span className="text-xs bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded-full border border-purple-500/30">
+                Recommended for beginners
+              </span>
+            </div>
+            <p className="text-sm text-gray-400 -mt-1">
+              No crypto wallet? No problem! Create a wallet instantly with your email or social account.
+            </p>
+
+            {web2Connectors.map((connector, idx) => {
+              const connectorIndex = availableConnectors.findIndex(c => c.id === connector.id);
+              return (
+                <motion.div
+                  key={connector.id}
+                  whileHover={{ scale: 1.01 }}
+                  whileTap={{ scale: 0.99 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                >
+                  <button
+                    onClick={() => handleConnect(connector)}
+                    className="w-full flex items-center gap-4 p-4 rounded-xl border bg-gradient-to-r from-purple-500/10 to-pink-500/10 border-purple-500/30 text-white hover:border-purple-400/50 hover:shadow-lg hover:shadow-purple-500/10 transition-all duration-200"
+                  >
+                    {getWalletIcon(connector, connectorIndex)}
+                    <div className="flex-1 text-left">
+                      <h3 className="font-medium">{getWalletName(connector, connectorIndex)}</h3>
+                      <p className="text-sm opacity-75">
+                        {getWalletDescription(connector, connectorIndex)}
+                      </p>
+                    </div>
+                    <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse" />
+                  </button>
+                </motion.div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Divider */}
+        {!connectingWallet && web2Connectors.length > 0 && cryptoWallets.length > 0 && (
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-px bg-gray-700/50" />
+            <span className="text-xs text-gray-500">OR</span>
+            <div className="flex-1 h-px bg-gray-700/50" />
+          </div>
+        )}
+
+        {/* Traditional Crypto Wallet Options */}
+        {!connectingWallet && cryptoWallets.length > 0 && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <h3 className="font-semibold text-white">Crypto Wallets</h3>
+              <span className="text-xs bg-gray-700/50 text-gray-400 px-2 py-0.5 rounded-full">
+                For experienced users
+              </span>
+            </div>
+            <p className="text-sm text-gray-400 -mt-1">
+              Already have a crypto wallet? Connect MetaMask, Coinbase Wallet, or other supported wallets.
+            </p>
+
+            {cryptoWallets.map((connector, idx) => {
+              const connectorIndex = availableConnectors.findIndex(c => c.id === connector.id);
+              return (
+                <motion.div
+                  key={connector.id}
+                  whileHover={{ scale: 1.01 }}
+                  whileTap={{ scale: 0.99 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                >
+                  <button
+                    onClick={() => handleConnect(connector)}
+                    className="w-full flex items-center gap-4 p-4 rounded-xl border bg-Dark hover:bg-Dark/80 border-gray-700/50 text-white hover:border-Red/30 hover:shadow-lg hover:shadow-Red/5 transition-all duration-200"
+                  >
+                    {getWalletIcon(connector, connectorIndex)}
+                    <div className="flex-1 text-left">
+                      <h3 className="font-medium">{getWalletName(connector, connectorIndex)}</h3>
+                      <p className="text-sm opacity-75">
+                        {getWalletDescription(connector, connectorIndex)}
+                      </p>
+                    </div>
+                    <div className="w-2 h-2 bg-Red rounded-full animate-pulse" />
+                  </button>
+                </motion.div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Connecting state - show wallet being connected */}
+        {connectingWallet && (() => {
+          const connector = availableConnectors.find(c => c.name === connectingWallet);
+          const connectorIndex = availableConnectors.findIndex(c => c.name === connectingWallet);
+          if (!connector) return null;
+
+          return (
+            <div className="space-y-3">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ type: "spring", stiffness: 400, damping: 30 }}
               >
-                {getWalletIcon(connector.name)}
-                <div className="flex-1 text-left">
-                  <h3 className="font-medium">{connector.name}</h3>
-                  <p className="text-sm opacity-75">
-                    {connector.name.toLowerCase().includes("walletconnect")
-                      ? "Connect with mobile wallet apps"
-                      : connector.name === "MetaMask"
-                      ? "Popular browser extension wallet"
-                      : "Secure wallet from Coinbase exchange"}
-                  </p>
-                </div>
-                {connectingWallet === connector.name ? (
+                <button
+                  disabled
+                  className="w-full flex items-center gap-4 p-4 rounded-xl border bg-Red/20 border-Red/50 text-white shadow-lg shadow-Red/10"
+                >
+                  {getWalletIcon(connector, connectorIndex)}
+                  <div className="flex-1 text-left">
+                    <h3 className="font-medium">{getWalletName(connector, connectorIndex)}</h3>
+                    <p className="text-sm opacity-75">
+                      {getWalletDescription(connector, connectorIndex)}
+                    </p>
+                  </div>
                   <div className="w-5 h-5 border-2 border-Red border-t-transparent rounded-full animate-spin" />
-                ) : connectingWallet ? (
-                  <div className="w-2 h-2 bg-gray-500 rounded-full" />
-                ) : (
-                  <div className="w-2 h-2 bg-Red rounded-full animate-pulse" />
-                )}
-              </button>
-            </motion.div>
-          ))}
-        </div>
+                </button>
+              </motion.div>
+            </div>
+          );
+        })()}
 
         {/* Cancel Connection Button */}
         {connectingWallet && !connectionTimeout && (

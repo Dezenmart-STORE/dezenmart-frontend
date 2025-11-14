@@ -168,7 +168,7 @@ const SingleProduct = () => {
               typeof formattedProduct.seller === "object"
                 ? { name: formattedProduct.seller?.name || "DezenMart Seller" }
                 : undefined,
-            rating: reviewCount > 0 ? undefined : 0,
+            rating: formattedProduct.seller.rating,
             reviewCount: reviewCount,
           }),
           // Breadcrumb Schema
