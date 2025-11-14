@@ -1647,12 +1647,30 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
 
           {/* Submit Button */}
           <div className="pt-4">
+            {/* Wallet connection warning */}
+            {!wallet?.isConnected && (
+              <div className="mb-4 p-3 bg-yellow-900/20 border border-yellow-500/30 rounded-lg">
+                <div className="flex items-center gap-2 text-yellow-400 text-sm">
+                  <FiInfo className="flex-shrink-0" />
+                  <p>
+                    Please connect your wallet to create a product. You need a connected wallet to receive payments.
+                  </p>
+                </div>
+              </div>
+            )}
+
             <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
               <Button
-                title={isSubmitting ? "Creating Product..." : "Create Product"}
-                className="w-full bg-Red border-0 rounded text-white py-3 transition-colors hover:bg-[#e02d37] flex items-center justify-center gap-2"
+                title={
+                  !wallet?.isConnected
+                    ? "Connect Wallet to Create Product"
+                    : isSubmitting
+                    ? "Creating Product..."
+                    : "Create Product"
+                }
+                className="w-full bg-Red border-0 rounded text-white py-3 transition-colors hover:bg-[#e02d37] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 type="submit"
-                disabled={isSubmitting || loading}
+                disabled={!wallet?.isConnected || isSubmitting || loading}
                 iconPosition="start"
                 icon={
                   isSubmitting ? (

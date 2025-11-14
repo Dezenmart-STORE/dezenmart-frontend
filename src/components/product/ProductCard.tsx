@@ -16,10 +16,11 @@ import { useSnackbar } from "../../context/SnackbarContext";
 interface ProductCardProps {
   product: Product;
   isNew?: boolean;
+  hideFavorite?: boolean;
 }
 
 const ProductCard = React.memo(
-  ({ product, isNew = false }: ProductCardProps) => {
+  ({ product, isNew = false, hideFavorite = false }: ProductCardProps) => {
     const navigate = useNavigate();
     const { isAuthenticated } = useAuth();
     const { showSnackbar } = useSnackbar();
@@ -39,24 +40,44 @@ const ProductCard = React.memo(
     const isFavorite = watchlistData?.isWatchlist || false;
 
     // Calculate formatted prices
+    // IMPORTANT: Product prices from backend are in USD
     const formattedPrices = useMemo(() => {
-      const usdtPrice = convertPrice(price, paymentToken, "USDT");
-      const fiatPrice = convertPrice(price, paymentToken, "FIAT");
-      const tokenPrice = convertPrice(price, paymentToken, selectedTokenSymbol);
+      // Since price is in USD, convert from USD to other currencies
+      const usdtPrice = convertPrice(price, "USD", "USDT");
+      const fiatPrice = convertPrice(price, "USD", "FIAT");
+      const tokenPrice = convertPrice(price, "USD", selectedTokenSymbol);
+
+      console.log(`💲 Product Price Conversion (${name}):`, {
+        originalUSD: price,
+        toUSDT: usdtPrice,
+        toFIAT: fiatPrice,
+        toToken: tokenPrice,
+        selectedToken: selectedTokenSymbol,
+      });
 
       return {
         formattedUsdtPrice: formatPrice(usdtPrice, "USDT"),
         formattedFiatPrice: formatPrice(fiatPrice, "FIAT"),
         formattedTokenPrice: formatPrice(tokenPrice, selectedTokenSymbol),
       };
-    }, [price, paymentToken, selectedTokenSymbol, convertPrice, formatPrice]);
+    }, [price, selectedTokenSymbol, convertPrice, formatPrice, name]);
 
-    const secondaryPrice =
-      secondaryCurrency === "TOKEN"
-        ? formattedPrices.formattedTokenPrice
-        : fiatCurrency === selectedTokenSymbol.replace(/^c/, "")
-        ? formattedPrices.formattedUsdtPrice
-        : formattedPrices.formattedFiatPrice;
+    // Price display respects user's currency toggle preference
+    const { primaryPrice, secondaryPrice } = useMemo(() => {
+      if (secondaryCurrency === "TOKEN") {
+        // User prefers to see token prices
+        return {
+          primaryPrice: formattedPrices.formattedTokenPrice,
+          secondaryPrice: formattedPrices.formattedUsdtPrice,
+        };
+      }
+
+      // User prefers to see fiat prices
+      return {
+        primaryPrice: formattedPrices.formattedFiatPrice,
+        secondaryPrice: formattedPrices.formattedUsdtPrice,
+      };
+    }, [secondaryCurrency, formattedPrices]);
 
     const imageUrl =
       images && images.length > 0
@@ -107,22 +128,24 @@ const ProductCard = React.memo(
                 New
               </motion.div>
             )}
-            <motion.button
-              whileTap={{ scale: 0.9 }}
-              className={`ml-auto bg-[#1A1B1F]/50 rounded-full p-1.5 sm:p-2 backdrop-blur-md ${
-                !isNew ? "mr-0" : ""
-              }`}
-              aria-label={
-                isFavorite ? "Remove from favorites" : "Add to favorites"
-              }
-              onClick={handleToggleFavorite}
-            >
-              {isFavorite ? (
-                <FaHeart className="text-base sm:text-xl text-Red" />
-              ) : (
-                <FaRegHeart className="text-base sm:text-xl text-white" />
-              )}
-            </motion.button>
+            {!hideFavorite && (
+              <motion.button
+                whileTap={{ scale: 0.9 }}
+                className={`ml-auto bg-[#1A1B1F]/50 rounded-full p-1.5 sm:p-2 backdrop-blur-md ${
+                  !isNew ? "mr-0" : ""
+                }`}
+                aria-label={
+                  isFavorite ? "Remove from favorites" : "Add to favorites"
+                }
+                onClick={handleToggleFavorite}
+              >
+                {isFavorite ? (
+                  <FaHeart className="text-base sm:text-xl text-Red" />
+                ) : (
+                  <FaRegHeart className="text-base sm:text-xl text-white" />
+                )}
+              </motion.button>
+            )}
           </div>
 
           {/* Image container */}
@@ -134,9 +157,14 @@ const ProductCard = React.memo(
             >
               <img
                 src={imageUrl}
-                alt={name}
+                alt={`${name} - ${
+                  product.category || "Product"
+                } - Buy with crypto | DezenMart`}
                 className="max-w-full max-h-full object-contain"
+                width="300"
+                height="300"
                 loading="lazy"
+                decoding="async"
               />
             </motion.div>
           </div>
@@ -166,14 +194,15 @@ const ProductCard = React.memo(
 
             {/* Price and buy button container */}
             <div className="mt-auto pt-1 sm:pt-2">
-              <div className="flex flex-col">
-                <span className="text-white text-sm md:text-base font-semibold">
-                  {/* {product.formattedCeloPrice} */}
-                  {secondaryPrice}
+              <div className="flex flex-col gap-0.5">
+                <span className="text-white text-base md:text-lg font-bold">
+                  {primaryPrice}
                 </span>
-                {/* <span className="text-[#AEAEB2] text-xs md:text-sm">
-                  {secondaryPrice}
-                </span> */}
+                {primaryPrice !== secondaryPrice && (
+                  <span className="text-[#AEAEB2] text-xs md:text-sm">
+                    ≈ {secondaryPrice}
+                  </span>
+                )}
               </div>
 
               {/* <motion.button

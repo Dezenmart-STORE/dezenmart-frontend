@@ -248,6 +248,7 @@ const ProductList = ({
                       key={`sponsored-${product._id}`}
                       product={product}
                       isNew={isNewProduct(product.createdAt)}
+                      hideFavorite={isUserProducts}
                     />
                   ))}
                 </div>
@@ -272,6 +273,7 @@ const ProductList = ({
                     key={`${product._id}-${index}`}
                     product={product}
                     isNew={isNewProduct(product.createdAt)}
+                    hideFavorite={isUserProducts}
                   />
                 ))}
               </div>
