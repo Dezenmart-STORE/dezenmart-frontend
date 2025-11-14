@@ -690,8 +690,41 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
         formData.append(`images`, media.file);
       });
 
+      // Log FormData contents for debugging
+      console.log("=== CREATE PRODUCT DEBUG ===");
+      console.log("FormData contents:");
+      const formDataEntries: Record<string, any> = {};
+      formData.forEach((value, key) => {
+        if (value instanceof File) {
+          formDataEntries[key] = formDataEntries[key] || [];
+          formDataEntries[key].push({
+            name: value.name,
+            size: value.size,
+            type: value.type
+          });
+        } else {
+          if (formDataEntries[key]) {
+            if (Array.isArray(formDataEntries[key])) {
+              formDataEntries[key].push(value);
+            } else {
+              formDataEntries[key] = [formDataEntries[key], value];
+            }
+          } else {
+            formDataEntries[key] = value;
+          }
+        }
+      });
+      console.log("Form Fields:", formDataEntries);
+      console.log("Variants Array:", variantsArray);
+      console.log("Media Files Count:", mediaFiles.length);
+      console.log("Selected Token:", selectedTokenSymbol);
+      console.log("Wallet Connected:", wallet?.isConnected);
+      console.log("Wallet Address:", wallet?.address);
+      console.log("Chain ID:", wallet?.chainId);
+      console.log("=== END DEBUG ===");
+
       const result = await createProduct(formData).unwrap();
-      console.log(result);
+      console.log("Create Product Result:", result);
       setSuccessMessage("Product created successfully! Redirecting...");
       showSnackbar("Product created successfully!", "success");
 

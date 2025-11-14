@@ -14,7 +14,7 @@ import {
 import { BsPeople } from "react-icons/bs";
 import { AiOutlineCalendar, AiOutlineMail } from "react-icons/ai";
 import { Rocket } from ".";
-import { useSEO } from "../hooks/useSEO";
+import { useSEO } from "../utils/hooks/useSEO";
 import { PAGE_SEO, generateFAQSchema } from "../utils/seo/seoConfig";
 import { FAQ_DATA } from "../data/faq";
 

@@ -6,7 +6,7 @@ import ProductList from "../components/product/ProductList";
 import { useSearchProductsQuery } from "../store/api/productsApi";
 import { debounce } from "../utils/helpers";
 import ProductCard from "../components/product/ProductCard";
-import { useSEO } from "../hooks/useSEO";
+import { useSEO } from "../utils/hooks/useSEO";
 import { PAGE_SEO, SEO_CONFIG, generateBreadcrumbSchema } from "../utils/seo/seoConfig";
 
 const categories = [

@@ -147,7 +147,7 @@ const OptimizedImage = ({
         initial={{ opacity: 0 }}
         animate={{ opacity: isLoading ? 0 : 1 }}
         transition={{ duration: 0.3 }}
-        {...props}
+        {...(props as any)}
       />
 
       {/* Error indicator (optional - can be removed in production) */}

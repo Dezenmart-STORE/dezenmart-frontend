@@ -43,20 +43,12 @@ export const selectRelatedProducts = createSelector(
     const { category } = currentProduct;
     const productId = currentProduct._id;
 
-    return products
-      .filter(
-        (product) =>
-          product.category &&
-          product.category === category &&
-          product._id !== productId
-      )
-      .map((product) => ({
-        ...product,
-        seller:
-          typeof product.seller === "object"
-            ? product.seller._id
-            : product.seller,
-      }));
+    return products.filter(
+      (product) =>
+        product.category &&
+        product.category === category &&
+        product._id !== productId
+    );
   }
 );
 

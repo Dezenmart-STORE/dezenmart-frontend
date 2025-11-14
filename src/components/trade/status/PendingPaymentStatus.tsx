@@ -475,7 +475,7 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
     loading,
     wallet.isConnected,
     calculations.hasSufficientBalance,
-    calculations.requiredAmount,
+    calculations.totalAmountInToken,
     connectWallet,
     debouncedRefetchBalance,
     showSnackbar,

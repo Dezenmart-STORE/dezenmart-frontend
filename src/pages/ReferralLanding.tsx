@@ -6,7 +6,7 @@ import Login from "./Login";
 import { storeReferralCode } from "../utils/referralUtils";
 // import { useReferralData } from "../utils/hooks/useReferralData";
 import { useAuth } from "../context/AuthContext";
-import { useSEO } from "../hooks/useSEO";
+import { useSEO } from "../utils/hooks/useSEO";
 import { PAGE_SEO } from "../utils/seo/seoConfig";
 
 const ReferralLanding = () => {

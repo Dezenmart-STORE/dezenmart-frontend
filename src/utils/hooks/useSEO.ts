@@ -1,11 +1,11 @@
 import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
-import { SEO_CONFIG, getCanonicalUrl } from "../utils/seo/seoConfig";
+import { SEO_CONFIG, getCanonicalUrl } from "../seo/seoConfig";
 
 interface SEOProps {
   title?: string;
   description?: string;
-  keywords?: string[];
+  keywords?: string[] | readonly string[];
   image?: string;
   type?: string;
   noindex?: boolean;
