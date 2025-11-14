@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "build:analyze": "ANALYZE=true npm run build",
+    "build:production": "npm run generate-sitemap && npm run build",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "preview": "vite preview",
@@ -15,8 +16,10 @@
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
     "type-check": "tsc --noEmit",
+    "generate-sitemap": "node scripts/generate-product-sitemap.js",
+    "generate-sitemap:ts": "tsx scripts/generate-product-sitemap.ts",
     "deploy:staging": "npm run build && echo 'Deploy to staging'",
-    "deploy:prod": "npm run test:run && npm run build && echo 'Deploy to production'"
+    "deploy:prod": "npm run test:run && npm run generate-sitemap && npm run build && echo 'Deploy to production'"
   },
   "dependencies": {
     "@divvi/referral-sdk": "^2.3.0",

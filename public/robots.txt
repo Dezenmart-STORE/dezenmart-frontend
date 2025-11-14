@@ -1,8 +1,54 @@
-# Dezenmart - Robots.txt
+# DezenMart - Web3 Marketplace - Robots.txt
+# Updated for comprehensive SEO optimization
+
+# Default crawling rules for all bots
 User-agent: *
 Allow: /
+Allow: /product
+Allow: /product/category/
+Allow: /community
+Allow: /referral
+
+# Disallow private/authentication routes
 Disallow: /api/
 Disallow: /auth/
+Disallow: /login
+Disallow: /account
+Disallow: /trades/
+Disallow: /orders/
+Disallow: /notifications
+Disallow: /chat
+
+# Disallow search result pages (prevent duplicate content)
+Disallow: /*?search=
+
+# Google bots - Full access
+User-agent: Googlebot
+Allow: /
+
+User-agent: Googlebot-Image
+Allow: /
+
+# Bing bot
+User-agent: Bingbot
+Allow: /
+Crawl-delay: 1
+
+# Prevent aggressive crawlers
+User-agent: AhrefsBot
+Crawl-delay: 2
+
+User-agent: SemrushBot
+Crawl-delay: 2
+
+# Block bad bots
+User-agent: MJ12bot
+Disallow: /
+
+User-agent: AhrefsBot
+Disallow: /
 
 # Sitemaps
 Sitemap: https://dezenmart.com/sitemap.xml
+Sitemap: https://dezenmart.com/sitemap-products.xml
+Sitemap: https://dezenmart.com/sitemap-categories.xml

@@ -10,6 +10,8 @@ import { useWeb3 } from "../context/Web3Context";
 import WalletConnectionModal from "../components/web3/WalletConnectionModal";
 import WalletDetailsModal from "../components/web3/WalletDetailsModal";
 import { GoUnverified, GoVerified } from "react-icons/go";
+import { useSEO } from "../utils/hooks/useSEO";
+import { PAGE_SEO, SEO_CONFIG } from "../utils/seo/seoConfig";
 
 const QUICK_ACTIONS_CONFIG = [
   {
@@ -109,6 +111,34 @@ const Home = () => {
   const { wallet } = useWeb3();
   const [showConnectionModal, setShowConnectionModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+
+  // SEO Configuration for homepage
+  useSEO({
+    title: PAGE_SEO.home.title,
+    description: PAGE_SEO.home.description,
+    keywords: PAGE_SEO.home.keywords,
+    type: "website",
+    structuredData: [
+      // Organization Schema
+      {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        ...SEO_CONFIG.organization,
+      },
+      // WebSite Schema with search action
+      {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        name: SEO_CONFIG.siteName,
+        url: SEO_CONFIG.siteUrl,
+        potentialAction: {
+          "@type": "SearchAction",
+          target: `${SEO_CONFIG.siteUrl}/product?search={search_term_string}`,
+          "query-input": "required name=search_term_string",
+        },
+      },
+    ],
+  });
 
   const handleWalletOpen = useCallback(() => {
     if (wallet.isConnected && wallet.address) {

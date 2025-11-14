@@ -6,6 +6,8 @@ import ProductList from "../components/product/ProductList";
 import { useSearchProductsQuery } from "../store/api/productsApi";
 import { debounce } from "../utils/helpers";
 import ProductCard from "../components/product/ProductCard";
+import { useSEO } from "../hooks/useSEO";
+import { PAGE_SEO, SEO_CONFIG, generateBreadcrumbSchema } from "../utils/seo/seoConfig";
 
 const categories = [
   "Electronics",
@@ -25,6 +27,64 @@ const Product = () => {
   const categoryParam = params.categoryName;
 
   const [activeCategory, setActiveCategory] = useState(categoryParam || "All");
+
+  // SEO Configuration for product listing/category pages
+  const seoConfig = useMemo(() => {
+    const isAllCategory = activeCategory === "All";
+
+    if (searchQuery.trim()) {
+      // Search results page
+      return {
+        title: `Search: "${searchQuery}" - Buy with Crypto | DezenMart`,
+        description: `Find products matching "${searchQuery}" on DezenMart. Shop securely with cryptocurrency and stablecoins.`,
+        keywords: [
+          ...PAGE_SEO.products.keywords || [],
+          searchQuery,
+          `buy ${searchQuery}`,
+        ],
+        noindex: true, // Don't index search result pages
+      };
+    }
+
+    if (isAllCategory) {
+      // All products page
+      return {
+        title: PAGE_SEO.products.title,
+        description: PAGE_SEO.products.description,
+        keywords: PAGE_SEO.products.keywords,
+        structuredData: [
+          generateBreadcrumbSchema([
+            { name: "Home", url: SEO_CONFIG.siteUrl },
+            { name: "Products", url: `${SEO_CONFIG.siteUrl}/product` },
+          ]),
+        ],
+      };
+    }
+
+    // Category-specific page
+    return {
+      title: `${activeCategory} - Buy with Crypto | DezenMart`,
+      description: `Shop ${activeCategory.toLowerCase()} with cryptocurrency on DezenMart. Secure payments with USDT, cUSD, and 16+ stablecoins. Escrow protection on every order.`,
+      keywords: [
+        activeCategory.toLowerCase(),
+        `buy ${activeCategory.toLowerCase()} with crypto`,
+        `${activeCategory.toLowerCase()} cryptocurrency`,
+        ...PAGE_SEO.products.keywords || [],
+      ],
+      structuredData: [
+        generateBreadcrumbSchema([
+          { name: "Home", url: SEO_CONFIG.siteUrl },
+          { name: "Products", url: `${SEO_CONFIG.siteUrl}/product` },
+          {
+            name: activeCategory,
+            url: `${SEO_CONFIG.siteUrl}/product/category/${activeCategory.toLowerCase()}`,
+          },
+        ]),
+      ],
+    };
+  }, [activeCategory, searchQuery]);
+
+  useSEO(seoConfig);
 
   // RTK Query hook for search with skip option
   const { data: searchResults = [], isLoading: isSearching } = useSearchProductsQuery(

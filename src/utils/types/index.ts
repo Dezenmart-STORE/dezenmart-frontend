@@ -52,7 +52,8 @@ export interface Product {
   description: string;
   price: number;
   category: string;
-  seller: string | { _id: string; name: string };
+  seller: { _id: string; name: string; rating: number; profileImage: string };
+  sellerWalletAddress: string;
   images: string[];
   isSponsored: boolean;
   isActive: boolean;
@@ -436,7 +437,8 @@ export interface CreateDeliveryAddressParams {
   isDefault?: boolean;
 }
 
-export interface UpdateDeliveryAddressParams extends Partial<CreateDeliveryAddressParams> {
+export interface UpdateDeliveryAddressParams
+  extends Partial<CreateDeliveryAddressParams> {
   _id: string;
 }
 

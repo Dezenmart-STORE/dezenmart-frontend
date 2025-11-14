@@ -14,10 +14,28 @@ import {
 import { BsPeople } from "react-icons/bs";
 import { AiOutlineCalendar, AiOutlineMail } from "react-icons/ai";
 import { Rocket } from ".";
+import { useSEO } from "../hooks/useSEO";
+import { PAGE_SEO, generateFAQSchema } from "../utils/seo/seoConfig";
+import { FAQ_DATA } from "../data/faq";
 
 const Community = () => {
   const [email, setEmail] = useState("");
   const [subscribed, setSubscribed] = useState(false);
+
+  // SEO Configuration for Community page with FAQ schema
+  useSEO({
+    title: PAGE_SEO.community.title,
+    description: PAGE_SEO.community.description,
+    structuredData: [
+      // FAQ Schema for common questions
+      generateFAQSchema(
+        FAQ_DATA.slice(0, 10).map(faq => ({
+          question: faq.question,
+          answer: faq.answer,
+        }))
+      ),
+    ],
+  });
 
   const containerVariants = {
     hidden: { opacity: 0 },

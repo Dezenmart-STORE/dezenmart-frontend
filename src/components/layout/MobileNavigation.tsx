@@ -1,10 +1,11 @@
-import { memo, useMemo } from "react";
-import { NavLink } from "react-router-dom";
+import { memo, useMemo, useState, useEffect } from "react";
+import { NavLink, useLocation } from "react-router-dom";
 import { AiOutlineHome } from "react-icons/ai";
 import { BiPackage } from "react-icons/bi";
 import { IoSwapHorizontalOutline } from "react-icons/io5";
 import { BsPeople } from "react-icons/bs";
 import { RiUser3Line } from "react-icons/ri";
+import { motion, AnimatePresence } from "framer-motion";
 import { useGetConversationsQuery } from "../../store/api";
 import { useAuth } from "../../context/AuthContext";
 
@@ -28,43 +29,101 @@ const navItems = [
 
 const MobileNavigation = () => {
   const { isAuthenticated } = useAuth();
+  const location = useLocation();
+  const [activeIndex, setActiveIndex] = useState(0);
 
   // RTK Query hook - polling for real-time updates, only when authenticated
   const { data: conversations = [] } = useGetConversationsQuery(undefined, {
     pollingInterval: 30000,
-    skip: !isAuthenticated, // Skip when not logged in
+    skip: !isAuthenticated,
   });
 
-  const totalUnreadMessages = useMemo(() =>
-    conversations.reduce((total, conv) => total + (conv.unreadCount || 0), 0),
+  const totalUnreadMessages = useMemo(
+    () => conversations.reduce((total, conv) => total + (conv.unreadCount || 0), 0),
     [conversations]
   );
 
+  // Update active index based on current path
+  useEffect(() => {
+    const currentIndex = navItems.findIndex((item) => item.path === location.pathname);
+    if (currentIndex !== -1) {
+      setActiveIndex(currentIndex);
+    }
+  }, [location.pathname]);
+
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-[#212428] flex justify-evenly items-center px-2 py-1.5 md:hidden z-50 border-t border-[#292B30]">
-      {navItems.map((item) => {
-        // const badge =
-        //   item.badgeKey === "totalUnreadMessages"
-        //     ? totalUnreadMessages
-        //     : undefined;
+    <nav className="fixed bottom-0 left-0 right-0 bg-[#212428]/95 backdrop-blur-lg flex justify-evenly items-center px-2 py-2 md:hidden z-50 border-t border-[#292B30] shadow-2xl">
+      {/* Active indicator */}
+      <motion.div
+        className="absolute top-0 h-0.5 bg-gradient-to-r from-transparent via-Red to-transparent"
+        initial={false}
+        animate={{
+          left: `${(activeIndex / navItems.length) * 100}%`,
+          width: `${100 / navItems.length}%`,
+        }}
+        transition={{
+          type: "spring",
+          stiffness: 380,
+          damping: 30,
+        }}
+      />
+
+      {navItems.map((item, index) => {
+        const isActive = location.pathname === item.path;
+
         return (
           <NavLink
             key={item.path}
             to={item.path}
-            className={({ isActive }) => `
-              relative flex flex-col items-center text-xs p-1.5
-              ${isActive ? "text-Red" : "text-[#545456]"}
-            `}
+            className="relative flex flex-col items-center"
             aria-label={item.label}
-            // aria-label={item.label + (badge ? ` (${badge} unread)` : "")}
           >
-            {item.icon}
-            <span className="mt-0.5 text-[10px]">{item.label}</span>
-            {/* {badge && badge > 0 && (
-              <span className="absolute top-0 right-0 bg-Red text-white text-[10px] rounded-full h-4 w-4 flex items-center justify-center">
-                {badge > 9 ? "9+" : badge}
-              </span>
-            )} */}
+            {({ isActive: linkActive }) => (
+              <motion.div
+                className="flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-colors"
+                whileTap={{ scale: 0.9 }}
+                animate={{
+                  backgroundColor: linkActive ? "rgba(239, 68, 68, 0.1)" : "transparent",
+                }}
+                transition={{ duration: 0.2 }}
+              >
+                {/* Icon with scale animation */}
+                <motion.div
+                  animate={{
+                    scale: linkActive ? 1.1 : 1,
+                    color: linkActive ? "#ef4444" : "#545456",
+                  }}
+                  transition={{ duration: 0.2 }}
+                  className="relative"
+                >
+                  {item.icon}
+
+                  {/* Active dot indicator */}
+                  <AnimatePresence>
+                    {linkActive && (
+                      <motion.div
+                        initial={{ scale: 0, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        exit={{ scale: 0, opacity: 0 }}
+                        className="absolute -top-1 -right-1 w-2 h-2 bg-Red rounded-full"
+                      />
+                    )}
+                  </AnimatePresence>
+                </motion.div>
+
+                {/* Label */}
+                <motion.span
+                  className="text-[10px] font-medium"
+                  animate={{
+                    color: linkActive ? "#ef4444" : "#545456",
+                    fontWeight: linkActive ? 600 : 500,
+                  }}
+                  transition={{ duration: 0.2 }}
+                >
+                  {item.label}
+                </motion.span>
+              </motion.div>
+            )}
           </NavLink>
         );
       })}

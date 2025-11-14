@@ -58,7 +58,13 @@ const BuyCheckout = () => {
             description: "Neat carved wood art works",
             price: 20000,
             category: "Art Work",
-            seller: "680821b06eda53ead327e0ea",
+            seller: {
+              _id: "680821b06eda53ead327e0ea",
+              name: "Ilyas",
+              rating: 4,
+              profileImage: "",
+            },
+            sellerWalletAddress: "",
             images: [
               "images-1745366906480-810449189.jpeg",
               "images-1745366906494-585992412.jpeg",

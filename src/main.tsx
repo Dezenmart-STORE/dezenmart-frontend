@@ -27,6 +27,8 @@ import { Web3Provider } from "./context/Web3Context.tsx";
 import { wagmiConfig } from "./utils/config/web3.config.ts";
 import TermsModal from "./components/common/TermsModal.tsx";
 import { TermsProvider } from "./context/TermsContext.tsx";
+import { WalkthroughProvider } from "./context/WalkthroughContext.tsx";
+import Walkthrough from "./components/walkthrough/Walkthrough.tsx";
 import { initSentry } from "./utils/sentry.config.ts";
 import {
   initPerformanceMonitoring,
@@ -98,13 +100,16 @@ const RouterLayout = () => {
                 <AuthProvider>
                   <TermsProvider>
                     <CurrencyProvider>
-                      <Layout>
-                        <Suspense fallback={<Loadscreen />}>
-                          <Outlet />
-                        </Suspense>
-                        <ReferralHandler />
-                        <TermsModal />
-                      </Layout>
+                      <WalkthroughProvider>
+                        <Layout>
+                          <Suspense fallback={<Loadscreen />}>
+                            <Outlet />
+                          </Suspense>
+                          <ReferralHandler />
+                          <TermsModal />
+                          <Walkthrough />
+                        </Layout>
+                      </WalkthroughProvider>
                     </CurrencyProvider>
                   </TermsProvider>
                 </AuthProvider>

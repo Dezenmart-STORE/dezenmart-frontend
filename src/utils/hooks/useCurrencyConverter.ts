@@ -290,6 +290,7 @@ export const useCurrencyConverter = () => {
 
   /**
    * Convert price with current rates
+   * Handles USD separately from USDT to account for slight depeg scenarios
    */
   const convertPrice = useCallback(
     (price: number, from: Currency, to: Currency): number => {
@@ -302,6 +303,53 @@ export const useCurrencyConverter = () => {
       console.log(
         `🔄 Converting ${price} from ${normalizedFrom} to ${normalizedTo}`
       );
+
+      // Special case: USD to USDT or vice versa
+      if (normalizedFrom === "USD" && normalizedTo === "USDT") {
+        const usdtToUsd = rates["USDT_USD"] || 1.0;
+        const result = price / usdtToUsd; // 1 USD = (1 / USDT_USD) USDT
+        console.log(`✅ USD→USDT: ${price} ÷ ${usdtToUsd} = ${result}`);
+        return result;
+      }
+
+      if (normalizedFrom === "USDT" && normalizedTo === "USD") {
+        const usdtToUsd = rates["USDT_USD"] || 1.0;
+        const result = price * usdtToUsd;
+        console.log(`✅ USDT→USD: ${price} × ${usdtToUsd} = ${result}`);
+        return result;
+      }
+
+      // Handle USD conversions by going through USDT
+      if (normalizedFrom === "USD") {
+        const usdtToUsd = rates["USDT_USD"] || 1.0;
+        const priceInUsdt = price / usdtToUsd;
+        const rateKey = `USDT_${normalizedTo}`;
+
+        if (rates[rateKey]) {
+          const result = priceInUsdt * rates[rateKey];
+          console.log(`✅ USD→${normalizedTo} via USDT: ${price} ÷ ${usdtToUsd} × ${rates[rateKey]} = ${result}`);
+          return result;
+        }
+
+        // Try reverse rate
+        const reverseKey = `${normalizedTo}_USDT`;
+        if (rates[reverseKey]) {
+          const result = priceInUsdt / rates[reverseKey];
+          console.log(`✅ USD→${normalizedTo} via USDT (reverse): ${priceInUsdt} ÷ ${rates[reverseKey]} = ${result}`);
+          return result;
+        }
+      }
+
+      if (normalizedTo === "USD") {
+        const rateKey = `${normalizedFrom}_USDT`;
+        if (rates[rateKey]) {
+          const priceInUsdt = price * rates[rateKey];
+          const usdtToUsd = rates["USDT_USD"] || 1.0;
+          const result = priceInUsdt * usdtToUsd;
+          console.log(`✅ ${normalizedFrom}→USD via USDT: ${price} × ${rates[rateKey]} × ${usdtToUsd} = ${result}`);
+          return result;
+        }
+      }
 
       // Direct rate lookup
       const rateKey = `${normalizedFrom}_${normalizedTo}`;
@@ -321,7 +369,7 @@ export const useCurrencyConverter = () => {
         return result;
       }
 
-      // Convert through USD
+      // Convert through USD (fallback)
       const fromToUsd = rates[`${normalizedFrom}_USD`];
       const toToUsd = rates[`${normalizedTo}_USD`];
 

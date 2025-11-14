@@ -1,14 +1,21 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { LiaAngleLeftSolid } from "react-icons/lia";
-import { FaRegHeart, FaHeart } from "react-icons/fa";
+import { FaRegHeart, FaHeart, FaWallet } from "react-icons/fa";
 import { IoShareSocialOutline } from "react-icons/io5";
-import { motion } from "framer-motion";
+import { HiShieldCheck, HiCurrencyDollar } from "react-icons/hi2";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   useCheckWatchlistQuery,
   useAddToWatchlistMutation,
   useRemoveFromWatchlistMutation,
 } from "../store/api/watchlistApi";
+import { useSEO } from "../utils/hooks/useSEO";
+import {
+  generateProductSchema,
+  generateBreadcrumbSchema,
+  SEO_CONFIG,
+} from "../utils/seo/seoConfig";
 
 import ProductImage from "../components/product/singleProduct/ProductImage";
 import ProductTabs from "../components/product/singleProduct/ProductTabs";
@@ -17,6 +24,8 @@ import CustomerReviews from "../components/product/singleProduct/CustomerReviews
 import PurchaseSection from "../components/product/singleProduct/PurchaseSection";
 import ProductLoadingSkeleton from "../components/product/singleProduct/LoadingSkeleton";
 import ProductCard from "../components/product/ProductCard";
+import { useWeb3 } from "../context/Web3Context";
+import Button from "../components/common/Button";
 import {
   useGetProductByIdQuery,
   useGetProductsByCategoryQuery,
@@ -32,6 +41,7 @@ const SingleProduct = () => {
   const { user } = useAuth();
   const { productId } = useParams();
   const navigate = useNavigate();
+  const { wallet, connectWallet } = useWeb3();
 
   // RTK Query hooks
   const {
@@ -69,7 +79,18 @@ const SingleProduct = () => {
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(
     null
   );
+  const [showWalletBanner, setShowWalletBanner] = useState(true);
   const isFavorite = watchlistStatus?.isWatchlist || false;
+
+  // Handle wallet connection
+  const handleConnectWallet = useCallback(async () => {
+    try {
+      await connectWallet();
+      setShowWalletBanner(false);
+    } catch (error) {
+      console.error("Failed to connect wallet:", error);
+    }
+  }, [connectWallet]);
 
   // Format product with CORRECT prices
   const formattedProduct = useMemo(() => {
@@ -106,6 +127,72 @@ const SingleProduct = () => {
       formattedFiatPrice: formatPrice(priceInFiat, fiatCurrency),
     };
   }, [product, selectedTokenSymbol, fiatCurrency, convertPrice, formatPrice]);
+
+  // SEO Configuration for product page
+  useSEO({
+    title: formattedProduct?.name
+      ? `${formattedProduct.name} - Buy with Crypto`
+      : "Product Details",
+    description:
+      typeof formattedProduct?.description === "string"
+        ? formattedProduct.description.slice(0, 160)
+        : "Shop securely with cryptocurrency on DezenMart",
+    keywords: [
+      ...(formattedProduct?.category
+        ? [`${formattedProduct.category}`, `buy ${formattedProduct.category}`]
+        : []),
+      ...(formattedProduct?.name ? [formattedProduct.name] : []),
+      "crypto shopping",
+      "buy with crypto",
+      "stablecoin payment",
+    ],
+    image:
+      formattedProduct?.images?.[0] ||
+      `${SEO_CONFIG.siteUrl}${SEO_CONFIG.openGraph.images.default}`,
+    type: "product",
+    canonicalUrl: `${SEO_CONFIG.siteUrl}/product/${productId}`,
+    structuredData: formattedProduct
+      ? [
+          // Product Schema
+          generateProductSchema({
+            name: formattedProduct.name,
+            description:
+              typeof formattedProduct.description === "string"
+                ? formattedProduct.description
+                : "",
+            price: formattedProduct.price,
+            currency: "USD",
+            images: formattedProduct.images || [],
+            category: formattedProduct.category,
+            seller:
+              typeof formattedProduct.seller === "object"
+                ? { name: formattedProduct.seller?.name || "DezenMart Seller" }
+                : undefined,
+            rating: formattedProduct.averageRating,
+            reviewCount: reviewCount,
+          }),
+          // Breadcrumb Schema
+          generateBreadcrumbSchema([
+            { name: "Home", url: SEO_CONFIG.siteUrl },
+            { name: "Products", url: `${SEO_CONFIG.siteUrl}/product` },
+            ...(formattedProduct.category
+              ? [
+                  {
+                    name: formattedProduct.category,
+                    url: `${
+                      SEO_CONFIG.siteUrl
+                    }/product/category/${formattedProduct.category.toLowerCase()}`,
+                  },
+                ]
+              : []),
+            {
+              name: formattedProduct.name,
+              url: `${SEO_CONFIG.siteUrl}/product/${productId}`,
+            },
+          ]),
+        ]
+      : undefined,
+  });
 
   const handleGoBack = () => navigate(-1);
 
@@ -198,13 +285,23 @@ const SingleProduct = () => {
     background: `linear-gradient(to bottom, #292B30 0%, rgba(41, 43, 48, 0.95) 100%)`,
   };
 
-  // Determine which price to display
-  const displayPrice =
-    secondaryCurrency === "TOKEN"
-      ? formattedProduct.formattedTokenPrice
-      : fiatCurrency === selectedTokenSymbol.replace(/^c/, "")
-      ? formattedProduct.formattedUsdtPrice
-      : formattedProduct.formattedFiatPrice;
+  // Simplify price display logic
+  const displayPrice = useMemo(() => {
+    if (!formattedProduct) return null;
+
+    // Priority: Show in user's preferred currency
+    if (secondaryCurrency === "TOKEN") {
+      return {
+        primary: formattedProduct.formattedTokenPrice,
+        secondary: formattedProduct.formattedUsdtPrice,
+      };
+    }
+
+    return {
+      primary: formattedProduct.formattedFiatPrice,
+      secondary: formattedProduct.formattedUsdtPrice,
+    };
+  }, [formattedProduct, secondaryCurrency]);
 
   return (
     <motion.div
@@ -214,6 +311,90 @@ const SingleProduct = () => {
       className="bg-Dark min-h-screen"
     >
       <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+        {/* Wallet Connection Banner */}
+        <AnimatePresence>
+          {!wallet.isConnected && showWalletBanner && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="mb-4 bg-gradient-to-r from-red-600/20 to-red-500/10 border border-red-500/30 rounded-xl p-4 backdrop-blur-sm"
+            >
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3 flex-1">
+                  <div className="w-10 h-10 bg-red-500/20 rounded-full flex items-center justify-center">
+                    <HiShieldCheck className="w-6 h-6 text-red-400" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-white font-medium text-sm sm:text-base">
+                      Connect Your Wallet to Buy
+                    </h3>
+                    <p className="text-gray-400 text-xs sm:text-sm">
+                      Secure payments with crypto • No fees • Instant escrow
+                      protection
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    title="Connect Wallet"
+                    icon={<FaWallet className="w-4 h-4" />}
+                    onClick={handleConnectWallet}
+                    className="bg-red-600 hover:bg-red-700 text-white text-sm px-4 py-2 transition-all duration-200"
+                  />
+                  <button
+                    onClick={() => setShowWalletBanner(false)}
+                    className="text-gray-400 hover:text-white transition-colors p-2"
+                    aria-label="Dismiss banner"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Wallet Connected Banner */}
+          {wallet.isConnected && showWalletBanner && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="mb-4 bg-gradient-to-r from-green-600/20 to-green-500/10 border border-green-500/30 rounded-xl p-4 backdrop-blur-sm"
+            >
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3 flex-1">
+                  <div className="w-10 h-10 bg-green-500/20 rounded-full flex items-center justify-center">
+                    <HiCurrencyDollar className="w-6 h-6 text-green-400" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-white font-medium text-sm sm:text-base flex items-center gap-2">
+                      Wallet Connected
+                      <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                    </h3>
+                    <p className="text-gray-400 text-xs sm:text-sm font-mono">
+                      {wallet.address &&
+                        `${wallet.address.slice(0, 6)}...${wallet.address.slice(
+                          -4
+                        )}`}{" "}
+                      •{" "}
+                      {wallet.tokenBalances[wallet.selectedToken.symbol]
+                        ?.formatted || "0 " + wallet.selectedToken.symbol}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowWalletBanner(false)}
+                  className="text-gray-400 hover:text-white transition-colors p-2"
+                  aria-label="Dismiss banner"
+                >
+                  ✕
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <div className="flex flex-col xl:flex-row gap-6">
           <div
             style={backgroundStyle}
@@ -256,7 +437,11 @@ const SingleProduct = () => {
               </div>
 
               {/* Product Image */}
-              <ProductImage images={formattedProduct.images} />
+              <ProductImage
+                images={formattedProduct.images}
+                productName={formattedProduct.name}
+                productCategory={formattedProduct.category}
+              />
             </div>
           </div>
 
@@ -270,12 +455,15 @@ const SingleProduct = () => {
                   <div className="flex flex-col gap-1 text-right">
                     <div className="flex items-center gap-2">
                       <span className="text-2xl font-bold text-red-500">
-                        {displayPrice}
+                        {displayPrice?.primary}
                       </span>
                     </div>
-                    <span className="text-sm text-gray-400">
-                      {formattedProduct.formattedUsdtPrice}
-                    </span>
+                    {displayPrice?.secondary &&
+                      displayPrice.primary !== displayPrice.secondary && (
+                        <span className="text-sm text-gray-400">
+                          ≈ {displayPrice.secondary}
+                        </span>
+                      )}
                   </div>
                 </div>
               </div>
@@ -312,19 +500,38 @@ const SingleProduct = () => {
             </div>
           </div>
         </div>
-        {relatedProducts.length > 0 && (
-          <div className="mt-8">
-            <h2 className="text-xl font-semibold text-white mb-4">
-              Related Products
-            </h2>
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 md:gap-5">
-              {relatedProducts.map((product) => {
+        {/* Related Products Section with Loading State */}
+        <div className="mt-8">
+          <h2 className="text-xl font-semibold text-white mb-4">
+            Related Products
+          </h2>
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 md:gap-5">
+            {loading ? (
+              // Loading skeletons
+              Array.from({ length: 5 }).map((_, index) => (
+                <div
+                  key={`skeleton-${index}`}
+                  className="bg-[#292B30] rounded-xl overflow-hidden animate-pulse"
+                >
+                  <div className="aspect-square bg-gray-700" />
+                  <div className="p-3 space-y-2">
+                    <div className="h-4 bg-gray-700 rounded w-3/4" />
+                    <div className="h-3 bg-gray-700 rounded w-1/2" />
+                  </div>
+                </div>
+              ))
+            ) : relatedProducts.length > 0 ? (
+              relatedProducts.map((product) => {
                 if (!product) return null;
                 return <ProductCard key={product?._id} product={product} />;
-              })}
-            </div>
+              })
+            ) : (
+              <div className="col-span-full text-center py-8 text-gray-400">
+                No related products found
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
     </motion.div>
   );

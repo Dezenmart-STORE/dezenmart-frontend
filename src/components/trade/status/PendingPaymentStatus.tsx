@@ -242,8 +242,8 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
   const calculations = useMemo(() => {
     if (!orderValidation.isValid || !orderDetails?.product?.price) {
       return {
-        totalAmount: 0,
-        requiredAmount: 0,
+        totalAmountUSD: 0,
+        totalAmountInToken: 0,
         hasChanges: false,
         userBalance: 0,
         hasSufficientBalance: false,
@@ -251,14 +251,30 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
     }
 
     try {
-      // const totalAmount = Number(
-      //   (orderDetails.product.price * quantity).toFixed(6)
-      // );
-      const subtotal = orderDetails.product.price * quantity;
+      // Product prices are in USD
+      const productPriceUSD = orderDetails.product.price;
+      const subtotalUSD = productPriceUSD * quantity;
       const escrowFeeRate = 0.025; // 2.5%
-      const fixedCharge = 2;
-      const totalAmount = subtotal + subtotal * escrowFeeRate + fixedCharge;
-      const requiredAmount = Number((totalAmount * 1.02).toFixed(6));
+      const escrowFeeUSD = subtotalUSD * escrowFeeRate;
+
+      // Calculate logistics fee (already in USD)
+      const logisticsFeeUSD = (() => {
+        const logisticsProvider = orderDetails.logisticsProviderWalletAddress?.[0];
+        if (!logisticsProvider) return 0;
+
+        const logisticsIndex = orderDetails.product.logisticsProviders?.findIndex(
+          (provider: string) => provider.toLowerCase() === logisticsProvider.toLowerCase()
+        );
+
+        return logisticsIndex >= 0
+          ? parseFloat(orderDetails.product.logisticsCost?.[logisticsIndex] || "0")
+          : 0;
+      })();
+
+      const totalUSD = subtotalUSD + escrowFeeUSD + logisticsFeeUSD;
+
+      // Convert to selected token
+      const totalInToken = convertPrice(totalUSD, "USD", wallet.selectedToken.symbol);
 
       const hasQuantityChanged = quantity !== orderDetails.quantity;
       const currentLogistics = orderDetails.logisticsProviderWalletAddress?.[0];
@@ -268,30 +284,36 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
 
       const userBalance = (() => {
         const balanceStr = String(
-          wallet.tokenBalances[wallet.selectedToken.symbol].raw || 0
+          wallet.tokenBalances[wallet.selectedToken.symbol]?.raw || 0
         ).replace(/[,\s]/g, "");
         const parsed = Number(balanceStr);
         return Number.isFinite(parsed) ? parsed : 0;
       })();
 
+      console.log("💰 Pending Payment Calculations:", {
+        productPriceUSD,
+        quantity,
+        subtotalUSD,
+        escrowFeeUSD,
+        logisticsFeeUSD,
+        totalUSD,
+        totalInToken,
+        userBalance,
+        selectedToken: wallet.selectedToken.symbol,
+      });
+
       return {
-        totalAmount,
-        requiredAmount,
+        totalAmountUSD: totalUSD,
+        totalAmountInToken: totalInToken,
         hasChanges: hasQuantityChanged || Boolean(hasLogisticsChanged),
         userBalance,
-        hasSufficientBalance:
-          userBalance >=
-          convertPrice(
-            requiredAmount,
-            "USDT",
-            `${wallet.selectedToken.symbol}`
-          ),
+        hasSufficientBalance: userBalance >= totalInToken,
       };
     } catch (error) {
       console.error("Calculation error:", error);
       return {
-        totalAmount: 0,
-        requiredAmount: 0,
+        totalAmountUSD: 0,
+        totalAmountInToken: 0,
         hasChanges: false,
         userBalance: 0,
         hasSufficientBalance: false,
@@ -301,7 +323,9 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
     orderValidation.isValid,
     orderDetails?.product?.price,
     orderDetails?.quantity,
-    orderDetails?.logisticsProviderWalletAddress?.[0],
+    orderDetails?.logisticsProviderWalletAddress,
+    orderDetails?.product?.logisticsProviders,
+    orderDetails?.product?.logisticsCost,
     quantity,
     selectedLogisticsProvider?.walletAddress,
     wallet.tokenBalances,
@@ -327,16 +351,18 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
 
     if (!calculations.hasSufficientBalance) return "Insufficient Balance";
     return `Pay ${formatPrice(
-      calculations.totalAmount,
-      `${orderDetails?.product.paymentToken}`
+      calculations.totalAmountInToken,
+      wallet.selectedToken.symbol
     )}`;
   }, [
     loading,
     tradeValidation.isLoading,
     tradeValidation.isValid,
     wallet.isConnected,
-    calculations.totalAmount,
+    calculations.totalAmountInToken,
     calculations.hasSufficientBalance,
+    wallet.selectedToken.symbol,
+    formatPrice,
   ]);
 
   useEffect(() => {
@@ -419,9 +445,10 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
 
       if (!calculations.hasSufficientBalance) {
         showSnackbar(
-          `Insufficient USDT balance. Required: ${calculations.requiredAmount.toFixed(
-            2
-          )} USDT`,
+          `Insufficient ${wallet.selectedToken.symbol} balance. Required: ${formatPrice(
+            calculations.totalAmountInToken,
+            wallet.selectedToken.symbol
+          )} (≈$${calculations.totalAmountUSD.toFixed(2)} USD)`,
           "error"
         );
         return;

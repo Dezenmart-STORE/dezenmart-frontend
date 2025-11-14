@@ -25,6 +25,7 @@ import {
   getBestTokenForPurchase,
   TokenBalanceInfo,
 } from "../../utils/tokenBalanceChecker";
+import { useCurrencyConverter } from "../../utils/hooks/useCurrencyConverter";
 
 interface PaymentModalProps {
   isOpen: boolean;
@@ -42,6 +43,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   onPaymentSuccess,
 }) => {
   const { showSnackbar } = useSnackbar();
+  const { convertPrice, formatPrice } = useCurrencyConverter();
   const {
     wallet,
     buyTrade,
@@ -82,7 +84,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   const selectedToken = wallet.selectedToken;
   const selectedTokenBalance = wallet.tokenBalances[selectedToken.symbol];
 
-  // Calculate logistics fee
+  // Calculate logistics fee (in USD)
   const logisticsFee = useMemo(() => {
     const logisticsProvider = orderDetails?.logisticsProviderWalletAddress?.[0];
     if (!logisticsProvider) return 0;
@@ -97,14 +99,43 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
       : 0;
   }, [orderDetails]);
 
-  // Calculate TOTAL order amount: product + escrow fee (2.5%) + logistics
-  const orderAmount = useMemo(() => {
-    const productPrice = orderDetails?.product?.price || 0;
-    const quantity = orderDetails?.quantity || 1;
-    const subtotal = productPrice * quantity;
-    const escrowFee = subtotal * 0.025; // 2.5%
-    return subtotal + escrowFee + logisticsFee;
-  }, [orderDetails, logisticsFee]);
+  // Calculate TOTAL order amount in USD, then convert to selected token
+  // NOTE: Product prices from backend are in USD
+  const { orderAmountUSD, orderAmountInToken, subtotal, escrowFee } = useMemo(() => {
+    if (!orderDetails?.product?.price) {
+      return { orderAmountUSD: 0, orderAmountInToken: 0, subtotal: 0, escrowFee: 0 };
+    }
+
+    const productPriceUSD = orderDetails.product.price; // Price is in USD
+    const quantity = orderDetails.quantity || 1;
+    const subtotalUSD = productPriceUSD * quantity;
+    const escrowFeeUSD = subtotalUSD * 0.025; // 2.5%
+    const totalUSD = subtotalUSD + escrowFeeUSD + logisticsFee;
+
+    // Convert from USD to selected token
+    const totalInToken = convertPrice(totalUSD, "USD", selectedToken.symbol);
+
+    console.log("💰 Payment Modal Calculations:", {
+      productPriceUSD,
+      quantity,
+      subtotalUSD,
+      escrowFeeUSD,
+      logisticsFee,
+      totalUSD,
+      selectedToken: selectedToken.symbol,
+      totalInToken,
+    });
+
+    return {
+      orderAmountUSD: totalUSD,
+      orderAmountInToken: totalInToken,
+      subtotal: subtotalUSD,
+      escrowFee: escrowFeeUSD,
+    };
+  }, [orderDetails, logisticsFee, selectedToken.symbol, convertPrice]);
+
+  // Use the token amount for balance checks
+  const orderAmount = orderAmountInToken;
 
   const balanceNumber = useMemo(() => {
     if (!selectedTokenBalance?.raw) return 0;
@@ -489,41 +520,55 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                   <span className="text-gray-300">
                     {orderDetails.product?.name} × {orderDetails.quantity}
                   </span>
-                  <span className="text-white font-medium">
-                    {formatCurrency(
-                      (orderDetails.product?.price || 0) * orderDetails.quantity
-                    )}{" "}
-                    {selectedToken.symbol}
-                  </span>
+                  <div className="text-right">
+                    <div className="text-white font-medium">
+                      {formatPrice(convertPrice(subtotal, "USD", selectedToken.symbol), selectedToken.symbol)}
+                    </div>
+                    <div className="text-xs text-gray-400">
+                      ${subtotal.toFixed(2)} USD
+                    </div>
+                  </div>
                 </div>
 
                 {/* Escrow Fee */}
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-400">Escrow Fee (2.5%)</span>
-                  <span className="text-gray-300">
-                    {formatCurrency(
-                      (orderDetails.product?.price || 0) *
-                        orderDetails.quantity *
-                        0.025
-                    )}{" "}
-                    {selectedToken.symbol}
-                  </span>
+                  <div className="text-right">
+                    <div className="text-gray-300">
+                      {formatPrice(convertPrice(escrowFee, "USD", selectedToken.symbol), selectedToken.symbol)}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      ${escrowFee.toFixed(2)} USD
+                    </div>
+                  </div>
                 </div>
 
                 {/* Logistics Fee */}
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-400">Logistics Fee</span>
-                  <span className="text-gray-300">
-                    {formatCurrency(logisticsFee)} {selectedToken.symbol}
-                  </span>
-                </div>
+                {logisticsFee > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-400">Logistics Fee</span>
+                    <div className="text-right">
+                      <div className="text-gray-300">
+                        {formatPrice(convertPrice(logisticsFee, "USD", selectedToken.symbol), selectedToken.symbol)}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        ${logisticsFee.toFixed(2)} USD
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 <div className="border-t border-Red/20 pt-3">
-                  <div className="flex justify-between text-lg font-bold">
-                    <span className="text-white">Total Amount</span>
-                    <span className="text-Red">
-                      {formatCurrency(orderAmount)} {selectedToken.symbol}
-                    </span>
+                  <div className="flex justify-between">
+                    <span className="text-white font-bold">Total Amount</span>
+                    <div className="text-right">
+                      <div className="text-Red text-lg font-bold">
+                        {formatPrice(orderAmountInToken, selectedToken.symbol)}
+                      </div>
+                      <div className="text-xs text-gray-400">
+                        ≈ ${orderAmountUSD.toFixed(2)} USD
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>

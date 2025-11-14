@@ -238,11 +238,26 @@ const SwapPreview = memo(
   }) => {
     if (!isVisible) return null;
 
+    // Calculate exchange rate
+    const exchangeRate = useMemo(() => {
+      if (toAmount > 0 && fromAmount > 0) {
+        return (toAmount / fromAmount).toFixed(6);
+      }
+      return null;
+    }, [toAmount, fromAmount]);
+
+    // Calculate price impact (simplified)
+    const priceImpact = useMemo(() => {
+      if (!exchangeRate) return null;
+      const impact = ((1 - parseFloat(exchangeRate)) * 100).toFixed(2);
+      return parseFloat(impact);
+    }, [exchangeRate]);
+
     return (
       <div className="bg-red-900/10 border border-red-500/20 rounded-lg p-4 animate-in fade-in-0 duration-300">
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1">
-            <div className="flex items-center gap-2 text-red-400 text-sm font-medium mb-2">
+            <div className="flex items-center gap-2 text-red-400 text-sm font-medium mb-3">
               <FaExchangeAlt className="w-4 h-4" />
               <span>Token Swap Required</span>
             </div>
@@ -264,12 +279,32 @@ const SwapPreview = memo(
                   </div>
                 </div>
               ) : toAmount > 0 ? (
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-400">To receive:</span>
-                  <span className="text-green-400 font-medium">
-                    ≈ {toAmount.toFixed(4)} {toToken}
-                  </span>
-                </div>
+                <>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-400">To receive:</span>
+                    <span className="text-green-400 font-medium">
+                      ≈ {toAmount.toFixed(4)} {toToken}
+                    </span>
+                  </div>
+
+                  {/* Exchange Rate */}
+                  {exchangeRate && (
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-gray-500">Rate:</span>
+                      <span className="text-gray-400">
+                        1 {fromToken} = {exchangeRate} {toToken}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Price Impact Warning */}
+                  {priceImpact !== null && Math.abs(priceImpact) > 1 && (
+                    <div className="flex items-center gap-1 text-xs text-yellow-400">
+                      <HiExclamationTriangle className="w-3 h-3" />
+                      <span>Price impact: {Math.abs(priceImpact).toFixed(2)}%</span>
+                    </div>
+                  )}
+                </>
               ) : null}
             </div>
           </div>
@@ -279,6 +314,7 @@ const SwapPreview = memo(
             disabled={isGettingQuote}
             className="p-2 hover:bg-red-500/10 rounded-lg transition-colors disabled:opacity-50"
             title="Refresh quote"
+            aria-label="Refresh swap quote"
           >
             <HiArrowPath
               className={`w-4 h-4 text-red-400 ${
@@ -288,25 +324,45 @@ const SwapPreview = memo(
           </button>
         </div>
 
-        <div className="mt-3 pt-3 border-t border-red-500/20 text-xs text-red-300/80">
-          <p>• Swap will be executed before purchase</p>
-          <p>• Gas fees apply for the swap transaction</p>
+        <div className="mt-3 pt-3 border-t border-red-500/20 text-xs space-y-1">
+          <div className="flex items-center gap-1 text-red-300/80">
+            <HiCheckCircle className="w-3 h-3" />
+            <span>Swap will be executed before purchase</span>
+          </div>
+          <div className="flex items-center gap-1 text-red-300/80">
+            <HiCheckCircle className="w-3 h-3" />
+            <span>Using Mento/Uniswap protocol</span>
+          </div>
+          <div className="flex items-center gap-1 text-yellow-400/80">
+            <HiExclamationTriangle className="w-3 h-3" />
+            <span>Additional gas fees apply for swap</span>
+          </div>
         </div>
       </div>
     );
   }
 );
 
-// Wallet info component
+// Wallet info component - Enhanced with more details
 const WalletInfo = memo(
   ({
     wallet,
     formatBalance,
+    isLoadingBalance,
   }: {
     wallet: any;
     formatBalance: (balance: string | undefined) => string;
+    isLoadingBalance: boolean;
   }) => {
     if (!wallet.isConnected) return null;
+
+    const lastUpdated = useMemo(() => {
+      const now = new Date();
+      return now.toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }, [wallet.tokenBalances[wallet.selectedToken.symbol]?.raw]);
 
     return (
       <div className="bg-gray-800 border border-gray-700 rounded-lg p-3 text-xs space-y-2">
@@ -315,15 +371,40 @@ const WalletInfo = memo(
             <HiCurrencyDollar className="text-red-500 w-3 h-3" />
             <span>{wallet.selectedToken.symbol} Balance:</span>
           </div>
-          <div className="text-white font-mono font-medium">
-            {formatBalance(
-              wallet.tokenBalances[wallet.selectedToken.symbol]?.raw
+          <div className="text-white font-mono font-medium flex items-center gap-2">
+            {isLoadingBalance ? (
+              <>
+                <FaSpinner className="animate-spin w-3 h-3 text-red-500" />
+                <span className="text-gray-400">Updating...</span>
+              </>
+            ) : (
+              formatBalance(
+                wallet.tokenBalances[wallet.selectedToken.symbol]?.raw
+              )
             )}
           </div>
         </div>
+
+        {/* Gas Balance */}
+        <div className="flex justify-between items-center text-gray-500">
+          <span>Gas (CELO):</span>
+          <span className="font-mono">
+            {wallet.balance ? parseFloat(wallet.balance).toFixed(4) : '0.0000'}
+          </span>
+        </div>
+
+        {/* Wallet Address & Last Updated */}
         {wallet.address && (
-          <div className="text-gray-500 text-center pt-1 border-t border-gray-700 font-mono">
-            {`${wallet.address.slice(0, 6)}...${wallet.address.slice(-4)}`}
+          <div className="text-gray-500 text-center pt-1 border-t border-gray-700 space-y-1">
+            <div className="font-mono">
+              {`${wallet.address.slice(0, 6)}...${wallet.address.slice(-4)}`}
+            </div>
+            <div className="text-[10px] flex items-center justify-center gap-1">
+              <span>Updated: {lastUpdated}</span>
+              {!isLoadingBalance && (
+                <div className="w-1 h-1 bg-green-500 rounded-full animate-pulse"></div>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -916,7 +997,11 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = memo(
           </button>
 
           {/* Wallet Info */}
-          <WalletInfo wallet={wallet} formatBalance={formatBalance} />
+          <WalletInfo
+            wallet={wallet}
+            formatBalance={formatBalance}
+            isLoadingBalance={wallet.isLoadingTokenBalance}
+          />
         </div>
 
         {/* Lazy-loaded Modals */}

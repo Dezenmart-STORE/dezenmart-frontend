@@ -4,12 +4,21 @@ import { BsZoomIn } from "react-icons/bs";
 
 interface ProductImageProps {
   images: string[];
+  productName?: string;
+  productCategory?: string;
 }
 
-const ProductImage = ({ images }: ProductImageProps) => {
+const ProductImage = ({ images, productName = "Product", productCategory }: ProductImageProps) => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [transitioning, setTransitioning] = useState(false);
   const [zoomed, setZoomed] = useState(false);
+
+  // Generate SEO-friendly alt text
+  const generateAltText = (index: number): string => {
+    const position = images.length > 1 ? ` - Image ${index + 1} of ${images.length}` : '';
+    const category = productCategory ? ` ${productCategory}` : '';
+    return `${productName}${category} - Buy with crypto on DezenMart${position}`;
+  };
 
   // Touch handling
   const touchStartX = useRef<number | null>(null);
@@ -154,8 +163,11 @@ const ProductImage = ({ images }: ProductImageProps) => {
               ref={imageRef}
               src={images[currentImageIndex]}
               className="w-full h-full object-contain max-h-[400px] transition-transform"
-              alt={`Product Image ${currentImageIndex + 1}`}
-              loading="lazy"
+              alt={generateAltText(currentImageIndex)}
+              width="600"
+              height="600"
+              loading={currentImageIndex === 0 ? "eager" : "lazy"}
+              decoding={currentImageIndex === 0 ? "sync" : "async"}
               onError={(e) => {
                 (e.target as HTMLImageElement).src =
                   "https://placehold.co/400x400/1a1b1f/cccccc?text=Image+Not+Found";
