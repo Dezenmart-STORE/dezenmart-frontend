@@ -682,6 +682,26 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
         formData.append(`images`, media.file);
       });
 
+      // Log the complete FormData body for production debugging
+      console.log('=== CREATE PRODUCT REQUEST BODY ===');
+      const formDataEntries: Record<string, any> = {};
+      formData.forEach((value, key) => {
+        if (value instanceof File) {
+          formDataEntries[key] = {
+            fileName: value.name,
+            fileSize: value.size,
+            fileType: value.type
+          };
+        } else {
+          formDataEntries[key] = value;
+        }
+      });
+      console.log('FormData entries:', JSON.stringify(formDataEntries, null, 2));
+      console.log('Total media files:', mediaFiles.length);
+      console.log('Selected token:', paymentToken);
+      console.log('Wallet chainId:', wallet.chainId);
+      console.log('===================================');
+
       const result = await createProduct(formData).unwrap();
       setSuccessMessage("Product created successfully! Redirecting...");
       showSnackbar("Product created successfully!", "success");
