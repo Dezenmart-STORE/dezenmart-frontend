@@ -1,33 +1,17 @@
-import { Logo } from ".";
+import { LogoSVG } from ".";
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 
 const Loadscreen = () => {
-  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(true); // SVG loads instantly
   const [isReady, setIsReady] = useState(false);
 
-  // Preload the logo image
+  // Ensure minimum display time for smooth transition
   useEffect(() => {
-    const img = new Image();
-    img.src = Logo;
-
-    img.onload = () => {
-      setImageLoaded(true);
-    };
-
-    img.onerror = () => {
-      // Even if image fails to load, set as ready to prevent infinite loading
-      console.warn("Failed to load logo image");
-      setImageLoaded(true);
-    };
-
-    // Ensure minimum display time for smooth transition
     const timer = setTimeout(() => setIsReady(true), 300);
 
     return () => {
       clearTimeout(timer);
-      img.onload = null;
-      img.onerror = null;
     };
   }, []);
 
@@ -64,33 +48,26 @@ const Loadscreen = () => {
         {/* Logo with smooth animation */}
         <motion.div
           initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: imageLoaded ? 1 : 0.8, opacity: imageLoaded ? 1 : 0 }}
+          animate={{ scale: 1, opacity: 1 }}
           transition={{
             duration: 0.5,
             ease: [0.43, 0.13, 0.23, 0.96],
           }}
           className="relative"
         >
-          {imageLoaded ? (
-            <motion.img
-              src={Logo}
-              alt="DezenMart Logo"
-              className="w-24 h-24 sm:w-32 sm:h-32 md:w-40 md:h-40 object-contain"
-              animate={{
-                scale: [1, 1.05, 1],
-              }}
-              transition={{
-                duration: 2,
-                repeat: Infinity,
-                ease: "easeInOut",
-              }}
-              loading="eager"
-              decoding="async"
-            />
-          ) : (
-            // Placeholder while image loads
-            <div className="w-24 h-24 sm:w-32 sm:h-32 md:w-40 md:h-40 bg-gray-700/30 rounded-lg animate-pulse" />
-          )}
+          <motion.img
+            src={LogoSVG}
+            alt="DezenMart Logo"
+            className="w-24 h-24 sm:w-32 sm:h-32 md:w-40 md:h-40 object-contain"
+            animate={{
+              scale: [1, 1.05, 1],
+            }}
+            transition={{
+              duration: 2,
+              repeat: Infinity,
+              ease: "easeInOut",
+            }}
+          />
         </motion.div>
 
         {/* Loading text */}
