@@ -240,6 +240,24 @@ const SingleProduct = () => {
     window.scrollTo(0, 0);
   }, [productId]);
 
+  // Simplify price display logic - MUST be before early returns
+  const displayPrice = useMemo(() => {
+    if (!formattedProduct) return null;
+
+    // Priority: Show in user's preferred currency
+    if (secondaryCurrency === "TOKEN") {
+      return {
+        primary: formattedProduct.formattedTokenPrice,
+        secondary: formattedProduct.formattedUsdtPrice,
+      };
+    }
+
+    return {
+      primary: formattedProduct.formattedFiatPrice,
+      secondary: formattedProduct.formattedUsdtPrice,
+    };
+  }, [formattedProduct, secondaryCurrency]);
+
   useEffect(() => {
     if (
       !loading &&
@@ -284,24 +302,6 @@ const SingleProduct = () => {
   const backgroundStyle = {
     background: `linear-gradient(to bottom, #292B30 0%, rgba(41, 43, 48, 0.95) 100%)`,
   };
-
-  // Simplify price display logic
-  const displayPrice = useMemo(() => {
-    if (!formattedProduct) return null;
-
-    // Priority: Show in user's preferred currency
-    if (secondaryCurrency === "TOKEN") {
-      return {
-        primary: formattedProduct.formattedTokenPrice,
-        secondary: formattedProduct.formattedUsdtPrice,
-      };
-    }
-
-    return {
-      primary: formattedProduct.formattedFiatPrice,
-      secondary: formattedProduct.formattedUsdtPrice,
-    };
-  }, [formattedProduct, secondaryCurrency]);
 
   return (
     <motion.div

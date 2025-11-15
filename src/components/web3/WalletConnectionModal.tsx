@@ -193,9 +193,9 @@ const WalletConnectionModal: React.FC<WalletConnectionModalProps> = ({
   const getWalletDescription = (connector: any, index: number) => {
     const name = connector.name.toLowerCase();
 
-    // Check if this is the smart wallet
+    // Check if this is the smart wallet (first Coinbase)
     if (isSmartWallet(connector, index)) {
-      return "Create a wallet instantly with email, Google, Apple, or phone";
+      return "Sign in with email, phone, or mobile app - passkeys optional (no crypto wallet needed)";
     }
 
     // Traditional crypto wallets
@@ -344,7 +344,7 @@ const WalletConnectionModal: React.FC<WalletConnectionModalProps> = ({
               </span>
             </div>
             <p className="text-sm text-gray-400 -mt-1">
-              No crypto wallet? No problem! Create a wallet instantly with your email or social account.
+              No crypto wallet? No problem! Create a wallet instantly with your email or phone number. Passkeys (Windows Hello/Face ID) are optional for faster login.
             </p>
 
             {web2Connectors.map((connector, idx) => {
