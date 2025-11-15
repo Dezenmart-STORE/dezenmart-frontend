@@ -1,15 +1,29 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 580 1024" fill="none">
-  <!-- Top shape: Speech bubble / quotation mark shape -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" fill="none">
+  <!-- Top-left: Red teardrop/quotation mark shape -->
   <path d="
-    M 85,305
-    C 85,177 160,100 290,100
-    C 420,100 495,177 495,305
-    L 495,430
-    Q 495,510 415,510
-    L 85,510
+    M 100,300
+    C 100,150 200,50 350,50
+    C 500,50 550,150 550,300
+    L 550,380
+    Q 550,450 480,450
+    L 100,450
     Z
   " fill="#FF3B3B"/>
 
-  <!-- Bottom circle -->
-  <circle cx="290" cy="714" r="205" fill="#FF3B3B"/>
+  <!-- Top-right: Black circle -->
+  <circle cx="650" cy="250" r="150" fill="#000000"/>
+
+  <!-- Bottom-left: Red circle -->
+  <circle cx="300" cy="600" r="150" fill="#FF3B3B"/>
+
+  <!-- Bottom-right: Black teardrop/quotation mark shape -->
+  <path d="
+    M 450,600
+    C 450,450 550,350 700,350
+    C 850,350 900,450 900,600
+    L 900,680
+    Q 900,750 830,750
+    L 450,750
+    Z
+  " fill="#000000"/>
 </svg>
