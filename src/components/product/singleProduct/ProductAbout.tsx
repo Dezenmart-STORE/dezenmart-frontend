@@ -10,7 +10,7 @@ const ProductAbout = ({ product }: { product: Product }) => {
   return (
     <div className="space-y-4 sm:space-y-5">
       <div className="w-full">
-        <h2 className="text-base sm:text-xl text-white font-medium">
+        <h2 className="text-base sm:text-xl text-white font-medium break-words leading-relaxed">
           {product.name}
         </h2>
         {/* <span className="text-base sm:text-xl text-white font-medium">

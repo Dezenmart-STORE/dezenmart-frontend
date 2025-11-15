@@ -52,6 +52,7 @@ html{
   body {
     @apply bg-Dark text-white;
     overflow-x: hidden;
+    background-color: #212428;
   }
 }
 

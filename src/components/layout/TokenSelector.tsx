@@ -4,12 +4,8 @@ import { useWeb3 } from "../../context/Web3Context";
 import { StableToken } from "../../utils/config/web3.config";
 
 const TokenSelector: React.FC = () => {
-  const {
-    wallet,
-    setSelectedToken,
-    refreshTokenBalance,
-    availableTokens,
-  } = useWeb3();
+  const { wallet, setSelectedToken, refreshTokenBalance, availableTokens } =
+    useWeb3();
 
   const [isTokenSelectorOpen, setIsTokenSelectorOpen] = useState(false);
   const tokenSelectorRef = useRef<HTMLDivElement>(null);
@@ -74,40 +70,42 @@ const TokenSelector: React.FC = () => {
   }
 
   return (
-    <div className="relative" ref={tokenSelectorRef}>
+    <div className="relative w-full" ref={tokenSelectorRef}>
       <button
         onClick={() => setIsTokenSelectorOpen(!isTokenSelectorOpen)}
-        className="flex items-center gap-2 px-2 py-1.5 bg-[#1a1c20] rounded-md border border-gray-600 hover:border-Red/30 hover:bg-Red/5 transition-all duration-200 min-w-[100px]"
+        className="w-full flex items-center justify-between gap-2 px-3 py-2 bg-[#1a1c20] rounded-md border border-gray-600 hover:border-Red/30 hover:bg-Red/5 transition-all duration-200"
         aria-label="Select token"
         aria-expanded={isTokenSelectorOpen}
         aria-haspopup="true"
       >
-        <span className="text-sm">
-          {typeof wallet.selectedToken.icon === "string" &&
-          wallet.selectedToken.icon ? (
-            <img
-              src={wallet.selectedToken.icon}
-              alt={wallet.selectedToken.symbol}
-              width={16}
-              height={16}
-              className="rounded-full"
-            />
-          ) : (
-            "💰"
-          )}
-        </span>
-        <span className="text-white text-sm font-medium hidden md:inline">
-          {wallet.selectedToken.symbol}
-        </span>
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <span className="text-sm flex-shrink-0">
+            {typeof wallet.selectedToken.icon === "string" &&
+            wallet.selectedToken.icon ? (
+              <img
+                src={wallet.selectedToken.icon}
+                alt={wallet.selectedToken.symbol}
+                width={20}
+                height={20}
+                className="rounded-full"
+              />
+            ) : (
+              "💰"
+            )}
+          </span>
+          <span className="text-white text-sm font-medium truncate">
+            {wallet.selectedToken.symbol}
+          </span>
+        </div>
         <HiChevronDown
-          className={`w-4 h-4 text-gray-400 transition-transform ${
+          className={`w-4 h-4 text-gray-400 transition-transform flex-shrink-0 ${
             isTokenSelectorOpen ? "rotate-180" : ""
           }`}
         />
       </button>
 
       {isTokenSelectorOpen && (
-        <div className="absolute top-full left-0 right-0 mt-2 bg-[#1a1c20] border border-Red/30 rounded-lg shadow-xl z-50 max-h-64 overflow-y-auto min-w-[200px]">
+        <div className="absolute top-full left-0 right-0 mt-2 bg-[#1a1c20] border border-Red/30 rounded-lg shadow-xl z-[99999] max-h-64 overflow-y-auto min-w-full scrollbar-thin scrollbar-thumb-Red/30 scrollbar-track-gray-800">
           {availableTokens.map((token) => (
             <button
               key={token.symbol}
@@ -119,8 +117,8 @@ const TokenSelector: React.FC = () => {
               }`}
               role="menuitem"
             >
-              <div className="flex items-center gap-3">
-                <span className="text-lg">
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                <span className="text-lg flex-shrink-0">
                   {typeof token.icon === "string" && token.icon ? (
                     <img
                       src={token.icon}
@@ -133,13 +131,15 @@ const TokenSelector: React.FC = () => {
                     "💰"
                   )}
                 </span>
-                <div className="text-left">
-                  <p className="text-white font-medium text-sm">{token.symbol}</p>
-                  <p className="text-xs text-gray-400">{token.name}</p>
+                <div className="text-left flex-1 min-w-0">
+                  <p className="text-white font-medium text-sm truncate">
+                    {token.symbol}
+                  </p>
+                  <p className="text-xs text-gray-400 truncate">{token.name}</p>
                 </div>
               </div>
               {token.symbol === wallet.selectedToken.symbol && (
-                <HiStar className="w-4 h-4 text-Red flex-shrink-0" />
+                <HiStar className="w-4 h-4 text-Red flex-shrink-0 ml-2" />
               )}
             </button>
           ))}

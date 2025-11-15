@@ -83,9 +83,114 @@
       href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&display=swap"
       rel="stylesheet"
     />
+
+    <!-- Inline styles for initial splash screen (prevents white flash) -->
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        background-color: #212428;
+      }
+
+      #splash-screen {
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(135deg, #212428 0%, #1a1c20 50%, #212428 100%);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 99999;
+        transition: opacity 0.5s ease-out;
+      }
+
+      #splash-screen.hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      .splash-logo {
+        width: 96px;
+        height: 96px;
+        animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+      }
+
+      .splash-loader {
+        margin-top: 2rem;
+        width: 48px;
+        height: 48px;
+        border: 3px solid rgba(239, 68, 68, 0.2);
+        border-top-color: #ef4444;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+
+      .splash-text {
+        margin-top: 1.5rem;
+        color: #9ca3af;
+        font-size: 0.875rem;
+        font-weight: 500;
+        letter-spacing: 0.05em;
+      }
+
+      @keyframes pulse {
+        0%, 100% {
+          opacity: 1;
+          transform: scale(1);
+        }
+        50% {
+          opacity: 0.8;
+          transform: scale(1.05);
+        }
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      @media (max-width: 640px) {
+        .splash-logo {
+          width: 80px;
+          height: 80px;
+        }
+        .splash-loader {
+          width: 40px;
+          height: 40px;
+          margin-top: 1.5rem;
+        }
+      }
+    </style>
   </head>
   <body>
+    <!-- Initial splash screen (shown before React loads) -->
+    <div id="splash-screen">
+      <img src="/images/logo.png" alt="DezenMart" class="splash-logo" />
+      <div class="splash-loader"></div>
+      <p class="splash-text">LOADING</p>
+    </div>
+
     <div id="root" class="relative"></div>
+
+    <!-- Hide splash screen when React loads -->
+    <script>
+      window.addEventListener('load', function() {
+        setTimeout(function() {
+          const splash = document.getElementById('splash-screen');
+          if (splash) {
+            splash.classList.add('hidden');
+            setTimeout(function() {
+              splash.remove();
+            }, 500);
+          }
+        }, 100);
+      });
+    </script>
+
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -462,13 +462,20 @@ const SingleProduct = () => {
           <div className="w-full xl:w-7/12">
             <div className="bg-[#292B30] shadow-xl text-white w-full rounded-xl overflow-hidden">
               <div className="px-4 sm:px-8 md:px-12 py-6">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                  <h1 className="text-2xl sm:text-3xl font-bold">
-                    {formattedProduct.name}
-                  </h1>
-                  <div className="flex flex-col gap-1 text-right">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <h1 className="text-2xl sm:text-3xl font-bold break-words line-clamp-2 leading-tight">
+                      {formattedProduct.name}
+                    </h1>
+                    {formattedProduct.name.length > 60 && (
+                      <p className="text-xs text-gray-400 mt-1">
+                        Tap to see full title
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-1 sm:text-right flex-shrink-0">
                     <div className="flex items-center gap-2">
-                      <span className="text-2xl font-bold text-red-500">
+                      <span className="text-2xl font-bold text-red-500 whitespace-nowrap">
                         {displayPrice?.primary}
                       </span>
                     </div>

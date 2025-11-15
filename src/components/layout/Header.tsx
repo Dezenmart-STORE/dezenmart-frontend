@@ -325,21 +325,28 @@ const Header = () => {
                       </motion.button>
 
                       {/* Show currency/token selectors on mobile when hidden from header */}
-                      <div className="md:hidden border-t border-gray-700/50 my-1 pt-2 pb-1 px-4">
-                        <p className="text-xs text-gray-500 mb-2">Preferences</p>
-                        <div className="flex flex-col gap-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs text-gray-400">Currency:</span>
-                            <div className="scale-90">
+                      <div className="md:hidden border-t border-gray-700/50 my-1 pt-3 pb-2 px-4">
+                        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
+                          Preferences
+                        </p>
+                        <div className="flex flex-col gap-3">
+                          {/* Currency Toggle */}
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-sm text-gray-300 min-w-[70px]">Currency</span>
+                            <div className="flex-1 flex justify-end">
                               <CurrencyToggle />
                             </div>
                           </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs text-gray-400">Token:</span>
-                            <div className="scale-90">
-                              <TokenSelector />
+
+                          {/* Token Selector */}
+                          {wallet.isConnected && (
+                            <div className="flex flex-col gap-2">
+                              <span className="text-sm text-gray-300">Payment Token</span>
+                              <div className="w-full">
+                                <TokenSelector />
+                              </div>
                             </div>
-                          </div>
+                          )}
                         </div>
                       </div>
 

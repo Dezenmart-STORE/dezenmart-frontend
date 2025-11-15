@@ -88,6 +88,15 @@ const ProductList = ({
     rootMargin: "200px",
   });
 
+  // Helper function to check if product belongs to current user
+  const isUserProduct = (product: Product): boolean => {
+    if (!user || !product) return false;
+    if (typeof product.seller === "object" && product.seller) {
+      return product.seller._id === user._id;
+    }
+    return product.seller === user._id;
+  };
+
   // Compute final product lists
   const { regularProducts, sponsoredList } = useMemo(() => {
     let sponsored: Product[] = [];
@@ -96,11 +105,21 @@ const ProductList = ({
     if (isFeatured) {
       // Featured view: only show sponsored products
       regular = sponsoredProducts || [];
+      // Filter out user's own products if not in user products view
+      if (!isUserProducts && user) {
+        regular = regular.filter((p) => !isUserProduct(p));
+      }
     } else if (category === "All") {
       // All products view
       sponsored = sponsoredProducts || [];
       const sponsoredIds = new Set(sponsored.map((p) => p._id));
       regular = (allProducts || []).filter((p) => !sponsoredIds.has(p._id));
+
+      // Filter out user's own products from public view
+      if (!isUserProducts && user) {
+        sponsored = sponsored.filter((p) => !isUserProduct(p));
+        regular = regular.filter((p) => !isUserProduct(p));
+      }
     } else if (category && category !== "All") {
       // Specific category view
       sponsored = (sponsoredProducts || []).filter(
@@ -108,12 +127,18 @@ const ProductList = ({
       );
       const sponsoredIds = new Set(sponsored.map((p) => p._id));
       regular = (categoryProducts || []).filter((p) => !sponsoredIds.has(p._id));
+
+      // Filter out user's own products from public category view
+      if (!isUserProducts && user) {
+        sponsored = sponsored.filter((p) => !isUserProduct(p));
+        regular = regular.filter((p) => !isUserProduct(p));
+      }
     } else if (isUserProducts) {
-      // User products view
+      // User products view - ONLY show user's own products
       sponsored = (sponsoredProducts || []).filter((product) => {
         if (!product || !user) return false;
         if (typeof product.seller === "object" && product.seller) {
-          return product.seller._id === user._id || product.seller.name === user.name;
+          return product.seller._id === user._id;
         }
         return product.seller === user._id;
       });
@@ -124,6 +149,12 @@ const ProductList = ({
       sponsored = sponsoredProducts || [];
       const sponsoredIds = new Set(sponsored.map((p) => p._id));
       regular = (allProducts || []).filter((p) => !sponsoredIds.has(p._id));
+
+      // Filter out user's own products from default view
+      if (!isUserProducts && user) {
+        sponsored = sponsored.filter((p) => !isUserProduct(p));
+        regular = regular.filter((p) => !isUserProduct(p));
+      }
     }
 
     return {
