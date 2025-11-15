@@ -330,10 +330,22 @@ const SingleProduct = () => {
                       Connect Your Wallet to Buy
                     </h3>
                     <p className="text-gray-400 text-xs sm:text-sm leading-tight mt-0.5">
-                      <span className="hidden sm:inline">Secure payments with crypto • No fees • Instant escrow protection</span>
-                      <span className="sm:hidden">Secure crypto payments • Instant escrow</span>
+                      <span className="hidden sm:inline">
+                        Secure payments with crypto • No fees • Instant escrow
+                        protection
+                      </span>
+                      <span className="sm:hidden">
+                        Secure crypto payments • Instant escrow
+                      </span>
                     </p>
                   </div>
+                  <button
+                    onClick={() => setShowWalletBanner(false)}
+                    className="text-gray-400 hover:text-white transition-colors p-1.5 sm:p-2 flex-shrink-0 sm:hidden"
+                    aria-label="Dismiss banner"
+                  >
+                    ✕
+                  </button>
                 </div>
                 <div className="flex items-center gap-2 sm:gap-2 sm:flex-shrink-0">
                   <Button
@@ -344,7 +356,7 @@ const SingleProduct = () => {
                   />
                   <button
                     onClick={() => setShowWalletBanner(false)}
-                    className="text-gray-400 hover:text-white transition-colors p-1.5 sm:p-2 flex-shrink-0"
+                    className="text-gray-400 hover:text-white transition-colors p-1.5 sm:p-2 flex-shrink-0 hidden sm:block"
                     aria-label="Dismiss banner"
                   >
                     ✕
