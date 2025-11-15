@@ -1,16 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
-  <!-- Large red teardrop (top-left) - complete circle with handle pointing to center -->
-  <g>
-    <circle cx="135" cy="135" r="75" fill="#FF3B30"/>
-    <!-- Pointed part/handle for red circle pointing toward center -->
-    <path d="
-      M 185 160
-      Q 210 185 200 200
-      Q 190 210 175 195
-      L 185 160
-      Z
-    " fill="#FF3B30"/>
-  </g>
+  <!-- Large red teardrop (top-left) - seamless circle with pointed tail -->
+  <path d="
+    M 135 60
+    A 75 75 0 1 1 182 186
+    C 190 192 200 200 205 205
+    C 200 200 192 192 186 182
+    A 75 75 0 0 1 135 60
+    Z
+  " fill="#FF3B30"/>
 
   <!-- Small red circle (bottom-left) -->
   <circle cx="120" cy="280" r="50" fill="#FF3B30"/>
@@ -18,16 +15,13 @@
   <!-- Small black circle (top-right) -->
   <circle cx="280" cy="120" r="45" fill="#000000"/>
 
-  <!-- Large black teardrop (bottom-right) - complete circle with handle pointing to center -->
-  <g>
-    <circle cx="265" cy="265" r="75" fill="#000000"/>
-    <!-- Pointed part/handle for black circle pointing toward center -->
-    <path d="
-      M 215 240
-      Q 190 215 200 200
-      Q 210 190 225 205
-      L 215 240
-      Z
-    " fill="#000000"/>
-  </g>
+  <!-- Large black teardrop (bottom-right) - seamless circle with pointed tail -->
+  <path d="
+    M 265 190
+    A 75 75 0 1 1 218 214
+    C 210 208 200 200 195 195
+    C 200 200 208 208 214 218
+    A 75 75 0 0 1 265 190
+    Z
+  " fill="#000000"/>
 </svg>
