@@ -635,11 +635,12 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
           formData.append("tokenAddress", tokenAddress);
 
           // create trade parameters for the smart contract
+          // Note: Smart contract requires logistics cost > 0, so we use 1 wei as minimum
           const tradeParams = createTradeParams(
             parseFloat(priceInUSDT),
             // selectedLogistics.map((p) => p.walletAddress),
             ["0xff5b2339e21a8dab7b39d3a8b9382b394e646cf0"],
-            [0],
+            [1], // Minimum value of 1 wei to satisfy contract validation
             // selectedLogistics.map((p) =>
             //   parseFloat(logisticsCosts[p.walletAddress] || "0")
             // ),
@@ -662,14 +663,16 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
         selectedLogistics.forEach((provider) => {
           formData.append("logisticsProviders", provider.walletAddress);
           const cost = logisticsCosts[provider.walletAddress];
-          formData.append("logisticsCosts", cost || "0");
+          // Ensure minimum cost of 1 wei to satisfy contract validation
+          formData.append("logisticsCosts", cost || "1");
         });
       } else {
         formData.append(
           "logisticsProviders",
           "0xff5b2339e21a8dab7b39d3a8b9382b394e646cf0"
         );
-        formData.append("logisticsCosts", "0");
+        // Use 1 wei as minimum logistics cost (contract requires > 0)
+        formData.append("logisticsCosts", "1");
       }
 
       // Add variants if available
