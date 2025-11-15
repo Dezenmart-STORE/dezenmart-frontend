@@ -7,7 +7,7 @@ import {
 } from "react";
 import { HiOutlineBell } from "react-icons/hi";
 import { BiLogIn, BiWallet } from "react-icons/bi";
-import { FullLogo, Logo } from "../../pages";
+import { FullLogo, LogoSVG } from "../../pages";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import Container from "../common/Container";
@@ -136,16 +136,14 @@ const Header = () => {
         >
           <div className="w-8 h-8 md:w-9 md:h-9 relative overflow-hidden">
             <img
-              src={FullLogo}
-              className="w-full md:hidden transition-transform group-hover:scale-110 object-cover object-[25%_25%]"
+              src={LogoSVG}
+              className="w-full md:hidden transition-transform group-hover:scale-110 object-contain"
               alt="dezenmart logo"
-              loading="eager"
             />
             <img
-              src={Logo}
-              className="w-full hidden md:block transition-transform group-hover:scale-110 object-cover object-[25%_25%]"
+              src={LogoSVG}
+              className="w-full hidden md:block transition-transform group-hover:scale-110 object-contain"
               alt="dezenmart logo"
-              loading="eager"
             />
           </div>
           <span className="ml-2 text-white font-medium hidden md:inline transition-opacity group-hover:opacity-90">

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { googleIcon, facebookIcon, xIcon, Logo } from ".";
+import { googleIcon, facebookIcon, xIcon, LogoSVG } from ".";
 import Button from "../components/common/Button";
 import { useAuth } from "../context/AuthContext";
 // import ConnectWallet from "../components/trade/ConnectWallet";
@@ -148,7 +148,7 @@ const Login: React.FC<LoginProps> = ({ isFromReferral = false }) => {
       <div className="flex flex-col items-center w-full max-w-md px-6 md:px-10">
         <div className="flex flex-col gap-8">
           <img
-            src={Logo}
+            src={LogoSVG}
             alt="Dezenmart Logo"
             className="w-[75px] h-[75px] mx-auto"
           />

@@ -67,7 +67,7 @@ export const SEO_CONFIG = {
     name: "DezenMart",
     legalName: "DezenMart Inc.",
     url: "https://dezenmart.com",
-    logo: "https://dezenmart.com/logo.png",
+    logo: "https://dezenmart.com/images/logo.svg",
     foundingDate: "2024",
     founders: [],
     contactPoint: {

@@ -18,7 +18,7 @@ export default defineConfig({
     // PWA Plugin
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["robots.txt", "icons/*.png", "images/logo.png"],
+      includeAssets: ["robots.txt", "icons/*.png", "images/logo.svg", "images/logo.png"],
       manifest: {
         name: "Dezenmart - Decentralized Marketplace",
         short_name: "Dezenmart",

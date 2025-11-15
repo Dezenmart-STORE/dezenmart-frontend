@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useSearchParams, Navigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Logo } from ".";
+import { LogoSVG } from ".";
 import Login from "./Login";
 import { storeReferralCode } from "../utils/referralUtils";
 // import { useReferralData } from "../utils/hooks/useReferralData";
