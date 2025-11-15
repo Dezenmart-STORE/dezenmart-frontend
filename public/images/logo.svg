@@ -1,7 +1,15 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" fill="none">
-  <!-- Top rounded shape (semi-circle/teardrop) -->
-  <path d="M 85 100 Q 85 100 85 300 Q 85 510 290 510 Q 495 510 495 300 Q 495 100 290 100 Q 85 100 85 100 Z" fill="#FF3B3B"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 580 1024" fill="none">
+  <!-- Top shape: Speech bubble / quotation mark shape -->
+  <path d="
+    M 85,305
+    C 85,177 160,100 290,100
+    C 420,100 495,177 495,305
+    L 495,430
+    Q 495,510 415,510
+    L 85,510
+    Z
+  " fill="#FF3B3B"/>
 
   <!-- Bottom circle -->
-  <circle cx="290" cy="715" r="205" fill="#FF3B3B"/>
+  <circle cx="290" cy="714" r="205" fill="#FF3B3B"/>
 </svg>
