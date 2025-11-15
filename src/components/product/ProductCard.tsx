@@ -42,7 +42,6 @@ const ProductCard = React.memo(
     // Calculate formatted prices
     // IMPORTANT: Product prices from backend are in USD
     const formattedPrices = useMemo(() => {
-      // Since price is in USD, convert from USD to other currencies
       const usdtPrice = convertPrice(price, "USD", "USDT");
       const fiatPrice = convertPrice(price, "USD", "FIAT");
       const tokenPrice = convertPrice(price, "USD", selectedTokenSymbol);
@@ -68,14 +67,14 @@ const ProductCard = React.memo(
         // User prefers to see token prices
         return {
           primaryPrice: formattedPrices.formattedTokenPrice,
-          secondaryPrice: formattedPrices.formattedUsdtPrice,
+          secondaryPrice: price.toString(),
         };
       }
 
       // User prefers to see fiat prices
       return {
         primaryPrice: formattedPrices.formattedFiatPrice,
-        secondaryPrice: formattedPrices.formattedUsdtPrice,
+        secondaryPrice: price.toString(),
       };
     }, [secondaryCurrency, formattedPrices]);
 
@@ -198,11 +197,11 @@ const ProductCard = React.memo(
                 <span className="text-white text-base md:text-lg font-bold">
                   {primaryPrice}
                 </span>
-                {primaryPrice !== secondaryPrice && (
+                {/* {primaryPrice !== secondaryPrice && (
                   <span className="text-[#AEAEB2] text-xs md:text-sm">
                     ≈ {secondaryPrice}
                   </span>
-                )}
+                )} */}
               </div>
 
               {/* <motion.button

@@ -265,19 +265,19 @@ const Walkthrough = () => {
           </div>
 
           {/* Footer */}
-          <div className="border-t border-gray-700 p-6 bg-[#1A1B1F]">
-            <div className="flex items-center justify-between">
+          <div className="border-t border-gray-700 p-4 sm:p-6 bg-[#1A1B1F]">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 sm:gap-0">
               {/* Step indicator */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 sm:gap-2 order-2 sm:order-1">
                 {Array.from({ length: totalSteps }).map((_, index) => (
                   <motion.div
                     key={index}
-                    className={`h-2 rounded-full transition-all ${
+                    className={`h-1.5 sm:h-2 rounded-full transition-all ${
                       index === currentStep
-                        ? "w-8 bg-Red"
+                        ? "w-6 sm:w-8 bg-Red"
                         : index < currentStep
-                        ? "w-2 bg-Red/50"
-                        : "w-2 bg-gray-600"
+                        ? "w-1.5 sm:w-2 bg-Red/50"
+                        : "w-1.5 sm:w-2 bg-gray-600"
                     }`}
                     initial={false}
                     animate={{
@@ -288,23 +288,24 @@ const Walkthrough = () => {
               </div>
 
               {/* Navigation buttons */}
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 sm:gap-3 order-1 sm:order-2 w-full sm:w-auto justify-between sm:justify-end">
                 {!isFirstStep && (
                   <motion.button
                     onClick={previousStep}
-                    className="px-4 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-white flex items-center gap-2 transition-colors"
+                    className="px-3 sm:px-4 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-white flex items-center gap-1 sm:gap-2 transition-colors text-sm sm:text-base"
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
+                    aria-label="Previous step"
                   >
-                    <IoChevronBack className="w-5 h-5" />
-                    <span className="hidden sm:inline">Back</span>
+                    <IoChevronBack className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <span>Back</span>
                   </motion.button>
                 )}
 
                 {!isLastStep && (
                   <motion.button
                     onClick={skipWalkthrough}
-                    className="px-4 py-2 rounded-lg text-gray-400 hover:text-white transition-colors"
+                    className="px-3 sm:px-4 py-2 rounded-lg text-gray-400 hover:text-white transition-colors text-sm sm:text-base"
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                   >
@@ -314,12 +315,13 @@ const Walkthrough = () => {
 
                 <motion.button
                   onClick={handleNext}
-                  className="px-6 py-2 rounded-lg bg-Red hover:bg-red-600 text-white flex items-center gap-2 font-semibold transition-colors"
+                  className="px-4 sm:px-6 py-2 rounded-lg bg-Red hover:bg-red-600 text-white flex items-center gap-1 sm:gap-2 font-semibold transition-colors text-sm sm:text-base whitespace-nowrap"
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                 >
-                  <span>{isLastStep ? "Get Started" : "Next"}</span>
-                  {!isLastStep && <IoChevronForward className="w-5 h-5" />}
+                  <span className="hidden xs:inline">{isLastStep ? "Get Started" : "Next"}</span>
+                  <span className="xs:hidden">{isLastStep ? "Start" : "Next"}</span>
+                  {!isLastStep && <IoChevronForward className="w-4 h-4 sm:w-5 sm:h-5" />}
                 </motion.button>
               </div>
             </div>
@@ -329,7 +331,7 @@ const Walkthrough = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.5 }}
-              className="text-xs text-gray-500 text-center mt-4"
+              className="text-xs text-gray-500 text-center mt-3 sm:mt-4 hidden sm:block"
             >
               Use arrow keys to navigate • Press ESC to skip
             </motion.p>

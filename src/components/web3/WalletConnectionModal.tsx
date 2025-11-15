@@ -200,11 +200,11 @@ const WalletConnectionModal: React.FC<WalletConnectionModalProps> = ({
 
     // Traditional crypto wallets
     if (name.includes("walletconnect")) {
-      return "Connect with mobile wallet apps";
+      return "Connect with 300+ mobile wallet apps via QR code";
     } else if (name.includes("metamask")) {
-      return "Popular browser extension wallet";
+      return "Most popular browser extension wallet for Web3";
     } else if (name.includes("coinbase")) {
-      return "Secure wallet from Coinbase";
+      return "Coinbase browser extension or mobile wallet app";
     }
 
     return "Connect your crypto wallet";

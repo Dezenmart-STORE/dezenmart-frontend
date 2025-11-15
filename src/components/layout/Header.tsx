@@ -203,16 +203,23 @@ const Header = () => {
           ))}
         </nav>
 
-        <div className="flex items-center gap-2 md:gap-3">
-          <CurrencyToggle />
+        <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3">
+          {/* Currency Toggle - always visible but compact on mobile */}
+          <div className="hidden xs:block">
+            <CurrencyToggle />
+          </div>
 
-          {/* Token Selector */}
-          <TokenSelector />
+          {/* Token Selector - hidden on small screens */}
+          <div className="hidden md:block">
+            <TokenSelector />
+          </div>
 
-          {/* Tutorial/Help Button */}
-          <WalkthroughTrigger variant="icon" />
+          {/* Tutorial/Help Button - hidden on extra small screens */}
+          <div className="hidden sm:block">
+            <WalkthroughTrigger variant="icon" />
+          </div>
 
-          {/* Wallet button */}
+          {/* Wallet button - always visible */}
           <WalletConnectButton />
 
           {isAuthenticated ? (
@@ -221,7 +228,7 @@ const Header = () => {
                 aria-label={`Notifications ${
                   unreadCount > 0 ? ", " + unreadCount + " unread" : ""
                 }`}
-                className="p-1.5 rounded-full hover:bg-[#292B30] transition-colors relative"
+                className="p-1 sm:p-1.5 rounded-full hover:bg-[#292B30] transition-colors relative"
                 onClick={() =>
                   startTransition(() => navigate("/notifications"))
                 }
@@ -236,7 +243,7 @@ const Header = () => {
                     repeatDelay: 3,
                   }}
                 >
-                  <HiOutlineBell className="text-xl text-white" />
+                  <HiOutlineBell className="text-lg sm:text-xl text-white" />
                 </motion.div>
                 <NotificationBadge count={unreadCount} />
               </motion.button>
@@ -303,7 +310,7 @@ const Header = () => {
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: -10, scale: 0.95 }}
                       transition={{ duration: 0.2, ease: "easeOut" }}
-                      className="absolute right-0 mt-2 w-48 bg-[#212428] rounded-md shadow-lg py-1 z-50 border border-[#292B30] overflow-hidden"
+                      className="absolute right-0 mt-2 w-56 bg-[#212428] rounded-md shadow-lg py-1 z-50 border border-[#292B30] overflow-hidden"
                       role="menu"
                       aria-orientation="vertical"
                     >
@@ -317,12 +324,33 @@ const Header = () => {
                         My Account
                       </motion.button>
 
+                      {/* Show currency/token selectors on mobile when hidden from header */}
+                      <div className="md:hidden border-t border-gray-700/50 my-1 pt-2 pb-1 px-4">
+                        <p className="text-xs text-gray-500 mb-2">Preferences</p>
+                        <div className="flex flex-col gap-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-gray-400">Currency:</span>
+                            <div className="scale-90">
+                              <CurrencyToggle />
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-gray-400">Token:</span>
+                            <div className="scale-90">
+                              <TokenSelector />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="border-t border-gray-700/50 my-1"></div>
+
                       <motion.button
                         onClick={() => {
                           setShowUserMenu(false);
                           resetWalkthrough();
                         }}
-                        className="block w-full text-left px-4 py-2 text-sm text-white hover:bg-[#292B30] transition-colors"
+                        className="block w-full text-left px-4 py-2 text-sm text-white hover:bg-[#292B30] transition-colors sm:hidden"
                         role="menuitem"
                         whileHover={{ x: 4 }}
                         transition={{ duration: 0.2 }}

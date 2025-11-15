@@ -102,11 +102,11 @@ const SingleProduct = () => {
     // Convert USD price to different currencies
     const priceInToken = convertPrice(
       productPriceUsd,
-      "USDT",
+      "USD",
       selectedTokenSymbol
     );
-    const priceInFiat = convertPrice(productPriceUsd, "USDT", fiatCurrency);
-    const priceInCelo = convertPrice(productPriceUsd, "USDT", "CELO");
+    const priceInFiat = convertPrice(productPriceUsd, "USD", "FIAT");
+    const priceInCelo = convertPrice(productPriceUsd, "USD", "CELO");
 
     console.log("💲 Product Price Conversion:", {
       usdPrice: productPriceUsd,
@@ -248,13 +248,13 @@ const SingleProduct = () => {
     if (secondaryCurrency === "TOKEN") {
       return {
         primary: formattedProduct.formattedTokenPrice,
-        secondary: formattedProduct.formattedUsdtPrice,
+        secondary: formattedProduct.price,
       };
     }
 
     return {
       primary: formattedProduct.formattedFiatPrice,
-      secondary: formattedProduct.formattedUsdtPrice,
+      secondary: formattedProduct.price,
     };
   }, [formattedProduct, secondaryCurrency]);
 
@@ -318,33 +318,33 @@ const SingleProduct = () => {
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="mb-4 bg-gradient-to-r from-red-600/20 to-red-500/10 border border-red-500/30 rounded-xl p-4 backdrop-blur-sm"
+              className="mb-4 bg-gradient-to-r from-red-600/20 to-red-500/10 border border-red-500/30 rounded-xl p-3 sm:p-4 backdrop-blur-sm"
             >
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3 flex-1">
-                  <div className="w-10 h-10 bg-red-500/20 rounded-full flex items-center justify-center">
-                    <HiShieldCheck className="w-6 h-6 text-red-400" />
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-start sm:items-center gap-2 sm:gap-3 flex-1 min-w-0">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-red-500/20 rounded-full flex items-center justify-center flex-shrink-0">
+                    <HiShieldCheck className="w-5 h-5 sm:w-6 sm:h-6 text-red-400" />
                   </div>
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-0">
                     <h3 className="text-white font-medium text-sm sm:text-base">
                       Connect Your Wallet to Buy
                     </h3>
-                    <p className="text-gray-400 text-xs sm:text-sm">
-                      Secure payments with crypto • No fees • Instant escrow
-                      protection
+                    <p className="text-gray-400 text-xs sm:text-sm leading-tight mt-0.5">
+                      <span className="hidden sm:inline">Secure payments with crypto • No fees • Instant escrow protection</span>
+                      <span className="sm:hidden">Secure crypto payments • Instant escrow</span>
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 sm:gap-2 sm:flex-shrink-0">
                   <Button
-                    title="Connect Wallet"
-                    icon={<FaWallet className="w-4 h-4" />}
+                    title="Connect"
+                    icon={<FaWallet className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
                     onClick={handleConnectWallet}
-                    className="bg-red-600 hover:bg-red-700 text-white text-sm px-4 py-2 transition-all duration-200"
+                    className="bg-red-600 hover:bg-red-700 text-white text-xs sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2 transition-all duration-200 whitespace-nowrap"
                   />
                   <button
                     onClick={() => setShowWalletBanner(false)}
-                    className="text-gray-400 hover:text-white transition-colors p-2"
+                    className="text-gray-400 hover:text-white transition-colors p-1.5 sm:p-2 flex-shrink-0"
                     aria-label="Dismiss banner"
                   >
                     ✕
@@ -360,32 +360,34 @@ const SingleProduct = () => {
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="mb-4 bg-gradient-to-r from-green-600/20 to-green-500/10 border border-green-500/30 rounded-xl p-4 backdrop-blur-sm"
+              className="mb-4 bg-gradient-to-r from-green-600/20 to-green-500/10 border border-green-500/30 rounded-xl p-3 sm:p-4 backdrop-blur-sm"
             >
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3 flex-1">
-                  <div className="w-10 h-10 bg-green-500/20 rounded-full flex items-center justify-center">
-                    <HiCurrencyDollar className="w-6 h-6 text-green-400" />
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-start sm:items-center gap-2 sm:gap-3 flex-1 min-w-0">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-green-500/20 rounded-full flex items-center justify-center flex-shrink-0">
+                    <HiCurrencyDollar className="w-5 h-5 sm:w-6 sm:h-6 text-green-400" />
                   </div>
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-0">
                     <h3 className="text-white font-medium text-sm sm:text-base flex items-center gap-2">
-                      Wallet Connected
-                      <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                      <span>Wallet Connected</span>
+                      <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse flex-shrink-0"></div>
                     </h3>
-                    <p className="text-gray-400 text-xs sm:text-sm font-mono">
+                    <p className="text-gray-400 text-xs sm:text-sm font-mono truncate">
                       {wallet.address &&
                         `${wallet.address.slice(0, 6)}...${wallet.address.slice(
                           -4
                         )}`}{" "}
-                      •{" "}
-                      {wallet.tokenBalances[wallet.selectedToken.symbol]
-                        ?.formatted || "0 " + wallet.selectedToken.symbol}
+                      <span className="hidden sm:inline">• </span>
+                      <span className="block sm:inline mt-0.5 sm:mt-0">
+                        {wallet.tokenBalances[wallet.selectedToken.symbol]
+                          ?.formatted || "0 " + wallet.selectedToken.symbol}
+                      </span>
                     </p>
                   </div>
                 </div>
                 <button
                   onClick={() => setShowWalletBanner(false)}
-                  className="text-gray-400 hover:text-white transition-colors p-2"
+                  className="text-gray-400 hover:text-white transition-colors p-1.5 sm:p-2 self-start sm:self-center flex-shrink-0"
                   aria-label="Dismiss banner"
                 >
                   ✕
@@ -458,12 +460,12 @@ const SingleProduct = () => {
                         {displayPrice?.primary}
                       </span>
                     </div>
-                    {displayPrice?.secondary &&
+                    {/* {displayPrice?.secondary &&
                       displayPrice.primary !== displayPrice.secondary && (
                         <span className="text-sm text-gray-400">
                           ≈ {displayPrice.secondary}
                         </span>
-                      )}
+                      )} */}
                   </div>
                 </div>
               </div>

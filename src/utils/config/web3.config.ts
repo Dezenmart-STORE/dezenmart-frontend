@@ -228,12 +228,17 @@ export const TARGET_CHAIN = celo;
 export const wagmiConfig = createConfig({
   chains: [celo, celoAlfajores],
   connectors: [
-    // Coinbase Wallet with all authentication methods
-    // Supports: passkeys (Windows Hello/Face ID), email OTP, mobile app
+    // Coinbase Smart Wallet - for Web2 users (email, passkey, phone)
     coinbaseWallet({
       appName: "Dezenmart",
       appLogoUrl: `${window.location.origin}/images/logo-full.png`,
-      preference: "all", // All methods: passkeys, email, and traditional wallets
+      preference: "smartWalletOnly", // Email, passkey, and phone authentication
+    }),
+    // Coinbase Wallet - traditional crypto wallet (browser extension & mobile app)
+    coinbaseWallet({
+      appName: "Dezenmart",
+      appLogoUrl: `${window.location.origin}/images/logo-full.png`,
+      preference: "eoaOnly", // Traditional wallet (browser extension/mobile app)
     }),
     metaMask({
       dappMetadata: {
