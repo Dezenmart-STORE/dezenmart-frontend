@@ -1,27 +1,33 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
-  <!-- Large red teardrop (top-left) - seamless circle with pointed tail -->
-  <path d="
-    M 135 60
-    A 75 75 0 1 1 182 186
-    C 190 192 200 200 205 205
-    C 200 200 192 192 186 182
-    A 75 75 0 0 1 135 60
-    Z
-  " fill="#FF3B30"/>
+  <defs>
+    <!-- Clip the top-left circle -->
+    <clipPath id="clip-top-left">
+      <rect x="0" y="0" width="207" height="207"/>
+    </clipPath>
 
-  <!-- Small red circle (bottom-left) -->
-  <circle cx="120" cy="280" r="50" fill="#FF3B30"/>
+    <!-- Clip the bottom-right circle -->
+    <clipPath id="clip-bottom-right">
+      <rect x="203" y="203" width="207" height="207"/>
+    </clipPath>
+  </defs>
 
-  <!-- Small black circle (top-right) -->
-  <circle cx="280" cy="120" r="45" fill="#000000"/>
+  <!-- 🔴 TOP-LEFT TEARDROP (circle + triangle as one object) -->
+  <g id="teardrop-red">
+    <g clip-path="url(#clip-top-left)">
+      <circle cx="135" cy="135" r="75" fill="#FF3B30"/>
+    </g>
+    <polygon points="205,205 260,202.9 202.9,253" fill="#000000"/>
+  </g>
 
-  <!-- Large black teardrop (bottom-right) - seamless circle with pointed tail -->
-  <path d="
-    M 265 190
-    A 75 75 0 1 1 218 214
-    C 210 208 200 200 195 195
-    C 200 200 208 208 214 218
-    A 75 75 0 0 1 265 190
-    Z
-  " fill="#000000"/>
+  <!-- ⚫ BOTTOM-RIGHT TEARDROP (circle + triangle as one object) -->
+  <g id="teardrop-black">
+    <g clip-path="url(#clip-bottom-right)">
+      <circle cx="275" cy="275" r="75" fill="#000000"/>
+    </g>
+    <polygon points="205,205 150,207.1 207.1,150" fill="#FF3B30"/>
+  </g>
+
+  <!-- Small circles -->
+  <circle cx="270" cy="140" r="50" fill="#000000"/>
+  <circle cx="140" cy="270" r="50" fill="#FF3B30"/>
 </svg>

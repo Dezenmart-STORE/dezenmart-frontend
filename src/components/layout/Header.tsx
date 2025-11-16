@@ -7,7 +7,7 @@ import {
 } from "react";
 import { HiOutlineBell } from "react-icons/hi";
 import { BiLogIn, BiWallet } from "react-icons/bi";
-import { FullLogo, LogoSVG } from "../../pages";
+import { LogoSVG } from "../../pages";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import Container from "../common/Container";
@@ -163,7 +163,9 @@ const Header = () => {
                 <>
                   <motion.span
                     className={`relative z-10 ${
-                      isActive ? "text-Red" : "text-[#545456] group-hover:text-white"
+                      isActive
+                        ? "text-Red"
+                        : "text-[#545456] group-hover:text-white"
                     }`}
                     animate={{ scale: isActive ? 1.05 : 1 }}
                     transition={{ duration: 0.2 }}
@@ -234,7 +236,9 @@ const Header = () => {
                 whileHover={{ scale: 1.05 }}
               >
                 <motion.div
-                  animate={unreadCount > 0 ? { rotate: [0, -15, 15, -15, 0] } : {}}
+                  animate={
+                    unreadCount > 0 ? { rotate: [0, -15, 15, -15, 0] } : {}
+                  }
                   transition={{
                     duration: 0.5,
                     repeat: unreadCount > 0 ? Infinity : 0,
@@ -276,7 +280,11 @@ const Header = () => {
                       className="absolute -top-1 -right-1"
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
-                      transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                      transition={{
+                        type: "spring",
+                        stiffness: 500,
+                        damping: 30,
+                      }}
                     >
                       <div className="relative group">
                         <motion.div
@@ -330,7 +338,9 @@ const Header = () => {
                         <div className="flex flex-col gap-3">
                           {/* Currency Toggle */}
                           <div className="flex items-center justify-between gap-3">
-                            <span className="text-sm text-gray-300 min-w-[70px]">Currency</span>
+                            <span className="text-sm text-gray-300 min-w-[70px]">
+                              Currency
+                            </span>
                             <div className="flex-1 flex justify-end">
                               <CurrencyToggle />
                             </div>
@@ -339,7 +349,9 @@ const Header = () => {
                           {/* Token Selector */}
                           {wallet.isConnected && (
                             <div className="flex flex-col gap-2">
-                              <span className="text-sm text-gray-300">Payment Token</span>
+                              <span className="text-sm text-gray-300">
+                                Payment Token
+                              </span>
                               <div className="w-full">
                                 <TokenSelector />
                               </div>
@@ -378,7 +390,11 @@ const Header = () => {
                             <span>Verify Account</span>
                             <motion.div
                               animate={{ rotate: [0, 360] }}
-                              transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                              transition={{
+                                duration: 2,
+                                repeat: Infinity,
+                                ease: "linear",
+                              }}
                             >
                               <FiInfo className="text-yellow-500 text-sm cursor-help" />
                             </motion.div>
