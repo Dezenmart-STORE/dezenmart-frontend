@@ -47,7 +47,9 @@ const Header = () => {
   const { resetWalkthrough } = useWalkthrough();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showVerifyModal, setShowVerifyModal] = useState(false);
+  const [isHeaderVisible, setIsHeaderVisible] = useState(true);
   const userMenuRef = useRef<HTMLDivElement>(null);
+  const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // RTK Query hooks with polling - only when authenticated
   const { data: unreadCountData } = useGetUnreadNotificationCountQuery(
@@ -125,8 +127,60 @@ const Header = () => {
     });
   }, [navigate]);
 
+  // Auto-hide header functionality
+  const resetHideTimer = useCallback(() => {
+    // Clear existing timeout
+    if (hideTimeoutRef.current) {
+      clearTimeout(hideTimeoutRef.current);
+    }
+
+    // Show header on interaction
+    setIsHeaderVisible(true);
+
+    // Set new timeout to hide header after 3 seconds of inactivity
+    hideTimeoutRef.current = setTimeout(() => {
+      setIsHeaderVisible(false);
+    }, 3000);
+  }, []);
+
+  // Track user interactions
+  useEffect(() => {
+    const handleUserActivity = () => {
+      resetHideTimer();
+    };
+
+    // Listen to various user interaction events
+    window.addEventListener('mousemove', handleUserActivity);
+    window.addEventListener('scroll', handleUserActivity);
+    window.addEventListener('touchstart', handleUserActivity);
+    window.addEventListener('touchmove', handleUserActivity);
+    window.addEventListener('keydown', handleUserActivity);
+    window.addEventListener('click', handleUserActivity);
+
+    // Initial timer
+    resetHideTimer();
+
+    // Cleanup
+    return () => {
+      window.removeEventListener('mousemove', handleUserActivity);
+      window.removeEventListener('scroll', handleUserActivity);
+      window.removeEventListener('touchstart', handleUserActivity);
+      window.removeEventListener('touchmove', handleUserActivity);
+      window.removeEventListener('keydown', handleUserActivity);
+      window.removeEventListener('click', handleUserActivity);
+      if (hideTimeoutRef.current) {
+        clearTimeout(hideTimeoutRef.current);
+      }
+    };
+  }, [resetHideTimer]);
+
   return (
-    <header className="w-full py-2 md:py-3 bg-[#212428] shadow-md sticky top-0 z-50">
+    <motion.header
+      className="w-full py-2 md:py-3 bg-[#212428] shadow-md fixed top-0 left-0 right-0 z-50"
+      initial={{ y: 0 }}
+      animate={{ y: isHeaderVisible ? 0 : -100 }}
+      transition={{ duration: 0.3, ease: "easeInOut" }}
+    >
       <Container className="flex items-center justify-between py-0">
         {/* Logo */}
         <Link
@@ -433,7 +487,7 @@ const Header = () => {
         isOpen={showVerifyModal}
         onClose={() => setShowVerifyModal(false)}
       />
-    </header>
+    </motion.header>
   );
 };
 

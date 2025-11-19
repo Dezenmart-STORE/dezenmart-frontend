@@ -82,10 +82,10 @@ const ProductList = ({
   const [displayedCount, setDisplayedCount] = useState(maxItems || ITEMS_PER_PAGE);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
-  // Intersection observer for infinite scroll
+  // Intersection observer for infinite scroll with increased root margin for earlier loading
   const { targetRef, isIntersecting } = useIntersectionObserver({
     threshold: 0.1,
-    rootMargin: "200px",
+    rootMargin: "400px", // Load content earlier for smoother scrolling
   });
 
   // Helper function to check if product belongs to current user
@@ -182,14 +182,14 @@ const ProductList = ({
     setDisplayedCount(maxItems || ITEMS_PER_PAGE);
   }, [category, isFeatured, isUserProducts, maxItems]);
 
-  // Load more handler
+  // Load more handler - optimized for instant loading
   const loadMore = useCallback(async () => {
     if (isLoadingMore || !hasMore || isInitialLoading) return;
 
     setIsLoadingMore(true);
 
-    // Simulate loading delay for better UX
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    // Minimal delay for smooth transition
+    await new Promise((resolve) => setTimeout(resolve, 50));
 
     setDisplayedCount((prev) => Math.min(prev + ITEMS_PER_PAGE, totalProducts));
     setIsLoadingMore(false);
@@ -310,11 +310,18 @@ const ProductList = ({
               </div>
             )}
 
-            {/* Loading more indicator */}
+            {/* Loading more indicator - Skeleton cards for seamless UX */}
             {isLoadingMore && (
-              <div className="flex justify-center items-center py-8 gap-2">
-                <LoadingSpinner size="sm" />
-                <span className="text-gray-400">Loading more products...</span>
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 md:gap-5 mt-5">
+                {Array.from({ length: Math.min(ITEMS_PER_PAGE, totalProducts - displayedCount) }).map((_, i) => (
+                  <div key={`skeleton-${i}`} className="bg-Dark rounded-lg overflow-hidden animate-pulse">
+                    <div className="aspect-square bg-gray-700"></div>
+                    <div className="p-3 space-y-2">
+                      <div className="h-4 bg-gray-700 rounded w-3/4"></div>
+                      <div className="h-3 bg-gray-700 rounded w-1/2"></div>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
 

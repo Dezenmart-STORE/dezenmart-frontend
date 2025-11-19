@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
-import { useAccount, useConnect, useDisconnect, useSwitchChain, useBalance } from 'wagmi';
+import { useAccount, useConnect, useDisconnect, useSwitchChain, useBalance, type Connector } from 'wagmi';
 import { TARGET_CHAIN, StableToken, DEFAULT_STABLE_TOKEN } from '../../utils/config/web3.config';
 import { useSnackbar } from '../SnackbarContext';
 
@@ -25,7 +25,7 @@ interface WalletContextType {
   switchToCorrectChain: () => Promise<void>;
 
   // Available connectors
-  connectors: readonly any[];
+  connectors: readonly Connector[];
   connectError: Error | null;
 }
 
@@ -71,7 +71,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     async (connectorId?: string) => {
       try {
         const connector = connectorId
-          ? connectors.find((c) => c.id === connectorId)
+          ? connectors.find((c: Connector) => c.id === connectorId)
           : connectors[0];
 
         if (!connector) {

@@ -65,7 +65,7 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
   const [isLoadingBalance, setIsLoadingBalance] = useState(false);
   const {
     wallet,
-    connectWallet,
+    // connectWallet,
     validateTradeBeforePurchase,
     refreshTokenBalance,
   } = useWeb3();
@@ -259,22 +259,33 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
 
       // Calculate logistics fee (already in USD)
       const logisticsFeeUSD = (() => {
-        const logisticsProvider = orderDetails.logisticsProviderWalletAddress?.[0];
+        const logisticsProvider =
+          orderDetails.logisticsProviderWalletAddress?.[0];
         if (!logisticsProvider) return 0;
 
-        const logisticsIndex = orderDetails.product.logisticsProviders?.findIndex(
-          (provider: string) => provider.toLowerCase() === logisticsProvider.toLowerCase()
-        );
+        const logisticsIndex =
+          orderDetails.product.logisticsProviders?.findIndex(
+            (provider: string) =>
+              provider.toLowerCase() === logisticsProvider.toLowerCase()
+          );
 
         return logisticsIndex >= 0
-          ? parseFloat(orderDetails.product.logisticsCost?.[logisticsIndex] || "0")
+          ? parseFloat(
+              orderDetails.product.logisticsCost?.[logisticsIndex] || "0"
+            )
           : 0;
       })();
 
       const totalUSD = subtotalUSD + escrowFeeUSD + logisticsFeeUSD;
 
       // Convert to selected token
-      const totalInToken = convertPrice(totalUSD, "USD", wallet.selectedToken.symbol);
+      // For stablecoins, use 1:1 ratio since they're pegged to USD
+      const isStablecoin = wallet.selectedToken.symbol === "USDT" || wallet.selectedToken.symbol === "cUSD" || wallet.selectedToken.symbol === "USDC";
+      const totalInToken = isStablecoin ? totalUSD : convertPrice(
+        totalUSD,
+        "USD",
+        wallet.selectedToken.symbol
+      );
 
       const hasQuantityChanged = quantity !== orderDetails.quantity;
       const currentLogistics = orderDetails.logisticsProviderWalletAddress?.[0];
@@ -445,7 +456,9 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
 
       if (!calculations.hasSufficientBalance) {
         showSnackbar(
-          `Insufficient ${wallet.selectedToken.symbol} balance. Required: ${formatPrice(
+          `Insufficient ${
+            wallet.selectedToken.symbol
+          } balance. Required: ${formatPrice(
             calculations.totalAmountInToken,
             wallet.selectedToken.symbol
           )} (≈$${calculations.totalAmountUSD.toFixed(2)} USD)`,
@@ -476,7 +489,7 @@ const PendingPaymentStatus: FC<PendingPaymentStatusProps> = ({
     wallet.isConnected,
     calculations.hasSufficientBalance,
     calculations.totalAmountInToken,
-    connectWallet,
+    // connectWallet,
     debouncedRefetchBalance,
     showSnackbar,
   ]);

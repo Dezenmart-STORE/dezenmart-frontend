@@ -45,31 +45,53 @@ const MobileNavigation = () => {
 
   // Update active index based on current path
   useEffect(() => {
-    const currentIndex = navItems.findIndex((item) => item.path === location.pathname);
+    const pathname = location.pathname;
+
+    // Check for exact match first
+    let currentIndex = navItems.findIndex((item) => item.path === pathname);
+
+    // If no exact match, check for special routes
+    if (currentIndex === -1) {
+      // Handle product routes: /product/:id, /products, /product
+      if (pathname.startsWith('/product')) {
+        currentIndex = navItems.findIndex((item) => item.path === '/product');
+      }
+      // Handle order routes: /orders/:id
+      else if (pathname.startsWith('/orders/')) {
+        currentIndex = navItems.findIndex((item) => item.path === '/product');
+      }
+    }
+
+    // Only set active index if we found a match
     if (currentIndex !== -1) {
       setActiveIndex(currentIndex);
+    } else {
+      // If no match found, set to -1 to not highlight any nav item
+      setActiveIndex(-1);
     }
   }, [location.pathname]);
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-[#212428]/95 backdrop-blur-lg flex justify-evenly items-center px-2 py-2 md:hidden z-50 border-t border-[#292B30] shadow-2xl">
-      {/* Active indicator */}
-      <motion.div
-        className="absolute top-0 h-0.5 bg-gradient-to-r from-transparent via-Red to-transparent"
-        initial={false}
-        animate={{
-          left: `${(activeIndex / navItems.length) * 100}%`,
-          width: `${100 / navItems.length}%`,
-        }}
-        transition={{
-          type: "spring",
-          stiffness: 380,
-          damping: 30,
-        }}
-      />
+      {/* Active indicator - only show if activeIndex is valid */}
+      {activeIndex >= 0 && (
+        <motion.div
+          className="absolute top-0 h-0.5 bg-gradient-to-r from-transparent via-Red to-transparent"
+          initial={false}
+          animate={{
+            left: `${(activeIndex / navItems.length) * 100}%`,
+            width: `${100 / navItems.length}%`,
+          }}
+          transition={{
+            type: "spring",
+            stiffness: 380,
+            damping: 30,
+          }}
+        />
+      )}
 
       {navItems.map((item, index) => {
-        const isActive = location.pathname === item.path;
+        const isActive = index === activeIndex;
 
         return (
           <NavLink

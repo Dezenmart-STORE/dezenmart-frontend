@@ -26,6 +26,7 @@ import {
   TokenBalanceInfo,
 } from "../../utils/tokenBalanceChecker";
 import { useCurrencyConverter } from "../../utils/hooks/useCurrencyConverter";
+import WalletConnectionModal from "./WalletConnectionModal";
 
 interface PaymentModalProps {
   isOpen: boolean;
@@ -51,13 +52,13 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     getTokenAllowance,
     isCorrectNetwork,
     switchToCorrectNetwork,
-    connectWallet,
+    // connectWallet,
     validateTradeBeforePurchase,
     setSelectedToken,
     refreshTokenBalance,
     availableTokens,
   } = useWeb3();
-
+  const [showWalletModal, setShowWalletModal] = useState(false);
   const [step, setStep] = useState<PaymentStep>("review");
   const [needsApproval, setNeedsApproval] = useState(false);
   const [approvalHash, setApprovalHash] = useState<string>("");
@@ -101,38 +102,46 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
 
   // Calculate TOTAL order amount in USD, then convert to selected token
   // NOTE: Product prices from backend are in USD
-  const { orderAmountUSD, orderAmountInToken, subtotal, escrowFee } = useMemo(() => {
-    if (!orderDetails?.product?.price) {
-      return { orderAmountUSD: 0, orderAmountInToken: 0, subtotal: 0, escrowFee: 0 };
-    }
+  const { orderAmountUSD, orderAmountInToken, subtotal, escrowFee } =
+    useMemo(() => {
+      if (!orderDetails?.product?.price) {
+        return {
+          orderAmountUSD: 0,
+          orderAmountInToken: 0,
+          subtotal: 0,
+          escrowFee: 0,
+        };
+      }
 
-    const productPriceUSD = orderDetails.product.price; // Price is in USD
-    const quantity = orderDetails.quantity || 1;
-    const subtotalUSD = productPriceUSD * quantity;
-    const escrowFeeUSD = subtotalUSD * 0.025; // 2.5%
-    const totalUSD = subtotalUSD + escrowFeeUSD + logisticsFee;
+      const productPriceUSD = orderDetails.product.price; // Price is in USD
+      const quantity = orderDetails.quantity || 1;
+      const subtotalUSD = productPriceUSD * quantity;
+      const escrowFeeUSD = subtotalUSD * 0.025; // 2.5%
+      const totalUSD = subtotalUSD + escrowFeeUSD + logisticsFee;
 
-    // Convert from USD to selected token
-    const totalInToken = convertPrice(totalUSD, "USD", selectedToken.symbol);
+      // Convert from USD to selected token
+      // For stablecoins, use 1:1 ratio since they're pegged to USD
+      const isStablecoin = selectedToken.symbol === "USDT" || selectedToken.symbol === "cUSD" || selectedToken.symbol === "USDC";
+      const totalInToken = isStablecoin ? totalUSD : convertPrice(totalUSD, "USD", selectedToken.symbol);
 
-    console.log("💰 Payment Modal Calculations:", {
-      productPriceUSD,
-      quantity,
-      subtotalUSD,
-      escrowFeeUSD,
-      logisticsFee,
-      totalUSD,
-      selectedToken: selectedToken.symbol,
-      totalInToken,
-    });
+      console.log("💰 Payment Modal Calculations:", {
+        productPriceUSD,
+        quantity,
+        subtotalUSD,
+        escrowFeeUSD,
+        logisticsFee,
+        totalUSD,
+        selectedToken: selectedToken.symbol,
+        totalInToken,
+      });
 
-    return {
-      orderAmountUSD: totalUSD,
-      orderAmountInToken: totalInToken,
-      subtotal: subtotalUSD,
-      escrowFee: escrowFeeUSD,
-    };
-  }, [orderDetails, logisticsFee, selectedToken.symbol, convertPrice]);
+      return {
+        orderAmountUSD: totalUSD,
+        orderAmountInToken: totalInToken,
+        subtotal: subtotalUSD,
+        escrowFee: escrowFeeUSD,
+      };
+    }, [orderDetails, logisticsFee, selectedToken.symbol, convertPrice]);
 
   // Use the token amount for balance checks
   const orderAmount = orderAmountInToken;
@@ -275,7 +284,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   const handlePayment = useCallback(async () => {
     if (!wallet.isConnected) {
       try {
-        await connectWallet();
+        setShowWalletModal(true);
         return;
       } catch (error) {
         showSnackbar("Failed to connect wallet", "error");
@@ -346,6 +355,11 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
           "info"
         );
         try {
+          console.log('💰 Approving token:', {
+            token: selectedToken.symbol,
+            amount: orderAmount,
+            amountString: orderAmount.toString(),
+          });
           // Approve the TOTAL amount (product + escrow fee + logistics fee)
           const approvalTx = await approveToken(
             selectedToken.symbol,
@@ -394,6 +408,14 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
       while (retryAttempts < maxRetries) {
         try {
           showSnackbar("Processing purchase transaction...", "info");
+          console.log('💰 Executing buyTrade:', {
+            tradeId: orderDetails.product.tradeId,
+            quantity: orderDetails.quantity.toString(),
+            logisticsProvider: orderDetails.logisticsProviderWalletAddress[0],
+            productCost: productPrice,
+            logisticsCost: logisticsFee,
+            totalAmount: orderAmount,
+          });
           const paymentTransaction = await buyTrade({
             tradeId: orderDetails.product.tradeId,
             quantity: orderDetails.quantity.toString(),
@@ -459,7 +481,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     needsApproval,
     orderDetails,
     orderAmount,
-    connectWallet,
+    // connectWallet,
     switchToCorrectNetwork,
     approveToken,
     buyTrade,
@@ -522,7 +544,10 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                   </span>
                   <div className="text-right">
                     <div className="text-white font-medium">
-                      {formatPrice(convertPrice(subtotal, "USD", selectedToken.symbol), selectedToken.symbol)}
+                      {formatPrice(
+                        convertPrice(subtotal, "USD", selectedToken.symbol),
+                        selectedToken.symbol
+                      )}
                     </div>
                     <div className="text-xs text-gray-400">
                       ${subtotal.toFixed(2)} USD
@@ -535,7 +560,10 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                   <span className="text-gray-400">Escrow Fee (2.5%)</span>
                   <div className="text-right">
                     <div className="text-gray-300">
-                      {formatPrice(convertPrice(escrowFee, "USD", selectedToken.symbol), selectedToken.symbol)}
+                      {formatPrice(
+                        convertPrice(escrowFee, "USD", selectedToken.symbol),
+                        selectedToken.symbol
+                      )}
                     </div>
                     <div className="text-xs text-gray-500">
                       ${escrowFee.toFixed(2)} USD
@@ -549,7 +577,14 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                     <span className="text-gray-400">Logistics Fee</span>
                     <div className="text-right">
                       <div className="text-gray-300">
-                        {formatPrice(convertPrice(logisticsFee, "USD", selectedToken.symbol), selectedToken.symbol)}
+                        {formatPrice(
+                          convertPrice(
+                            logisticsFee,
+                            "USD",
+                            selectedToken.symbol
+                          ),
+                          selectedToken.symbol
+                        )}
                       </div>
                       <div className="text-xs text-gray-500">
                         ${logisticsFee.toFixed(2)} USD
@@ -942,25 +977,31 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   };
 
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={handleModalClose}
-      title={step === "review" ? "Complete Payment" : ""}
-      maxWidth="md:max-w-lg"
-      showCloseButton={step !== "processing"}
-    >
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={step}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
-          transition={{ duration: 0.2 }}
-        >
-          {renderStepContent()}
-        </motion.div>
-      </AnimatePresence>
-    </Modal>
+    <>
+      <Modal
+        isOpen={isOpen}
+        onClose={handleModalClose}
+        title={step === "review" ? "Complete Payment" : ""}
+        maxWidth="md:max-w-lg"
+        showCloseButton={step !== "processing"}
+      >
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={step}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.2 }}
+          >
+            {renderStepContent()}
+          </motion.div>
+        </AnimatePresence>
+      </Modal>
+      <WalletConnectionModal
+        isOpen={showWalletModal}
+        onClose={() => setShowWalletModal(false)}
+      />
+    </>
   );
 };
 

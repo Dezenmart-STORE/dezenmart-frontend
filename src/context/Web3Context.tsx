@@ -19,6 +19,7 @@ import {
   useWriteContract,
   useChainId,
   usePublicClient,
+  type Connector,
 } from "wagmi";
 import {
   parseUnits,
@@ -26,6 +27,7 @@ import {
   erc20Abi,
   decodeEventLog,
   WalletClient,
+  type Log,
   // createWalletClient,
   // custom,
   // http,
@@ -1070,7 +1072,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
         if (receipt.logs) {
           try {
             const decodedLogs = receipt.logs
-              .map((log) => {
+              .map((log: Log) => {
                 try {
                   return decodeEventLog({
                     abi: DEZENMART_ABI,
@@ -1186,49 +1188,64 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   // Legacy functions for backward compatibility
-  const connectWallet = useCallback(async (connectorName?: string) => {
-    try {
-      // If a specific connector is provided, use it
-      // Otherwise, intelligently select based on device and available wallets
-      let connector;
+  const connectWallet = useCallback(
+    async (connectorName?: string) => {
+      try {
+        // If a specific connector is provided, use it
+        // Otherwise, intelligently select based on device and available wallets
+        let connector;
 
-      if (connectorName) {
-        connector = connectors.find((c) => c.name === connectorName);
-      } else {
-        // Auto-detect best connector for the user's device
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-
-        if (isMobile) {
-          // On mobile, prefer WalletConnect for better compatibility with mobile wallets
-          connector = connectors.find((c) => c.name.toLowerCase().includes("walletconnect")) ||
-                     connectors.find((c) => c.name === "Coinbase Wallet") ||
-                     connectors[0];
+        if (connectorName) {
+          connector = connectors.find(
+            (c: Connector) => c.name === connectorName
+          );
         } else {
-          // On desktop, prefer MetaMask if installed, otherwise Coinbase Wallet
-          connector = connectors.find((c) => c.name === "MetaMask") ||
-                     connectors.find((c) => c.name === "Coinbase Wallet") ||
-                     connectors[0];
+          // Auto-detect best connector for the user's device
+          const isMobile =
+            /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+              navigator.userAgent
+            );
+
+          if (isMobile) {
+            // On mobile, prefer WalletConnect for better compatibility with mobile wallets
+            connector =
+              connectors.find((c: Connector) =>
+                c.name.toLowerCase().includes("walletconnect")
+              ) ||
+              connectors.find((c: Connector) => c.name === "Coinbase Wallet") ||
+              connectors[0];
+          } else {
+            // On desktop, prefer MetaMask if installed, otherwise Coinbase Wallet
+            connector =
+              connectors.find((c: Connector) => c.name === "MetaMask") ||
+              connectors.find((c: Connector) => c.name === "Coinbase Wallet") ||
+              connectors[0];
+          }
+        }
+
+        if (connector) {
+          await connect({ connector });
+        } else {
+          throw new Error("No wallet connector available");
+        }
+      } catch (error: any) {
+        console.error("Failed to connect wallet:", error);
+
+        // Provide user-friendly error messages
+        if (error.message?.includes("User rejected")) {
+          showSnackbar("Connection cancelled", "info");
+        } else if (error.message?.includes("No wallet connector")) {
+          showSnackbar(
+            "No wallet found. Please install a wallet extension.",
+            "error"
+          );
+        } else {
+          showSnackbar("Failed to connect wallet. Please try again.", "error");
         }
       }
-
-      if (connector) {
-        await connect({ connector });
-      } else {
-        throw new Error("No wallet connector available");
-      }
-    } catch (error: any) {
-      console.error("Failed to connect wallet:", error);
-
-      // Provide user-friendly error messages
-      if (error.message?.includes("User rejected")) {
-        showSnackbar("Connection cancelled", "info");
-      } else if (error.message?.includes("No wallet connector")) {
-        showSnackbar("No wallet found. Please install a wallet extension.", "error");
-      } else {
-        showSnackbar("Failed to connect wallet. Please try again.", "error");
-      }
-    }
-  }, [connect, connectors, showSnackbar]);
+    },
+    [connect, connectors, showSnackbar]
+  );
 
   const disconnectWallet = useCallback(() => {
     disconnect();

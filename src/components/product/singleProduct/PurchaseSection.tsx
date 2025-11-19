@@ -301,7 +301,9 @@ const SwapPreview = memo(
                   {priceImpact !== null && Math.abs(priceImpact) > 1 && (
                     <div className="flex items-center gap-1 text-xs text-yellow-400">
                       <HiExclamationTriangle className="w-3 h-3" />
-                      <span>Price impact: {Math.abs(priceImpact).toFixed(2)}%</span>
+                      <span>
+                        Price impact: {Math.abs(priceImpact).toFixed(2)}%
+                      </span>
                     </div>
                   )}
                 </>
@@ -358,9 +360,9 @@ const WalletInfo = memo(
 
     const lastUpdated = useMemo(() => {
       const now = new Date();
-      return now.toLocaleTimeString('en-US', {
-        hour: '2-digit',
-        minute: '2-digit'
+      return now.toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
       });
     }, [wallet.tokenBalances[wallet.selectedToken.symbol]?.raw]);
 
@@ -389,7 +391,7 @@ const WalletInfo = memo(
         <div className="flex justify-between items-center text-gray-500">
           <span>Gas (CELO):</span>
           <span className="font-mono">
-            {wallet.balance ? parseFloat(wallet.balance).toFixed(4) : '0.0000'}
+            {wallet.balance ? parseFloat(wallet.balance).toFixed(4) : "0.0000"}
           </span>
         </div>
 
@@ -494,10 +496,10 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = memo(
     // Calculate available quantity
     const availableQty = useMemo(() => {
       if (selectedVariant) return selectedVariant.quantity;
-      if (product?.logisticsCost.length)
-        return parseFloat(product.logisticsCost[0]);
-      return 0;
-    }, [selectedVariant, product?.logisticsCost]);
+      // if (product?.logisticsCost.length)
+      //   return parseFloat(product.logisticsCost[0]);
+      return Number(product?.stock) || 0;
+    }, [selectedVariant, product?.stock]);
 
     // Stock status flags
     const stockStatus = useMemo(

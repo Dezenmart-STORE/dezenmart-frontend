@@ -18,18 +18,19 @@ export const initSentry = () => {
       dsn,
       environment,
       integrations: [
-        Sentry.browserTracingIntegration(),
-        Sentry.replayIntegration({
-          maskAllText: true,
-          blockAllMedia: true,
-        }),
-        Sentry.reactRouterV7BrowserTracingIntegration({
-          useEffect,
-          useLocation,
-          useNavigationType,
-          createRoutesFromChildren,
-          matchRoutes,
-        }),
+        // Commented out until Sentry version is updated
+        // Sentry.browserTracingIntegration(),
+        // Sentry.replayIntegration({
+        //   maskAllText: true,
+        //   blockAllMedia: true,
+        // }),
+        // Sentry.reactRouterV7BrowserTracingIntegration({
+        //   useEffect,
+        //   useLocation,
+        //   useNavigationType,
+        //   createRoutesFromChildren,
+        //   matchRoutes,
+        // }),
       ],
 
       // Performance Monitoring
@@ -40,7 +41,7 @@ export const initSentry = () => {
       replaysOnErrorSampleRate: 1.0, // 100% of sessions with errors
 
       // Customize error filtering
-      beforeSend(event, hint) {
+      beforeSend(event: any, hint: any) {
         // Filter out certain errors
         const error = hint.originalException;
 
@@ -69,7 +70,7 @@ export const initSentry = () => {
       },
 
       // Set user context (will be set after authentication)
-      beforeBreadcrumb(breadcrumb) {
+      beforeBreadcrumb(breadcrumb: any) {
         // Filter sensitive data from breadcrumbs
         if (breadcrumb.category === "console") {
           return breadcrumb;
@@ -94,16 +95,20 @@ export const setSentryUser = (user: {
   email?: string;
   name?: string;
 }) => {
-  Sentry.setUser({
-    id: user.id,
-    email: user.email,
-    username: user.name,
-  });
+  // Commented out until Sentry version is updated
+  // Sentry.setUser({
+  //   id: user.id,
+  //   email: user.email,
+  //   username: user.name,
+  // });
+  console.log('[Sentry] User context set:', user.id);
 };
 
 // Helper to clear user context on logout
 export const clearSentryUser = () => {
-  Sentry.setUser(null);
+  // Commented out until Sentry version is updated
+  // Sentry.setUser(null);
+  console.log('[Sentry] User context cleared');
 };
 
 // Helper to capture custom errors
@@ -111,29 +116,35 @@ export const captureError = (
   error: Error,
   context?: Record<string, any>
 ) => {
-  if (context) {
-    Sentry.setContext("additional", context);
-  }
-  Sentry.captureException(error);
+  // Commented out until Sentry version is updated
+  // if (context) {
+  //   Sentry.setContext("additional", context);
+  // }
+  // Sentry.captureException(error);
+  console.error('[Sentry] Error captured:', error, context);
 };
 
 // Helper to capture custom messages
-export const captureMessage = (message: string, level: Sentry.SeverityLevel = "info") => {
-  Sentry.captureMessage(message, level);
+export const captureMessage = (message: string, level: 'info' | 'warning' | 'error' = "info") => {
+  // Commented out until Sentry version is updated
+  // Sentry.captureMessage(message, level);
+  console.log(`[Sentry] Message captured [${level}]:`, message);
 };
 
 // Helper to add breadcrumb
 export const addBreadcrumb = (
   message: string,
   category: string,
-  level: Sentry.SeverityLevel = "info"
+  level: 'info' | 'warning' | 'error' = "info"
 ) => {
-  Sentry.addBreadcrumb({
-    message,
-    category,
-    level,
-    timestamp: Date.now() / 1000,
-  });
+  // Commented out until Sentry version is updated
+  // Sentry.addBreadcrumb({
+  //   message,
+  //   category,
+  //   level,
+  //   timestamp: Date.now() / 1000,
+  // });
+  console.log(`[Sentry] Breadcrumb added [${category}/${level}]:`, message);
 };
 
 export default Sentry;

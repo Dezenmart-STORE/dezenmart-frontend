@@ -1,6 +1,6 @@
 import { http, createConfig, fallback } from "wagmi";
 import { celo, celoAlfajores } from "wagmi/chains";
-import { coinbaseWallet, metaMask, walletConnect, injected } from "wagmi/connectors";
+import { coinbaseWallet, metaMask, walletConnect } from "wagmi/connectors";
 import cUSDIcon from "../../assets/icons/cUSD.svg";
 import cEURIcon from "../../assets/icons/cEUR.svg";
 import cREALIcon from "../../assets/icons/cREAL.svg";
@@ -263,7 +263,17 @@ export const wagmiConfig = createConfig({
               themeMode: "dark",
               themeVariables: {
                 "--wcm-z-index": "9999",
+                "--wcm-accent-color": "#FF3B30",
               },
+              explorerRecommendedWalletIds: [
+                "c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96", // MetaMask
+                "fd20dc426fb37566d803205b19bbc1d4096b248ac04548e3cfb6b3a38bd033aa", // Coinbase Wallet
+                "4622a2b2d6af1c9844944291e5e7351a6aa24cd7b23099efac1b2fd875da31a0", // Trust Wallet
+              ],
+              mobileWallets: undefined, // Allow all mobile wallets
+              desktopWallets: undefined, // Allow all desktop wallets
+              walletImages: undefined,
+              enableExplorer: true,
             },
             // Support for mobile deep linking
             isNewChainsStale: false,

@@ -73,13 +73,16 @@ const BalanceDisplay = React.memo<{
     );
   }
 
-  if (!balance) {
+  if (!balance || balance === "0" || balance === "0.00") {
     return <span className="text-gray-400 font-mono">0.00 {symbol}</span>;
   }
 
+  // Extract numeric part and check if symbol is already included in balance string
+  const hasSymbol = balance.includes(symbol);
+
   return (
     <span className="text-white font-mono transition-opacity duration-200">
-      {showFullBalance ? balance : balance}
+      {hasSymbol ? balance : `${balance} ${symbol}`}
     </span>
   );
 });
@@ -158,18 +161,32 @@ const WalletDetailsModal: React.FC<WalletDetailsModalProps> = ({
 
     switch (balanceMode) {
       case "TOKEN":
-        return currentTokenBalance.formatted;
+        // Use raw balance and format it properly
+        const rawBalance = parseFloat(currentTokenBalance.raw || "0");
+        return `${rawBalance.toFixed(2)} ${wallet.selectedToken.symbol}`;
       case "CELO":
+        const rawBalanceForCelo = parseFloat(currentTokenBalance.raw || "0");
         const celoAmount = convertPrice(
-          parseFloat(currentTokenBalance.raw),
+          rawBalanceForCelo,
           wallet.selectedToken.symbol,
           "CELO"
         );
         return formatPrice(celoAmount, "CELO");
       case "FIAT":
-        return currentTokenBalance.fiat;
+        // Ensure fiat value is properly formatted
+        if (currentTokenBalance.fiat) {
+          return currentTokenBalance.fiat;
+        }
+        // Fallback: calculate fiat from raw balance
+        const rawBalanceForFiat = parseFloat(currentTokenBalance.raw || "0");
+        const fiatAmount = convertPrice(
+          rawBalanceForFiat,
+          wallet.selectedToken.symbol,
+          "FIAT"
+        );
+        return formatPrice(fiatAmount, "FIAT");
       default:
-        return currentTokenBalance.fiat;
+        return currentTokenBalance.fiat || "0.00";
     }
   }, [
     currentTokenBalance,
@@ -370,7 +387,7 @@ const WalletDetailsModal: React.FC<WalletDetailsModalProps> = ({
                 <BalanceDisplay
                   isLoading={stableTokenLoading}
                   balance={formattedBalance}
-                  symbol={wallet.selectedToken.symbol}
+                  symbol=""
                 />
               </div>
             </div>
