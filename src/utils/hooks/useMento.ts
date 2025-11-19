@@ -980,6 +980,7 @@ export function useMento() {
           gas: allowanceTxObj.gasLimit
             ? BigInt(allowanceTxObj.gasLimit.toString())
             : undefined,
+          chain: undefined,
         });
 
         const allowanceReceipt = await publicClient?.waitForTransactionReceipt({
@@ -1010,6 +1011,7 @@ export function useMento() {
           gas: swapTxObj.gasLimit
             ? BigInt(swapTxObj.gasLimit.toString())
             : undefined,
+          chain: undefined,
         });
 
         const swapReceipt = await publicClient?.waitForTransactionReceipt({

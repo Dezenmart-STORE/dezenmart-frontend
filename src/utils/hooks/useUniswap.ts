@@ -989,6 +989,7 @@ export function useUniswap() {
           data: data as `0x${string}`,
           value: BigInt(0),
           gas: gasWithBuffer,
+          chain: undefined,
         });
 
         const swapReceipt = await publicClient?.waitForTransactionReceipt({
