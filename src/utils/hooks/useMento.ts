@@ -54,10 +54,16 @@ interface SwapQuote {
   };
   gasEstimate?: string;
   isDirectSwap: boolean;
+  isMultiHop: boolean;
   pairDetails?: {
     id: string;
     providerAddr: string;
     assets: string[];
+  };
+  multiHopDetails?: {
+    intermediateToken: string;
+    firstHopAmount: string;
+    estimatedSlippage: string;
   };
 }
 
@@ -252,6 +258,50 @@ const getGasFee = async (
     console.error("Failed to estimate gas fee:", error);
     return "0.001";
   }
+};
+
+// Common intermediary tokens for multi-hop swaps (in order of preference)
+const COMMON_INTERMEDIARIES = ["cUSD", "USDT", "cEUR", "cREAL", "USDC"];
+
+// Helper to find multi-hop path
+const findMultiHopPath = async (
+  mento: any,
+  fromSymbol: string,
+  toSymbol: string,
+  chainId: number
+): Promise<{ intermediary: string; fromPair: TradablePair; toPair: TradablePair } | null> => {
+  for (const intermediary of COMMON_INTERMEDIARIES) {
+    if (intermediary === fromSymbol || intermediary === toSymbol) continue;
+
+    try {
+      const intermediaryToken = STABLE_TOKENS.find((t) => t.symbol === intermediary);
+      if (!intermediaryToken) continue;
+
+      const intermediaryAddress = getTokenAddress(intermediaryToken, chainId);
+      if (!intermediaryAddress) continue;
+
+      const fromToken = STABLE_TOKENS.find((t) => t.symbol === fromSymbol)!;
+      const toToken = STABLE_TOKENS.find((t) => t.symbol === toSymbol)!;
+      const fromAddress = getTokenAddress(fromToken, chainId);
+      const toAddress = getTokenAddress(toToken, chainId);
+
+      if (!fromAddress || !toAddress) continue;
+
+      // Try to find both pairs
+      const fromPair = await mento.findPairForTokens(fromAddress, intermediaryAddress);
+      const toPair = await mento.findPairForTokens(intermediaryAddress, toAddress);
+
+      if (fromPair && toPair) {
+        console.log(`[Mento] Found multi-hop path: ${fromSymbol} → ${intermediary} → ${toSymbol}`);
+        return { intermediary, fromPair, toPair };
+      }
+    } catch (error) {
+      // Continue to next intermediary
+      continue;
+    }
+  }
+
+  return null;
 };
 
 export function useMento() {
@@ -622,14 +672,81 @@ export function useMento() {
             isDirectSwap = true;
             console.log("[getSwapQuote] Direct swap successful");
           } catch (directSwapError: any) {
-            console.error(
-              "[getSwapQuote] Direct swap failed:",
+            console.warn(
+              "[getSwapQuote] Direct swap failed, trying multi-hop:",
               directSwapError.message
             );
-            throw new SwapError(
-              SwapErrorType.INSUFFICIENT_LIQUIDITY,
-              `No trading path available between ${fromSymbol} and ${toSymbol}. This pair may not have sufficient liquidity.`
-            );
+
+            // Try multi-hop swap
+            try {
+              const multiHopPath = await findMultiHopPath(
+                mentoRef.current!,
+                fromSymbol,
+                toSymbol,
+                chainId
+              );
+
+              if (!multiHopPath) {
+                throw new SwapError(
+                  SwapErrorType.INSUFFICIENT_LIQUIDITY,
+                  `No trading path available between ${fromSymbol} and ${toSymbol}. This pair may not have sufficient liquidity.`
+                );
+              }
+
+              const { intermediary, fromPair, toPair } = multiHopPath;
+              const intermediaryToken = STABLE_TOKENS.find((t) => t.symbol === intermediary)!;
+              const intermediaryAddress = getTokenAddress(intermediaryToken, chainId)!;
+
+              // First hop: fromToken -> intermediary
+              const firstHopAmount = (await mentoRef.current!.getAmountOut(
+                fromAddress,
+                intermediaryAddress,
+                BigNumber.from(amountIn.toString()),
+                fromPair
+              )) as BigNumber;
+
+              // Second hop: intermediary -> toToken
+              amountOut = (await mentoRef.current!.getAmountOut(
+                intermediaryAddress,
+                toAddress,
+                firstHopAmount,
+                toPair
+              )) as BigNumber;
+
+              route = [fromSymbol, intermediary, toSymbol];
+              isDirectSwap = false;
+
+              // Store multi-hop details
+              pairDetails = {
+                id: "multi-hop",
+                providerAddr: "multi-hop",
+                assets: [fromAddress, intermediaryAddress, toAddress],
+              };
+
+              const firstHopAmountFormatted = formatUnits(
+                BigInt(firstHopAmount.toString()),
+                intermediaryToken.decimals
+              );
+
+              // Calculate estimated slippage for multi-hop (higher than single hop)
+              const estimatedSlippage = (parseFloat(SLIPPAGE_DEFAULT.toString()) * 2).toFixed(4);
+
+              console.log("[getSwapQuote] Multi-hop swap successful:", {
+                route,
+                firstHopAmount: firstHopAmountFormatted,
+                finalAmount: formatUnits(BigInt(amountOut.toString()), toToken.decimals),
+                estimatedSlippage,
+              });
+            } catch (multiHopError: any) {
+              console.error(
+                "[getSwapQuote] Multi-hop swap also failed:",
+                multiHopError.message
+              );
+              throw new SwapError(
+                SwapErrorType.INSUFFICIENT_LIQUIDITY,
+                `No trading path available between ${fromSymbol} and ${toSymbol}. This pair may not have sufficient liquidity.`
+              );
+            }
           }
         }
 
@@ -696,6 +813,15 @@ export function useMento() {
         );
         const protocolFee = "0";
 
+        const isMultiHop = route.length > 2;
+        const multiHopDetails = isMultiHop && pairDetails
+          ? {
+              intermediateToken: route[1],
+              firstHopAmount: "0", // Will be calculated during execution
+              estimatedSlippage: (parseFloat(SLIPPAGE_DEFAULT.toString()) * 2).toFixed(4),
+            }
+          : undefined;
+
         const quote: SwapQuote = {
           amountOut: amountOutFormatted,
           exchangeRate,
@@ -706,7 +832,9 @@ export function useMento() {
           gasEstimate,
           timestamp: Date.now(),
           isDirectSwap,
+          isMultiHop,
           pairDetails,
+          multiHopDetails,
         };
 
         quoteCache.current.set(cacheKey, quote);

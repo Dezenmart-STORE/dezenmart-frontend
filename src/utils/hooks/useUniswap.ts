@@ -26,7 +26,7 @@ const SWAP_ROUTER_ADDRESSES = {
 // Quoter V2 address on Celo
 const QUOTER_V2_ADDRESS = "0x82825d0554fA07f7FC52Ab63c961F330fdEFa8E8";
 
-// SwapRouter02 ABI (minimal for exactInputSingle)
+// SwapRouter02 ABI (minimal for exactInputSingle and exactInput)
 const SWAP_ROUTER_ABI = [
   {
     inputs: [
@@ -58,9 +58,32 @@ const SWAP_ROUTER_ABI = [
     stateMutability: "payable",
     type: "function",
   },
+  {
+    inputs: [
+      {
+        components: [
+          { internalType: "bytes", name: "path", type: "bytes" },
+          { internalType: "address", name: "recipient", type: "address" },
+          { internalType: "uint256", name: "amountIn", type: "uint256" },
+          {
+            internalType: "uint256",
+            name: "amountOutMinimum",
+            type: "uint256",
+          },
+        ],
+        internalType: "struct IV3SwapRouter.ExactInputParams",
+        name: "params",
+        type: "tuple",
+      },
+    ],
+    name: "exactInput",
+    outputs: [{ internalType: "uint256", name: "amountOut", type: "uint256" }],
+    stateMutability: "payable",
+    type: "function",
+  },
 ];
 
-// Quoter ABI (minimal for quoteExactInputSingle)
+// Quoter ABI (minimal for quoteExactInputSingle and quoteExactInput)
 const QUOTER_ABI = [
   {
     inputs: [
@@ -89,6 +112,29 @@ const QUOTER_ABI = [
         internalType: "uint32",
         name: "initializedTicksCrossed",
         type: "uint32",
+      },
+      { internalType: "uint256", name: "gasEstimate", type: "uint256" },
+    ],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      { internalType: "bytes", name: "path", type: "bytes" },
+      { internalType: "uint256", name: "amountIn", type: "uint256" },
+    ],
+    name: "quoteExactInput",
+    outputs: [
+      { internalType: "uint256", name: "amountOut", type: "uint256" },
+      {
+        internalType: "uint160[]",
+        name: "sqrtPriceX96AfterList",
+        type: "uint160[]",
+      },
+      {
+        internalType: "uint32[]",
+        name: "initializedTicksCrossedList",
+        type: "uint32[]",
       },
       { internalType: "uint256", name: "gasEstimate", type: "uint256" },
     ],
@@ -132,10 +178,17 @@ interface SwapQuote {
   };
   gasEstimate?: string;
   isDirectSwap: boolean;
+  isMultiHop: boolean;
   routeDetails?: {
     poolAddresses: string[];
     poolFees: number[];
     path: string[];
+  };
+  multiHopDetails?: {
+    intermediateToken: string;
+    firstHopFee: number;
+    secondHopFee: number;
+    estimatedSlippage: string;
   };
 }
 
@@ -211,6 +264,104 @@ const getGasFee = async (
     console.error("Failed to estimate gas fee:", error);
     return "0.001";
   }
+};
+
+// Common intermediary tokens for multi-hop swaps (in order of preference)
+const COMMON_INTERMEDIARIES = ["cUSD", "USDT", "cEUR", "CELO"];
+
+// Encode path for Uniswap V3 multi-hop swap
+const encodePath = (tokens: string[], fees: number[]): string => {
+  if (tokens.length !== fees.length + 1) {
+    throw new Error("Invalid path: tokens and fees length mismatch");
+  }
+
+  let encoded = "0x";
+  for (let i = 0; i < fees.length; i++) {
+    // Token address (20 bytes)
+    encoded += tokens[i].slice(2);
+    // Fee (3 bytes = 24 bits)
+    const feeHex = fees[i].toString(16).padStart(6, "0");
+    encoded += feeHex;
+  }
+  // Last token
+  encoded += tokens[tokens.length - 1].slice(2);
+
+  return encoded.toLowerCase();
+};
+
+// Try to find multi-hop path
+const findMultiHopPath = async (
+  quoter: any,
+  fromAddress: string,
+  toAddress: string,
+  amountIn: bigint,
+  fromSymbol: string,
+  toSymbol: string,
+  chainId: number
+): Promise<{
+  intermediary: string;
+  intermediaryAddress: string;
+  firstHopFee: number;
+  secondHopFee: number;
+  amountOut: any;
+} | null> => {
+  const feeTiers = [
+    FeeAmount.MEDIUM,
+    FeeAmount.LOW,
+    FeeAmount.HIGH,
+    FeeAmount.LOWEST,
+  ];
+
+  for (const intermediary of COMMON_INTERMEDIARIES) {
+    if (intermediary === fromSymbol || intermediary === toSymbol) continue;
+
+    try {
+      const intermediaryToken = STABLE_TOKENS.find((t) => t.symbol === intermediary);
+      if (!intermediaryToken) continue;
+
+      const intermediaryAddress = intermediaryToken.address[chainId];
+      if (!intermediaryAddress) continue;
+
+      // Try different fee combinations
+      for (const firstFee of feeTiers) {
+        for (const secondFee of feeTiers) {
+          try {
+            const path = encodePath(
+              [fromAddress, intermediaryAddress, toAddress],
+              [firstFee, secondFee]
+            );
+
+            const quote = await quoter.callStatic.quoteExactInput(
+              path,
+              amountIn.toString()
+            );
+
+            if (quote && ethers.BigNumber.from(quote.amountOut).gt(0)) {
+              console.log(
+                `[Uniswap] Found multi-hop path: ${fromSymbol} → ${intermediary} → ${toSymbol}`,
+                `(fees: ${firstFee}, ${secondFee})`
+              );
+              return {
+                intermediary,
+                intermediaryAddress,
+                firstHopFee: firstFee,
+                secondHopFee: secondFee,
+                amountOut: quote,
+              };
+            }
+          } catch (error) {
+            // Try next fee combination
+            continue;
+          }
+        }
+      }
+    } catch (error) {
+      // Try next intermediary
+      continue;
+    }
+  }
+
+  return null;
 };
 
 export function useUniswap() {
@@ -524,11 +675,56 @@ export function useUniswap() {
           }
         }
 
+        let isMultiHop = false;
+        let multiHopDetails: SwapQuote["multiHopDetails"] = undefined;
+        let route: string[] = [fromSymbol, toSymbol];
+        let poolFees: number[] = [bestFee];
+        let path: string[] = [fromAddress, toAddress];
+
         if (!bestQuote || ethers.BigNumber.from(bestQuote.amountOut).isZero()) {
-          throw new SwapError(
-            SwapErrorType.INSUFFICIENT_LIQUIDITY,
-            `No liquidity found for ${fromSymbol}/${toSymbol} pair`
+          console.warn(
+            `[Uniswap] No direct liquidity found for ${fromSymbol}/${toSymbol}, trying multi-hop...`
           );
+
+          // Try multi-hop swap
+          const multiHopResult = await findMultiHopPath(
+            quoter,
+            fromAddress,
+            toAddress,
+            amountIn,
+            fromSymbol,
+            toSymbol,
+            chainId
+          );
+
+          if (!multiHopResult) {
+            throw new SwapError(
+              SwapErrorType.INSUFFICIENT_LIQUIDITY,
+              `No liquidity found for ${fromSymbol}/${toSymbol} pair (tried direct and multi-hop)`
+            );
+          }
+
+          bestQuote = multiHopResult.amountOut;
+          isMultiHop = true;
+          route = [fromSymbol, multiHopResult.intermediary, toSymbol];
+          poolFees = [multiHopResult.firstHopFee, multiHopResult.secondHopFee];
+          path = [fromAddress, multiHopResult.intermediaryAddress, toAddress];
+
+          multiHopDetails = {
+            intermediateToken: multiHopResult.intermediary,
+            firstHopFee: multiHopResult.firstHopFee,
+            secondHopFee: multiHopResult.secondHopFee,
+            estimatedSlippage: (slippageTolerance * 2).toFixed(4),
+          };
+
+          console.log("[Uniswap] Multi-hop quote successful:", {
+            route,
+            poolFees,
+            amountOut: formatUnits(
+              ethers.BigNumber.from(bestQuote.amountOut).toBigInt(),
+              toToken.decimals
+            ),
+          });
         }
 
         const amountOutFormatted = formatUnits(
@@ -563,16 +759,18 @@ export function useUniswap() {
           exchangeRate,
           minAmountOut: minAmountOutFormatted,
           priceImpact,
-          route: [fromSymbol, toSymbol],
+          route,
           fees: { networkFee, protocolFee: "0" },
           gasEstimate,
           timestamp: Date.now(),
-          isDirectSwap: true,
+          isDirectSwap: !isMultiHop,
+          isMultiHop,
           routeDetails: {
             poolAddresses: [],
-            poolFees: [bestFee],
-            path: [fromAddress, toAddress],
+            poolFees,
+            path,
           },
+          multiHopDetails,
         };
 
         quoteCache.current.set(cacheKey, quote);
@@ -727,17 +925,6 @@ export function useUniswap() {
 
         const deadline = Math.floor(Date.now() / 1000) + DEADLINE_MINUTES * 60;
 
-        // Create swap params for exactInputSingle
-        const swapParams = {
-          tokenIn: fromAddress,
-          tokenOut: toAddress,
-          fee: bestFee,
-          recipient: recipientAddress || address,
-          amountIn: amountIn.toString(),
-          amountOutMinimum: minAmountOut.toString(),
-          sqrtPriceLimitX96: 0,
-        };
-
         // Encode the function call
         const swapRouter = new ethers.Contract(
           routerAddress,
@@ -745,10 +932,45 @@ export function useUniswap() {
           providerRef.current
         );
 
-        const data = swapRouter.interface.encodeFunctionData(
-          "exactInputSingle",
-          [swapParams]
-        );
+        let data: string;
+
+        if (quote.isMultiHop && quote.routeDetails) {
+          // Multi-hop swap using exactInput
+          console.log("Using multi-hop swap (exactInput)");
+          const encodedPath = encodePath(
+            quote.routeDetails.path,
+            quote.routeDetails.poolFees
+          );
+
+          const multiHopParams = {
+            path: encodedPath,
+            recipient: recipientAddress || address,
+            amountIn: amountIn.toString(),
+            amountOutMinimum: minAmountOut.toString(),
+          };
+
+          data = swapRouter.interface.encodeFunctionData("exactInput", [
+            multiHopParams,
+          ]);
+        } else {
+          // Direct swap using exactInputSingle
+          console.log("Using direct swap (exactInputSingle)");
+          const bestFee = quote.routeDetails?.poolFees[0] || FeeAmount.MEDIUM;
+
+          const swapParams = {
+            tokenIn: fromAddress,
+            tokenOut: toAddress,
+            fee: bestFee,
+            recipient: recipientAddress || address,
+            amountIn: amountIn.toString(),
+            amountOutMinimum: minAmountOut.toString(),
+            sqrtPriceLimitX96: 0,
+          };
+
+          data = swapRouter.interface.encodeFunctionData("exactInputSingle", [
+            swapParams,
+          ]);
+        }
 
         // Estimate gas
         const gasEstimate = await publicClient!.estimateGas({
