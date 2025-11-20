@@ -1,4 +1,4 @@
-import { lazy, StrictMode, Suspense } from "react";
+import { lazy, StrictMode, Suspense, useEffect, useState } from "react";
 import "./index.css";
 import {
   createBrowserRouter,
@@ -89,6 +89,45 @@ const queryClient = new QueryClient({
 });
 setupGlobalErrorHandling();
 
+declare global {
+  interface Window {
+    __APP_IS_STANDALONE__?: boolean;
+  }
+}
+
+const MIN_APP_LOAD_DURATION = 4600;
+
+const detectStandaloneMode = () => {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  const mediaQuery = window.matchMedia
+    ? window.matchMedia("(display-mode: standalone)")
+    : null;
+  const iosStandalone = (
+    window.navigator as Navigator & { standalone?: boolean }
+  ).standalone;
+
+  return Boolean(mediaQuery?.matches || iosStandalone);
+};
+
+const resolveStandaloneMode = () => {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  if (typeof window.__APP_IS_STANDALONE__ === "boolean") {
+    return window.__APP_IS_STANDALONE__;
+  }
+
+  const detected = detectStandaloneMode();
+  window.__APP_IS_STANDALONE__ = detected;
+  return detected;
+};
+
+const initialStandaloneMode = resolveStandaloneMode();
+
 const RouterLayout = () => {
   return (
     <Configuration>
@@ -102,7 +141,11 @@ const RouterLayout = () => {
                     <CurrencyProvider>
                       <WalkthroughProvider>
                         <Layout>
-                          <Suspense fallback={<Loadscreen />}>
+                          <Suspense
+                            fallback={
+                              initialStandaloneMode ? null : <Loadscreen />
+                            }
+                          >
                             <Outlet />
                           </Suspense>
                           <ReferralHandler />
@@ -231,8 +274,35 @@ const router = createBrowserRouter([
   },
 ]);
 
+const App = () => {
+  const [isStandalone] = useState(initialStandaloneMode);
+  const [isInitializing, setIsInitializing] = useState(
+    () => !initialStandaloneMode
+  );
+
+  useEffect(() => {
+    if (isStandalone) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setIsInitializing(false);
+    }, MIN_APP_LOAD_DURATION);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [isStandalone]);
+
+  if (!isStandalone && isInitializing) {
+    return <Loadscreen />;
+  }
+
+  return <RouterProvider router={router} />;
+};
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <RouterProvider router={router} />
+    <App />
   </StrictMode>
 );

@@ -89,10 +89,10 @@ const Loadscreen = () => {
               />
             </g>
 
-            {/* White Triangle Fill */}
+            {/* red Triangle Fill */}
             <motion.polygon
               points="205,205 150,207.1 207.1,150"
-              fill="#FFFFFF"
+              fill="#FF3B30"
               initial={{ opacity: 0 }}
               animate={{ opacity: [0, 0, 1, 1, 1, 0] }}
               transition={{
@@ -103,11 +103,11 @@ const Loadscreen = () => {
               }}
             />
 
-            {/* White Triangle Stroke */}
+            {/* red Triangle Stroke */}
             <motion.polygon
               points="205,205 150,207.1 207.1,150"
               fill="none"
-              stroke="#FFFFFF"
+              stroke="#FF3B30"
               strokeWidth="3"
               strokeLinejoin="miter"
               initial={{ pathLength: 0, opacity: 1 }}
@@ -167,10 +167,10 @@ const Loadscreen = () => {
               />
             </g>
 
-            {/* Red Triangle Fill */}
+            {/* white Triangle Fill */}
             <motion.polygon
               points="205,205 260,202.9 202.9,253"
-              fill="#FF3B30"
+              fill="#FFFFFF"
               initial={{ opacity: 0 }}
               animate={{ opacity: [0, 0, 0, 1, 1, 1, 0] }}
               transition={{
@@ -181,11 +181,11 @@ const Loadscreen = () => {
               }}
             />
 
-            {/* Red Triangle Stroke */}
+            {/* white Triangle Stroke */}
             <motion.polygon
               points="205,205 260,202.9 202.9,253"
               fill="none"
-              stroke="#FF3B30"
+              stroke="#FFFFFF"
               strokeWidth="3"
               strokeLinejoin="miter"
               initial={{ pathLength: 0, opacity: 1 }}
