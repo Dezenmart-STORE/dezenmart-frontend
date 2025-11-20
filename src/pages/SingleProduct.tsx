@@ -350,12 +350,12 @@ const SingleProduct = () => {
                       ✕
                     </button>
                   </div>
-                  <div className="flex items-center gap-2 sm:gap-2 sm:flex-shrink-0">
+                  <div className="flex items-center gap-2 self-end sm:gap-2 sm:flex-shrink-0">
                     <Button
                       title="Connect"
                       icon={<FaWallet className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
                       onClick={handleConnectWallet}
-                      className="bg-red-600 self-end hover:bg-red-700 text-white text-xs sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2 transition-all duration-200 whitespace-nowrap"
+                      className="bg-red-600 hover:bg-red-700 text-white text-xs sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2 transition-all duration-200 whitespace-nowrap"
                     />
                     <button
                       onClick={() => setShowWalletBanner(false)}
