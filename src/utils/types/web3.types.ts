@@ -61,6 +61,7 @@ export interface BuyTradeParams {
   logisticsProvider: string;
   productCost?: number;
   logisticsCost?: number;
+  paymentToken?: string; // Payment token symbol (e.g., "USDT", "cUSD", "USDC")
 }
 
 export interface TradeDetails {

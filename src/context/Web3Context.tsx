@@ -870,6 +870,9 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
       }
 
       try {
+        // Get the payment token (default to USDT for backward compatibility)
+        const paymentTokenSymbol = params.paymentToken || "USDT";
+
         // First, scan user wallet for available stable tokens
         const walletScan = await scanWalletForStableTokens(address, chain.id);
 
@@ -881,22 +884,22 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
         // Calculate total: (price * qty) + escrowFee(2.5%) + logistics
         const subtotal = productCost * quantity;
         const escrowFee = subtotal * 0.025; // 2.5%
-        const requiredAmountUSDT = subtotal + escrowFee + logisticsCost;
+        const requiredAmount = subtotal + escrowFee + logisticsCost;
 
         showSnackbar(
-          `Total required: ${requiredAmountUSDT.toFixed(
+          `Total required: ${requiredAmount.toFixed(
             2
-          )} USDT (Product: ${subtotal.toFixed(2)} + Fee: ${escrowFee.toFixed(
+          )} ${paymentTokenSymbol} (Product: ${subtotal.toFixed(2)} + Fee: ${escrowFee.toFixed(
             2
           )} + Logistics: ${logisticsCost.toFixed(2)})`,
           "info"
         );
 
-        // Check if user has sufficient USDT balance
+        // Check if user has sufficient balance in the payment token
         const balanceCheck = checkSufficientBalance(
           walletScan.availableTokens,
-          requiredAmountUSDT,
-          "USDT"
+          requiredAmount,
+          paymentTokenSymbol
         );
 
         let conversionHash: string | undefined;
@@ -906,18 +909,18 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
           balanceCheck.needsConversion &&
           balanceCheck.conversionRequired
         ) {
-          // User needs to convert tokens to USDT
+          // User needs to convert tokens to the payment token
           showSnackbar(
             `Converting ${balanceCheck.conversionRequired.amount.toFixed(4)} ${
               balanceCheck.conversionRequired.fromToken
-            } to USDT...`,
+            } to ${paymentTokenSymbol}...`,
             "info"
           );
 
           try {
             conversionHash = await convertTokens(
               balanceCheck.conversionRequired.fromToken,
-              "USDT",
+              paymentTokenSymbol,
               balanceCheck.conversionRequired.amount
             );
 
@@ -926,8 +929,8 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
             // Wait for conversion to be confirmed
             await new Promise((resolve) => setTimeout(resolve, 3000));
 
-            // Refresh USDT balance after conversion
-            await refreshTokenBalance("USDT");
+            // Refresh payment token balance after conversion
+            await refreshTokenBalance(paymentTokenSymbol);
 
             // Re-verify balance after conversion
             const updatedWalletScan = await scanWalletForStableTokens(
@@ -936,15 +939,15 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
             );
             const updatedBalanceCheck = checkSufficientBalance(
               updatedWalletScan.availableTokens,
-              requiredAmountUSDT,
-              "USDT"
+              requiredAmount,
+              paymentTokenSymbol
             );
 
             if (!updatedBalanceCheck.hasSufficientBalance) {
               throw new Error(
-                `Insufficient balance after conversion. Required: ${requiredAmountUSDT.toFixed(
+                `Insufficient balance after conversion. Required: ${requiredAmount.toFixed(
                   2
-                )} USDT`
+                )} ${paymentTokenSymbol}`
               );
             }
           } catch (conversionError: any) {
@@ -975,9 +978,9 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
           }
         } else if (!balanceCheck.hasSufficientBalance) {
           throw new Error(
-            `Insufficient balance. You need at least ${requiredAmountUSDT.toFixed(
+            `Insufficient balance. You need at least ${requiredAmount.toFixed(
               2
-            )} USDT to complete this purchase.`
+            )} ${paymentTokenSymbol} to complete this purchase.`
           );
         }
 
@@ -1009,17 +1012,17 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
           }
         }
 
-        // Check and approve USDT if needed
-        const usdtToken = STABLE_TOKENS.find((t) => t.symbol === "USDT");
-        if (!usdtToken) {
-          throw new Error("USDT token configuration not found");
+        // Check and approve payment token if needed
+        const paymentToken = STABLE_TOKENS.find((t) => t.symbol === paymentTokenSymbol);
+        if (!paymentToken) {
+          throw new Error(`${paymentTokenSymbol} token configuration not found`);
         }
 
-        const currentAllowance = await getTokenAllowance("USDT");
+        const currentAllowance = await getTokenAllowance(paymentTokenSymbol);
 
-        if (currentAllowance < requiredAmountUSDT) {
-          showSnackbar("Approving USDT spend...", "info");
-          await approveToken("USDT", requiredAmountUSDT.toString());
+        if (currentAllowance < requiredAmount) {
+          showSnackbar(`Approving ${paymentTokenSymbol} spend...`, "info");
+          await approveToken(paymentTokenSymbol, requiredAmount.toString());
           await new Promise((resolve) => setTimeout(resolve, 2000));
         }
 
@@ -1115,15 +1118,15 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
 
         // Refresh balance after successful purchase
         setTimeout(() => {
-          refreshTokenBalance("USDT");
+          refreshTokenBalance(paymentTokenSymbol);
         }, 2000);
 
         return {
           hash,
-          amount: requiredAmountUSDT.toString(),
+          amount: requiredAmount.toString(),
           to: escrowAddress,
           from: address,
-          token: "USDT",
+          token: paymentTokenSymbol,
           status: "pending",
           timestamp: Date.now(),
           purchaseId,
@@ -1134,12 +1137,12 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
 
         const errorMessage = error?.message || error?.toString() || "";
 
-        if (errorMessage.includes("InsufficientUSDTBalance")) {
-          throw new Error("Insufficient USDT balance for this purchase");
+        if (errorMessage.includes("InsufficientUSDTBalance") || errorMessage.includes("Insufficient") && errorMessage.includes("Balance")) {
+          throw new Error(`Insufficient ${params.paymentToken || "USDT"} balance for this purchase`);
         }
-        if (errorMessage.includes("InsufficientUSDTAllowance")) {
+        if (errorMessage.includes("InsufficientUSDTAllowance") || errorMessage.includes("Insufficient") && errorMessage.includes("Allowance")) {
           throw new Error(
-            "USDT allowance insufficient. Please approve the amount first"
+            `${params.paymentToken || "USDT"} allowance insufficient. Please approve the amount first`
           );
         }
         if (

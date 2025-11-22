@@ -81,8 +81,14 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     estimatedUSDT: string;
   } | null>(null);
 
-  // Get selected token and its balance
-  const selectedToken = wallet.selectedToken;
+  // Get REQUIRED payment token from the product
+  const requiredPaymentToken = useMemo(() => {
+    const tokenSymbol = orderDetails?.product?.paymentToken || "USDT";
+    return availableTokens.find((t) => t.symbol === tokenSymbol) || availableTokens[0];
+  }, [orderDetails?.product?.paymentToken, availableTokens]);
+
+  // Get selected token and its balance - MUST match product's payment token
+  const selectedToken = requiredPaymentToken;
   const selectedTokenBalance = wallet.tokenBalances[selectedToken.symbol];
 
   // Calculate logistics fee (in USD)
@@ -234,9 +240,13 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     orderAmount,
   ]);
 
-  // Initialize modal state
+  // Initialize modal state and set correct payment token
   useEffect(() => {
     if (isOpen && wallet.isConnected) {
+      // Ensure the wallet is using the correct payment token
+      if (requiredPaymentToken && wallet.selectedToken.symbol !== requiredPaymentToken.symbol) {
+        setSelectedToken(requiredPaymentToken);
+      }
       loadBalance();
       checkApprovalNeeds();
       // scanWallet();
@@ -244,6 +254,9 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   }, [
     isOpen,
     wallet.isConnected,
+    requiredPaymentToken,
+    wallet.selectedToken.symbol,
+    setSelectedToken,
     loadBalance,
     checkApprovalNeeds,
     // scanWallet
@@ -415,6 +428,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
             productCost: productPrice,
             logisticsCost: logisticsFee,
             totalAmount: orderAmount,
+            paymentToken: selectedToken.symbol,
           });
           const paymentTransaction = await buyTrade({
             tradeId: orderDetails.product.tradeId,
@@ -422,6 +436,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
             logisticsProvider: orderDetails.logisticsProviderWalletAddress[0],
             productCost: productPrice,
             logisticsCost: logisticsFee,
+            paymentToken: selectedToken.symbol,
           });
 
           setTransaction(paymentTransaction);
@@ -621,14 +636,10 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                       <HiCurrencyDollar className="w-5 h-5 text-Red" />
                     </div>
                     <div>
-                      {/* Token Selector Dropdown */}
+                      {/* Token Display (Locked to product's payment token) */}
                       <div className="relative">
-                        <button
-                          onClick={() => setIsTokenSelectorOpen((v) => !v)}
-                          className="flex items-center gap-2 text-white font-medium focus:outline-none"
-                          disabled={isProcessing}
-                        >
-                          <span className="text-white font-medium">
+                        <div className="flex items-center gap-2 text-white font-medium">
+                          <span className="flex items-center gap-2">
                             {typeof selectedToken.icon === "string" &&
                             selectedToken.icon ? (
                               <img
@@ -642,53 +653,8 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                             )}{" "}
                             {selectedToken.symbol}
                           </span>
-                          <HiChevronDown
-                            className={`w-4 h-4 text-gray-400 transition-transform ${
-                              isTokenSelectorOpen ? "rotate-180" : ""
-                            }`}
-                          />
-                        </button>
-                        {isTokenSelectorOpen && (
-                          <div className="absolute z-30 mt-2 left-0 bg-[#1a1c20] border border-Red/30 rounded-lg shadow-xl max-h-64 overflow-y-auto min-w-[140px]">
-                            {availableTokens.map((token) => (
-                              <button
-                                key={token.symbol}
-                                onClick={() => handleTokenSelect(token)}
-                                className={`w-full flex items-center justify-between p-3 hover:bg-Red/10 transition-colors ${
-                                  token.symbol === selectedToken.symbol
-                                    ? "bg-Red/20 border-l-2 border-Red"
-                                    : ""
-                                }`}
-                                disabled={
-                                  refreshingToken === token.symbol ||
-                                  isProcessing
-                                }
-                              >
-                                <div className="flex items-center gap-2">
-                                  <span className="text-lg">
-                                    {typeof token.icon === "string" &&
-                                    token.icon ? (
-                                      <img
-                                        src={token.icon}
-                                        alt={token.symbol}
-                                        width={24}
-                                        height={24}
-                                      />
-                                    ) : (
-                                      "💰"
-                                    )}
-                                  </span>
-                                  <span className="text-white font-medium">
-                                    {token.symbol}
-                                  </span>
-                                </div>
-                                {token.symbol === selectedToken.symbol && (
-                                  <HiStar className="w-4 h-4 text-Red" />
-                                )}
-                              </button>
-                            ))}
-                          </div>
-                        )}
+                          <span className="text-xs text-gray-400">(Required)</span>
+                        </div>
                       </div>
                       <p className="text-sm text-gray-400">
                         {!wallet.isConnected
@@ -766,6 +732,20 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                 </div>
               </div>
             )}
+
+            {/* Payment Token Info */}
+            <div className="bg-blue-900/20 border border-blue-500/30 rounded-lg p-4">
+              <div className="flex items-start gap-3">
+                <HiCurrencyDollar className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-blue-400 font-medium">Payment Token Required</p>
+                  <p className="text-sm text-blue-400/80 mt-1">
+                    This product requires payment in <span className="font-semibold">{selectedToken.symbol}</span>.
+                    {hasInsufficientBalance && " Please ensure you have sufficient balance before proceeding."}
+                  </p>
+                </div>
+              </div>
+            </div>
 
             {/* Security Notice */}
             <div className="bg-Red/10 border border-Red/30 rounded-lg p-4">
