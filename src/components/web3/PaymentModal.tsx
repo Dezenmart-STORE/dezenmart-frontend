@@ -54,6 +54,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     switchToCorrectNetwork,
     // connectWallet,
     validateTradeBeforePurchase,
+    getTradeTokenInfo,
     setSelectedToken,
     refreshTokenBalance,
     availableTokens,
@@ -80,12 +81,15 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     amount: number;
     estimatedUSDT: string;
   } | null>(null);
+  const [contractTokenSymbol, setContractTokenSymbol] = useState<string | null>(null);
+  const [isLoadingContractToken, setIsLoadingContractToken] = useState(false);
 
-  // Get REQUIRED payment token from the product
+  // Get REQUIRED payment token from the smart contract (not database)
   const requiredPaymentToken = useMemo(() => {
-    const tokenSymbol = orderDetails?.product?.paymentToken || "USDT";
+    // Use contract token if available, fallback to product token, then USDT
+    const tokenSymbol = contractTokenSymbol || orderDetails?.product?.paymentToken || "USDT";
     return availableTokens.find((t) => t.symbol === tokenSymbol) || availableTokens[0];
-  }, [orderDetails?.product?.paymentToken, availableTokens]);
+  }, [contractTokenSymbol, orderDetails?.product?.paymentToken, availableTokens]);
 
   // Get selected token and its balance - MUST match product's payment token
   const selectedToken = requiredPaymentToken;
@@ -201,6 +205,30 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   //   }
   // }, [wallet.isConnected, wallet.address, wallet.chainId, orderAmount, showSnackbar]);
 
+  // Fetch the actual token from the smart contract
+  const loadContractToken = useCallback(async () => {
+    if (!orderDetails?.product?.tradeId) return;
+
+    setIsLoadingContractToken(true);
+    try {
+      const tokenInfo = await getTradeTokenInfo(orderDetails.product.tradeId);
+      if (tokenInfo) {
+        console.log('📋 Contract token info:', tokenInfo);
+        setContractTokenSymbol(tokenInfo.tokenSymbol);
+      } else {
+        console.warn('⚠️ Failed to get contract token, using fallback');
+        // Fallback to product token from database
+        setContractTokenSymbol(orderDetails.product.paymentToken || "USDT");
+      }
+    } catch (error) {
+      console.error("Failed to load contract token:", error);
+      // Fallback to product token from database
+      setContractTokenSymbol(orderDetails.product.paymentToken || "USDT");
+    } finally {
+      setIsLoadingContractToken(false);
+    }
+  }, [orderDetails?.product?.tradeId, orderDetails?.product?.paymentToken, getTradeTokenInfo]);
+
   // Fetch balance for selected token
   const loadBalance = useCallback(async () => {
     if (!wallet.isConnected) return;
@@ -240,9 +268,16 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     orderAmount,
   ]);
 
+  // Load contract token when modal opens (before everything else)
+  useEffect(() => {
+    if (isOpen) {
+      loadContractToken();
+    }
+  }, [isOpen, loadContractToken]);
+
   // Initialize modal state and set correct payment token
   useEffect(() => {
-    if (isOpen && wallet.isConnected) {
+    if (isOpen && wallet.isConnected && !isLoadingContractToken) {
       // Ensure the wallet is using the correct payment token
       if (requiredPaymentToken && wallet.selectedToken.symbol !== requiredPaymentToken.symbol) {
         setSelectedToken(requiredPaymentToken);
@@ -254,6 +289,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   }, [
     isOpen,
     wallet.isConnected,
+    isLoadingContractToken,
     requiredPaymentToken,
     wallet.selectedToken.symbol,
     setSelectedToken,
@@ -737,12 +773,23 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
             <div className="bg-blue-900/20 border border-blue-500/30 rounded-lg p-4">
               <div className="flex items-start gap-3">
                 <HiCurrencyDollar className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
-                <div>
+                <div className="w-full">
                   <p className="text-blue-400 font-medium">Payment Token Required</p>
-                  <p className="text-sm text-blue-400/80 mt-1">
-                    This product requires payment in <span className="font-semibold">{selectedToken.symbol}</span>.
-                    {hasInsufficientBalance && " Please ensure you have sufficient balance before proceeding."}
-                  </p>
+                  {isLoadingContractToken ? (
+                    <p className="text-sm text-blue-400/80 mt-1">
+                      Loading payment token information from contract...
+                    </p>
+                  ) : (
+                    <p className="text-sm text-blue-400/80 mt-1">
+                      This product requires payment in <span className="font-semibold">{selectedToken.symbol}</span>.
+                      {contractTokenSymbol && contractTokenSymbol !== orderDetails.product.paymentToken && (
+                        <span className="block mt-1 text-yellow-400">
+                          ⚠️ Note: Contract uses {contractTokenSymbol}, database shows {orderDetails.product.paymentToken}
+                        </span>
+                      )}
+                      {hasInsufficientBalance && " Please ensure you have sufficient balance before proceeding."}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -840,7 +887,9 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
             {/* Payment Button */}
             <Button
               title={
-                !wallet.isConnected
+                isLoadingContractToken
+                  ? "Loading payment token..."
+                  : !wallet.isConnected
                   ? "Connect Wallet"
                   : needsConversion
                   ? `Convert & Pay ${formatCurrency(orderAmount)} USDT`
@@ -848,6 +897,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
               }
               onClick={handlePayment}
               disabled={
+                isLoadingContractToken ||
                 isProcessing ||
                 isLoadingBalance ||
                 isScanningWallet ||

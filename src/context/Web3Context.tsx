@@ -106,6 +106,7 @@ interface ExtendedWeb3ContextType extends Omit<Web3ContextType, "wallet"> {
     quantity: string,
     logisticsProvider: string
   ) => Promise<any>;
+  getTradeTokenInfo: (tradeId: string) => Promise<{ tokenAddress: string; tokenSymbol: string } | null>;
   approveToken: (tokenSymbol: string, amount: string) => Promise<string>;
   getTokenAllowance: (tokenSymbol: string) => Promise<number>;
   setSelectedToken: (token: StableToken) => void;
@@ -1296,6 +1297,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
           active: boolean;
           remainingQuantity: bigint;
           logisticsProviders: string[];
+          tokenAddress: string;
         };
 
         if (!tradeDetails.active) {
@@ -1328,6 +1330,55 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
       }
     },
     [address, chain]
+  );
+
+  // Get the token address and symbol from a trade ID
+  const getTradeTokenInfo = useCallback(
+    async (tradeId: string): Promise<{ tokenAddress: string; tokenSymbol: string } | null> => {
+      if (!chain?.id) {
+        console.warn("Chain not available");
+        return null;
+      }
+
+      const escrowAddress =
+        ESCROW_ADDRESSES[chain.id as keyof typeof ESCROW_ADDRESSES];
+      if (!escrowAddress) {
+        console.warn("Escrow contract not available on this network");
+        return null;
+      }
+
+      try {
+        const tradeDetails = (await readContract(wagmiConfig, {
+          address: escrowAddress as `0x${string}`,
+          abi: DEZENMART_ABI,
+          functionName: "getTrade",
+          args: [BigInt(tradeId)],
+        })) as {
+          tokenAddress: string;
+        };
+
+        const tokenAddress = tradeDetails.tokenAddress;
+
+        // Find the token by matching its address
+        const token = STABLE_TOKENS.find(
+          (t) => t.address[chain.id]?.toLowerCase() === tokenAddress.toLowerCase()
+        );
+
+        if (!token) {
+          console.error(`Token address ${tokenAddress} not found in STABLE_TOKENS configuration`);
+          return null;
+        }
+
+        return {
+          tokenAddress,
+          tokenSymbol: token.symbol,
+        };
+      } catch (error: any) {
+        console.error("Failed to get trade token info:", error);
+        return null;
+      }
+    },
+    [chain]
   );
 
   // Legacy USDT functions for backward compatibility
@@ -1574,6 +1625,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
       buyTrade,
       approveUSDT,
       validateTradeBeforePurchase,
+      getTradeTokenInfo,
       isCorrectNetwork,
       setSelectedToken,
       refreshTokenBalance,
@@ -1600,6 +1652,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
       getUSDTBalance,
       approveUSDT,
       validateTradeBeforePurchase,
+      getTradeTokenInfo,
       isCorrectNetwork,
       divvi,
       shouldUseMento,
