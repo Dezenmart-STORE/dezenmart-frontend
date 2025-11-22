@@ -150,24 +150,24 @@ const Header = () => {
     };
 
     // Listen to various user interaction events
-    window.addEventListener('mousemove', handleUserActivity);
-    window.addEventListener('scroll', handleUserActivity);
-    window.addEventListener('touchstart', handleUserActivity);
-    window.addEventListener('touchmove', handleUserActivity);
-    window.addEventListener('keydown', handleUserActivity);
-    window.addEventListener('click', handleUserActivity);
+    window.addEventListener("mousemove", handleUserActivity);
+    window.addEventListener("scroll", handleUserActivity);
+    window.addEventListener("touchstart", handleUserActivity);
+    window.addEventListener("touchmove", handleUserActivity);
+    window.addEventListener("keydown", handleUserActivity);
+    window.addEventListener("click", handleUserActivity);
 
     // Initial timer
     resetHideTimer();
 
     // Cleanup
     return () => {
-      window.removeEventListener('mousemove', handleUserActivity);
-      window.removeEventListener('scroll', handleUserActivity);
-      window.removeEventListener('touchstart', handleUserActivity);
-      window.removeEventListener('touchmove', handleUserActivity);
-      window.removeEventListener('keydown', handleUserActivity);
-      window.removeEventListener('click', handleUserActivity);
+      window.removeEventListener("mousemove", handleUserActivity);
+      window.removeEventListener("scroll", handleUserActivity);
+      window.removeEventListener("touchstart", handleUserActivity);
+      window.removeEventListener("touchmove", handleUserActivity);
+      window.removeEventListener("keydown", handleUserActivity);
+      window.removeEventListener("click", handleUserActivity);
       if (hideTimeoutRef.current) {
         clearTimeout(hideTimeoutRef.current);
       }
@@ -329,7 +329,7 @@ const Header = () => {
                     animate={{ rotate: showUserMenu ? 360 : 0 }}
                     transition={{ duration: 0.3 }}
                   />
-                  {!user?.selfVerification.isVerified && (
+                  {!user?.selfVerification?.isVerified && (
                     <motion.div
                       className="absolute -top-1 -right-1"
                       initial={{ scale: 0 }}
