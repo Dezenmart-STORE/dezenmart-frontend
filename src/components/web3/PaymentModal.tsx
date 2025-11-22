@@ -331,7 +331,16 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   );
 
   const handlePayment = useCallback(async () => {
+    console.log('🔵 [PaymentModal] handlePayment started');
+    console.log('🔵 [PaymentModal] Wallet state:', {
+      isConnected: wallet.isConnected,
+      address: wallet.address,
+      selectedToken: selectedToken.symbol,
+      balance: selectedTokenBalance?.raw,
+    });
+
     if (!wallet.isConnected) {
+      console.log('⚠️ [PaymentModal] Wallet not connected');
       try {
         setShowWalletModal(true);
         return;
@@ -342,12 +351,14 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     }
 
     if (!isCorrectNetwork) {
+      console.log('⚠️ [PaymentModal] Wrong network');
       try {
         setIsProcessing(true);
         await switchToCorrectNetwork();
         await new Promise((resolve) => setTimeout(resolve, 3000));
         setIsProcessing(false);
       } catch (error) {
+        console.error('❌ [PaymentModal] Network switch failed:', error);
         setError(
           "Failed to switch network. Please switch manually in your wallet."
         );
@@ -358,6 +369,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     }
 
     if (hasInsufficientBalance) {
+      console.log('⚠️ [PaymentModal] Insufficient balance');
       setError(
         `Insufficient ${
           selectedToken.symbol
@@ -370,6 +382,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     }
 
     if (hasInsufficientGas) {
+      console.log('⚠️ [PaymentModal] Insufficient gas');
       setError(
         "Insufficient CELO for transaction fees. Please add some CELO to your wallet."
       );
@@ -378,17 +391,22 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     }
 
     try {
+      console.log('✅ [PaymentModal] Starting payment process');
       setIsProcessing(true);
       setStep("processing");
       setError("");
 
+      console.log('🔍 [PaymentModal] Validating trade...');
       const isValidTrade = await validateTradeBeforePurchase?.(
         orderDetails.product.tradeId,
         orderDetails.quantity.toString(),
         orderDetails.logisticsProviderWalletAddress[0]
       );
 
+      console.log('🔍 [PaymentModal] Trade validation result:', isValidTrade);
+
       if (!isValidTrade) {
+        console.error('❌ [PaymentModal] Trade validation failed');
         throw new Error(
           "This product is no longer available. Please refresh and try another item."
         );
@@ -399,12 +417,13 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
       const quantity = orderDetails.quantity;
 
       if (needsApproval) {
+        console.log('📝 [PaymentModal] Approval required');
         showSnackbar(
           `Requesting ${selectedToken.symbol} spending approval...`,
           "info"
         );
         try {
-          console.log('💰 Approving token:', {
+          console.log('💰 [PaymentModal] Approving token:', {
             token: selectedToken.symbol,
             amount: orderAmount,
             amountString: orderAmount.toString(),
@@ -414,6 +433,8 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
             selectedToken.symbol,
             orderAmount.toString()
           );
+          console.log('✅ [PaymentModal] Approval transaction hash:', approvalTx);
+
           if (approvalTx !== "0x0") {
             setApprovalHash(approvalTx);
             showSnackbar(
@@ -423,49 +444,62 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
             let confirmed = false;
             let attempts = 0;
             const maxAttempts = 20;
+            console.log('⏳ [PaymentModal] Waiting for approval confirmation...');
             while (!confirmed && attempts < maxAttempts) {
               await new Promise((resolve) => setTimeout(resolve, 2000));
               try {
                 const newAllowance = await getTokenAllowance(
                   selectedToken.symbol
                 );
+                console.log(`🔍 [PaymentModal] Allowance check attempt ${attempts + 1}:`, newAllowance, 'required:', orderAmount);
                 if (newAllowance >= orderAmount) {
                   confirmed = true;
+                  console.log('✅ [PaymentModal] Approval confirmed!');
                   break;
                 }
               } catch (checkError) {
-                console.warn("Allowance check failed:", checkError);
+                console.warn("❌ [PaymentModal] Allowance check failed:", checkError);
               }
               attempts++;
             }
             if (!confirmed) {
+              console.error('❌ [PaymentModal] Approval confirmation timeout');
               throw new Error(
                 "Approval confirmation timeout. Please try again."
               );
             }
+          } else {
+            console.log('ℹ️ [PaymentModal] Already approved (0x0)');
           }
           showSnackbar(`${selectedToken.symbol} spending approved!`, "success");
         } catch (approvalError) {
-          console.error("Approval failed:", approvalError);
+          console.error("❌ [PaymentModal] Approval failed:", approvalError);
           throw new Error(`Approval failed: ${parseWeb3Error(approvalError)}`);
         }
+      } else {
+        console.log('✅ [PaymentModal] No approval needed');
       }
 
       await new Promise((resolve) => setTimeout(resolve, 1000));
       let retryAttempts = 0;
       const maxRetries = 3;
+      console.log('🚀 [PaymentModal] Starting buyTrade execution...');
       while (retryAttempts < maxRetries) {
         try {
           showSnackbar("Processing purchase transaction...", "info");
-          console.log('💰 Executing buyTrade:', {
+          console.log('💰 [PaymentModal] Executing buyTrade (attempt ' + (retryAttempts + 1) + '):', {
             tradeId: orderDetails.product.tradeId,
             quantity: orderDetails.quantity.toString(),
             logisticsProvider: orderDetails.logisticsProviderWalletAddress[0],
             productCost: productPrice,
             logisticsCost: logisticsFee,
             totalAmount: orderAmount,
+            totalTokenAmount: orderAmountInToken,
             paymentToken: selectedToken.symbol,
+            contractTokenSymbol: contractTokenSymbol,
           });
+
+          console.log('⏳ [PaymentModal] Calling buyTrade function...');
           const paymentTransaction = await buyTrade({
             tradeId: orderDetails.product.tradeId,
             quantity: orderDetails.quantity.toString(),
@@ -473,8 +507,10 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
             productCost: productPrice,
             logisticsCost: logisticsFee,
             paymentToken: selectedToken.symbol,
+            totalTokenAmount: orderAmountInToken,  // Pass the correctly calculated token amount
           });
 
+          console.log('✅ [PaymentModal] buyTrade completed successfully!', paymentTransaction);
           setTransaction(paymentTransaction);
           setStep("success");
           onPaymentSuccess(paymentTransaction);
@@ -483,14 +519,24 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
           break;
         } catch (txError: any) {
           retryAttempts++;
+          console.error(`❌ [PaymentModal] buyTrade attempt ${retryAttempts} failed:`, txError);
+          console.error('❌ [PaymentModal] Error details:', {
+            message: txError.message,
+            code: txError.code,
+            reason: txError.reason,
+            stack: txError.stack,
+          });
+
           const errorMsg = txError.message || "Transaction failed";
           if (retryAttempts >= maxRetries) {
+            console.error('❌ [PaymentModal] Max retries reached, throwing error');
             throw txError;
           }
           if (
             errorMsg.includes("Network error") ||
             errorMsg.includes("JSON-RPC")
           ) {
+            console.log(`🔄 [PaymentModal] Retrying due to network error...`);
             showSnackbar(
               `Retry attempt ${retryAttempts}/${maxRetries}...`,
               "info"
@@ -500,13 +546,18 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
             );
             continue;
           } else {
+            console.error('❌ [PaymentModal] Non-retryable error, throwing');
             throw txError;
           }
         }
       }
     } catch (error: unknown) {
-      console.error("Payment failed:", error);
+      console.error("❌ [PaymentModal] Payment failed - FINAL ERROR:", error);
+      console.error("❌ [PaymentModal] Error type:", typeof error);
+      console.error("❌ [PaymentModal] Error stringified:", JSON.stringify(error, Object.getOwnPropertyNames(error)));
+
       const errorMessage = parseWeb3Error(error);
+      console.error("❌ [PaymentModal] Parsed error message:", errorMessage);
       let errorDetail = errorMessage;
       if (
         errorMessage.includes("TradeNotFound") ||

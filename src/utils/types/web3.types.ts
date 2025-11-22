@@ -59,9 +59,10 @@ export interface BuyTradeParams {
   tradeId: string;
   quantity: string;
   logisticsProvider: string;
-  productCost?: number;
-  logisticsCost?: number;
+  productCost?: number; // USD value (for display/logging only)
+  logisticsCost?: number; // USD value (for display/logging only)
   paymentToken?: string; // Payment token symbol (e.g., "USDT", "cUSD", "USDC")
+  totalTokenAmount: number; // REQUIRED: Total amount in token units (already calculated by PaymentModal)
 }
 
 export interface TradeDetails {

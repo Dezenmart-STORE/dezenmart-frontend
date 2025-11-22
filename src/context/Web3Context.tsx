@@ -856,52 +856,64 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
   // buy trade function
   const buyTrade = useCallback(
     async (params: BuyTradeParams): Promise<PaymentTransaction> => {
+      console.log('🟢 [Web3Context] buyTrade function called with params:', params);
+
       if (!address || !chain?.id) {
+        console.error('❌ [Web3Context] Wallet not connected', { address, chainId: chain?.id });
         throw new Error("Wallet not connected");
       }
 
+      console.log('✅ [Web3Context] Wallet connected:', { address, chainId: chain.id });
+
       if (!isCorrectNetwork) {
+        console.error('❌ [Web3Context] Wrong network');
         throw new Error("Please switch to the correct network first");
       }
+
+      console.log('✅ [Web3Context] Correct network confirmed');
 
       const escrowAddress =
         ESCROW_ADDRESSES[chain.id as keyof typeof ESCROW_ADDRESSES];
       if (!escrowAddress) {
+        console.error('❌ [Web3Context] Escrow contract not found for chain:', chain.id);
         throw new Error("Escrow contract not available on this network");
       }
+
+      console.log('✅ [Web3Context] Escrow address:', escrowAddress);
 
       try {
         // Get the payment token (default to USDT for backward compatibility)
         const paymentTokenSymbol = params.paymentToken || "USDT";
+        console.log('💰 [Web3Context] Payment token symbol:', paymentTokenSymbol);
+
+        // Use the totalTokenAmount passed from PaymentModal (already calculated correctly)
+        const requiredAmount = params.totalTokenAmount;
+
+        if (!requiredAmount || requiredAmount <= 0) {
+          throw new Error('Invalid totalTokenAmount - must be provided by PaymentModal');
+        }
+
+        console.log('💵 [Web3Context] Using totalTokenAmount from PaymentModal:', {
+          requiredAmount,
+          paymentTokenSymbol,
+          productCostUSD: params.productCost,
+          logisticsCostUSD: params.logisticsCost,
+          quantity: params.quantity,
+        });
 
         // First, scan user wallet for available stable tokens
+        console.log('🔍 [Web3Context] Scanning wallet for stable tokens...');
         const walletScan = await scanWalletForStableTokens(address, chain.id);
-
-        // Calculate the TOTAL required amount (product + escrow fee + logistics)
-        const productCost = params.productCost || 0;
-        const quantity = parseInt(params.quantity);
-        const logisticsCost = params.logisticsCost || 0;
-
-        // Calculate total: (price * qty) + escrowFee(2.5%) + logistics
-        const subtotal = productCost * quantity;
-        const escrowFee = subtotal * 0.025; // 2.5%
-        const requiredAmount = subtotal + escrowFee + logisticsCost;
-
-        showSnackbar(
-          `Total required: ${requiredAmount.toFixed(
-            2
-          )} ${paymentTokenSymbol} (Product: ${subtotal.toFixed(2)} + Fee: ${escrowFee.toFixed(
-            2
-          )} + Logistics: ${logisticsCost.toFixed(2)})`,
-          "info"
-        );
+        console.log('✅ [Web3Context] Wallet scan complete:', walletScan);
 
         // Check if user has sufficient balance in the payment token
+        console.log('🔍 [Web3Context] Checking balance...');
         const balanceCheck = checkSufficientBalance(
           walletScan.availableTokens,
           requiredAmount,
           paymentTokenSymbol
         );
+        console.log('✅ [Web3Context] Balance check result:', balanceCheck);
 
         let conversionHash: string | undefined;
 
@@ -1013,23 +1025,41 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
           }
         }
 
-        // Check and approve payment token if needed
+        // Verify payment token configuration
+        console.log('🔍 [Web3Context] Finding payment token configuration...');
         const paymentToken = STABLE_TOKENS.find((t) => t.symbol === paymentTokenSymbol);
         if (!paymentToken) {
+          console.error('❌ [Web3Context] Payment token not found:', paymentTokenSymbol);
           throw new Error(`${paymentTokenSymbol} token configuration not found`);
         }
+        console.log('✅ [Web3Context] Payment token found:', paymentToken);
 
+        // NOTE: PaymentModal has already handled token approval before calling buyTrade
+        // We're just verifying the allowance here for safety
+        console.log('🔍 [Web3Context] Verifying token allowance (approval handled by PaymentModal)...');
         const currentAllowance = await getTokenAllowance(paymentTokenSymbol);
+        console.log('✅ [Web3Context] Current allowance:', currentAllowance, 'required:', requiredAmount);
 
         if (currentAllowance < requiredAmount) {
-          showSnackbar(`Approving ${paymentTokenSymbol} spend...`, "info");
-          await approveToken(paymentTokenSymbol, requiredAmount.toString());
-          await new Promise((resolve) => setTimeout(resolve, 2000));
+          console.error('❌ [Web3Context] Insufficient allowance detected!');
+          throw new Error(
+            `Insufficient ${paymentTokenSymbol} allowance. This should have been handled by PaymentModal. ` +
+            `Current: ${currentAllowance}, Required: ${requiredAmount}`
+          );
+        } else {
+          console.log('✅ [Web3Context] Sufficient allowance confirmed');
         }
 
         // Estimate gas first
         let gasEstimate: bigint;
+        console.log('⛽ [Web3Context] Estimating gas...');
         try {
+          console.log('🔍 [Web3Context] Simulating contract with args:', {
+            tradeId: tradeId.toString(),
+            quantity: quantityBigInt.toString(),
+            logisticsProvider,
+          });
+
           const { request } = await simulateContract(wagmiConfig, {
             address: escrowAddress as `0x${string}`,
             abi: DEZENMART_ABI,
@@ -1041,8 +1071,14 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
           gasEstimate = request.gas
             ? (request.gas * BigInt(120)) / BigInt(100)
             : BigInt(800000);
+          console.log('✅ [Web3Context] Gas estimate:', gasEstimate.toString());
         } catch (estimateError) {
-          console.warn("Gas estimation failed, using default:", estimateError);
+          console.warn("⚠️ [Web3Context] Gas estimation failed, using default:", estimateError);
+          console.error("⚠️ [Web3Context] Gas estimation error details:", {
+            message: (estimateError as any).message,
+            code: (estimateError as any).code,
+            reason: (estimateError as any).reason,
+          });
           gasEstimate = BigInt(800000);
         }
 
@@ -1057,19 +1093,32 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
 
         // Append referral tag to transaction data if available
         if (referralTag) {
+          console.log('🏷️ [Web3Context] Adding referral tag:', referralTag);
           txConfig.dataSuffix = `0x${referralTag}`;
         }
 
+        console.log('🚀 [Web3Context] Executing buyTrade transaction...');
+        console.log('🚀 [Web3Context] Transaction config:', {
+          address: txConfig.address,
+          functionName: txConfig.functionName,
+          args: txConfig.args.map((arg: any) => arg.toString()),
+          gas: txConfig.gas.toString(),
+        });
+
         const hash = await writeContractAsync(txConfig);
+        console.log('✅ [Web3Context] Transaction hash received:', hash);
 
         if (!hash) {
+          console.error('❌ [Web3Context] No transaction hash received');
           throw new Error("Transaction failed to execute");
         }
 
+        console.log('⏳ [Web3Context] Waiting for transaction receipt...');
         const receipt = await waitForTransactionReceipt(wagmiConfig, {
           hash,
           timeout: 60000,
         });
+        console.log('✅ [Web3Context] Transaction receipt:', receipt);
 
         let purchaseId: string | undefined;
 
