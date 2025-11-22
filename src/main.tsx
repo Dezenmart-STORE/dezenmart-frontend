@@ -35,9 +35,13 @@ import {
   monitorResourceTiming,
 } from "./utils/performance.ts";
 import { registerServiceWorker } from "./utils/pwa/index.ts";
+import { initDebugTools } from "./utils/debug/index.ts";
 
 // Initialize Sentry error tracking
 initSentry();
+
+// Initialize debug tools (available via browser console)
+initDebugTools();
 
 // Initialize performance monitoring
 if (import.meta.env.PROD) {

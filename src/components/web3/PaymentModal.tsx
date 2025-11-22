@@ -18,6 +18,12 @@ import { formatCurrency } from "../../utils/web3.utils";
 import { useSnackbar } from "../../context/SnackbarContext";
 import { Order } from "../../utils/types";
 import { parseWeb3Error } from "../../utils/errorParser";
+import {
+  startPaymentSession,
+  endPaymentSession,
+  logPaymentStep,
+  analyzePaymentError
+} from "../../utils/debug/index";
 import { StableToken } from "../../utils/config/web3.config";
 import {
   scanWalletForStableTokens,
@@ -339,16 +345,29 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
       balance: selectedTokenBalance?.raw,
     });
 
+    // Start debug session
+    startPaymentSession(wallet.address, wallet.chainId);
+    logPaymentStep('Payment initiated', 'pending', {
+      product: orderDetails.product.name,
+      quantity: orderDetails.quantity,
+      amount: orderAmount,
+      token: selectedToken.symbol,
+    });
+
     if (!wallet.isConnected) {
       console.log('⚠️ [PaymentModal] Wallet not connected');
+      logPaymentStep('Wallet connection check', 'error', null, 'Wallet not connected');
       try {
         setShowWalletModal(true);
         return;
       } catch (error) {
         showSnackbar("Failed to connect wallet", "error");
+        endPaymentSession(false);
         return;
       }
     }
+
+    logPaymentStep('Wallet connected', 'success', { address: wallet.address });
 
     if (!isCorrectNetwork) {
       console.log('⚠️ [PaymentModal] Wrong network');
@@ -397,6 +416,8 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
       setError("");
 
       console.log('🔍 [PaymentModal] Validating trade...');
+      logPaymentStep('Validating trade', 'pending');
+
       const isValidTrade = await validateTradeBeforePurchase?.(
         orderDetails.product.tradeId,
         orderDetails.quantity.toString(),
@@ -407,10 +428,13 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
 
       if (!isValidTrade) {
         console.error('❌ [PaymentModal] Trade validation failed');
+        logPaymentStep('Trade validation', 'error', null, 'Trade not valid');
         throw new Error(
           "This product is no longer available. Please refresh and try another item."
         );
       }
+
+      logPaymentStep('Trade validation', 'success');
 
       // Use the logistics fee calculated in useMemo
       const productPrice = orderDetails.product.price;
@@ -511,6 +535,12 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
           });
 
           console.log('✅ [PaymentModal] buyTrade completed successfully!', paymentTransaction);
+          logPaymentStep('Purchase completed', 'success', {
+            hash: paymentTransaction.hash,
+            purchaseId: paymentTransaction.purchaseId
+          });
+          endPaymentSession(true);
+
           setTransaction(paymentTransaction);
           setStep("success");
           onPaymentSuccess(paymentTransaction);
@@ -558,6 +588,11 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
 
       const errorMessage = parseWeb3Error(error);
       console.error("❌ [PaymentModal] Parsed error message:", errorMessage);
+
+      // Analyze error and log to debugger
+      const errorAnalysis = analyzePaymentError(error);
+      logPaymentStep('Payment failed', 'error', errorAnalysis, errorMessage);
+      endPaymentSession(false);
       let errorDetail = errorMessage;
       if (
         errorMessage.includes("TradeNotFound") ||
