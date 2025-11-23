@@ -36,6 +36,7 @@ import {
 } from "./utils/performance.ts";
 import { registerServiceWorker } from "./utils/pwa/index.ts";
 import { initDebugTools } from "./utils/debug/index.ts";
+import "./utils/dev/injectAuth.ts"; // Auth injection for local testing
 
 // Initialize Sentry error tracking
 initSentry();

@@ -48,6 +48,7 @@ const Header = () => {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showVerifyModal, setShowVerifyModal] = useState(false);
   const [isHeaderVisible, setIsHeaderVisible] = useState(true);
+  const [isAtTop, setIsAtTop] = useState(true); // Track if user is at top of page
   const userMenuRef = useRef<HTMLDivElement>(null);
   const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -127,7 +128,21 @@ const Header = () => {
     });
   }, [navigate]);
 
-  // Auto-hide header functionality
+  // Track scroll position to detect if at top
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollY = window.scrollY || window.pageYOffset;
+      setIsAtTop(scrollY === 0);
+    };
+
+    // Initial check
+    handleScroll();
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Auto-hide header functionality (only when NOT at top)
   const resetHideTimer = useCallback(() => {
     // Clear existing timeout
     if (hideTimeoutRef.current) {
@@ -137,11 +152,13 @@ const Header = () => {
     // Show header on interaction
     setIsHeaderVisible(true);
 
-    // Set new timeout to hide header after 3 seconds of inactivity
-    hideTimeoutRef.current = setTimeout(() => {
-      setIsHeaderVisible(false);
-    }, 3000);
-  }, []);
+    // Only set hide timer if user is NOT at the top of the page
+    if (!isAtTop) {
+      hideTimeoutRef.current = setTimeout(() => {
+        setIsHeaderVisible(false);
+      }, 3000);
+    }
+  }, [isAtTop]);
 
   // Track user interactions
   useEffect(() => {
@@ -174,11 +191,14 @@ const Header = () => {
     };
   }, [resetHideTimer]);
 
+  // Determine if header should be visible: always show at top, otherwise use auto-hide
+  const shouldShowHeader = isAtTop || isHeaderVisible;
+
   return (
     <motion.header
       className="w-full py-2 md:py-3 bg-[#212428] shadow-md fixed top-0 left-0 right-0 z-50"
       initial={{ y: 0 }}
-      animate={{ y: isHeaderVisible ? 0 : -100 }}
+      animate={{ y: shouldShowHeader ? 0 : -100 }}
       transition={{ duration: 0.3, ease: "easeInOut" }}
     >
       <Container className="flex items-center justify-between py-0">

@@ -7,12 +7,17 @@
 import paymentDebugger from './paymentDebugger';
 import transactionMonitor from './transactionMonitor';
 import errorAnalyzer from './errorAnalyzer';
+import { injectAuthToken } from '../dev/injectAuth';
 
 // Initialize all debuggers
 export const initDebugTools = () => {
   console.log('🛠️ Debug Tools Initialized');
   console.log('');
   console.log('📋 Available Commands:');
+  console.log('  Authentication:');
+  console.log('    injectAuthToken(token) - Login with JWT token');
+  console.log('    clearAuth()            - Logout and clear auth');
+  console.log('');
   console.log('  Payment Debugging:');
   console.log('    enablePaymentDebug()  - Track all payment flows');
   console.log('    printPaymentDebug()   - Show current session');

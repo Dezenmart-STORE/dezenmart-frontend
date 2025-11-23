@@ -51,7 +51,8 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
 
       {!isAuthPage && <Header />}
       <ErrorBoundary>
-        <main className="h-full pb-16 md:pb-0">{children}</main>
+        {/* pt-14 = 56px padding-top to account for fixed header */}
+        <main className="h-full pb-16 md:pb-0 pt-14 md:pt-16">{children}</main>
       </ErrorBoundary>
       {!isAuthPage && (
         <>
