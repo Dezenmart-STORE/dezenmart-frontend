@@ -25,6 +25,11 @@ export function injectAuthToken(token: string, userData?: any) {
       name: payload.name || payload.email.split('@')[0],
       walletAddress: "",
       verified: true,
+      selfVerification: {
+        isVerified: false,
+        sessionId: null,
+        verificationDate: null,
+      },
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };

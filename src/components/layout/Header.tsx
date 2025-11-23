@@ -452,7 +452,7 @@ const Header = () => {
                         </div>
                       </motion.button>
 
-                      {!user?.selfVerification.isVerified && (
+                      {!user?.selfVerification?.isVerified && (
                         <motion.button
                           onClick={() => setShowVerifyModal(true)}
                           className="block w-full text-left px-4 py-2 text-sm text-white hover:bg-[#292B30] transition-colors"
