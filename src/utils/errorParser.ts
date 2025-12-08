@@ -86,5 +86,27 @@ export const parseWeb3Error = (error: any): string => {
     return "Trade not found";
   }
 
+  // Handle trade validation errors from PaymentModal
+  if (errorMessage.includes("no longer available") ||
+      errorMessage.includes("product is no longer available")) {
+    return "This product is no longer available. Please refresh and try another item.";
+  }
+
+  if (errorMessage.includes("Unable to validate trade") ||
+      errorMessage.includes("check your wallet connection")) {
+    return "Unable to validate trade. Please check your wallet connection and try again.";
+  }
+
+  // Handle logistics provider errors
+  if (errorMessage.includes("logistics provider before completing payment") ||
+      errorMessage.includes("select a delivery option") ||
+      errorMessage.includes("No logistics provider")) {
+    return "Please select a logistics provider before completing payment. Go back to the product page and select a delivery option.";
+  }
+
+  if (errorMessage.includes("Logistics provider") && errorMessage.includes("not available")) {
+    return "The selected logistics provider is not available for this product. Please select a different delivery option.";
+  }
+
   return "Transaction failed. Please try again.";
 };

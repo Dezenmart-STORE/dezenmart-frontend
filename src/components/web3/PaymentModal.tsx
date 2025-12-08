@@ -89,6 +89,12 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   } | null>(null);
   const [contractTokenSymbol, setContractTokenSymbol] = useState<string | null>(null);
   const [isLoadingContractToken, setIsLoadingContractToken] = useState(false);
+  const [useUnlimitedApproval, setUseUnlimitedApproval] = useState(() => {
+    // Check localStorage for user preference, default to true (recommended)
+    const saved = localStorage.getItem("useUnlimitedApproval");
+    return saved !== null ? saved === "true" : true;
+  });
+  const [currentAllowance, setCurrentAllowance] = useState<number>(0);
 
   // Get REQUIRED payment token from the smart contract (not database)
   const requiredPaymentToken = useMemo(() => {
@@ -261,9 +267,11 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     if (!wallet.isConnected || !isCorrectNetwork) return;
     try {
       const allowance = await getTokenAllowance(selectedToken.symbol);
+      setCurrentAllowance(allowance);
       setNeedsApproval(allowance < orderAmount);
     } catch (error) {
       console.error("Failed to check allowance:", error);
+      setCurrentAllowance(0);
       setNeedsApproval(true);
     }
   }, [
@@ -418,23 +426,48 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
       console.log('🔍 [PaymentModal] Validating trade...');
       logPaymentStep('Validating trade', 'pending');
 
-      const isValidTrade = await validateTradeBeforePurchase?.(
+      if (!validateTradeBeforePurchase) {
+        console.error('❌ [PaymentModal] validateTradeBeforePurchase is not available');
+        logPaymentStep('Trade validation', 'error', { error: 'Function not available' }, 'Validation function missing');
+        throw new Error(
+          "Unable to validate trade. Please check your wallet connection and try again."
+        );
+      }
+
+      // Check if logistics provider is required and selected
+      const logisticsProvider = orderDetails.logisticsProviderWalletAddress?.[0];
+      if (!logisticsProvider || logisticsProvider === undefined) {
+        console.error('❌ [PaymentModal] No logistics provider selected');
+        logPaymentStep('Logistics validation', 'error', {
+          logisticsProviderWalletAddress: orderDetails.logisticsProviderWalletAddress,
+          productLogisticsProviders: orderDetails.product.logisticsProviders
+        }, 'No logistics provider selected');
+        throw new Error(
+          "Please select a logistics provider before completing payment. Go back to product page and select a delivery option."
+        );
+      }
+
+      const isValidTrade = await validateTradeBeforePurchase(
         orderDetails.product.tradeId,
         orderDetails.quantity.toString(),
-        orderDetails.logisticsProviderWalletAddress[0]
+        logisticsProvider
       );
 
       console.log('🔍 [PaymentModal] Trade validation result:', isValidTrade);
 
       if (!isValidTrade) {
         console.error('❌ [PaymentModal] Trade validation failed');
-        logPaymentStep('Trade validation', 'error', null, 'Trade not valid');
+        logPaymentStep('Trade validation', 'error', {
+          tradeId: orderDetails.product.tradeId,
+          quantity: orderDetails.quantity,
+          validationResult: isValidTrade
+        }, 'Trade not valid or insufficient quantity');
         throw new Error(
           "This product is no longer available. Please refresh and try another item."
         );
       }
 
-      logPaymentStep('Trade validation', 'success');
+      logPaymentStep('Trade validation', 'success', { tradeId: orderDetails.product.tradeId });
 
       // Use the logistics fee calculated in useMemo
       const productPrice = orderDetails.product.price;
@@ -442,8 +475,9 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
 
       if (needsApproval) {
         console.log('📝 [PaymentModal] Approval required');
+        const approvalType = useUnlimitedApproval ? "unlimited" : "exact amount";
         showSnackbar(
-          `Requesting ${selectedToken.symbol} spending approval...`,
+          `Requesting ${selectedToken.symbol} spending approval (${approvalType})...`,
           "info"
         );
         try {
@@ -451,11 +485,13 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
             token: selectedToken.symbol,
             amount: orderAmount,
             amountString: orderAmount.toString(),
+            unlimited: useUnlimitedApproval,
           });
           // Approve the TOTAL amount (product + escrow fee + logistics fee)
           const approvalTx = await approveToken(
             selectedToken.symbol,
-            orderAmount.toString()
+            orderAmount.toString(),
+            useUnlimitedApproval
           );
           console.log('✅ [PaymentModal] Approval transaction hash:', approvalTx);
 
@@ -514,7 +550,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
           console.log('💰 [PaymentModal] Executing buyTrade (attempt ' + (retryAttempts + 1) + '):', {
             tradeId: orderDetails.product.tradeId,
             quantity: orderDetails.quantity.toString(),
-            logisticsProvider: orderDetails.logisticsProviderWalletAddress[0],
+            logisticsProvider: logisticsProvider,
             productCost: productPrice,
             logisticsCost: logisticsFee,
             totalAmount: orderAmount,
@@ -527,7 +563,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
           const paymentTransaction = await buyTrade({
             tradeId: orderDetails.product.tradeId,
             quantity: orderDetails.quantity.toString(),
-            logisticsProvider: orderDetails.logisticsProviderWalletAddress[0],
+            logisticsProvider: logisticsProvider,
             productCost: productPrice,
             logisticsCost: logisticsFee,
             paymentToken: selectedToken.symbol,
@@ -612,13 +648,18 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     }
   }, [
     wallet.isConnected,
+    wallet.address,
+    wallet.chainId,
     isCorrectNetwork,
     hasInsufficientBalance,
     hasInsufficientGas,
     needsApproval,
     orderDetails,
     orderAmount,
-    // connectWallet,
+    orderAmountInToken,
+    contractTokenSymbol,
+    logisticsFee,
+    useUnlimitedApproval,
     switchToCorrectNetwork,
     approveToken,
     buyTrade,
@@ -628,7 +669,6 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     loadBalance,
     selectedToken.symbol,
     validateTradeBeforePurchase,
-    transaction,
   ]);
 
   const handleRetry = useCallback(() => {
@@ -895,16 +935,81 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
             </div>
 
             {needsApproval && (
-              <div className="bg-yellow-900/20 border border-yellow-500/30 rounded-lg p-3">
-                <div className="flex items-center gap-2">
-                  <HiExclamationTriangle className="w-4 h-4 text-yellow-400" />
-                  <span className="text-yellow-400 text-sm">
-                    {selectedToken.symbol} spending approval required for this
-                    transaction
-                  </span>
+              <div className="space-y-3">
+                <div className="bg-yellow-900/20 border border-yellow-500/30 rounded-lg p-4">
+                  <div className="flex items-start gap-2 mb-3">
+                    <HiExclamationTriangle className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-yellow-400 text-sm font-medium">
+                        {selectedToken.symbol} spending approval required
+                      </p>
+                      <p className="text-yellow-400/80 text-xs mt-1">
+                        Choose your approval preference below
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Approval Type Toggle */}
+                  <div className="space-y-2">
+                    <label className="flex items-start gap-3 p-3 bg-Dark/50 border border-yellow-500/20 rounded-lg cursor-pointer hover:bg-Dark/70 transition-colors">
+                      <input
+                        type="radio"
+                        name="approvalType"
+                        checked={useUnlimitedApproval}
+                        onChange={() => {
+                          setUseUnlimitedApproval(true);
+                          localStorage.setItem("useUnlimitedApproval", "true");
+                        }}
+                        className="mt-1 w-4 h-4 text-Red focus:ring-Red focus:ring-offset-0"
+                      />
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-white text-sm font-medium">Unlimited Approval</span>
+                          <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded">Recommended</span>
+                        </div>
+                        <p className="text-gray-400 text-xs mt-1">
+                          Approve once, never approve again for this token. Same approach used by Uniswap, Aave, and other major DeFi platforms.
+                        </p>
+                      </div>
+                    </label>
+
+                    <label className="flex items-start gap-3 p-3 bg-Dark/50 border border-yellow-500/20 rounded-lg cursor-pointer hover:bg-Dark/70 transition-colors">
+                      <input
+                        type="radio"
+                        name="approvalType"
+                        checked={!useUnlimitedApproval}
+                        onChange={() => {
+                          setUseUnlimitedApproval(false);
+                          localStorage.setItem("useUnlimitedApproval", "false");
+                        }}
+                        className="mt-1 w-4 h-4 text-Red focus:ring-Red focus:ring-offset-0"
+                      />
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-white text-sm font-medium">Exact Amount + 5%</span>
+                          <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded">More Secure</span>
+                        </div>
+                        <p className="text-gray-400 text-xs mt-1">
+                          Approve only what's needed for this transaction. You'll need to approve again for future purchases.
+                        </p>
+                      </div>
+                    </label>
+                  </div>
                 </div>
               </div>
             )}
+
+            {/* Show current allowance if exists */}
+            {/* {!needsApproval && currentAllowance > 0 && (
+              <div className="bg-green-900/20 border border-green-500/30 rounded-lg p-3">
+                <div className="flex items-center gap-2">
+                  <HiCheckCircle className="w-4 h-4 text-green-400" />
+                  <span className="text-green-400 text-sm">
+                    {selectedToken.symbol} already approved. Current allowance: {formatCurrency(currentAllowance)} {selectedToken.symbol}
+                  </span>
+                </div>
+              </div>
+            )} */}
 
             {/* Warnings */}
             {(!wallet.isConnected ||

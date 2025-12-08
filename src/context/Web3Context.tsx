@@ -107,7 +107,7 @@ interface ExtendedWeb3ContextType extends Omit<Web3ContextType, "wallet"> {
     logisticsProvider: string
   ) => Promise<any>;
   getTradeTokenInfo: (tradeId: string) => Promise<{ tokenAddress: string; tokenSymbol: string } | null>;
-  approveToken: (tokenSymbol: string, amount: string) => Promise<string>;
+  approveToken: (tokenSymbol: string, amount: string, useUnlimited?: boolean) => Promise<string>;
   getTokenAllowance: (tokenSymbol: string) => Promise<number>;
   setSelectedToken: (token: StableToken) => void;
   refreshTokenBalance: (tokenSymbol?: string) => Promise<void>;
@@ -683,7 +683,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
 
   // Approve token
   const approveToken = useCallback(
-    async (tokenSymbol: string, amount: string): Promise<string> => {
+    async (tokenSymbol: string, amount: string, useUnlimited: boolean = false): Promise<string> => {
       if (!address || !chain?.id) {
         throw new Error("Wallet not connected");
       }
@@ -709,11 +709,21 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
           return "0x0"; // Already approved
         }
 
-        // SECURITY FIX: Approve exact amount + 5% buffer instead of infinite approval
-        // This limits exposure if the contract is compromised
-        const amountBigInt = parseUnits(amount, tokenDecimals ?? 18);
-        const bufferMultiplier = BigInt(105); // 105% (5% buffer)
-        const approvalAmount = (amountBigInt * bufferMultiplier) / BigInt(100);
+        let approvalAmount: bigint;
+
+        if (useUnlimited) {
+          // Unlimited approval - max uint256
+          // This is common practice (Uniswap, Aave use this) and reduces future approvals to zero
+          approvalAmount = BigInt("115792089237316195423570985008687907853269984665640564039457584007913129639935");
+          console.log(`🔓 Approving unlimited ${tokenSymbol} for escrow contract`);
+        } else {
+          // Approve exact amount + 5% buffer
+          // This limits exposure if the contract is compromised
+          const amountBigInt = parseUnits(amount, token.decimals ?? 18);
+          const bufferMultiplier = BigInt(105); // 105% (5% buffer)
+          approvalAmount = (amountBigInt * bufferMultiplier) / BigInt(100);
+          console.log(`🔒 Approving ${formatUnits(approvalAmount, token.decimals)} ${tokenSymbol} for escrow contract`);
+        }
 
         const hash = await writeContractAsync({
           address: tokenAddress as `0x${string}`,
@@ -941,6 +951,14 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
 
             // Wait for conversion to be confirmed
             await new Promise((resolve) => setTimeout(resolve, 3000));
+
+            // Update selected token to the payment token after swap
+            const paymentToken = getTokenBySymbol(paymentTokenSymbol);
+            if (paymentToken) {
+              setSelectedTokenState(paymentToken);
+              localStorage.setItem("selectedToken", JSON.stringify(paymentToken));
+              console.log(`✅ [Web3Context] Switched selected token to ${paymentTokenSymbol} after swap`);
+            }
 
             // Refresh payment token balance after conversion
             await refreshTokenBalance(paymentTokenSymbol);
@@ -1361,9 +1379,18 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
           return false;
         }
 
+        // Check if logistics provider is valid
+        if (!logisticsProvider || logisticsProvider === "undefined" || logisticsProvider.trim() === "") {
+          console.warn(
+            `No logistics provider specified for trade ${tradeId}`
+          );
+          return false;
+        }
+
         if (!tradeDetails.logisticsProviders.includes(logisticsProvider)) {
           console.warn(
-            `Logistics provider ${logisticsProvider} not available for trade ${tradeId}`
+            `Logistics provider ${logisticsProvider} not available for trade ${tradeId}. Available providers:`,
+            tradeDetails.logisticsProviders
           );
           return false;
         }

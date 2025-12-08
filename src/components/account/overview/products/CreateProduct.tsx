@@ -639,7 +639,8 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
           const tradeParams = createTradeParams(
             parseFloat(priceInUSDT),
             // selectedLogistics.map((p) => p.walletAddress),
-            ["0xff5b2339e21a8dab7b39d3a8b9382b394e646cf0"],
+            // ["0xff5b2339e21a8dab7b39d3a8b9382b394e646cf0"],
+            ["0xCeaD78F9Cf39Aba45Ea39E297bC0771cF28f3bb4"],
             [1], // Minimum value of 1 wei to satisfy contract validation
             // selectedLogistics.map((p) =>
             //   parseFloat(logisticsCosts[p.walletAddress] || "0")
@@ -686,24 +687,27 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
       });
 
       // Log the complete FormData body for production debugging
-      console.log('=== CREATE PRODUCT REQUEST BODY ===');
+      console.log("=== CREATE PRODUCT REQUEST BODY ===");
       const formDataEntries: Record<string, any> = {};
       formData.forEach((value, key) => {
         if (value instanceof File) {
           formDataEntries[key] = {
             fileName: value.name,
             fileSize: value.size,
-            fileType: value.type
+            fileType: value.type,
           };
         } else {
           formDataEntries[key] = value;
         }
       });
-      console.log('FormData entries:', JSON.stringify(formDataEntries, null, 2));
-      console.log('Total media files:', mediaFiles.length);
-      console.log('Selected token:', paymentToken);
-      console.log('Wallet chainId:', wallet.chainId);
-      console.log('===================================');
+      console.log(
+        "FormData entries:",
+        JSON.stringify(formDataEntries, null, 2)
+      );
+      console.log("Total media files:", mediaFiles.length);
+      console.log("Selected token:", paymentToken);
+      console.log("Wallet chainId:", wallet.chainId);
+      console.log("===================================");
 
       const result = await createProduct(formData).unwrap();
       setSuccessMessage("Product created successfully! Redirecting...");
@@ -1667,7 +1671,8 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
                 <div className="flex items-center gap-2 text-yellow-400 text-sm">
                   <FiInfo className="flex-shrink-0" />
                   <p>
-                    Please connect your wallet to create a product. You need a connected wallet to receive payments.
+                    Please connect your wallet to create a product. You need a
+                    connected wallet to receive payments.
                   </p>
                 </div>
               </div>
