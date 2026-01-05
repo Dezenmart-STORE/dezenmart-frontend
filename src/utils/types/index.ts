@@ -156,14 +156,12 @@ export interface BuyTradeParams {
   seller: string;
   productCost: string | number;
   logisticsProvider: string;
-  logisticsCost: string | number;
+  logisticsCost: string | number; // Logistics cost to be passed to contract
   useUSDT: boolean;
   orderId: string;
 }
 export interface CreateTradeParams {
   productCost: number;
-  logisticsProvider: string[];
-  logisticsCost: number[];
   useUSDT: boolean;
   totalQuantity: string;
   tokenAddress?: string; // Add token address for real USDT support

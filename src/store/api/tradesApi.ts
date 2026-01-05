@@ -57,7 +57,7 @@ export const tradesApi = baseApi.injectEndpoints({
     // Buy trade
     buyTrade: builder.mutation<
       TradeResponse,
-      { tradeId: string; data: { quantity: number; logisticsProvider: string } }
+      { tradeId: string; data: { quantity: number; logisticsProvider: string; logisticsCost: string } }
     >({
       query: ({ tradeId, data }) => ({
         url: `/contracts/trades/${tradeId}/buy`,

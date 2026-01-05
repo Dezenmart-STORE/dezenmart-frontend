@@ -213,7 +213,7 @@ export const useContract = () => {
 
   const handleBuyTrade = useCallback(
     async (
-      params: { tradeId: string; quantity: number; logisticsProvider: string },
+      params: { tradeId: string; quantity: number; logisticsProvider: string; logisticsCost: string },
       showNotifications = true
     ) => {
       try {

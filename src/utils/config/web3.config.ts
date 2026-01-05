@@ -352,11 +352,9 @@ export const getTokenAddressBySymbol = (
 };
 
 // Helper function to create trade parameters with proper token address
+// NOTE: Logistics providers and costs are now selected at purchase time (buyTrade), not at trade creation
 export const createTradeParams = (
   productCost: number,
-  logisticsProviders: string[],
-  logisticsCosts: number[],
-  //  totalQuantity: string,
   totalQuantity: number,
   paymentToken: string,
   chainId: number
@@ -368,10 +366,7 @@ export const createTradeParams = (
 
   return {
     productCost,
-    logisticsProvider: logisticsProviders,
-    logisticsCost: logisticsCosts,
     useUSDT: paymentToken === "USDT",
-    // totalQuantity,
     totalQuantity: normalizedQuantity,
     paymentToken,
     tokenAddress, // This will be used by the smart contract

@@ -167,15 +167,16 @@ export const getTradesByBuyer = createAsyncThunk<
 
 export const buyTrade = createAsyncThunk<
   any,
-  { tradeId: string; quantity: number; logisticsProvider: string },
+  { tradeId: string; quantity: number; logisticsProvider: string; logisticsCost: string },
   { rejectValue: string }
 >(
   "contract/buyTrade",
-  async ({ tradeId, quantity, logisticsProvider }, { rejectWithValue }) => {
+  async ({ tradeId, quantity, logisticsProvider, logisticsCost }, { rejectWithValue }) => {
     try {
       const response = await api.buyTrade(tradeId, {
         quantity,
         logisticsProvider,
+        logisticsCost,
       });
 
       if (!response.ok) {

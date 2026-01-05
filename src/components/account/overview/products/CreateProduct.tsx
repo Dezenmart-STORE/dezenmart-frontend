@@ -635,24 +635,13 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
           formData.append("tokenAddress", tokenAddress);
 
           // create trade parameters for the smart contract
-          // Note: Smart contract requires logistics cost > 0, so we use 1 wei as minimum
+          // NOTE: New contract doesn't require logistics params at trade creation
+          // Logistics are selected during purchase (buyTrade)
           const tradeParams = createTradeParams(
             parseFloat(priceInUSDT),
-            // selectedLogistics.map((p) => p.walletAddress),
-            // ["0xff5b2339e21a8dab7b39d3a8b9382b394e646cf0"],
-            ["0xCeaD78F9Cf39Aba45Ea39E297bC0771cF28f3bb4"],
-            [1], // Minimum value of 1 wei to satisfy contract validation
-            // selectedLogistics.map((p) =>
-            //   parseFloat(logisticsCosts[p.walletAddress] || "0")
-            // ),
-            // stockQuantity,
             stockQuantity,
             selectedTokenSymbol,
-            wallet.chainId // take note
-            //           {
-            //     "status": "fail",
-            //     "message": "File upload only supports the following filetypes - /jpeg|jpg|png|gif|webp|mp4/"
-            // }
+            wallet.chainId
           );
 
           // Add trade parameters to form data
@@ -670,7 +659,7 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
       } else {
         formData.append(
           "logisticsProviders",
-          "0xff5b2339e21a8dab7b39d3a8b9382b394e646cf0"
+          "0xCeaD78F9Cf39Aba45Ea39E297bC0771cF28f3bb4"
         );
         // Use 1 wei as minimum logistics cost (contract requires > 0)
         formData.append("logisticsCosts", "1");

@@ -1018,6 +1018,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
         const tradeId = BigInt(params.tradeId);
         const quantityBigInt = BigInt(params.quantity);
         const logisticsProvider = params.logisticsProvider as `0x${string}`;
+        const logisticsCostBigInt = BigInt(params.logisticsCost || "0");
 
         if (
           !logisticsProvider?.startsWith("0x") ||
@@ -1025,6 +1026,12 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
         ) {
           throw new Error("Invalid logistics provider address");
         }
+
+        console.log('📦 [Web3Context] Logistics parameters:', {
+          logisticsProvider,
+          logisticsCost: params.logisticsCost,
+          logisticsCostBigInt: logisticsCostBigInt.toString(),
+        });
 
         // Generate referral tag if Divvi is ready
         let referralTag = "";
@@ -1076,13 +1083,14 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
             tradeId: tradeId.toString(),
             quantity: quantityBigInt.toString(),
             logisticsProvider,
+            logisticsCost: logisticsCostBigInt.toString(),
           });
 
           const { request } = await simulateContract(wagmiConfig, {
             address: escrowAddress as `0x${string}`,
             abi: DEZENMART_ABI,
             functionName: "buyTrade",
-            args: [tradeId, quantityBigInt, logisticsProvider],
+            args: [tradeId, quantityBigInt, logisticsProvider, logisticsCostBigInt],
             account: address,
           });
 
@@ -1105,7 +1113,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({
           address: escrowAddress as `0x${string}`,
           abi: DEZENMART_ABI,
           functionName: "buyTrade",
-          args: [tradeId, quantityBigInt, logisticsProvider],
+          args: [tradeId, quantityBigInt, logisticsProvider, logisticsCostBigInt],
           gas: gasEstimate,
         };
 

@@ -22,7 +22,7 @@ import {
   startPaymentSession,
   endPaymentSession,
   logPaymentStep,
-  analyzePaymentError
+  analyzePaymentError,
 } from "../../utils/debug/index";
 import { StableToken } from "../../utils/config/web3.config";
 import {
@@ -87,7 +87,9 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     amount: number;
     estimatedUSDT: string;
   } | null>(null);
-  const [contractTokenSymbol, setContractTokenSymbol] = useState<string | null>(null);
+  const [contractTokenSymbol, setContractTokenSymbol] = useState<string | null>(
+    null
+  );
   const [isLoadingContractToken, setIsLoadingContractToken] = useState(false);
   const [useUnlimitedApproval, setUseUnlimitedApproval] = useState(() => {
     // Check localStorage for user preference, default to true (recommended)
@@ -99,9 +101,17 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   // Get REQUIRED payment token from the smart contract (not database)
   const requiredPaymentToken = useMemo(() => {
     // Use contract token if available, fallback to product token, then USDT
-    const tokenSymbol = contractTokenSymbol || orderDetails?.product?.paymentToken || "USDT";
-    return availableTokens.find((t) => t.symbol === tokenSymbol) || availableTokens[0];
-  }, [contractTokenSymbol, orderDetails?.product?.paymentToken, availableTokens]);
+    const tokenSymbol =
+      contractTokenSymbol || orderDetails?.product?.paymentToken || "USDT";
+    return (
+      availableTokens.find((t) => t.symbol === tokenSymbol) ||
+      availableTokens[0]
+    );
+  }, [
+    contractTokenSymbol,
+    orderDetails?.product?.paymentToken,
+    availableTokens,
+  ]);
 
   // Get selected token and its balance - MUST match product's payment token
   const selectedToken = requiredPaymentToken;
@@ -121,6 +131,26 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
       ? parseFloat(orderDetails?.product.logisticsCost[logisticsIndex] || "0")
       : 0;
   }, [orderDetails]);
+
+  // Calculate logistics cost in token units (for contract)
+  const logisticsCostInToken = useMemo(() => {
+    if (logisticsFee === 0) return "0";
+
+    // Convert logistics fee from USD to selected token
+    const isStablecoin =
+      selectedToken.symbol === "USDT" ||
+      selectedToken.symbol === "cUSD" ||
+      selectedToken.symbol === "USDC";
+    const logisticsInToken = isStablecoin
+      ? logisticsFee
+      : convertPrice(logisticsFee, "USD", selectedToken.symbol);
+
+    // Convert to wei (multiply by 10^decimals)
+    const decimals = selectedToken.decimals;
+    const logisticsInWei = Math.floor(logisticsInToken * Math.pow(10, decimals));
+
+    return logisticsInWei.toString();
+  }, [logisticsFee, selectedToken.symbol, selectedToken.decimals, convertPrice]);
 
   // Calculate TOTAL order amount in USD, then convert to selected token
   // NOTE: Product prices from backend are in USD
@@ -143,8 +173,13 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
 
       // Convert from USD to selected token
       // For stablecoins, use 1:1 ratio since they're pegged to USD
-      const isStablecoin = selectedToken.symbol === "USDT" || selectedToken.symbol === "cUSD" || selectedToken.symbol === "USDC";
-      const totalInToken = isStablecoin ? totalUSD : convertPrice(totalUSD, "USD", selectedToken.symbol);
+      const isStablecoin =
+        selectedToken.symbol === "USDT" ||
+        selectedToken.symbol === "cUSD" ||
+        selectedToken.symbol === "USDC";
+      const totalInToken = isStablecoin
+        ? totalUSD
+        : convertPrice(totalUSD, "USD", selectedToken.symbol);
 
       console.log("💰 Payment Modal Calculations:", {
         productPriceUSD,
@@ -152,6 +187,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
         subtotalUSD,
         escrowFeeUSD,
         logisticsFee,
+        logisticsCostInToken,
         totalUSD,
         selectedToken: selectedToken.symbol,
         totalInToken,
@@ -163,7 +199,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
         subtotal: subtotalUSD,
         escrowFee: escrowFeeUSD,
       };
-    }, [orderDetails, logisticsFee, selectedToken.symbol, convertPrice]);
+    }, [orderDetails, logisticsFee, logisticsCostInToken, selectedToken.symbol, convertPrice]);
 
   // Use the token amount for balance checks
   const orderAmount = orderAmountInToken;
@@ -225,10 +261,10 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     try {
       const tokenInfo = await getTradeTokenInfo(orderDetails.product.tradeId);
       if (tokenInfo) {
-        console.log('📋 Contract token info:', tokenInfo);
+        console.log("📋 Contract token info:", tokenInfo);
         setContractTokenSymbol(tokenInfo.tokenSymbol);
       } else {
-        console.warn('⚠️ Failed to get contract token, using fallback');
+        console.warn("⚠️ Failed to get contract token, using fallback");
         // Fallback to product token from database
         setContractTokenSymbol(orderDetails.product.paymentToken || "USDT");
       }
@@ -239,7 +275,11 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     } finally {
       setIsLoadingContractToken(false);
     }
-  }, [orderDetails?.product?.tradeId, orderDetails?.product?.paymentToken, getTradeTokenInfo]);
+  }, [
+    orderDetails?.product?.tradeId,
+    orderDetails?.product?.paymentToken,
+    getTradeTokenInfo,
+  ]);
 
   // Fetch balance for selected token
   const loadBalance = useCallback(async () => {
@@ -293,7 +333,10 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   useEffect(() => {
     if (isOpen && wallet.isConnected && !isLoadingContractToken) {
       // Ensure the wallet is using the correct payment token
-      if (requiredPaymentToken && wallet.selectedToken.symbol !== requiredPaymentToken.symbol) {
+      if (
+        requiredPaymentToken &&
+        wallet.selectedToken.symbol !== requiredPaymentToken.symbol
+      ) {
         setSelectedToken(requiredPaymentToken);
       }
       loadBalance();
@@ -345,8 +388,8 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   );
 
   const handlePayment = useCallback(async () => {
-    console.log('🔵 [PaymentModal] handlePayment started');
-    console.log('🔵 [PaymentModal] Wallet state:', {
+    console.log("🔵 [PaymentModal] handlePayment started");
+    console.log("🔵 [PaymentModal] Wallet state:", {
       isConnected: wallet.isConnected,
       address: wallet.address,
       selectedToken: selectedToken.symbol,
@@ -355,7 +398,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
 
     // Start debug session
     startPaymentSession(wallet.address, wallet.chainId);
-    logPaymentStep('Payment initiated', 'pending', {
+    logPaymentStep("Payment initiated", "pending", {
       product: orderDetails.product.name,
       quantity: orderDetails.quantity,
       amount: orderAmount,
@@ -363,8 +406,13 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     });
 
     if (!wallet.isConnected) {
-      console.log('⚠️ [PaymentModal] Wallet not connected');
-      logPaymentStep('Wallet connection check', 'error', null, 'Wallet not connected');
+      console.log("⚠️ [PaymentModal] Wallet not connected");
+      logPaymentStep(
+        "Wallet connection check",
+        "error",
+        null,
+        "Wallet not connected"
+      );
       try {
         setShowWalletModal(true);
         return;
@@ -375,17 +423,17 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
       }
     }
 
-    logPaymentStep('Wallet connected', 'success', { address: wallet.address });
+    logPaymentStep("Wallet connected", "success", { address: wallet.address });
 
     if (!isCorrectNetwork) {
-      console.log('⚠️ [PaymentModal] Wrong network');
+      console.log("⚠️ [PaymentModal] Wrong network");
       try {
         setIsProcessing(true);
         await switchToCorrectNetwork();
         await new Promise((resolve) => setTimeout(resolve, 3000));
         setIsProcessing(false);
       } catch (error) {
-        console.error('❌ [PaymentModal] Network switch failed:', error);
+        console.error("❌ [PaymentModal] Network switch failed:", error);
         setError(
           "Failed to switch network. Please switch manually in your wallet."
         );
@@ -396,7 +444,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     }
 
     if (hasInsufficientBalance) {
-      console.log('⚠️ [PaymentModal] Insufficient balance');
+      console.log("⚠️ [PaymentModal] Insufficient balance");
       setError(
         `Insufficient ${
           selectedToken.symbol
@@ -409,7 +457,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     }
 
     if (hasInsufficientGas) {
-      console.log('⚠️ [PaymentModal] Insufficient gas');
+      console.log("⚠️ [PaymentModal] Insufficient gas");
       setError(
         "Insufficient CELO for transaction fees. Please add some CELO to your wallet."
       );
@@ -418,30 +466,44 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     }
 
     try {
-      console.log('✅ [PaymentModal] Starting payment process');
+      console.log("✅ [PaymentModal] Starting payment process");
       setIsProcessing(true);
       setStep("processing");
       setError("");
 
-      console.log('🔍 [PaymentModal] Validating trade...');
-      logPaymentStep('Validating trade', 'pending');
+      console.log("🔍 [PaymentModal] Validating trade...");
+      logPaymentStep("Validating trade", "pending");
 
       if (!validateTradeBeforePurchase) {
-        console.error('❌ [PaymentModal] validateTradeBeforePurchase is not available');
-        logPaymentStep('Trade validation', 'error', { error: 'Function not available' }, 'Validation function missing');
+        console.error(
+          "❌ [PaymentModal] validateTradeBeforePurchase is not available"
+        );
+        logPaymentStep(
+          "Trade validation",
+          "error",
+          { error: "Function not available" },
+          "Validation function missing"
+        );
         throw new Error(
           "Unable to validate trade. Please check your wallet connection and try again."
         );
       }
 
       // Check if logistics provider is required and selected
-      const logisticsProvider = orderDetails.logisticsProviderWalletAddress?.[0];
+      const logisticsProvider = "0xCeaD78F9Cf39Aba45Ea39E297bC0771cF28f3bb4";
+      // orderDetails.logisticsProviderWalletAddress?.[0];
       if (!logisticsProvider || logisticsProvider === undefined) {
-        console.error('❌ [PaymentModal] No logistics provider selected');
-        logPaymentStep('Logistics validation', 'error', {
-          logisticsProviderWalletAddress: orderDetails.logisticsProviderWalletAddress,
-          productLogisticsProviders: orderDetails.product.logisticsProviders
-        }, 'No logistics provider selected');
+        console.error("❌ [PaymentModal] No logistics provider selected");
+        logPaymentStep(
+          "Logistics validation",
+          "error",
+          {
+            logisticsProviderWalletAddress:
+              orderDetails.logisticsProviderWalletAddress,
+            productLogisticsProviders: orderDetails.product.logisticsProviders,
+          },
+          "No logistics provider selected"
+        );
         throw new Error(
           "Please select a logistics provider before completing payment. Go back to product page and select a delivery option."
         );
@@ -453,35 +515,44 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
         logisticsProvider
       );
 
-      console.log('🔍 [PaymentModal] Trade validation result:', isValidTrade);
+      console.log("🔍 [PaymentModal] Trade validation result:", isValidTrade);
 
       if (!isValidTrade) {
-        console.error('❌ [PaymentModal] Trade validation failed');
-        logPaymentStep('Trade validation', 'error', {
-          tradeId: orderDetails.product.tradeId,
-          quantity: orderDetails.quantity,
-          validationResult: isValidTrade
-        }, 'Trade not valid or insufficient quantity');
+        console.error("❌ [PaymentModal] Trade validation failed");
+        logPaymentStep(
+          "Trade validation",
+          "error",
+          {
+            tradeId: orderDetails.product.tradeId,
+            quantity: orderDetails.quantity,
+            validationResult: isValidTrade,
+          },
+          "Trade not valid or insufficient quantity"
+        );
         throw new Error(
           "This product is no longer available. Please refresh and try another item."
         );
       }
 
-      logPaymentStep('Trade validation', 'success', { tradeId: orderDetails.product.tradeId });
+      logPaymentStep("Trade validation", "success", {
+        tradeId: orderDetails.product.tradeId,
+      });
 
       // Use the logistics fee calculated in useMemo
       const productPrice = orderDetails.product.price;
       const quantity = orderDetails.quantity;
 
       if (needsApproval) {
-        console.log('📝 [PaymentModal] Approval required');
-        const approvalType = useUnlimitedApproval ? "unlimited" : "exact amount";
+        console.log("📝 [PaymentModal] Approval required");
+        const approvalType = useUnlimitedApproval
+          ? "unlimited"
+          : "exact amount";
         showSnackbar(
           `Requesting ${selectedToken.symbol} spending approval (${approvalType})...`,
           "info"
         );
         try {
-          console.log('💰 [PaymentModal] Approving token:', {
+          console.log("💰 [PaymentModal] Approving token:", {
             token: selectedToken.symbol,
             amount: orderAmount,
             amountString: orderAmount.toString(),
@@ -493,7 +564,10 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
             orderAmount.toString(),
             useUnlimitedApproval
           );
-          console.log('✅ [PaymentModal] Approval transaction hash:', approvalTx);
+          console.log(
+            "✅ [PaymentModal] Approval transaction hash:",
+            approvalTx
+          );
 
           if (approvalTx !== "0x0") {
             setApprovalHash(approvalTx);
@@ -504,32 +578,42 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
             let confirmed = false;
             let attempts = 0;
             const maxAttempts = 20;
-            console.log('⏳ [PaymentModal] Waiting for approval confirmation...');
+            console.log(
+              "⏳ [PaymentModal] Waiting for approval confirmation..."
+            );
             while (!confirmed && attempts < maxAttempts) {
               await new Promise((resolve) => setTimeout(resolve, 2000));
               try {
                 const newAllowance = await getTokenAllowance(
                   selectedToken.symbol
                 );
-                console.log(`🔍 [PaymentModal] Allowance check attempt ${attempts + 1}:`, newAllowance, 'required:', orderAmount);
+                console.log(
+                  `🔍 [PaymentModal] Allowance check attempt ${attempts + 1}:`,
+                  newAllowance,
+                  "required:",
+                  orderAmount
+                );
                 if (newAllowance >= orderAmount) {
                   confirmed = true;
-                  console.log('✅ [PaymentModal] Approval confirmed!');
+                  console.log("✅ [PaymentModal] Approval confirmed!");
                   break;
                 }
               } catch (checkError) {
-                console.warn("❌ [PaymentModal] Allowance check failed:", checkError);
+                console.warn(
+                  "❌ [PaymentModal] Allowance check failed:",
+                  checkError
+                );
               }
               attempts++;
             }
             if (!confirmed) {
-              console.error('❌ [PaymentModal] Approval confirmation timeout');
+              console.error("❌ [PaymentModal] Approval confirmation timeout");
               throw new Error(
                 "Approval confirmation timeout. Please try again."
               );
             }
           } else {
-            console.log('ℹ️ [PaymentModal] Already approved (0x0)');
+            console.log("ℹ️ [PaymentModal] Already approved (0x0)");
           }
           showSnackbar(`${selectedToken.symbol} spending approved!`, "success");
         } catch (approvalError) {
@@ -537,43 +621,53 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
           throw new Error(`Approval failed: ${parseWeb3Error(approvalError)}`);
         }
       } else {
-        console.log('✅ [PaymentModal] No approval needed');
+        console.log("✅ [PaymentModal] No approval needed");
       }
 
       await new Promise((resolve) => setTimeout(resolve, 1000));
       let retryAttempts = 0;
       const maxRetries = 3;
-      console.log('🚀 [PaymentModal] Starting buyTrade execution...');
+      console.log("🚀 [PaymentModal] Starting buyTrade execution...");
       while (retryAttempts < maxRetries) {
         try {
           showSnackbar("Processing purchase transaction...", "info");
-          console.log('💰 [PaymentModal] Executing buyTrade (attempt ' + (retryAttempts + 1) + '):', {
-            tradeId: orderDetails.product.tradeId,
-            quantity: orderDetails.quantity.toString(),
-            logisticsProvider: logisticsProvider,
-            productCost: productPrice,
-            logisticsCost: logisticsFee,
-            totalAmount: orderAmount,
-            totalTokenAmount: orderAmountInToken,
-            paymentToken: selectedToken.symbol,
-            contractTokenSymbol: contractTokenSymbol,
-          });
+          console.log(
+            "💰 [PaymentModal] Executing buyTrade (attempt " +
+              (retryAttempts + 1) +
+              "):",
+            {
+              tradeId: orderDetails.product.tradeId,
+              quantity: orderDetails.quantity.toString(),
+              logisticsProvider: orderDetails.logisticsProviderWalletAddress[0],
+              productCost: productPrice,
+              logisticsCostUSD: logisticsFee,
+              logisticsCostInToken: logisticsCostInToken,
+              totalAmount: orderAmount,
+              totalTokenAmount: orderAmountInToken,
+              paymentToken: selectedToken.symbol,
+              contractTokenSymbol: contractTokenSymbol,
+            }
+          );
 
-          console.log('⏳ [PaymentModal] Calling buyTrade function...');
+          console.log("⏳ [PaymentModal] Calling buyTrade function...");
           const paymentTransaction = await buyTrade({
             tradeId: orderDetails.product.tradeId,
             quantity: orderDetails.quantity.toString(),
-            logisticsProvider: logisticsProvider,
-            productCost: productPrice,
-            logisticsCost: logisticsFee,
+            logisticsProvider: orderDetails.logisticsProviderWalletAddress[0],
+            logisticsCost: logisticsCostInToken, // REQUIRED: Logistics cost in token units (wei)
+            productCost: productPrice, // Optional: for display/logging
+            logisticsCostUSD: logisticsFee, // Optional: for display/logging
             paymentToken: selectedToken.symbol,
-            totalTokenAmount: orderAmountInToken,  // Pass the correctly calculated token amount
+            totalTokenAmount: orderAmountInToken, // Pass the correctly calculated token amount
           });
 
-          console.log('✅ [PaymentModal] buyTrade completed successfully!', paymentTransaction);
-          logPaymentStep('Purchase completed', 'success', {
+          console.log(
+            "✅ [PaymentModal] buyTrade completed successfully!",
+            paymentTransaction
+          );
+          logPaymentStep("Purchase completed", "success", {
             hash: paymentTransaction.hash,
-            purchaseId: paymentTransaction.purchaseId
+            purchaseId: paymentTransaction.purchaseId,
           });
           endPaymentSession(true);
 
@@ -585,8 +679,11 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
           break;
         } catch (txError: any) {
           retryAttempts++;
-          console.error(`❌ [PaymentModal] buyTrade attempt ${retryAttempts} failed:`, txError);
-          console.error('❌ [PaymentModal] Error details:', {
+          console.error(
+            `❌ [PaymentModal] buyTrade attempt ${retryAttempts} failed:`,
+            txError
+          );
+          console.error("❌ [PaymentModal] Error details:", {
             message: txError.message,
             code: txError.code,
             reason: txError.reason,
@@ -595,7 +692,9 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
 
           const errorMsg = txError.message || "Transaction failed";
           if (retryAttempts >= maxRetries) {
-            console.error('❌ [PaymentModal] Max retries reached, throwing error');
+            console.error(
+              "❌ [PaymentModal] Max retries reached, throwing error"
+            );
             throw txError;
           }
           if (
@@ -612,7 +711,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
             );
             continue;
           } else {
-            console.error('❌ [PaymentModal] Non-retryable error, throwing');
+            console.error("❌ [PaymentModal] Non-retryable error, throwing");
             throw txError;
           }
         }
@@ -620,14 +719,17 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     } catch (error: unknown) {
       console.error("❌ [PaymentModal] Payment failed - FINAL ERROR:", error);
       console.error("❌ [PaymentModal] Error type:", typeof error);
-      console.error("❌ [PaymentModal] Error stringified:", JSON.stringify(error, Object.getOwnPropertyNames(error)));
+      console.error(
+        "❌ [PaymentModal] Error stringified:",
+        JSON.stringify(error, Object.getOwnPropertyNames(error))
+      );
 
       const errorMessage = parseWeb3Error(error);
       console.error("❌ [PaymentModal] Parsed error message:", errorMessage);
 
       // Analyze error and log to debugger
       const errorAnalysis = analyzePaymentError(error);
-      logPaymentStep('Payment failed', 'error', errorAnalysis, errorMessage);
+      logPaymentStep("Payment failed", "error", errorAnalysis, errorMessage);
       endPaymentSession(false);
       let errorDetail = errorMessage;
       if (
@@ -659,6 +761,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     orderAmountInToken,
     contractTokenSymbol,
     logisticsFee,
+    logisticsCostInToken,
     useUnlimitedApproval,
     switchToCorrectNetwork,
     approveToken,
@@ -815,7 +918,9 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                             )}{" "}
                             {selectedToken.symbol}
                           </span>
-                          <span className="text-xs text-gray-400">(Required)</span>
+                          <span className="text-xs text-gray-400">
+                            (Required)
+                          </span>
                         </div>
                       </div>
                       <p className="text-sm text-gray-400">
@@ -900,20 +1005,30 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
               <div className="flex items-start gap-3">
                 <HiCurrencyDollar className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
                 <div className="w-full">
-                  <p className="text-blue-400 font-medium">Payment Token Required</p>
+                  <p className="text-blue-400 font-medium">
+                    Payment Token Required
+                  </p>
                   {isLoadingContractToken ? (
                     <p className="text-sm text-blue-400/80 mt-1">
                       Loading payment token information from contract...
                     </p>
                   ) : (
                     <p className="text-sm text-blue-400/80 mt-1">
-                      This product requires payment in <span className="font-semibold">{selectedToken.symbol}</span>.
-                      {contractTokenSymbol && contractTokenSymbol !== orderDetails.product.paymentToken && (
-                        <span className="block mt-1 text-yellow-400">
-                          ⚠️ Note: Contract uses {contractTokenSymbol}, database shows {orderDetails.product.paymentToken}
-                        </span>
-                      )}
-                      {hasInsufficientBalance && " Please ensure you have sufficient balance before proceeding."}
+                      This product requires payment in{" "}
+                      <span className="font-semibold">
+                        {selectedToken.symbol}
+                      </span>
+                      .
+                      {contractTokenSymbol &&
+                        contractTokenSymbol !==
+                          orderDetails.product.paymentToken && (
+                          <span className="block mt-1 text-yellow-400">
+                            ⚠️ Note: Contract uses {contractTokenSymbol},
+                            database shows {orderDetails.product.paymentToken}
+                          </span>
+                        )}
+                      {hasInsufficientBalance &&
+                        " Please ensure you have sufficient balance before proceeding."}
                     </p>
                   )}
                 </div>
@@ -964,11 +1079,17 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                       />
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
-                          <span className="text-white text-sm font-medium">Unlimited Approval</span>
-                          <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded">Recommended</span>
+                          <span className="text-white text-sm font-medium">
+                            Unlimited Approval
+                          </span>
+                          <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded">
+                            Recommended
+                          </span>
                         </div>
                         <p className="text-gray-400 text-xs mt-1">
-                          Approve once, never approve again for this token. Same approach used by Uniswap, Aave, and other major DeFi platforms.
+                          Approve once, never approve again for this token. Same
+                          approach used by Uniswap, Aave, and other major DeFi
+                          platforms.
                         </p>
                       </div>
                     </label>
@@ -986,11 +1107,16 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                       />
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
-                          <span className="text-white text-sm font-medium">Exact Amount + 5%</span>
-                          <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded">More Secure</span>
+                          <span className="text-white text-sm font-medium">
+                            Exact Amount + 5%
+                          </span>
+                          <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded">
+                            More Secure
+                          </span>
                         </div>
                         <p className="text-gray-400 text-xs mt-1">
-                          Approve only what's needed for this transaction. You'll need to approve again for future purchases.
+                          Approve only what's needed for this transaction.
+                          You'll need to approve again for future purchases.
                         </p>
                       </div>
                     </label>
