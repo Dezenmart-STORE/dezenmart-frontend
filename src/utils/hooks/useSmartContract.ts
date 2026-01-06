@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from "react";
 import { useWriteContract } from "wagmi";
 import { useWeb3 } from "../../context/Web3Context";
-import { DEZENMART_ABI } from "../abi/dezenmartAbi.json";
+import { DEZENMART_ABI } from "../abi/dezenmartAbi";
 import { ESCROW_ADDRESSES } from "../config/web3.config";
 import { useSnackbar } from "../../context/SnackbarContext";
 import { ensure0xPrefix } from "../services/divvi.service";

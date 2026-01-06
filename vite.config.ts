@@ -209,6 +209,12 @@ export default defineConfig({
     // Increase chunk size warning limit (Web3 libraries are large)
     chunkSizeWarningLimit: 1000,
 
+    // Optimize build performance
+    reportCompressedSize: false, // Disable gzip reporting to save memory
+    modulePreload: {
+      polyfill: false, // Reduce polyfill overhead
+    },
+
     rollupOptions: {
       external: [],
       output: {

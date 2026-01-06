@@ -52,7 +52,7 @@ import {
 } from "../utils/config/web3.config";
 import { useSnackbar } from "./SnackbarContext";
 import { useCurrencyConverter } from "../utils/hooks/useCurrencyConverter";
-import { DEZENMART_ABI } from "../utils/abi/dezenmartAbi.json";
+import { DEZENMART_ABI } from "../utils/abi/dezenmartAbi";
 import { ESCROW_ADDRESSES } from "../utils/config/web3.config";
 import { parseWeb3Error } from "../utils/errorParser";
 import {
