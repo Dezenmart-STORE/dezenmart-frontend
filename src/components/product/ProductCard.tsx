@@ -19,6 +19,14 @@ interface ProductCardProps {
   hideFavorite?: boolean;
 }
 
+// Utility function to check if image is PNG
+const isPngImage = (url: string): boolean => {
+  if (!url) return false;
+  // Check file extension (case-insensitive)
+  const urlLower = url.toLowerCase();
+  return urlLower.endsWith('.png') || urlLower.includes('.png?') || urlLower.includes('.png#');
+};
+
 const ProductCard = React.memo(
   ({ product, isNew = false, hideFavorite = false }: ProductCardProps) => {
     const navigate = useNavigate();
@@ -148,9 +156,13 @@ const ProductCard = React.memo(
           </div>
 
           {/* Image container */}
-          <div className="w-full pt-[100%] relative bg-[#1A1B1F]/30 overflow-hidden">
+          <div className={`w-full pt-[100%] relative overflow-hidden ${
+            isPngImage(imageUrl) ? "bg-white" : "bg-[#1A1B1F]/30"
+          }`}>
             <motion.div
-              className="absolute inset-0 flex items-center justify-center"
+              className={`absolute inset-0 flex items-center justify-center ${
+                isPngImage(imageUrl) ? "p-3" : ""
+              }`}
               whileHover={{ scale: 1.05 }}
               transition={{ type: "spring", stiffness: 300 }}
             >

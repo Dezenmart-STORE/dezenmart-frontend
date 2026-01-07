@@ -8,6 +8,14 @@ interface ProductImageProps {
   productCategory?: string;
 }
 
+// Utility function to check if image is PNG
+const isPngImage = (url: string): boolean => {
+  if (!url) return false;
+  // Check file extension (case-insensitive)
+  const urlLower = url.toLowerCase();
+  return urlLower.endsWith('.png') || urlLower.includes('.png?') || urlLower.includes('.png#');
+};
+
 const ProductImage = ({ images, productName = "Product", productCategory }: ProductImageProps) => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [transitioning, setTransitioning] = useState(false);
@@ -157,7 +165,7 @@ const ProductImage = ({ images, productName = "Product", productCategory }: Prod
           <div
             className={`transition-transform duration-300 ${
               zoomed ? "scale-150" : "scale-100"
-            }`}
+            } ${isPngImage(images[currentImageIndex]) ? "bg-white rounded-lg p-4" : ""}`}
           >
             <img
               ref={imageRef}
