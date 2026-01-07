@@ -121,14 +121,11 @@ const Home = () => {
   // Fetch sponsored products for hero section
   const { data: sponsoredProducts = [] } = useGetSponsoredProductsQuery();
 
-  // Calculate dynamic price threshold (equivalent of 20 cUSD in selected token)
+  // Calculate dynamic price threshold (equivalent of 20 USD in selected token)
+  // All product prices are stored in USD in the backend
   const valuePriceThreshold = useMemo(() => {
-    // If the selected token is already cUSD, return 20
-    if (selectedTokenSymbol === "cUSD") {
-      return 20;
-    }
-    // Convert 20 cUSD to the selected token
-    return convertPrice(20, "cUSD", selectedTokenSymbol);
+    // Convert 20 USD to the selected token
+    return convertPrice(20, "USD", selectedTokenSymbol);
   }, [selectedTokenSymbol, convertPrice]);
 
   // Format the threshold for display (round to 2 decimal places)
