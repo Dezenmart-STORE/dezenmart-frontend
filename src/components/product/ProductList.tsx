@@ -33,6 +33,8 @@ interface Props {
   minPrice?: number;
   layout?: "default" | "compact" | "horizontal-scroll";
   showSellerBadge?: boolean;
+  icon?: React.ComponentType<{ className?: string }>;
+  iconColor?: string;
 }
 
 const ITEMS_PER_PAGE = 12;
@@ -55,6 +57,8 @@ const ProductList = ({
   minPrice,
   layout = "default",
   showSellerBadge = false,
+  icon: Icon,
+  iconColor = "text-Red",
 }: Props) => {
   const { user } = useAuth();
 
@@ -343,7 +347,14 @@ const ProductList = ({
       {!isCategoryView && (
         <div className="flex items-center justify-between px-4 md:px-0 mb-2">
           <div>
-            <Title text={title} className="text-white text-lg md:text-2xl mb-0" />
+            <div className="flex items-center gap-3">
+              {Icon && (
+                <div className={`${iconColor} transition-transform hover:scale-110`}>
+                  <Icon className="w-6 h-6 md:w-8 md:h-8 drop-shadow-[0_0_8px_currentColor]" />
+                </div>
+              )}
+              <Title text={title} className="text-white text-lg md:text-2xl mb-0" />
+            </div>
             {subtitle && (
               <p className="text-gray-400 text-xs md:text-sm mt-1">{subtitle}</p>
             )}

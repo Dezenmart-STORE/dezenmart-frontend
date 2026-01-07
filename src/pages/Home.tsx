@@ -6,9 +6,11 @@ import ProductList from "../components/product/ProductList";
 import BannerCarousel from "../components/common/BannerCarousel";
 import FeaturedHero from "../components/product/FeaturedHero";
 import CategoryPreview from "../components/common/CategoryPreview";
+import { SectionIcons } from "../components/common/SectionIcons";
 import { useState, useMemo, useCallback } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useWeb3 } from "../context/Web3Context";
+import { useCurrency } from "../context/CurrencyContext";
 import { useGetSponsoredProductsQuery } from "../store/api";
 import WalletConnectionModal from "../components/web3/WalletConnectionModal";
 import WalletDetailsModal from "../components/web3/WalletDetailsModal";
@@ -112,11 +114,27 @@ const Home = () => {
   const { user, isAuthenticated } = useAuth();
   const [showWallet, setShowWallet] = useState(false);
   const { wallet } = useWeb3();
+  const { convertPrice, selectedTokenSymbol } = useCurrency();
   const [showConnectionModal, setShowConnectionModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
 
   // Fetch sponsored products for hero section
   const { data: sponsoredProducts = [] } = useGetSponsoredProductsQuery();
+
+  // Calculate dynamic price threshold (equivalent of 20 cUSD in selected token)
+  const valuePriceThreshold = useMemo(() => {
+    // If the selected token is already cUSD, return 20
+    if (selectedTokenSymbol === "cUSD") {
+      return 20;
+    }
+    // Convert 20 cUSD to the selected token
+    return convertPrice(20, "cUSD", selectedTokenSymbol);
+  }, [selectedTokenSymbol, convertPrice]);
+
+  // Format the threshold for display (round to 2 decimal places)
+  const formattedThreshold = useMemo(() => {
+    return Math.round(valuePriceThreshold * 100) / 100;
+  }, [valuePriceThreshold]);
 
   // SEO Configuration for homepage
   useSEO({
@@ -300,7 +318,7 @@ const Home = () => {
 
         {/* Fresh Arrivals Section */}
         <ProductList
-          title="🆕 Fresh Arrivals"
+          title="Fresh Arrivals"
           subtitle="New products from this week"
           path="/product"
           className="mt-6 md:mt-10"
@@ -310,11 +328,13 @@ const Home = () => {
           sortOrder="desc"
           filterBy="new"
           showViewAll={true}
+          icon={SectionIcons.FreshArrivals}
+          iconColor="text-green-400"
         />
 
         {/* Top Sellers Section */}
         <ProductList
-          title="⭐ From Top-Rated Sellers"
+          title="From Top-Rated Sellers"
           subtitle="Shop with confidence from verified merchants"
           path="/product"
           className="mt-6 md:mt-10"
@@ -322,18 +342,22 @@ const Home = () => {
           maxItems={6}
           filterBy="topSellers"
           showViewAll={true}
+          icon={SectionIcons.TopSellers}
+          iconColor="text-yellow-400"
         />
 
-        {/* Value Section */}
+        {/* Value Section - Dynamic based on selected token */}
         <ProductList
-          title="💰 Under 20 cUSD"
+          title={`Under ${formattedThreshold} ${selectedTokenSymbol}`}
           subtitle="Great finds at amazing prices"
           path="/product"
           className="mt-6 md:mt-10"
           isCategoryView={false}
           maxItems={6}
-          maxPrice={20}
+          maxPrice={valuePriceThreshold}
           showViewAll={true}
+          icon={SectionIcons.ValuePrice}
+          iconColor="text-emerald-400"
         />
       </Container>
       {showWallet && showConnectionModal && !showDetailsModal && (

@@ -278,15 +278,15 @@ const Header = () => {
         </nav>
 
         <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3">
-          {/* Currency Toggle - always visible but compact on mobile */}
-          <div className="hidden xs:block">
-            <CurrencyToggle />
-          </div>
+          {/* Currency Toggle - always visible on all screen sizes */}
+          <CurrencyToggle />
 
-          {/* Token Selector - hidden on small screens */}
-          <div className="hidden md:block">
-            <TokenSelector />
-          </div>
+          {/* Token Selector - visible when wallet is connected */}
+          {wallet.isConnected && (
+            <div className="hidden sm:block">
+              <TokenSelector />
+            </div>
+          )}
 
           {/* Tutorial/Help Button - hidden on extra small screens */}
           <div className="hidden sm:block">
@@ -404,35 +404,17 @@ const Header = () => {
                         My Account
                       </motion.button>
 
-                      {/* Show currency/token selectors on mobile when hidden from header */}
-                      <div className="md:hidden border-t border-gray-700/50 my-1 pt-3 pb-2 px-4">
-                        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
-                          Preferences
-                        </p>
-                        <div className="flex flex-col gap-3">
-                          {/* Currency Toggle */}
-                          <div className="flex items-center justify-between gap-3">
-                            <span className="text-sm text-gray-300 min-w-[70px]">
-                              Currency
-                            </span>
-                            <div className="flex-1 flex justify-end">
-                              <CurrencyToggle />
-                            </div>
+                      {/* Show token selector on mobile (< sm) when wallet is connected */}
+                      {wallet.isConnected && (
+                        <div className="sm:hidden border-t border-gray-700/50 my-1 pt-3 pb-2 px-4">
+                          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
+                            Payment Token
+                          </p>
+                          <div className="w-full">
+                            <TokenSelector />
                           </div>
-
-                          {/* Token Selector */}
-                          {wallet.isConnected && (
-                            <div className="flex flex-col gap-2">
-                              <span className="text-sm text-gray-300">
-                                Payment Token
-                              </span>
-                              <div className="w-full">
-                                <TokenSelector />
-                              </div>
-                            </div>
-                          )}
                         </div>
-                      </div>
+                      )}
 
                       <div className="border-t border-gray-700/50 my-1"></div>
 
