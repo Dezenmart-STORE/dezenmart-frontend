@@ -25,6 +25,14 @@ interface Props {
   isFeatured?: boolean;
   maxItems?: number;
   showViewAll?: boolean;
+  subtitle?: string;
+  sortBy?: "createdAt" | "updatedAt" | "price" | "stock";
+  sortOrder?: "asc" | "desc";
+  filterBy?: "new" | "topSellers" | "inStock" | "priceRange";
+  maxPrice?: number;
+  minPrice?: number;
+  layout?: "default" | "compact" | "horizontal-scroll";
+  showSellerBadge?: boolean;
 }
 
 const ITEMS_PER_PAGE = 12;
@@ -39,6 +47,14 @@ const ProductList = ({
   maxItems,
   showViewAll = true,
   isUserProducts = false,
+  subtitle,
+  sortBy,
+  sortOrder = "desc",
+  filterBy,
+  maxPrice,
+  minPrice,
+  layout = "default",
+  showSellerBadge = false,
 }: Props) => {
   const { user } = useAuth();
 
@@ -172,9 +188,112 @@ const ProductList = ({
     user,
   ]);
 
+  // Helper to check if product is new
+  const isNewProduct = useCallback((createdAt: string) => {
+    const createdDate = new Date(createdAt);
+    const now = new Date();
+    const diffInMs = now.getTime() - createdDate.getTime();
+    const diffInDays = diffInMs / (1000 * 60 * 60 * 24);
+    return diffInDays < 7;
+  }, []);
+
+  // Client-side sorting function
+  const sortProducts = useCallback(
+    (products: Product[]) => {
+      if (!sortBy) return products;
+
+      return [...products].sort((a, b) => {
+        let comparison = 0;
+
+        switch (sortBy) {
+          case "createdAt":
+            comparison =
+              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+            break;
+          case "updatedAt":
+            comparison =
+              new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+            break;
+          case "price":
+            comparison = a.price - b.price;
+            break;
+          case "stock":
+            comparison = Number(b.stock) - Number(a.stock);
+            break;
+        }
+
+        return sortOrder === "asc" ? -comparison : comparison;
+      });
+    },
+    [sortBy, sortOrder]
+  );
+
+  // Client-side filtering function
+  const filterProducts = useCallback(
+    (products: Product[]) => {
+      let filtered = products;
+
+      // Apply filterBy
+      if (filterBy) {
+        switch (filterBy) {
+          case "new":
+            // Products created in last 7 days
+            const weekAgo = new Date();
+            weekAgo.setDate(weekAgo.getDate() - 7);
+            filtered = filtered.filter((p) => new Date(p.createdAt) > weekAgo);
+            break;
+
+          case "topSellers":
+            // Products from sellers with rating >= 4.5
+            filtered = filtered.filter((p) => {
+              if (typeof p.seller === "object" && p.seller) {
+                return p.seller.rating >= 4.5;
+              }
+              return false;
+            });
+            break;
+
+          case "inStock":
+            // Products with stock > 0
+            filtered = filtered.filter((p) => Number(p.stock) > 0);
+            break;
+
+          case "priceRange":
+            // Price range filtering
+            filtered = filtered.filter((p) => {
+              const meetsMin = minPrice ? p.price >= minPrice : true;
+              const meetsMax = maxPrice ? p.price <= maxPrice : true;
+              return meetsMin && meetsMax;
+            });
+            break;
+        }
+      }
+
+      // Apply price range even without filterBy
+      if (!filterBy && (minPrice || maxPrice)) {
+        filtered = filtered.filter((p) => {
+          const meetsMin = minPrice ? p.price >= minPrice : true;
+          const meetsMax = maxPrice ? p.price <= maxPrice : true;
+          return meetsMin && meetsMax;
+        });
+      }
+
+      return filtered;
+    },
+    [filterBy, minPrice, maxPrice]
+  );
+
+  // Apply sorting and filtering to products
+  const processedProducts = useMemo(() => {
+    let processed = regularProducts;
+    processed = filterProducts(processed);
+    processed = sortProducts(processed);
+    return processed;
+  }, [regularProducts, filterProducts, sortProducts]);
+
   // Loading states
   const isInitialLoading = loadingAll || loadingSponsored || loadingCategory || loadingUser;
-  const totalProducts = regularProducts.length;
+  const totalProducts = processedProducts.length;
   const hasMore = displayedCount < totalProducts;
 
   // Reset displayed count when products change
@@ -202,17 +321,8 @@ const ProductList = ({
     }
   }, [isIntersecting, loadMore, isLoadingMore, hasMore, isInitialLoading]);
 
-  // Helper to check if product is new
-  const isNewProduct = useCallback((createdAt: string) => {
-    const createdDate = new Date(createdAt);
-    const now = new Date();
-    const diffInMs = now.getTime() - createdDate.getTime();
-    const diffInDays = diffInMs / (1000 * 60 * 60 * 24);
-    return diffInDays < 7;
-  }, []);
-
   // Get products to display
-  const productsToDisplay = regularProducts.slice(0, displayedCount);
+  const productsToDisplay = processedProducts.slice(0, displayedCount);
 
   // Early return if no products and not in category view
   if (
@@ -231,8 +341,13 @@ const ProductList = ({
     <section className={newClass}>
       {/* Header */}
       {!isCategoryView && (
-        <div className="flex items-center justify-between px-4 md:px-0">
-          <Title text={title} className="text-white text-lg md:text-2xl" />
+        <div className="flex items-center justify-between px-4 md:px-0 mb-2">
+          <div>
+            <Title text={title} className="text-white text-lg md:text-2xl mb-0" />
+            {subtitle && (
+              <p className="text-gray-400 text-xs md:text-sm mt-1">{subtitle}</p>
+            )}
+          </div>
           {path && showViewAll && (
             <Link
               to={path}

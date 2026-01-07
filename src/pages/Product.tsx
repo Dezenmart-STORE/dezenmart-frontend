@@ -228,15 +228,22 @@ const Product = () => {
             {/* All Products */}
             {!searchQuery && (
               <>
-                <ProductList
-                  title="Featured Products"
-                  className="mt-8"
-                  isCategoryView={false}
-                  isFeatured={true}
-                  showViewAll={false}
-                />
+                {/* Sponsored section - Compact horizontal */}
+                <div className="mt-8 bg-[#1a1c20]/50 rounded-lg p-4 md:p-6">
+                  <ProductList
+                    title="Sponsored"
+                    className=""
+                    isCategoryView={false}
+                    isFeatured={true}
+                    maxItems={3}
+                    showViewAll={false}
+                  />
+                </div>
+
+                {/* Main catalog - Comprehensive */}
                 <ProductList
                   title="All Products"
+                  subtitle="Browse our complete collection"
                   className="mt-8"
                   isCategoryView={true}
                   category="All"
@@ -264,6 +271,7 @@ const Product = () => {
 
             <ProductList
               title={activeCategory}
+              subtitle={`Explore all ${activeCategory.toLowerCase()} products`}
               className="mt-8"
               isCategoryView={true}
               category={activeCategory}

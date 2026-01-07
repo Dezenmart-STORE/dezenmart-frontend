@@ -4,9 +4,12 @@ import { RiVerifiedBadgeFill } from "react-icons/ri";
 import Container from "../components/common/Container";
 import ProductList from "../components/product/ProductList";
 import BannerCarousel from "../components/common/BannerCarousel";
+import FeaturedHero from "../components/product/FeaturedHero";
+import CategoryPreview from "../components/common/CategoryPreview";
 import { useState, useMemo, useCallback } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useWeb3 } from "../context/Web3Context";
+import { useGetSponsoredProductsQuery } from "../store/api";
 import WalletConnectionModal from "../components/web3/WalletConnectionModal";
 import WalletDetailsModal from "../components/web3/WalletDetailsModal";
 import { GoUnverified, GoVerified } from "react-icons/go";
@@ -111,6 +114,9 @@ const Home = () => {
   const { wallet } = useWeb3();
   const [showConnectionModal, setShowConnectionModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+
+  // Fetch sponsored products for hero section
+  const { data: sponsoredProducts = [] } = useGetSponsoredProductsQuery();
 
   // SEO Configuration for homepage
   useSEO({
@@ -278,23 +284,55 @@ const Home = () => {
           rotationInterval={6000}
         />
 
-        {/* Featured Products Section */}
+        {/* Hero Products Section - Large, Visual */}
+        <FeaturedHero
+          title="🔥 Today's Picks"
+          subtitle="Curated products just for you"
+          products={sponsoredProducts}
+          maxItems={4}
+        />
+
+        {/* Category Preview - Visual Discovery */}
+        <CategoryPreview
+          title="Shop by Category"
+          subtitle="Explore our diverse marketplace"
+        />
+
+        {/* Fresh Arrivals Section */}
         <ProductList
-          title="Featured Products"
+          title="🆕 Fresh Arrivals"
+          subtitle="New products from this week"
           path="/product"
           className="mt-6 md:mt-10"
           isCategoryView={false}
-          isFeatured={true}
+          maxItems={6}
+          sortBy="createdAt"
+          sortOrder="desc"
+          filterBy="new"
           showViewAll={true}
         />
 
-        {/* All Products Section */}
+        {/* Top Sellers Section */}
         <ProductList
-          title="Recent Products"
+          title="⭐ From Top-Rated Sellers"
+          subtitle="Shop with confidence from verified merchants"
           path="/product"
           className="mt-6 md:mt-10"
           isCategoryView={false}
-          maxItems={4}
+          maxItems={6}
+          filterBy="topSellers"
+          showViewAll={true}
+        />
+
+        {/* Value Section */}
+        <ProductList
+          title="💰 Under 20 cUSD"
+          subtitle="Great finds at amazing prices"
+          path="/product"
+          className="mt-6 md:mt-10"
+          isCategoryView={false}
+          maxItems={6}
+          maxPrice={20}
           showViewAll={true}
         />
       </Container>
