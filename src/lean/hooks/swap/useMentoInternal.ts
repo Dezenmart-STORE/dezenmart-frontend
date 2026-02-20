@@ -1,0 +1,463 @@
+/**
+ * Internal Mento swap hook — uses lean config.
+ * Not exported from the barrel — only consumed by useSwap.
+ */
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
+import { useAccount, useWalletClient, usePublicClient } from "wagmi";
+import { Mento, TradablePair } from "@mento-protocol/mento-sdk";
+import { parseUnits, formatUnits, isAddress } from "viem";
+import { providers, BigNumber } from "ethers";
+import { TOKENS, getToken, getTokenAddress as leanGetTokenAddress } from "../../config/tokens";
+import { TARGET_CHAIN } from "../../config/chains";
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+export interface SwapQuote {
+  amountOut: string;
+  exchangeRate: string;
+  minAmountOut: string;
+  priceImpact: string;
+  route: string[];
+  timestamp: number;
+  isMultiHop: boolean;
+  tradablePair?: TradablePair;
+}
+
+export interface SwapParams {
+  fromSymbol: string;
+  toSymbol: string;
+  amount: number;
+  slippageTolerance?: number;
+}
+
+export interface SwapResult {
+  success: boolean;
+  hash?: string;
+  amountOut?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+const QUOTE_CACHE_TTL = 10_000;
+const SLIPPAGE_DEFAULT = 0.01;
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 1500;
+const COMMON_INTERMEDIARIES = ["cUSD", "USDT", "cEUR", "cREAL", "USDC"];
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+const getAddressString = (value: unknown): string | undefined => {
+  if (typeof value === "string") return value;
+  if (typeof value === "object" && value !== null && "address" in value) {
+    return (value as any).address;
+  }
+  return undefined;
+};
+
+const findMultiHopPath = async (
+  mento: Mento,
+  fromSymbol: string,
+  toSymbol: string,
+  chainId: number
+): Promise<{ intermediary: string; fromPair: TradablePair; toPair: TradablePair } | null> => {
+  for (const intermediary of COMMON_INTERMEDIARIES) {
+    if (intermediary === fromSymbol || intermediary === toSymbol) continue;
+
+    const intermediaryAddress = leanGetTokenAddress(intermediary, chainId);
+    if (!intermediaryAddress) continue;
+
+    const fromAddress = leanGetTokenAddress(fromSymbol, chainId);
+    const toAddress = leanGetTokenAddress(toSymbol, chainId);
+    if (!fromAddress || !toAddress) continue;
+
+    try {
+      const fromPair = await mento.findPairForTokens(fromAddress, intermediaryAddress);
+      const toPair = await mento.findPairForTokens(intermediaryAddress, toAddress);
+      if (fromPair && toPair) return { intermediary, fromPair, toPair };
+    } catch {
+      continue;
+    }
+  }
+
+  return null;
+};
+
+const buildRouteFromPair = (
+  tradablePair: TradablePair | undefined,
+  fromSymbol: string,
+  toSymbol: string,
+  chainId: number
+): string[] => {
+  if (!tradablePair) return [fromSymbol, toSymbol];
+
+  try {
+    if (tradablePair.path && Array.isArray(tradablePair.path) && tradablePair.path.length > 0) {
+      const route: string[] = [fromSymbol];
+
+      for (const pathItem of tradablePair.path) {
+        if (typeof pathItem === "object" && pathItem !== null && "assets" in pathItem) {
+          const assets = (pathItem as any).assets;
+          if (Array.isArray(assets)) {
+            for (const assetAddr of assets) {
+              const token = TOKENS.find((t) => {
+                const tokenAddress = t.address[chainId];
+                const compareAddress = getAddressString(assetAddr);
+                return tokenAddress && compareAddress &&
+                  tokenAddress.toLowerCase() === compareAddress.toLowerCase();
+              });
+              if (token && token.symbol !== fromSymbol && token.symbol !== toSymbol && !route.includes(token.symbol)) {
+                route.push(token.symbol);
+              }
+            }
+          }
+        } else {
+          const token = TOKENS.find((t) => {
+            const tokenAddress = t.address[chainId];
+            const pathItemAddress = getAddressString(pathItem);
+            return tokenAddress && pathItemAddress &&
+              tokenAddress.toLowerCase() === pathItemAddress.toLowerCase();
+          });
+          if (token && token.symbol !== fromSymbol && token.symbol !== toSymbol && !route.includes(token.symbol)) {
+            route.push(token.symbol);
+          }
+        }
+      }
+
+      if (!route.includes(toSymbol)) route.push(toSymbol);
+      return route.length > 1 ? route : [fromSymbol, toSymbol];
+    }
+
+    if (tradablePair.assets && Array.isArray(tradablePair.assets) && tradablePair.assets.length >= 2) {
+      const token0 = TOKENS.find((t) => {
+        const addr = t.address[chainId];
+        const a0 = getAddressString(tradablePair.assets[0]);
+        return addr && a0 && addr.toLowerCase() === a0.toLowerCase();
+      });
+      const token1 = TOKENS.find((t) => {
+        const addr = t.address[chainId];
+        const a1 = getAddressString(tradablePair.assets[1]);
+        return addr && a1 && addr.toLowerCase() === a1.toLowerCase();
+      });
+      if (token0 && token1) return [token0.symbol, token1.symbol];
+    }
+  } catch {
+    // fallback
+  }
+
+  return [fromSymbol, toSymbol];
+};
+
+// ---------------------------------------------------------------------------
+// Hook
+// ---------------------------------------------------------------------------
+export function useMentoInternal() {
+  const { address } = useAccount();
+  const { data: walletClient } = useWalletClient();
+  const publicClient = usePublicClient();
+
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(false);
+  const [initAttempts, setInitAttempts] = useState(0);
+
+  const mentoRef = useRef<Mento | null>(null);
+  const quoteCache = useRef<Map<string, SwapQuote>>(new Map());
+
+  // ── Initialize ──────────────────────────────────────────────────
+  const initialize = useCallback(async (): Promise<boolean> => {
+    if (isInitialized || isInitializing) return isInitialized;
+    if (!window.ethereum || !address || !walletClient || !publicClient) return false;
+
+    setIsInitializing(true);
+    setInitAttempts((n) => n + 1);
+
+    let retries = 0;
+    while (retries < MAX_RETRIES) {
+      try {
+        const provider = new providers.Web3Provider(window.ethereum);
+        const signer = provider.getSigner();
+        const network = await provider.getNetwork();
+
+        if (network.chainId !== TARGET_CHAIN.id) {
+          throw new Error(`Please switch to ${TARGET_CHAIN.name}`);
+        }
+
+        const mento = await Promise.race([
+          Mento.create(signer),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error("SDK init timeout")), 15_000)
+          ),
+        ]);
+
+        // Verify pairs are fetchable
+        await Promise.race([
+          mento.getTradablePairs(),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error("Pairs timeout")), 10_000)
+          ),
+        ]);
+
+        mentoRef.current = mento;
+        setIsInitializing(false);
+        setIsInitialized(true);
+        return true;
+      } catch {
+        retries++;
+        if (retries < MAX_RETRIES) {
+          await new Promise((r) => setTimeout(r, RETRY_DELAY * retries));
+        }
+      }
+    }
+
+    setIsInitializing(false);
+    return false;
+  }, [address, walletClient, publicClient, isInitialized, isInitializing]);
+
+  // Auto-init
+  useEffect(() => {
+    if (address && walletClient && !isInitialized && !isInitializing && initAttempts < 3) {
+      initialize();
+    }
+  }, [address, walletClient, isInitialized, isInitializing, initAttempts, initialize]);
+
+  // ── Get quote ───────────────────────────────────────────────────
+  const getSwapQuote = useCallback(
+    async (
+      fromSymbol: string,
+      toSymbol: string,
+      amount: number,
+      slippageTolerance = SLIPPAGE_DEFAULT
+    ): Promise<SwapQuote> => {
+      if (!mentoRef.current || !isInitialized) {
+        await initialize();
+        throw new Error("Mento not ready yet.");
+      }
+      if (amount <= 0) throw new Error("Amount must be > 0");
+
+      const fromToken = getToken(fromSymbol);
+      const toToken = getToken(toSymbol);
+      if (!fromToken || !toToken) throw new Error("Unsupported token pair");
+
+      const cacheKey = `mento:${fromSymbol}-${toSymbol}-${amount}-${slippageTolerance}`;
+      const cached = quoteCache.current.get(cacheKey);
+      if (cached && Date.now() - cached.timestamp < QUOTE_CACHE_TTL) return cached;
+
+      const chainId = (await walletClient?.getChainId()) || TARGET_CHAIN.id;
+      const fromAddress = leanGetTokenAddress(fromSymbol, chainId);
+      const toAddress = leanGetTokenAddress(toSymbol, chainId);
+      if (!fromAddress || !toAddress || !isAddress(fromAddress) || !isAddress(toAddress)) {
+        throw new Error("Token addresses not found");
+      }
+
+      const amountIn = parseUnits(amount.toString(), fromToken.decimals);
+
+      let amountOut: BigNumber;
+      let route: string[];
+      let tradablePair: TradablePair | undefined;
+      let isMultiHop = false;
+
+      // Try direct pair
+      try {
+        tradablePair = await Promise.race([
+          mentoRef.current.findPairForTokens(fromAddress, toAddress),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error("Pair lookup timeout")), 5_000)
+          ),
+        ]);
+
+        amountOut = await Promise.race([
+          mentoRef.current.getAmountOut(
+            fromAddress,
+            toAddress,
+            BigNumber.from(amountIn.toString()),
+            tradablePair
+          ),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error("Amount calc timeout")), 5_000)
+          ),
+        ]) as BigNumber;
+
+        route = buildRouteFromPair(tradablePair, fromSymbol, toSymbol, chainId);
+      } catch {
+        // Try direct without pair
+        try {
+          amountOut = await Promise.race([
+            mentoRef.current!.getAmountOut(
+              fromAddress,
+              toAddress,
+              BigNumber.from(amountIn.toString())
+            ),
+            new Promise<never>((_, reject) =>
+              setTimeout(() => reject(new Error("Direct swap timeout")), 5_000)
+            ),
+          ]) as BigNumber;
+          route = [fromSymbol, toSymbol];
+        } catch {
+          // Try multi-hop
+          const multiHopPath = await findMultiHopPath(mentoRef.current!, fromSymbol, toSymbol, chainId);
+          if (!multiHopPath) {
+            throw new Error(`No trading path for ${fromSymbol}/${toSymbol}`);
+          }
+
+          const { intermediary, fromPair, toPair } = multiHopPath;
+          const intermediaryAddress = leanGetTokenAddress(intermediary, chainId)!;
+
+          const firstHopAmount = await mentoRef.current!.getAmountOut(
+            fromAddress,
+            intermediaryAddress,
+            BigNumber.from(amountIn.toString()),
+            fromPair
+          ) as BigNumber;
+
+          amountOut = await mentoRef.current!.getAmountOut(
+            intermediaryAddress,
+            toAddress,
+            firstHopAmount,
+            toPair
+          ) as BigNumber;
+
+          route = [fromSymbol, intermediary, toSymbol];
+          isMultiHop = true;
+        }
+      }
+
+      if (!amountOut || amountOut.isZero()) {
+        throw new Error("Insufficient liquidity for this trade amount");
+      }
+
+      const amountOutFormatted = formatUnits(BigInt(amountOut.toString()), toToken.decimals);
+      const exchangeRate = (parseFloat(amountOutFormatted) / amount).toFixed(6);
+      const minAmountOut = amountOut.mul(Math.floor((1 - slippageTolerance) * 10000)).div(10000);
+      const minAmountOutFormatted = formatUnits(BigInt(minAmountOut.toString()), toToken.decimals);
+      const priceImpact = Math.abs((1 - parseFloat(exchangeRate)) * 100).toFixed(4);
+
+      const quote: SwapQuote = {
+        amountOut: amountOutFormatted,
+        exchangeRate,
+        minAmountOut: minAmountOutFormatted,
+        priceImpact,
+        route,
+        timestamp: Date.now(),
+        isMultiHop,
+        tradablePair,
+      };
+
+      quoteCache.current.set(cacheKey, quote);
+      setTimeout(() => quoteCache.current.delete(cacheKey), QUOTE_CACHE_TTL);
+
+      return quote;
+    },
+    [walletClient, isInitialized, initialize]
+  );
+
+  // ── Perform swap ────────────────────────────────────────────────
+  const performSwap = useCallback(
+    async (params: SwapParams): Promise<SwapResult> => {
+      if (!mentoRef.current || !address || !walletClient || !publicClient) {
+        return { success: false };
+      }
+
+      const {
+        fromSymbol,
+        toSymbol,
+        amount,
+        slippageTolerance = SLIPPAGE_DEFAULT,
+      } = params;
+
+      const chainId = await walletClient.getChainId();
+      const fromToken = getToken(fromSymbol);
+      const toToken = getToken(toSymbol);
+      if (!fromToken || !toToken) return { success: false };
+
+      const fromAddress = leanGetTokenAddress(fromSymbol, chainId);
+      const toAddress = leanGetTokenAddress(toSymbol, chainId);
+      if (!fromAddress || !toAddress) return { success: false };
+
+      const amountIn = BigNumber.from(
+        parseUnits(amount.toString(), fromToken.decimals).toString()
+      );
+
+      // Get fresh quote
+      const quote = await getSwapQuote(fromSymbol, toSymbol, amount, slippageTolerance);
+      const minAmountOut = BigNumber.from(
+        parseUnits(quote.minAmountOut, toToken.decimals).toString()
+      );
+
+      // Find tradable pair
+      let tradablePair: TradablePair | undefined = quote.tradablePair;
+      if (!tradablePair) {
+        try {
+          tradablePair = await mentoRef.current.findPairForTokens(fromAddress, toAddress);
+        } catch {
+          tradablePair = undefined;
+        }
+      }
+
+      // Approve via Mento SDK
+      const allowanceTxObj = await mentoRef.current.increaseTradingAllowance(
+        fromAddress,
+        amountIn,
+        tradablePair
+      );
+
+      const allowanceHash = await walletClient.sendTransaction({
+        account: address as `0x${string}`,
+        to: allowanceTxObj.to as `0x${string}`,
+        data: allowanceTxObj.data as `0x${string}`,
+        value: BigInt(allowanceTxObj.value?.toString() || "0"),
+        gas: allowanceTxObj.gasLimit ? BigInt(allowanceTxObj.gasLimit.toString()) : undefined,
+        chain: undefined,
+      });
+
+      const allowanceReceipt = await publicClient.waitForTransactionReceipt({
+        hash: allowanceHash,
+        timeout: 60_000,
+      });
+      if (allowanceReceipt?.status !== "success") {
+        return { success: false };
+      }
+
+      // Execute swap via Mento SDK
+      const swapTxObj = await mentoRef.current.swapIn(
+        fromAddress,
+        toAddress,
+        amountIn,
+        minAmountOut,
+        tradablePair
+      );
+
+      const swapHash = await walletClient.sendTransaction({
+        account: address as `0x${string}`,
+        to: swapTxObj.to as `0x${string}`,
+        data: swapTxObj.data as `0x${string}`,
+        value: BigInt(swapTxObj.value?.toString() || "0"),
+        gas: swapTxObj.gasLimit ? BigInt(swapTxObj.gasLimit.toString()) : undefined,
+        chain: undefined,
+      });
+
+      const swapReceipt = await publicClient.waitForTransactionReceipt({
+        hash: swapHash,
+        timeout: 60_000,
+      });
+
+      if (swapReceipt?.status !== "success") {
+        return { success: false };
+      }
+
+      quoteCache.current.clear();
+      return { success: true, hash: swapHash, amountOut: quote.amountOut };
+    },
+    [address, walletClient, publicClient, getSwapQuote]
+  );
+
+  return useMemo(
+    () => ({
+      isReady: isInitialized && !!mentoRef.current,
+      getSwapQuote,
+      performSwap,
+    }),
+    [isInitialized, getSwapQuote, performSwap]
+  );
+}

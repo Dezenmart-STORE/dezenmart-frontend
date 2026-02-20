@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+
+    <!-- Basic Meta Tags -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes"
+    />
+    <meta
+      name="description"
+      content="Shop securely with cryptocurrency on DezenMart. Buy and sell products using stablecoins (USDT, cUSD, G$) with escrow protection. Web3 marketplace on Celo blockchain."
+    />
+    <meta
+      name="keywords"
+      content="web3 marketplace, crypto marketplace, buy with crypto, stablecoin payments, USDT marketplace, cUSD marketplace, GoodDollar marketplace, escrow protection, Celo marketplace, decentralized shopping, blockchain ecommerce"
+    />
+    <meta name="author" content="DezenMart" />
+    <meta
+      name="robots"
+      content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1"
+    />
+
+    <!-- Theme & App Meta -->
+    <meta name="theme-color" content="#ef4444" />
+    <meta name="color-scheme" content="dark light" />
+    <meta name="application-name" content="DezenMart" />
+
+    <!-- Verification (Add your codes when ready) -->
+    <!-- <meta name="google-site-verification" content="your-google-verification-code" /> -->
+    <!-- <meta name="msvalidate.01" content="your-bing-verification-code" /> -->
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/images/logo.svg" />
+    <link rel="shortcut icon" href="/images/logo.svg" />
+
+    <!-- PWA Icons -->
+    <link
+      rel="apple-touch-icon"
+      sizes="192x192"
+      href="/icons/icon-192x192.png"
+    />
+    <link
+      rel="apple-touch-icon"
+      sizes="512x512"
+      href="/icons/icon-512x512.png"
+    />
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+
+    <!-- iOS PWA Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Dezenmart" />
+
+    <!-- Android PWA Meta Tags -->
+    <meta name="mobile-web-app-capable" content="yes" />
+
+    <!-- Windows Metro Tile -->
+    <meta name="msapplication-TileColor" content="#6366F1" />
+    <meta name="msapplication-TileImage" content="/icons/icon-144x144.png" />
+    <meta name="msapplication-config" content="/browserconfig.xml" />
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="DezenMart" />
+    <meta
+      property="og:title"
+      content="DezenMart - Secure Web3 Marketplace | Buy & Sell with Crypto"
+    />
+    <meta
+      property="og:description"
+      content="Shop securely with cryptocurrency on DezenMart. Buy and sell products using stablecoins (USDT, cUSD, G$) with escrow protection."
+    />
+    <meta
+      property="og:image"
+      content="https://dezenmart.com/images/logo-full.png"
+    />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="DezenMart - Web3 Marketplace" />
+    <meta property="og:url" content="https://dezenmart.com" />
+    <meta property="og:locale" content="en_US" />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@dezenmart" />
+    <meta name="twitter:creator" content="@dezenmart" />
+    <meta
+      name="twitter:title"
+      content="DezenMart - Secure Web3 Marketplace | Buy & Sell with Crypto"
+    />
+    <meta
+      name="twitter:description"
+      content="Shop securely with cryptocurrency. Buy and sell products using stablecoins with escrow protection on the Celo blockchain."
+    />
+    <meta
+      name="twitter:image"
+      content="https://dezenmart.com/images/logo-full.png"
+    />
+    <meta name="twitter:image:alt" content="DezenMart - Web3 Marketplace" />
+
+    <!-- Security -->
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="upgrade-insecure-requests"
+    />
+
+    <title>DezenMart - Secure Web3 Marketplace | Buy & Sell with Crypto</title>
+
+    <!-- Preconnect to external domains for performance -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preconnect" href="https://api.coingecko.com" />
+
+    <!-- Canonical URL -->
+    <link rel="canonical" href="https://dezenmart.com/" />
+
+    <!-- Fonts -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Inline styles for initial splash screen (prevents white flash) -->
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        background-color: #212428;
+      }
+
+      #splash-screen {
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        background: #212428;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 99999;
+        transition: opacity 0.5s ease-out;
+        overflow: hidden;
+      }
+
+      #splash-screen.hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      .splash-background {
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(to bottom right, #212428, #1a1c20, #212428);
+      }
+
+      .splash-container {
+        position: relative;
+        z-index: 10;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        max-width: 28rem;
+        width: 100%;
+        padding: 0 1rem;
+      }
+
+      .splash-logo-wrapper {
+        margin-bottom: 2rem;
+      }
+
+      .splash-svg {
+        width: 8rem;
+        height: 8rem;
+        opacity: 0;
+        animation: svgFadeInOut 4.5s ease-in-out infinite;
+      }
+
+      /* SVG Element Animations */
+      .red-circle-fill {
+        opacity: 0;
+        animation: redCircleFill 4.5s ease-in infinite;
+      }
+
+      .red-circle-stroke {
+        stroke-dasharray: 471.24;
+        stroke-dashoffset: 471.24;
+        animation: redCircleStroke 4.5s ease-out infinite;
+      }
+
+      .white-triangle-fill {
+        opacity: 0;
+        animation: whiteTriangleFill 4.5s ease-in infinite;
+      }
+
+      .white-triangle-stroke {
+        stroke-dasharray: 200;
+        stroke-dashoffset: 200;
+        animation: whiteTriangleStroke 4.5s ease-out infinite;
+      }
+
+      .white-circle-fill {
+        opacity: 0;
+        animation: whiteCircleFill 4.5s ease-in infinite;
+      }
+
+      .white-circle-stroke {
+        stroke-dasharray: 471.24;
+        stroke-dashoffset: 471.24;
+        animation: whiteCircleStroke 4.5s ease-out infinite;
+      }
+
+      .red-triangle-fill {
+        opacity: 0;
+        animation: redTriangleFill 4.5s ease-in infinite;
+      }
+
+      .red-triangle-stroke {
+        stroke-dasharray: 200;
+        stroke-dashoffset: 200;
+        animation: redTriangleStroke 4.5s ease-out infinite;
+      }
+
+      .small-white-circle-fill {
+        opacity: 0;
+        animation: smallWhiteCircleFill 4.5s ease-in infinite;
+      }
+
+      .small-white-circle-stroke {
+        stroke-dasharray: 314.16;
+        stroke-dashoffset: 314.16;
+        animation: smallWhiteCircleStroke 4.5s ease-out infinite;
+      }
+
+      .small-red-circle-fill {
+        opacity: 0;
+        animation: smallRedCircleFill 4.5s ease-in infinite;
+      }
+
+      .small-red-circle-stroke {
+        stroke-dasharray: 314.16;
+        stroke-dashoffset: 314.16;
+        animation: smallRedCircleStroke 4.5s ease-out infinite;
+      }
+
+      .splash-title {
+        color: white;
+        font-size: 1.875rem;
+        font-weight: bold;
+        text-align: center;
+        letter-spacing: 0.05em;
+        opacity: 0;
+        animation: titleFadeIn 0.6s ease-out 0.8s forwards;
+      }
+
+      /* Keyframe Animations */
+      @keyframes svgFadeInOut {
+        0% {
+          opacity: 0;
+        }
+        5% {
+          opacity: 1;
+        }
+        90% {
+          opacity: 1;
+        }
+        95% {
+          opacity: 0;
+        }
+        100% {
+          opacity: 0;
+        }
+      }
+
+      @keyframes redCircleFill {
+        0%,
+        27% {
+          opacity: 0;
+        }
+        40% {
+          opacity: 1;
+        }
+        90%,
+        95% {
+          opacity: 1;
+        }
+        100% {
+          opacity: 0;
+        }
+      }
+
+      @keyframes redCircleStroke {
+        0% {
+          stroke-dashoffset: 471.24;
+          opacity: 1;
+        }
+        27% {
+          stroke-dashoffset: 0;
+          opacity: 1;
+        }
+        40% {
+          stroke-dashoffset: 0;
+          opacity: 0;
+        }
+        90%,
+        100% {
+          stroke-dashoffset: 0;
+          opacity: 0;
+        }
+      }
+
+      @keyframes redTriangleFill {
+        0%,
+        27% {
+          opacity: 0;
+        }
+        40% {
+          opacity: 1;
+        }
+        90%,
+        95% {
+          opacity: 1;
+        }
+        100% {
+          opacity: 0;
+        }
+      }
+
+      @keyframes redTriangleStroke {
+        0% {
+          stroke-dashoffset: 200;
+          opacity: 1;
+        }
+        27% {
+          stroke-dashoffset: 0;
+          opacity: 1;
+        }
+        40% {
+          stroke-dashoffset: 0;
+          opacity: 0;
+        }
+        90%,
+        100% {
+          stroke-dashoffset: 0;
+          opacity: 0;
+        }
+      }
+
+      @keyframes whiteCircleFill {
+        0%,
+        18%,
+        45% {
+          opacity: 0;
+        }
+        58% {
+          opacity: 1;
+        }
+        90%,
+        95% {
+          opacity: 1;
+        }
+        100% {
+          opacity: 0;
+        }
+      }
+
+      @keyframes whiteCircleStroke {
+        0% {
+          stroke-dashoffset: 471.24;
+          opacity: 0;
+        }
+        18% {
+          stroke-dashoffset: 471.24;
+          opacity: 1;
+        }
+        45% {
+          stroke-dashoffset: 0;
+          opacity: 1;
+        }
+        58% {
+          stroke-dashoffset: 0;
+          opacity: 0;
+        }
+        90%,
+        100% {
+          stroke-dashoffset: 0;
+          opacity: 0;
+        }
+      }
+
+      @keyframes whiteTriangleFill {
+        0%,
+        18%,
+        45% {
+          opacity: 0;
+        }
+        58% {
+          opacity: 1;
+        }
+        90%,
+        95% {
+          opacity: 1;
+        }
+        100% {
+          opacity: 0;
+        }
+      }
+
+      @keyframes whiteTriangleStroke {
+        0% {
+          stroke-dashoffset: 200;
+          opacity: 0;
+        }
+        18% {
+          stroke-dashoffset: 200;
+          opacity: 1;
+        }
+        45% {
+          stroke-dashoffset: 0;
+          opacity: 1;
+        }
+        58% {
+          stroke-dashoffset: 0;
+          opacity: 0;
+        }
+        90%,
+        100% {
+          stroke-dashoffset: 0;
+          opacity: 0;
+        }
+      }
+
+      @keyframes smallWhiteCircleFill {
+        0%,
+        36%,
+        53%,
+        63% {
+          opacity: 0;
+        }
+        75% {
+          opacity: 1;
+        }
+        90%,
+        95% {
+          opacity: 1;
+        }
+        100% {
+          opacity: 0;
+        }
+      }
+
+      @keyframes smallWhiteCircleStroke {
+        0% {
+          stroke-dashoffset: 314.16;
+          opacity: 0;
+        }
+        36% {
+          stroke-dashoffset: 314.16;
+          opacity: 0;
+        }
+        53% {
+          stroke-dashoffset: 314.16;
+          opacity: 1;
+        }
+        63% {
+          stroke-dashoffset: 0;
+          opacity: 1;
+        }
+        75% {
+          stroke-dashoffset: 0;
+          opacity: 0;
+        }
+        90%,
+        100% {
+          stroke-dashoffset: 0;
+          opacity: 0;
+        }
+      }
+
+      @keyframes smallRedCircleFill {
+        0%,
+        44%,
+        58%,
+        67%,
+        78%,
+        88% {
+          opacity: 0;
+        }
+        88% {
+          opacity: 1;
+        }
+        90%,
+        95% {
+          opacity: 1;
+        }
+        100% {
+          opacity: 0;
+        }
+      }
+
+      @keyframes smallRedCircleStroke {
+        0% {
+          stroke-dashoffset: 314.16;
+          opacity: 0;
+        }
+        44% {
+          stroke-dashoffset: 314.16;
+          opacity: 0;
+        }
+        58% {
+          stroke-dashoffset: 314.16;
+          opacity: 0;
+        }
+        67% {
+          stroke-dashoffset: 314.16;
+          opacity: 1;
+        }
+        78% {
+          stroke-dashoffset: 0;
+          opacity: 1;
+        }
+        88% {
+          stroke-dashoffset: 0;
+          opacity: 0;
+        }
+        90%,
+        100% {
+          stroke-dashoffset: 0;
+          opacity: 0;
+        }
+      }
+
+      @keyframes titleFadeIn {
+        from {
+          opacity: 0;
+        }
+        to {
+          opacity: 1;
+        }
+      }
+
+      @media (min-width: 640px) {
+        .splash-svg {
+          width: 10rem;
+          height: 10rem;
+        }
+        .splash-title {
+          font-size: 2.25rem;
+        }
+      }
+
+      @media (min-width: 768px) {
+        .splash-svg {
+          width: 12rem;
+          height: 12rem;
+        }
+        .splash-title {
+          font-size: 3rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Initial splash screen (shown before React loads) -->
+    <div id="splash-screen">
+      <div class="splash-background"></div>
+      <div class="splash-container">
+        <div class="splash-logo-wrapper">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 400 400"
+            class="splash-svg"
+          >
+            <defs>
+              <clipPath id="clip-top-left">
+                <rect x="0" y="0" width="207" height="207" />
+              </clipPath>
+              <clipPath id="clip-bottom-right">
+                <rect x="203" y="203" width="207" height="207" />
+              </clipPath>
+            </defs>
+
+            <!-- TOP-LEFT TEARDROP - Red Circle Fill -->
+            <g clip-path="url(#clip-top-left)">
+              <circle
+                cx="135"
+                cy="135"
+                r="75"
+                fill="#FF3B30"
+                class="red-circle-fill"
+              />
+            </g>
+
+            <!-- Red Circle Stroke -->
+            <g clip-path="url(#clip-top-left)">
+              <circle
+                cx="135"
+                cy="135"
+                r="75"
+                fill="none"
+                stroke="#FF3B30"
+                stroke-width="3"
+                class="red-circle-stroke"
+              />
+            </g>
+
+            <!-- Red Triangle Fill -->
+            <polygon
+              points="205,205 150,207.1 207.1,150"
+              fill="#FF3B30"
+              class="white-triangle-fill"
+            />
+
+            <!-- Red Triangle Stroke -->
+            <polygon
+              points="205,205 150,207.1 207.1,150"
+              fill="none"
+              stroke="#FF3B30"
+              stroke-width="3"
+              stroke-linejoin="miter"
+              class="white-triangle-stroke"
+            />
+
+            <!-- BOTTOM-RIGHT TEARDROP - White Circle Fill -->
+            <g clip-path="url(#clip-bottom-right)">
+              <circle
+                cx="275"
+                cy="275"
+                r="75"
+                fill="#FFFFFF"
+                class="white-circle-fill"
+              />
+            </g>
+
+            <!-- White Circle Stroke -->
+            <g clip-path="url(#clip-bottom-right)">
+              <circle
+                cx="275"
+                cy="275"
+                r="75"
+                fill="none"
+                stroke="#FFFFFF"
+                stroke-width="3"
+                class="white-circle-stroke"
+              />
+            </g>
+
+            <!-- White Triangle Fill -->
+            <polygon
+              points="205,205 260,202.9 202.9,253"
+              fill="#FFFFFF"
+              class="red-triangle-fill"
+            />
+
+            <!-- White Triangle Stroke -->
+            <polygon
+              points="205,205 260,202.9 202.9,253"
+              fill="none"
+              stroke="#FFFFFF"
+              stroke-width="3"
+              stroke-linejoin="miter"
+              class="red-triangle-stroke"
+            />
+
+            <!-- Small white circle (top-right) Fill -->
+            <circle
+              cx="270"
+              cy="140"
+              r="50"
+              fill="#FFFFFF"
+              class="small-white-circle-fill"
+            />
+
+            <!-- Small white circle Stroke -->
+            <circle
+              cx="270"
+              cy="140"
+              r="50"
+              fill="none"
+              stroke="#FFFFFF"
+              stroke-width="3"
+              class="small-white-circle-stroke"
+            />
+
+            <!-- Small red circle (bottom-left) Fill -->
+            <circle
+              cx="140"
+              cy="270"
+              r="50"
+              fill="#FF3B30"
+              class="small-red-circle-fill"
+            />
+
+            <!-- Small red circle Stroke -->
+            <circle
+              cx="140"
+              cy="270"
+              r="50"
+              fill="none"
+              stroke="#FF3B30"
+              stroke-width="3"
+              class="small-red-circle-stroke"
+            />
+          </svg>
+        </div>
+
+        <h1 class="splash-title">DEZENMART</h1>
+      </div>
+    </div>
+
+    <div id="root" class="relative"></div>
+
+    <!-- Hide splash screen when React loads -->
+    <script>
+      (function () {
+        const MIN_SPLASH_DURATION = 4600;
+        const splash = document.getElementById("splash-screen");
+        if (!splash) return;
+
+        const mediaQuery = window.matchMedia
+          ? window.matchMedia("(display-mode: standalone)")
+          : null;
+        const isIOSStandalone =
+          "standalone" in window.navigator && window.navigator.standalone;
+        const isStandalone = Boolean(mediaQuery?.matches || isIOSStandalone);
+
+        window.__APP_IS_STANDALONE__ = isStandalone;
+
+        const hideSplash = (delay = 0) => {
+          window.setTimeout(() => {
+            splash.classList.add("hidden");
+            window.setTimeout(() => splash.remove(), 500);
+          }, delay);
+        };
+
+        if (isStandalone) {
+          hideSplash(MIN_SPLASH_DURATION);
+        } else {
+          hideSplash();
+        }
+      })();
+    </script>
+
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

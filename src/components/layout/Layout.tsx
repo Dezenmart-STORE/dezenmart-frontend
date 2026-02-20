@@ -1,0 +1,67 @@
+import Header from "./Header.tsx";
+import Footer from "./Footer.tsx";
+import MobileNavigation from "./MobileNavigation.tsx";
+import { useLocation } from "react-router-dom";
+import { useEffect } from "react";
+import ErrorBoundary from "../error/ErrorBoundary.tsx";
+import { OfflineIndicator } from "../pwa/OfflineIndicator.tsx";
+import { InstallPrompt } from "../pwa/InstallPrompt.tsx";
+import { registerServiceWorker } from "../../utils/pwa/serviceWorkerRegistration";
+import { setupOfflineSyncListener } from "../../utils/pwa/offlineSync";
+
+const Layout = ({ children }: { children: React.ReactNode }) => {
+  const location = useLocation();
+
+  // Pages that should not display header/footer
+  const isAuthPage = ["/login", "/auth/google"].includes(location.pathname);
+
+  // Register service worker and setup offline sync (only once)
+  useEffect(() => {
+    // Register service worker
+    registerServiceWorker({
+      onOfflineReady: () => {
+        console.log('[PWA] App is ready to work offline');
+      },
+      onNeedRefresh: () => {
+        console.log('[PWA] New content is available');
+      },
+    });
+
+    // Setup offline sync listener
+    const cleanupSync = setupOfflineSyncListener();
+
+    return () => {
+      cleanupSync();
+    };
+  }, []);
+
+  // Scroll to top on route change
+  useEffect(() => {
+    // Immediate scroll without animation for faster navigation
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
+
+  return (
+    <>
+      {/* Offline Status Indicator */}
+      <OfflineIndicator showOnlineStatus={true} />
+
+      {/* PWA Install Prompt */}
+      <InstallPrompt />
+
+      {!isAuthPage && <Header />}
+      <ErrorBoundary>
+        {/* pt-14 = 56px padding-top to account for fixed header */}
+        <main className="h-full pb-16 md:pb-0 pt-14 md:pt-16">{children}</main>
+      </ErrorBoundary>
+      {!isAuthPage && (
+        <>
+          <MobileNavigation />
+          <Footer />
+        </>
+      )}
+    </>
+  );
+};
+
+export default Layout;

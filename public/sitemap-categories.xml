@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <!-- Electronics Category -->
+  <url>
+    <loc>https://dezenmart.com/product/category/electronics</loc>
+    <lastmod>2025-01-14</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Clothing Category -->
+  <url>
+    <loc>https://dezenmart.com/product/category/clothing</loc>
+    <lastmod>2025-01-14</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Home & Garden Category -->
+  <url>
+    <loc>https://dezenmart.com/product/category/home%20%26%20garden</loc>
+    <lastmod>2025-01-14</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Beauty & Personal Care Category -->
+  <url>
+    <loc>https://dezenmart.com/product/category/beauty%20%26%20personal%20care</loc>
+    <lastmod>2025-01-14</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Sports & Outdoors Category -->
+  <url>
+    <loc>https://dezenmart.com/product/category/sports%20%26%20outdoors</loc>
+    <lastmod>2025-01-14</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Art Work Category -->
+  <url>
+    <loc>https://dezenmart.com/product/category/art%20work</loc>
+    <lastmod>2025-01-14</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Accessories Category -->
+  <url>
+    <loc>https://dezenmart.com/product/category/accessories</loc>
+    <lastmod>2025-01-14</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>
+</urlset>

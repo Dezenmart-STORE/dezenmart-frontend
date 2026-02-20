@@ -1,0 +1,233 @@
+import { useState, useEffect, lazy, Suspense, useCallback } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { useSearchParams } from "react-router-dom";
+import Container from "../components/common/Container";
+import ProfileHeader from "../components/account/ProfileHeader";
+import TabNavigation from "../components/account/overview/TabNavigation";
+import { LiaAngleDownSolid } from "react-icons/lia";
+import Button from "../components/common/Button";
+import LoadingSpinner from "../components/common/LoadingSpinner";
+import { useGetUserProfileQuery } from "../store/api";
+import { TabOption, TabType } from "../utils/types";
+
+import { useAuth } from "../context/AuthContext";
+
+import { MdOutlineVerifiedUser } from "react-icons/md";
+import Modal from "../components/common/Modal";
+import SefldVerification from "../components/common/SefldVerification";
+
+const TabContent = lazy(
+  () => import("../components/account/overview/TabContent")
+);
+const EditProfile = lazy(
+  () => import("../components/account/edit/EditProfile")
+);
+const Settings = lazy(() => import("../components/account/settings/Settings"));
+
+const TAB_OPTIONS: TabOption[] = [
+  { id: "1", label: "Saved Items" },
+  { id: "2", label: "Rewards" },
+  { id: "3", label: "Order History" },
+  { id: "4", label: "Dispute History" },
+  { id: "5", label: "My Product" },
+];
+
+const LoadingFallback = () => (
+  <div className="flex justify-center items-center min-h-[300px]">
+    <LoadingSpinner />
+  </div>
+);
+
+const ErrorState = ({ error, retry }: { error: string; retry: () => void }) => (
+  <div className="text-center p-8 bg-[#292B30] rounded-lg">
+    <h2 className="text-xl font-bold mb-4">Unable to load profile</h2>
+    <p className="text-gray-400 mb-4">{error}</p>
+    <Button
+      title="Retry"
+      onClick={retry}
+      className="mx-auto bg-Red hover:bg-[#e02d37] text-white px-6 py-2 rounded-lg transition-colors"
+    />
+  </div>
+);
+
+export type AccountViewState = "overview" | "settings" | "edit-profile";
+
+const Account = () => {
+  const { data: selectedUser, isLoading, error, refetch } = useGetUserProfileQuery();
+  const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const [activeTab, setActiveTab] = useState<TabType>("1");
+  const [viewState, setViewState] = useState<AccountViewState>("overview");
+
+  const [showVerifyModal, setShowVerifyModal] = useState(false);
+
+  // RTK Query handles fetching automatically on mount
+  // No need for manual useEffect
+
+  // Handle tab parameter from URL
+  useEffect(() => {
+    const tabParam = searchParams.get("tab");
+    if (tabParam && TAB_OPTIONS.some(option => option.id === tabParam)) {
+      setActiveTab(tabParam as TabType);
+      setViewState("overview");
+      // Clear the tab param after setting it
+      searchParams.delete("tab");
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [activeTab]);
+
+  const handleShowEditProfile = useCallback(
+    () => setViewState("edit-profile"),
+    []
+  );
+  const handleShowSettings = useCallback(() => setViewState("settings"), []);
+
+  const handleRetryFetch = useCallback(() => {
+    refetch();
+  }, [refetch]);
+
+  // Loading state
+  if (isLoading && !selectedUser) {
+    return (
+      <div className="bg-Dark min-h-screen text-white flex items-center justify-center">
+        <LoadingSpinner />
+      </div>
+    );
+  }
+
+  // Error state
+  if (error && !selectedUser) {
+    return (
+      <div className="bg-Dark min-h-screen text-white flex items-center justify-center">
+        <ErrorState
+          error={typeof error === 'string' ? error : "Failed to load profile"}
+          retry={handleRetryFetch}
+        />
+      </div>
+    );
+  }
+
+  if (!selectedUser) {
+    return (
+      <div className="bg-Dark min-h-screen text-white flex items-center justify-center">
+        <LoadingSpinner size="lg" />
+      </div>
+    );
+  }
+  return (
+    <div className="bg-Dark min-h-screen text-white">
+      <Container className="py-6 md:py-10">
+        {viewState === "settings" ? (
+          <Suspense fallback={<LoadingFallback />}>
+            <Settings
+              setViewState={(state) => setViewState(state)}
+              profileData={{
+                ...(selectedUser || {}),
+                dob: (selectedUser as any)?.dob || "",
+                phone: (selectedUser as any)?.phone || "",
+              }}
+            />
+          </Suspense>
+        ) : viewState === "edit-profile" ? (
+          <Suspense fallback={<LoadingFallback />}>
+            <EditProfile
+              avatar={
+                typeof selectedUser?.profileImage === "string"
+                  ? selectedUser?.profileImage
+                  : ""
+              }
+              setViewState={() => setViewState("overview")}
+              currentProfile={{
+                ...(selectedUser || {}),
+                dob: (selectedUser as any)?.dob || "",
+                phone: (selectedUser as any)?.phone || "",
+              }}
+            />
+          </Suspense>
+        ) : (
+          <>
+            <ProfileHeader
+              avatar={
+                typeof selectedUser?.profileImage === "string"
+                  ? selectedUser?.profileImage
+                  : ""
+              }
+              name={selectedUser.name}
+              id={selectedUser._id}
+              email={selectedUser.email}
+              showSettings={handleShowSettings}
+              isVerified={selectedUser.selfVerification?.isVerified || false}
+            />
+            {/* {selfApp && (
+              <div className="my-6">
+                <h3 className="text-lg font-semibold mb-2">
+                  Passport Verification
+                </h3>
+              </div>
+            )} */}
+
+            <motion.div
+              className="w-full max-w-[650px] mx-auto"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5 }}
+            >
+              <Button
+                title="Edit Profile"
+                icon={<LiaAngleDownSolid />}
+                path=""
+                onClick={handleShowEditProfile}
+                className="bg-white text-black text-lg font-bold h-11 rounded-none flex justify-center w-full border-none outline-none text-center my-2 hover:bg-gray-100 transition-colors"
+              />
+            </motion.div>
+            {!selectedUser.selfVerification?.isVerified && (
+              <motion.div
+                className="w-full max-w-[650px] mx-auto"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.6 }}
+              >
+                <Button
+                  title="Verify Account"
+                  icon={<MdOutlineVerifiedUser />}
+                  onClick={() => setShowVerifyModal(true)}
+                  className="bg-Red text-white text-lg font-bold h-11 rounded-none flex justify-center w-full border-none outline-none text-center my-2 hover:bg-[#e02d37] transition-colors"
+                />
+              </motion.div>
+            )}
+            <TabNavigation
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
+              options={TAB_OPTIONS}
+            />
+            <AnimatePresence mode="wait">
+              <Suspense fallback={<LoadingFallback />}>
+                <TabContent
+                  activeTab={activeTab}
+                  milestones={selectedUser.milestones}
+                  referralCode={selectedUser.referralCode}
+                  referralCount={selectedUser.referralCount}
+                  points={{
+                    total: selectedUser.totalPoints,
+                    available: selectedUser.availablePoints,
+                  }}
+                />
+              </Suspense>
+            </AnimatePresence>
+          </>
+        )}
+      </Container>
+      <SefldVerification
+        isOpen={showVerifyModal}
+        onClose={() => setShowVerifyModal(false)}
+      />
+    </div>
+  );
+};
+
+export default Account;

@@ -1,0 +1,125 @@
+import { useMemo } from "react";
+import { useAccount, useChainId, useReadContracts, useBalance } from "wagmi";
+import { erc20Abi, formatUnits } from "viem";
+import { TOKENS, type StableToken } from "../config/tokens";
+
+export interface TokenBalanceEntry {
+  token: StableToken;
+  raw: bigint;
+  formatted: string;
+  numeric: number;
+}
+
+interface UseTokenBalancesReturn {
+  /** Balances keyed by symbol */
+  balances: Map<string, TokenBalanceEntry>;
+  /** Native CELO balance (for gas) */
+  celoBalance: string;
+  /** True while any balance is loading */
+  isLoading: boolean;
+  /** Re-fetch all balances */
+  refetch: () => void;
+  /** Get a single token balance by symbol */
+  getBalance: (symbol: string) => TokenBalanceEntry | undefined;
+  /** Check if user has enough of a token */
+  hasSufficient: (symbol: string, amount: number) => boolean;
+}
+
+/**
+ * Fetches balances for ALL supported stablecoins via a single multicall.
+ */
+export function useTokenBalances(): UseTokenBalancesReturn {
+  const { address } = useAccount();
+  const chainId = useChainId();
+
+  // Build multicall contracts for all tokens on the current chain
+  const contracts = useMemo(() => {
+    if (!address) return [];
+    return TOKENS.filter((t) => t.address[chainId]).map((t) => ({
+      address: t.address[chainId] as `0x${string}`,
+      abi: erc20Abi,
+      functionName: "balanceOf" as const,
+      args: [address] as const,
+    }));
+  }, [address, chainId]);
+
+  // Tokens that are on this chain (same order as contracts)
+  const activeTokens = useMemo(
+    () => TOKENS.filter((t) => t.address[chainId]),
+    [chainId]
+  );
+
+  const {
+    data: results,
+    isLoading: isLoadingTokens,
+    refetch: refetchTokens,
+  } = useReadContracts({
+    contracts,
+    query: {
+      enabled: contracts.length > 0,
+      refetchInterval: 300_000, // 5 min
+      staleTime: 240_000, // 4 min
+      gcTime: 600_000, // 10 min
+      refetchOnWindowFocus: false,
+      refetchOnMount: false,
+    },
+  });
+
+  // Native CELO balance (for gas fees)
+  const {
+    data: celoData,
+    isLoading: isLoadingCelo,
+    refetch: refetchCelo,
+  } = useBalance({
+    address,
+    query: {
+      enabled: !!address,
+      refetchInterval: 300_000,
+      staleTime: 240_000,
+      refetchOnWindowFocus: false,
+      refetchOnMount: false,
+    },
+  });
+
+  const balances = useMemo(() => {
+    const map = new Map<string, TokenBalanceEntry>();
+    if (!results) return map;
+
+    activeTokens.forEach((token, i) => {
+      const result = results[i];
+      if (result?.status === "success" && result.result !== undefined) {
+        const raw = result.result as bigint;
+        const formatted = formatUnits(raw, token.decimals);
+        const numeric = parseFloat(formatted);
+        map.set(token.symbol, { token, raw, formatted, numeric });
+      }
+    });
+
+    return map;
+  }, [results, activeTokens]);
+
+  const celoBalance = celoData
+    ? formatUnits(celoData.value, celoData.decimals)
+    : "0";
+
+  const refetch = () => {
+    refetchTokens();
+    refetchCelo();
+  };
+
+  const getBalance = (symbol: string) => balances.get(symbol);
+
+  const hasSufficient = (symbol: string, amount: number) => {
+    const entry = balances.get(symbol);
+    return entry ? entry.numeric >= amount : false;
+  };
+
+  return {
+    balances,
+    celoBalance,
+    isLoading: isLoadingTokens || isLoadingCelo,
+    refetch,
+    getBalance,
+    hasSufficient,
+  };
+}
