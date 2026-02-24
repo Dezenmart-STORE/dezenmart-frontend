@@ -80,19 +80,11 @@ const ViewOrderDetail = () => {
     !order.purchaseId &&
     /^\d+$/.test(tradeId); // tradeId must be a valid on-chain integer
 
-  const providerAddr =
-    (order.logisticsProviderWalletAddress?.[0] as `0x${string}`) ||
-    DEFAULT_LOGISTICS_PROVIDER;
+  // Always use the registered on-chain provider — it's the only one registered.
+  // The DB-stored address may differ or be unregistered.
+  const providerAddr = DEFAULT_LOGISTICS_PROVIDER;
 
-  const providerIndex =
-    order.product?.logisticsProviders?.indexOf(
-      order.logisticsProviderWalletAddress?.[0] ?? ""
-    ) ?? -1;
-
-  const logisticsCostRaw =
-    providerIndex >= 0
-      ? (order.product?.logisticsCost?.[providerIndex] ?? "0")
-      : "0";
+  const logisticsCostRaw = "0";
 
   const logisticsCostNumeric = parseFloat(logisticsCostRaw) || 0;
 
