@@ -1,5 +1,5 @@
 import { useCallback, useReducer } from "react";
-import { useAccount, useChainId } from "wagmi";
+import { useAccount, useChainId, useSwitchChain } from "wagmi";
 import { parseUnits } from "viem";
 import { useTokenBalances } from "./useTokenBalances";
 import { useSwap } from "./useSwap";
@@ -110,6 +110,7 @@ export function usePayment() {
   const [state, dispatch] = useReducer(reducer, initialState);
   const { address } = useAccount();
   const chainId = useChainId();
+  const { switchChainAsync } = useSwitchChain();
   const { refetch: refetchBalances, hasSufficient } = useTokenBalances();
   const { swap, getQuote } = useSwap();
   const escrow = useEscrow();
@@ -130,15 +131,13 @@ export function usePayment() {
         // The wallet may be on Ethereum or another chain. We switch first
         // so every subsequent transaction is formatted as a Celo tx (no
         // feeCurrency field = CELO for gas).
-        const { switchChain, getChainId } = await import("@wagmi/core");
 
         // Prefer the chain the app is already configured for; default to mainnet
         const targetChainId = SUPPORTED_CHAIN_IDS.includes(chainId)
           ? chainId
           : CHAIN_IDS.CELO;
 
-        const connectorChainId = getChainId(wagmiConfig);
-        if (!SUPPORTED_CHAIN_IDS.includes(connectorChainId)) {
+        if (!SUPPORTED_CHAIN_IDS.includes(chainId)) {
           dispatch({
             type: "SET_STEP",
             step: "switching-network",
@@ -146,7 +145,7 @@ export function usePayment() {
           });
 
           try {
-            await switchChain(wagmiConfig, { chainId: targetChainId });
+            await switchChainAsync({ chainId: targetChainId });
           } catch {
             dispatch({
               type: "ERROR",
@@ -159,8 +158,8 @@ export function usePayment() {
           await new Promise((r) => setTimeout(r, 500));
         }
 
-        // Read the live chainId after any switch (don't rely on stale closure)
-        const activeChainId = getChainId(wagmiConfig);
+        // After the switch, targetChainId is the active chain
+        const activeChainId = targetChainId;
 
         // ── 1. Check balance ──────────────────────────────────────
         dispatch({
@@ -354,7 +353,7 @@ export function usePayment() {
         dispatch({ type: "ERROR", error: getErrorMessage(err) });
       }
     },
-    [address, chainId, hasSufficient, refetchBalances, swap, getQuote, escrow]
+    [address, chainId, switchChainAsync, hasSufficient, refetchBalances, swap, getQuote, escrow]
   );
 
   return {

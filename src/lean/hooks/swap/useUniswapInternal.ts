@@ -376,8 +376,7 @@ export function useUniswapInternal() {
       } = params;
 
       const chainId = await walletClient.getChainId();
-      // Resolve the chain object so viem formats this as a proper Celo transaction
-      // (no feeCurrency = native CELO used for gas fees)
+
       const celoChain = SUPPORTED_CHAINS.find((c) => c.id === chainId) ?? TARGET_CHAIN;
 
       const fromToken = getToken(fromSymbol);
@@ -449,8 +448,7 @@ export function useUniswapInternal() {
       });
       const gasWithBuffer = (gasEstimate * 120n) / 100n;
 
-      // Execute swap — chain is explicit so viem uses Celo tx formatting; no
-      // feeCurrency field means gas is paid in native CELO.
+      // Execute swap
       const swapHash = await walletClient.sendTransaction({
         account: address as `0x${string}`,
         to: routerAddress as `0x${string}`,

@@ -91,7 +91,7 @@ export function useApproval(
         functionName: "approve",
         args: [escrowAddress, approvalAmount],
         gas: 150_000n,
-        chainId, // explicit Celo chain → CELO shown as fee token in wallet
+        chainId
       });
 
       // Refresh allowance after approval

@@ -367,8 +367,7 @@ export function useMentoInternal() {
       } = params;
 
       const chainId = await walletClient.getChainId();
-      // Resolve the chain object so viem formats this as a proper Celo transaction
-      // (no feeCurrency = native CELO used for gas fees)
+      
       const celoChain = SUPPORTED_CHAINS.find((c) => c.id === chainId) ?? TARGET_CHAIN;
 
       const fromToken = getToken(fromSymbol);
@@ -412,7 +411,6 @@ export function useMentoInternal() {
         data: allowanceTxObj.data as `0x${string}`,
         value: BigInt(allowanceTxObj.value?.toString() || "0"),
         gas: allowanceTxObj.gasLimit ? BigInt(allowanceTxObj.gasLimit.toString()) : undefined,
-        // Explicit Celo chain ensures proper tx formatting; no feeCurrency = CELO for gas
         chain: celoChain,
       });
 
@@ -439,7 +437,6 @@ export function useMentoInternal() {
         data: swapTxObj.data as `0x${string}`,
         value: BigInt(swapTxObj.value?.toString() || "0"),
         gas: swapTxObj.gasLimit ? BigInt(swapTxObj.gasLimit.toString()) : undefined,
-        // Explicit Celo chain ensures proper tx formatting; no feeCurrency = CELO for gas
         chain: celoChain,
       });
 
