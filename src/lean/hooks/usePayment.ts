@@ -8,6 +8,7 @@ import { getToken, getTokenAddress } from "../config/tokens";
 import { paymentDebug } from "../utils/debug";
 import { getErrorMessage } from "../utils/errors";
 import { wagmiConfig, CHAIN_IDS } from "../config/chains";
+import { ESCROW_ABI } from "../abi/escrow";
 
 // ---------------------------------------------------------------------------
 // State machine
@@ -323,6 +324,38 @@ export function usePayment() {
           params.logisticsCost || "0",
           productTokenInfo.decimals
         );
+
+        // Pre-flight: verify logistics provider is registered on-chain.
+        // Log diagnostic info unconditionally so it's visible in any environment.
+        try {
+          const { getEscrowAddress: _getEscrow } = await import("../config/chains");
+          const _escrowAddr = _getEscrow(activeChainId);
+          const isProviderRegistered = await readContract(wagmiConfig, {
+            address: _escrowAddr as `0x${string}`,
+            abi: ESCROW_ABI,
+            functionName: "logisticsProviders",
+            args: [params.logisticsProvider],
+            chainId: activeChainId,
+          });
+          console.info("[DezenPay] pre-flight check", {
+            chainId: activeChainId,
+            escrowContract: _escrowAddr,
+            logisticsProvider: params.logisticsProvider,
+            providerRegistered: isProviderRegistered,
+            tradeId: params.tradeId,
+            quantity: params.quantity,
+          });
+          if (!isProviderRegistered) {
+            dispatch({
+              type: "ERROR",
+              error: `Delivery provider ${params.logisticsProvider} is not registered on this contract. Contact support.`,
+            });
+            return;
+          }
+        } catch (checkErr) {
+          // Non-fatal — log and proceed; buyTrade simulation will catch it
+          console.warn("[DezenPay] provider check failed:", checkErr);
+        }
 
         const result = await escrow.buyTrade(
           BigInt(params.tradeId),
