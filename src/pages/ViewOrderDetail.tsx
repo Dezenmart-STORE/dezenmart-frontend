@@ -84,9 +84,23 @@ const ViewOrderDetail = () => {
   // The DB-stored address may differ or be unregistered.
   const providerAddr = DEFAULT_LOGISTICS_PROVIDER;
 
-  const logisticsCostRaw = "0";
+  // Resolve logistics cost from product data. The contract requires non-zero
+  // logisticsCost, so we look up the cost for DEFAULT_LOGISTICS_PROVIDER from
+  // the product's logistics list, then fall back to the first available cost,
+  // then to "1" (matching the CreateProduct default).
+  const _providerList = order.product?.logisticsProviders as string[] | undefined;
+  const _costList = order.product?.logisticsCost as string[] | undefined;
+  const _providerIdx = _providerList?.findIndex(
+    (addr: string) => addr?.toLowerCase() === DEFAULT_LOGISTICS_PROVIDER.toLowerCase()
+  ) ?? -1;
+  const logisticsCostRaw =
+    (_providerIdx >= 0 && _costList?.[_providerIdx] && parseFloat(_costList[_providerIdx]) > 0)
+      ? _costList[_providerIdx]
+      : (_costList?.[0] && parseFloat(_costList[0]) > 0)
+      ? _costList[0]
+      : "1"; // contract requires non-zero; "1" matches the CreateProduct default
 
-  const logisticsCostNumeric = parseFloat(logisticsCostRaw) || 0;
+  const logisticsCostNumeric = parseFloat(logisticsCostRaw) || 1;
 
   const orderTotal = calculateOrderTotal(
     order.product?.price ?? order.amount,
