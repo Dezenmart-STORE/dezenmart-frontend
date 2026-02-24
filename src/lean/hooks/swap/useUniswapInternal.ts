@@ -7,7 +7,7 @@ import { useAccount, useWalletClient, usePublicClient } from "wagmi";
 import { parseUnits, formatUnits, erc20Abi, isAddress } from "viem";
 import { ethers } from "ethers";
 import { TOKENS, getToken, getTokenAddress as leanGetTokenAddress } from "../../config/tokens";
-import { TARGET_CHAIN } from "../../config/chains";
+import { TARGET_CHAIN, SUPPORTED_CHAINS } from "../../config/chains";
 
 // ---------------------------------------------------------------------------
 // Contract addresses (from lean swap config, duplicated to avoid ChainId dep)
@@ -376,6 +376,10 @@ export function useUniswapInternal() {
       } = params;
 
       const chainId = await walletClient.getChainId();
+      // Resolve the chain object so viem formats this as a proper Celo transaction
+      // (no feeCurrency = native CELO used for gas fees)
+      const celoChain = SUPPORTED_CHAINS.find((c) => c.id === chainId) ?? TARGET_CHAIN;
+
       const fromToken = getToken(fromSymbol);
       const toToken = getToken(toSymbol);
       if (!fromToken || !toToken) return { success: false };
@@ -401,6 +405,7 @@ export function useUniswapInternal() {
         functionName: "approve",
         args: [routerAddress as `0x${string}`, maxApproval],
         account: address as `0x${string}`,
+        chain: celoChain,
       });
 
       const allowanceReceipt = await publicClient.waitForTransactionReceipt({
@@ -444,14 +449,15 @@ export function useUniswapInternal() {
       });
       const gasWithBuffer = (gasEstimate * 120n) / 100n;
 
-      // Execute swap
+      // Execute swap — chain is explicit so viem uses Celo tx formatting; no
+      // feeCurrency field means gas is paid in native CELO.
       const swapHash = await walletClient.sendTransaction({
         account: address as `0x${string}`,
         to: routerAddress as `0x${string}`,
         data: data as `0x${string}`,
         value: 0n,
         gas: gasWithBuffer,
-        chain: undefined,
+        chain: celoChain,
       });
 
       const swapReceipt = await publicClient.waitForTransactionReceipt({
