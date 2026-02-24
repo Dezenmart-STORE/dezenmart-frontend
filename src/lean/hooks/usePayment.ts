@@ -326,8 +326,9 @@ export function usePayment() {
         );
 
         // Pre-flight: verify provider and trade state on-chain.
-        // Logs are unconditional so they're visible in any environment.
         const safeQuantity = Math.max(1, params.quantity || 1);
+        // Diagnostic snapshot shown in the UI if buyTrade fails — helps debug production issues.
+        let preflightDebug = `chain=${activeChainId},tid=${params.tradeId},qty=${safeQuantity}`;
         try {
           const { getEscrowAddress: _getEscrow } = await import("../config/chains");
           const _escrowAddr = _getEscrow(activeChainId);
@@ -350,6 +351,10 @@ export function usePayment() {
           ]);
 
           const trade = tradeData as any;
+
+          // Capture for UI diagnostic output
+          preflightDebug = `chain=${activeChainId},tid=${params.tradeId},qty=${safeQuantity},prov=${String(isProviderRegistered)},active=${String(trade?.active)},rem=${trade?.remainingQuantity?.toString() ?? "?"},total=${trade?.totalQuantity?.toString() ?? "?"}`;
+
           console.info("[DezenPay] pre-flight check", {
             chainId: activeChainId,
             escrowContract: _escrowAddr,
@@ -374,7 +379,7 @@ export function usePayment() {
           if (!trade?.active) {
             dispatch({
               type: "ERROR",
-              error: "This listing is no longer active.",
+              error: `This listing is no longer active. [${preflightDebug}]`,
             });
             return;
           }
@@ -390,7 +395,7 @@ export function usePayment() {
         } catch (checkErr) {
           // Pre-flight read failed — surface the raw error so it's visible in the UI
           const msg = getErrorMessage(checkErr);
-          dispatch({ type: "ERROR", error: `Pre-flight check failed: ${msg}` });
+          dispatch({ type: "ERROR", error: `Pre-flight check failed: ${msg} [${preflightDebug}]` });
           return;
         }
 
@@ -402,7 +407,8 @@ export function usePayment() {
         );
 
         if (!result.success) {
-          dispatch({ type: "ERROR", error: result.message });
+          // Include pre-flight snapshot so the discrepancy is visible in production
+          dispatch({ type: "ERROR", error: `${result.message} [${preflightDebug}]` });
           return;
         }
 
