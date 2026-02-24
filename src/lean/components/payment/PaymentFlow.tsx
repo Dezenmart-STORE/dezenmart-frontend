@@ -50,15 +50,6 @@ interface Props {
 
 /**
  * Complete payment flow component.
- *
- * Renders the usePayment state machine as a visual flow:
- * Token select -> progress indicator -> result screen
- *
- * Designed for Web2 users:
- * - Clear step-by-step progress
- * - No blockchain jargon
- * - Friendly error messages with recovery actions
- * - Token conversion explained simply
  */
 export default function PaymentFlow({
   tradeId,

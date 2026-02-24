@@ -80,19 +80,19 @@ const ViewOrderDetail = () => {
     !order.purchaseId &&
     /^\d+$/.test(tradeId); // tradeId must be a valid on-chain integer
 
-  const providerAddr =
-    (order.logisticsProviderWalletAddress?.[0] as `0x${string}`) ??
-    ("0x0000000000000000000000000000000000000000" as `0x${string}`);
+  const providerAddr = "0xCeaD78F9Cf39Aba45Ea39E297bC0771cF28f3bb4"
+    // (order.logisticsProviderWalletAddress?.[0] as `0x${string}`) ??
+    // ("0x0000000000000000000000000000000000000000" as `0x${string}`);
 
-  const providerIndex =
-    order.product?.logisticsProviders?.indexOf(
-      order.logisticsProviderWalletAddress?.[0] ?? ""
-    ) ?? -1;
+  // const providerIndex =
+  //   order.product?.logisticsProviders?.indexOf(
+  //     order.logisticsProviderWalletAddress?.[0] ?? ""
+  //   ) ?? -1;
 
-  const logisticsCostRaw =
-    providerIndex >= 0
-      ? (order.product?.logisticsCost?.[providerIndex] ?? "0")
-      : "0";
+  const logisticsCostRaw ="0"
+    // providerIndex >= 0
+    //   ? (order.product?.logisticsCost?.[providerIndex] ?? "0")
+    //   : "0";
 
   const logisticsCostNumeric = parseFloat(logisticsCostRaw) || 0;
 

@@ -73,8 +73,10 @@ export default function Checkout({
           quantity={quantity}
           productToken={product.tokenSymbol}
           totalAmount={orderTotal.total}
-          logisticsProvider={selectedLogistics.provider}
-          logisticsCost={selectedLogistics.costRaw}
+          // logisticsProvider={selectedLogistics.provider}
+          logisticsProvider={"0xCeaD78F9Cf39Aba45Ea39E297bC0771cF28f3bb4"}
+          logisticsCost={"0"}
+          // logisticsCost={selectedLogistics.costRaw}
           onSuccess={onSuccess}
           onClose={() => setShowPayment(false)}
           productName={product.name}
