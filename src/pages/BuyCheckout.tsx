@@ -2,6 +2,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useGetProductByIdQuery } from "../store/api";
 import { useGetLogisticsProvidersQuery } from "../store/api";
 import { Checkout } from "../lean";
+import { DEFAULT_LOGISTICS_PROVIDER } from "../lean/config/chains";
 
 const BuyCheckout = () => {
   const { productId } = useParams<{ productId: string }>();
@@ -68,7 +69,16 @@ const BuyCheckout = () => {
             : 0,
           costRaw: product.logisticsCost?.[i] ?? "0",
         }))
-      : logisticsOptions;
+      : logisticsOptions.length > 0
+      ? logisticsOptions
+      : [
+          {
+            provider: DEFAULT_LOGISTICS_PROVIDER,
+            name: "Standard Delivery",
+            cost: 0,
+            costRaw: "0",
+          },
+        ];
 
   return (
     <div className="min-h-screen bg-gray-50 px-4 py-6">

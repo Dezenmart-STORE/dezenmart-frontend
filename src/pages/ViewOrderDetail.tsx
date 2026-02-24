@@ -6,7 +6,7 @@ import { TradeStatus, TradeActions, TransactionResult, PaymentFlow } from "../le
 import type { TradeState } from "../lean";
 import { useCurrency } from "../lean";
 import { calculateOrderTotal } from "../lean/utils/format";
-import { CHAIN_IDS } from "../lean/config/chains";
+import { CHAIN_IDS, DEFAULT_LOGISTICS_PROVIDER } from "../lean/config/chains";
 
 const ViewOrderDetail = () => {
   const { orderId } = useParams<{ orderId: string }>();
@@ -80,19 +80,19 @@ const ViewOrderDetail = () => {
     !order.purchaseId &&
     /^\d+$/.test(tradeId); // tradeId must be a valid on-chain integer
 
-  const providerAddr = "0xCeaD78F9Cf39Aba45Ea39E297bC0771cF28f3bb4"
-    // (order.logisticsProviderWalletAddress?.[0] as `0x${string}`) ??
-    // ("0x0000000000000000000000000000000000000000" as `0x${string}`);
+  const providerAddr =
+    (order.logisticsProviderWalletAddress?.[0] as `0x${string}`) ||
+    DEFAULT_LOGISTICS_PROVIDER;
 
-  // const providerIndex =
-  //   order.product?.logisticsProviders?.indexOf(
-  //     order.logisticsProviderWalletAddress?.[0] ?? ""
-  //   ) ?? -1;
+  const providerIndex =
+    order.product?.logisticsProviders?.indexOf(
+      order.logisticsProviderWalletAddress?.[0] ?? ""
+    ) ?? -1;
 
-  const logisticsCostRaw ="0"
-    // providerIndex >= 0
-    //   ? (order.product?.logisticsCost?.[providerIndex] ?? "0")
-    //   : "0";
+  const logisticsCostRaw =
+    providerIndex >= 0
+      ? (order.product?.logisticsCost?.[providerIndex] ?? "0")
+      : "0";
 
   const logisticsCostNumeric = parseFloat(logisticsCostRaw) || 0;
 

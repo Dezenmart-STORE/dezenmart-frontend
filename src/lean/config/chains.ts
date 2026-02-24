@@ -132,3 +132,11 @@ export const CHAIN_IDS = {
   CELO: celo.id,
   ALFAJORES: celoAlfajores.id,
 } as const;
+
+// ---------------------------------------------------------------------------
+// Default registered logistics provider
+// This address is registered on-chain via registerLogisticsProvider.
+// Used as fallback when an order has no logistics provider set.
+// ---------------------------------------------------------------------------
+export const DEFAULT_LOGISTICS_PROVIDER =
+  "0xCeaD78F9Cf39Aba45Ea39E297bC0771cF28f3bb4" as `0x${string}`;
