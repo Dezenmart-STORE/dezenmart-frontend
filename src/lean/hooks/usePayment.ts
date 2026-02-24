@@ -2,18 +2,19 @@ import { useCallback, useReducer } from "react";
 import { useAccount, useChainId } from "wagmi";
 import { parseUnits } from "viem";
 import { useTokenBalances } from "./useTokenBalances";
-import { useApproval } from "./useApproval";
 import { useSwap } from "./useSwap";
 import { useEscrow } from "./useEscrow";
 import { getToken, getTokenAddress } from "../config/tokens";
 import { paymentDebug } from "../utils/debug";
 import { getErrorMessage } from "../utils/errors";
+import { wagmiConfig, CHAIN_IDS } from "../config/chains";
 
 // ---------------------------------------------------------------------------
 // State machine
 // ---------------------------------------------------------------------------
 export type PaymentStep =
   | "idle"
+  | "switching-network"
   | "checking-balance"
   | "insufficient-balance"
   | "swapping"
@@ -91,6 +92,8 @@ export interface PaymentParams {
   logisticsCost: string;
 }
 
+const SUPPORTED_CHAIN_IDS = [CHAIN_IDS.CELO, CHAIN_IDS.ALFAJORES] as number[];
+
 // ---------------------------------------------------------------------------
 // Hook
 // ---------------------------------------------------------------------------
@@ -98,8 +101,8 @@ export interface PaymentParams {
 /**
  * Orchestrates the full payment flow as a state machine:
  *
- *   idle -> checking-balance -> [swapping] -> approving -> executing -> confirming -> success
- *                                                                              ↘ error
+ *   idle -> switching-network -> checking-balance -> [swapping] -> approving -> executing -> confirming -> success
+ *                                                                                                   ↘ error
  *
  * Components simply call `startPayment(params)` and render based on `state.step`.
  */
@@ -107,18 +110,15 @@ export function usePayment() {
   const [state, dispatch] = useReducer(reducer, initialState);
   const { address } = useAccount();
   const chainId = useChainId();
-  const { balances, refetch: refetchBalances, hasSufficient } = useTokenBalances();
-  const { swap, getQuote, isReady: swapReady } = useSwap();
+  const { refetch: refetchBalances, hasSufficient } = useTokenBalances();
+  const { swap, getQuote } = useSwap();
   const escrow = useEscrow();
-
-  // Approval is checked at call-time since requiredAmount is dynamic
-  // We'll use useApproval reactively with current state, but call approve imperatively
 
   const reset = useCallback(() => dispatch({ type: "RESET" }), []);
 
   const startPayment = useCallback(
     async (params: PaymentParams) => {
-      const sessionId = paymentDebug.startSession("usePayment");
+      paymentDebug.startSession("usePayment");
 
       if (!address) {
         dispatch({ type: "ERROR", error: "Please connect your wallet first." });
@@ -126,6 +126,42 @@ export function usePayment() {
       }
 
       try {
+        // ── 0. Ensure wallet is on a Celo network ────────────────
+        // The wallet may be on Ethereum or another chain. We switch first
+        // so every subsequent transaction is formatted as a Celo tx (no
+        // feeCurrency field = CELO for gas).
+        const { switchChain, getChainId } = await import("@wagmi/core");
+
+        // Prefer the chain the app is already configured for; default to mainnet
+        const targetChainId = SUPPORTED_CHAIN_IDS.includes(chainId)
+          ? chainId
+          : CHAIN_IDS.CELO;
+
+        const connectorChainId = getChainId(wagmiConfig);
+        if (!SUPPORTED_CHAIN_IDS.includes(connectorChainId)) {
+          dispatch({
+            type: "SET_STEP",
+            step: "switching-network",
+            message: "Switching to Celo network...",
+          });
+
+          try {
+            await switchChain(wagmiConfig, { chainId: targetChainId });
+          } catch {
+            dispatch({
+              type: "ERROR",
+              error: "Please switch your wallet to the Celo network and try again.",
+            });
+            return;
+          }
+
+          // Allow the connector state to propagate
+          await new Promise((r) => setTimeout(r, 500));
+        }
+
+        // Read the live chainId after any switch (don't rely on stale closure)
+        const activeChainId = getChainId(wagmiConfig);
+
         // ── 1. Check balance ──────────────────────────────────────
         dispatch({
           type: "SET_STEP",
@@ -145,7 +181,7 @@ export function usePayment() {
           throw new Error(`Token ${payTokenSymbol} not recognized.`);
         }
 
-        const payTokenAddress = getTokenAddress(payTokenSymbol, chainId);
+        const payTokenAddress = getTokenAddress(payTokenSymbol, activeChainId);
         if (!payTokenAddress) {
           throw new Error(`${payTokenSymbol} is not available on this network.`);
         }
@@ -161,7 +197,6 @@ export function usePayment() {
             amount: params.totalAmount,
           });
 
-          // Check balance in payment token
           if (!hasSufficient(payTokenSymbol, params.totalAmount)) {
             dispatch({
               type: "ERROR",
@@ -170,7 +205,6 @@ export function usePayment() {
             return;
           }
 
-          // Get quote first
           const quote = await getQuote(
             payTokenSymbol,
             params.productToken,
@@ -209,7 +243,6 @@ export function usePayment() {
           await new Promise((r) => setTimeout(r, 3000));
           refetchBalances();
         } else {
-          // Direct payment — check balance in product token
           if (!hasSufficient(params.productToken, params.totalAmount)) {
             dispatch({
               type: "ERROR",
@@ -227,34 +260,32 @@ export function usePayment() {
         });
 
         const productTokenInfo = getToken(params.productToken);
-        const productTokenAddress = getTokenAddress(params.productToken, chainId);
+        const productTokenAddress = getTokenAddress(params.productToken, activeChainId);
 
         if (!productTokenInfo || !productTokenAddress) {
           throw new Error(`${params.productToken} configuration missing.`);
         }
 
-        // Import and use approval inline (we need dynamic amount)
-        const { readContract } = await import("@wagmi/core");
+        const { readContract, writeContract, waitForTransactionReceipt } =
+          await import("@wagmi/core");
         const { erc20Abi } = await import("viem");
         const { getEscrowAddress } = await import("../config/chains");
 
-        const escrowAddr = getEscrowAddress(chainId) as `0x${string}`;
+        const escrowAddr = getEscrowAddress(activeChainId) as `0x${string}`;
         const requiredRaw = parseUnits(
           String(effectiveAmount),
           productTokenInfo.decimals
         );
 
-        // Check current allowance
         const currentAllowance = await readContract(wagmiConfig, {
           address: productTokenAddress,
           abi: erc20Abi,
           functionName: "allowance",
           args: [address, escrowAddr],
+          chainId: activeChainId,
         });
 
         if ((currentAllowance as bigint) < requiredRaw) {
-          // Need approval
-          const { writeContract } = await import("@wagmi/core");
           const approvalAmount = (requiredRaw * 105n) / 100n; // 5% buffer
 
           const approveHash = await writeContract(wagmiConfig, {
@@ -263,11 +294,9 @@ export function usePayment() {
             functionName: "approve",
             args: [escrowAddr, approvalAmount],
             gas: 150_000n,
-            chainId, // explicit Celo chain → CELO shown as fee token in wallet
+            chainId: activeChainId,
           });
 
-          // Wait for approval tx
-          const { waitForTransactionReceipt } = await import("@wagmi/core");
           await waitForTransactionReceipt(wagmiConfig, {
             hash: approveHash,
             timeout: 30_000,
@@ -297,14 +326,13 @@ export function usePayment() {
           return;
         }
 
-        // ── 5. Success! ───────────────────────────────────────────
+        // ── 5. Success ────────────────────────────────────────────
         dispatch({
           type: "SET_STEP",
           step: "confirming",
           message: "Confirming on chain...",
         });
 
-        // Short delay for UX — the receipt was already waited on inside useEscrow
         await new Promise((r) => setTimeout(r, 1500));
 
         dispatch({
@@ -320,22 +348,13 @@ export function usePayment() {
           duration: paymentDebug.getDuration(),
         });
 
-        // Refresh balances after purchase
         setTimeout(() => refetchBalances(), 2000);
       } catch (err) {
         paymentDebug.error("payment:unexpected", err);
         dispatch({ type: "ERROR", error: getErrorMessage(err) });
       }
     },
-    [
-      address,
-      chainId,
-      hasSufficient,
-      refetchBalances,
-      swap,
-      getQuote,
-      escrow,
-    ]
+    [address, chainId, hasSufficient, refetchBalances, swap, getQuote, escrow]
   );
 
   return {
@@ -346,6 +365,3 @@ export function usePayment() {
     isActive: state.step !== "idle" && state.step !== "success" && state.step !== "error",
   };
 }
-
-// Wagmi config import for readContract/writeContract
-import { wagmiConfig } from "../config/chains";

@@ -17,6 +17,7 @@ const STEP_CONFIG: Record<
   { label: string; icon: string; progress: number }
 > = {
   idle: { label: "Ready", icon: "", progress: 0 },
+  "switching-network": { label: "Switching to Celo", icon: "network", progress: 5 },
   "checking-balance": { label: "Checking balance", icon: "search", progress: 15 },
   "insufficient-balance": { label: "Insufficient balance", icon: "warning", progress: 15 },
   swapping: { label: "Converting tokens", icon: "swap", progress: 30 },
