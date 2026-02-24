@@ -659,7 +659,7 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
       } else {
         formData.append(
           "logisticsProviders",
-          "0xCeaD78F9Cf39Aba45Ea39E297bC0771cF28f3bb4"
+          "0x0c9db90a95a78bf6d9b2448fde00210f36ba61e4"
         );
         // Use 1 wei as minimum logistics cost (contract requires > 0)
         formData.append("logisticsCosts", "1");

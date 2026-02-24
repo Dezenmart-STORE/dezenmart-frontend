@@ -74,7 +74,7 @@ export default function Checkout({
           productToken={product.tokenSymbol}
           totalAmount={orderTotal.total}
           // logisticsProvider={selectedLogistics.provider}
-          logisticsProvider={"0xCeaD78F9Cf39Aba45Ea39E297bC0771cF28f3bb4"}
+          logisticsProvider={"0x0c9db90a95a78bf6d9b2448fde00210f36ba61e4"}
           logisticsCost={"0"}
           // logisticsCost={selectedLogistics.costRaw}
           onSuccess={onSuccess}
