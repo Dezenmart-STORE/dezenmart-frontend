@@ -254,6 +254,10 @@ function extractMessage(error: unknown): string {
 
   const err = error as Record<string, any>;
 
+  // Viem ContractFunctionExecutionError: the decoded custom Solidity error name
+  // lives at cause.data.errorName (e.g. "InvalidLogisticsProvider")
+  if (err.cause?.data?.errorName) return err.cause.data.errorName;
+
   // Viem / wagmi structured errors
   if (err.cause?.reason) return err.cause.reason;
   if (err.shortMessage) return err.shortMessage;

@@ -71,8 +71,19 @@ export function useEscrow() {
             chainId: liveChainId,
           });
           if (request.gas) gas = (request.gas * 120n) / 100n;
-        } catch {
-          // Simulation may fail for view restrictions; use safe default
+        } catch (simErr) {
+          // If the contract would definitely revert (logic error), surface it now
+          // rather than wasting gas on a doomed transaction.
+          const msg = String((simErr as any)?.message ?? (simErr as any)?.shortMessage ?? simErr).toLowerCase();
+          if (
+            msg.includes("reverted") ||
+            msg.includes("execution reverted") ||
+            msg.includes("invalid") ||
+            msg.includes("insufficient")
+          ) {
+            throw simErr;
+          }
+          // Otherwise it's an RPC restriction or network issue — use safe default gas
         }
 
         // Execute — liveChainId (read at call time, not from stale closure)

@@ -330,11 +330,16 @@ export function usePayment() {
           message: "Processing your purchase...",
         });
 
+        const logisticsCostWei = parseUnits(
+          params.logisticsCost || "0",
+          productTokenInfo.decimals
+        );
+
         const result = await escrow.buyTrade(
           BigInt(params.tradeId),
           BigInt(params.quantity),
           params.logisticsProvider,
-          BigInt(params.logisticsCost)
+          logisticsCostWei
         );
 
         if (!result.success) {
