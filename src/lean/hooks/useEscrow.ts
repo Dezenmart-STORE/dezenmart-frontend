@@ -5,7 +5,7 @@ import {
   useWriteContract,
 } from "wagmi";
 import { decodeEventLog, type Log } from "viem";
-import { simulateContract, waitForTransactionReceipt } from "@wagmi/core";
+import { simulateContract, waitForTransactionReceipt, getChainId } from "@wagmi/core";
 import { getEscrowContract, ESCROW_ABI } from "../abi/escrow";
 import { wagmiConfig } from "../config/chains";
 import { parseError, logError } from "../utils/errors";
@@ -49,7 +49,11 @@ export function useEscrow() {
         return { success: false, message: "Please connect your wallet first." };
       }
 
-      const contract = getEscrowContract(chainId);
+      // Read chain at call time (not from hook closure which may be stale).
+      // After usePayment's switchChainAsync succeeds, wagmiConfig state is
+      // updated synchronously, so getChainId is reliable here.
+      const liveChainId = getChainId(wagmiConfig);
+      const contract = getEscrowContract(liveChainId);
 
       paymentDebug.log(`escrow:${functionName}:start`, {
         args: args.map(String),
@@ -64,20 +68,20 @@ export function useEscrow() {
             functionName,
             args,
             account: address,
-            chainId,
+            chainId: liveChainId,
           });
           if (request.gas) gas = (request.gas * 120n) / 100n;
         } catch {
           // Simulation may fail for view restrictions; use safe default
         }
 
-        // Execute — chainId ensures wagmi uses Celo formatting (CELO for gas)
+        // Execute — liveChainId (read at call time, not from stale closure)
         const hash = await writeContractAsync({
           ...contract,
           functionName,
           args,
           gas,
-          chainId,
+          chainId: liveChainId,
         });
 
         if (!hash) {
@@ -138,7 +142,7 @@ export function useEscrow() {
         };
       }
     },
-    [isConnected, address, chainId, writeContractAsync]
+    [isConnected, address, writeContractAsync]
   );
 
   // ── public methods ───────────────────────────────────────────────

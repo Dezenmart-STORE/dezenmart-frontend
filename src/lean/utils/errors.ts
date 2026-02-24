@@ -101,15 +101,21 @@ const ERROR_PATTERNS: Array<{
   },
 
   // ── Wrong chain ──
+  // Catches wagmi's ChainMismatchError: "The current chain of the wallet
+  // (id: X) does not match the target chain for the transaction (id: Y – …)"
   {
     test: (s) =>
-      s.includes("wrong network") ||
-      s.includes("unsupported chain") ||
-      s.includes("chain mismatch"),
+      s.includes("wrongnetwork") ||
+      s.includes("unsupportedchain") ||
+      s.includes("chainmismatch") ||
+      s.includes("doesnotmatch") ||
+      s.includes("currentchainofthewallet") ||
+      s.includes("switchchain") ||
+      (s.includes("chain") && s.includes("doesnotmatch")),
     result: {
       title: "Wrong Network",
-      message: "Please switch to the Celo network.",
-      suggestion: "Open your wallet and switch networks.",
+      message: "Your wallet is on the wrong network.",
+      suggestion: "Switch to Celo and try again.",
     },
   },
 

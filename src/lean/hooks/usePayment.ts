@@ -127,39 +127,53 @@ export function usePayment() {
 
       try {
         // ── 0. Ensure wallet is on a Celo network ────────────────
-        // Read the LIVE chainId from wagmi config (not the React hook closure,
-        // which may be a render-cycle behind). This is the ground truth.
+        // ALWAYS call switchChainAsync — don't rely on wagmi's cached chainId,
+        // which can lag behind the wallet's actual state.
+        //
+        // When the wallet IS already on Celo, most wallets (MetaMask, Coinbase,
+        // Smart Wallet) handle wallet_switchEthereumChain as a silent no-op.
+        // When on the wrong chain, the user gets a switch prompt.
         const { getChainId } = await import("@wagmi/core");
-        const liveChainId = getChainId(wagmiConfig);
 
-        if (!SUPPORTED_CHAIN_IDS.includes(liveChainId)) {
+        // Quick cached check — only used to decide whether to show the UI step
+        const cachedChainId = getChainId(wagmiConfig);
+        if (!SUPPORTED_CHAIN_IDS.includes(cachedChainId)) {
           dispatch({
             type: "SET_STEP",
             step: "switching-network",
             message: "Switching to Celo network...",
           });
+        }
 
-          try {
-            await switchChainAsync({ chainId: CHAIN_IDS.CELO });
-          } catch {
+        // Always call switchChainAsync to guarantee the connector is on Celo.
+        // If already on Celo this resolves in <100ms (no user prompt on MetaMask).
+        try {
+          await switchChainAsync({ chainId: CHAIN_IDS.CELO });
+        } catch {
+          // Switch was rejected OR thrown because wallet is already on Celo
+          // (some connectors throw on "already on this chain").
+          // Check the post-attempt state to decide how to proceed.
+          const postChainId = getChainId(wagmiConfig);
+          if (!SUPPORTED_CHAIN_IDS.includes(postChainId)) {
             dispatch({
               type: "ERROR",
               error: "Please switch your wallet to the Celo network and try again.",
             });
             return;
           }
-
-          // Allow the connector state to propagate
-          await new Promise((r) => setTimeout(r, 800));
+          // Wallet is actually on Celo — continue (switch threw spuriously)
         }
 
-        // Verify the switch actually happened — some wallets resolve the
-        // promise without switching (WalletConnect, certain mobile wallets).
+        // Brief settle time for the connector state to propagate
+        await new Promise((r) => setTimeout(r, 300));
+
+        // After a successful switchChainAsync, wagmiConfig.state is updated
+        // synchronously — getChainId is reliable here.
         const activeChainId = getChainId(wagmiConfig);
         if (!SUPPORTED_CHAIN_IDS.includes(activeChainId)) {
           dispatch({
             type: "ERROR",
-            error: "Your wallet is still on the wrong network. Please switch to Celo manually and try again.",
+            error: "Your wallet is still on the wrong network. Please switch to Celo and try again.",
           });
           return;
         }
