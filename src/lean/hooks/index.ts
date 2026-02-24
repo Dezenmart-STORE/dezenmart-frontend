@@ -13,3 +13,6 @@ export { usePayment } from "./usePayment";
 export type { PaymentStep, PaymentParams } from "./usePayment";
 
 export { usePrices } from "./usePrices";
+
+export { useChainGuard } from "./useChainGuard";
+export type { ChainGuard } from "./useChainGuard";

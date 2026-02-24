@@ -16,6 +16,7 @@ export { CurrencyProvider, useCurrency } from "./context/CurrencyContext";
 // ── Components ──
 export { default as ConnectButton } from "./components/wallet/ConnectButton";
 export { default as ConnectModal } from "./components/wallet/ConnectModal";
+export { default as WrongNetworkBanner } from "./components/wallet/WrongNetworkBanner";
 export { default as PaymentFlow } from "./components/payment/PaymentFlow";
 export { default as TokenSelect } from "./components/payment/TokenSelect";
 export { default as Checkout } from "./components/trade/Checkout";

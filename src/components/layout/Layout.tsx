@@ -8,6 +8,7 @@ import { OfflineIndicator } from "../pwa/OfflineIndicator.tsx";
 import { InstallPrompt } from "../pwa/InstallPrompt.tsx";
 import { registerServiceWorker } from "../../utils/pwa/serviceWorkerRegistration";
 import { setupOfflineSyncListener } from "../../utils/pwa/offlineSync";
+import WrongNetworkBanner from "../../lean/components/wallet/WrongNetworkBanner";
 
 const Layout = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
@@ -52,7 +53,12 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
       {!isAuthPage && <Header />}
       <ErrorBoundary>
         {/* pt-14 = 56px padding-top to account for fixed header */}
-        <main className="h-full pb-16 md:pb-0 pt-14 md:pt-16">{children}</main>
+        <main className="h-full pb-16 md:pb-0 pt-14 md:pt-16">
+          {/* WrongNetworkBanner: always mounted (drives auto-switch on connect),
+              renders null when wallet is disconnected or already on Celo */}
+          {!isAuthPage && <WrongNetworkBanner />}
+          {children}
+        </main>
       </ErrorBoundary>
       {!isAuthPage && (
         <>

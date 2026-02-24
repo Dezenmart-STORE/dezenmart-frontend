@@ -5,11 +5,13 @@ import { TradeStatus, TradeActions, TransactionResult, PaymentFlow } from "../le
 import type { TradeState } from "../lean";
 import { useCurrency } from "../lean";
 import { calculateOrderTotal } from "../lean/utils/format";
+import { useChainGuard } from "../lean/hooks/useChainGuard";
 
 const ViewOrderDetail = () => {
   const { orderId } = useParams<{ orderId: string }>();
   const navigate = useNavigate();
   const { formatAmount } = useCurrency();
+  const { isOnCelo, isSwitching, switchToCelo } = useChainGuard();
 
   const {
     data: order,
@@ -129,7 +131,43 @@ const ViewOrderDetail = () => {
         </div>
 
         {/* ── Payment section (pending orders only) ─────────────────── */}
-        {canPay && (
+        {canPay && !isOnCelo && (
+          /* User needs to switch to Celo before they can pay */
+          <div className="rounded-2xl bg-white p-5 shadow-sm">
+            <div className="text-center">
+              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-amber-50">
+                <svg className="h-6 w-6 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0" />
+                </svg>
+              </div>
+              <h3 className="text-base font-semibold text-gray-900">
+                Wrong Network
+              </h3>
+              <p className="mt-1 text-sm text-gray-500">
+                Your wallet needs to be on Celo to complete this payment.
+              </p>
+              <button
+                onClick={switchToCelo}
+                disabled={isSwitching}
+                className="mt-4 w-full rounded-xl bg-amber-500 py-3 text-sm font-bold text-white transition-colors hover:bg-amber-600 active:scale-[0.98] disabled:opacity-60"
+              >
+                {isSwitching ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    Switching…
+                  </span>
+                ) : (
+                  "Switch to Celo"
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {canPay && isOnCelo && (
           <div className="rounded-2xl bg-white p-5 shadow-sm">
             {!showPayment ? (
               <div className="text-center">
