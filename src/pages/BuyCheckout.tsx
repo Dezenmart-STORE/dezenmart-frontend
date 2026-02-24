@@ -66,8 +66,8 @@ const BuyCheckout = () => {
           name: `Delivery Option ${i + 1}`,
           cost: product.logisticsCost?.[i]
             ? parseFloat(product.logisticsCost[i])
-            : 1,
-          costRaw: product.logisticsCost?.[i] ?? "1",
+            : 0.1,
+          costRaw: product.logisticsCost?.[i] ?? "0.1",
         }))
       : logisticsOptions.length > 0
       ? logisticsOptions
@@ -75,8 +75,8 @@ const BuyCheckout = () => {
           {
             provider: DEFAULT_LOGISTICS_PROVIDER,
             name: "Standard Delivery",
-            cost: 1,
-            costRaw: "1",
+            cost: 0.1,
+            costRaw: "0.1",
           },
         ];
 

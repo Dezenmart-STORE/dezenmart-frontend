@@ -98,9 +98,9 @@ const ViewOrderDetail = () => {
       ? _costList[_providerIdx]
       : (_costList?.[0] && parseFloat(_costList[0]) > 0)
       ? _costList[0]
-      : "1"; // contract requires non-zero; "1" matches the CreateProduct default
+      : "0.1"; // contract requires non-zero; small default to avoid overcharging
 
-  const logisticsCostNumeric = parseFloat(logisticsCostRaw) || 1;
+  const logisticsCostNumeric = parseFloat(logisticsCostRaw) || 0.1;
 
   const orderTotal = calculateOrderTotal(
     order.product?.price ?? order.amount,

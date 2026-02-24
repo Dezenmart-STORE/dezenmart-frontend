@@ -74,7 +74,7 @@ export default function Checkout({
           productToken={product.tokenSymbol}
           totalAmount={orderTotal.total}
           logisticsProvider={selectedLogistics.provider}
-          logisticsCost={parseFloat(selectedLogistics.costRaw) > 0 ? selectedLogistics.costRaw : "1"}
+          logisticsCost={parseFloat(selectedLogistics.costRaw) > 0 ? selectedLogistics.costRaw : "0.1"}
           onSuccess={onSuccess}
           onClose={() => setShowPayment(false)}
           productName={product.name}
