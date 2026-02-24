@@ -263,6 +263,7 @@ export function usePayment() {
             functionName: "approve",
             args: [escrowAddr, approvalAmount],
             gas: 150_000n,
+            chainId, // explicit Celo chain → CELO shown as fee token in wallet
           });
 
           // Wait for approval tx
