@@ -6,4 +6,6 @@ declare module "@wagmi/core" {
     parameters: any
   ): Promise<any>;
   export function writeContract(config: any, parameters: any): Promise<any>;
+  /** Returns the chain ID the connector is currently on (reads live state, not React). */
+  export function getChainId(config: any): number;
 }

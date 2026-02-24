@@ -64,18 +64,20 @@ export function useEscrow() {
             functionName,
             args,
             account: address,
+            chainId,
           });
           if (request.gas) gas = (request.gas * 120n) / 100n;
         } catch {
           // Simulation may fail for view restrictions; use safe default
         }
 
-        // Execute
+        // Execute — chainId ensures wagmi uses Celo formatting (CELO for gas)
         const hash = await writeContractAsync({
           ...contract,
           functionName,
           args,
           gas,
+          chainId,
         });
 
         if (!hash) {

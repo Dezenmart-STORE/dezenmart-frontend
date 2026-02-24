@@ -1,5 +1,5 @@
 import { useCallback, useReducer } from "react";
-import { useAccount, useChainId, useSwitchChain } from "wagmi";
+import { useAccount, useSwitchChain } from "wagmi";
 import { parseUnits } from "viem";
 import { useTokenBalances } from "./useTokenBalances";
 import { useSwap } from "./useSwap";
@@ -109,7 +109,6 @@ const SUPPORTED_CHAIN_IDS = [CHAIN_IDS.CELO, CHAIN_IDS.ALFAJORES] as number[];
 export function usePayment() {
   const [state, dispatch] = useReducer(reducer, initialState);
   const { address } = useAccount();
-  const chainId = useChainId();
   const { switchChainAsync } = useSwitchChain();
   const { refetch: refetchBalances, hasSufficient } = useTokenBalances();
   const { swap, getQuote } = useSwap();
@@ -128,16 +127,12 @@ export function usePayment() {
 
       try {
         // ── 0. Ensure wallet is on a Celo network ────────────────
-        // The wallet may be on Ethereum or another chain. We switch first
-        // so every subsequent transaction is formatted as a Celo tx (no
-        // feeCurrency field = CELO for gas).
+        // Read the LIVE chainId from wagmi config (not the React hook closure,
+        // which may be a render-cycle behind). This is the ground truth.
+        const { getChainId } = await import("@wagmi/core");
+        const liveChainId = getChainId(wagmiConfig);
 
-        // Prefer the chain the app is already configured for; default to mainnet
-        const targetChainId = SUPPORTED_CHAIN_IDS.includes(chainId)
-          ? chainId
-          : CHAIN_IDS.CELO;
-
-        if (!SUPPORTED_CHAIN_IDS.includes(chainId)) {
+        if (!SUPPORTED_CHAIN_IDS.includes(liveChainId)) {
           dispatch({
             type: "SET_STEP",
             step: "switching-network",
@@ -145,7 +140,7 @@ export function usePayment() {
           });
 
           try {
-            await switchChainAsync({ chainId: targetChainId });
+            await switchChainAsync({ chainId: CHAIN_IDS.CELO });
           } catch {
             dispatch({
               type: "ERROR",
@@ -155,11 +150,19 @@ export function usePayment() {
           }
 
           // Allow the connector state to propagate
-          await new Promise((r) => setTimeout(r, 500));
+          await new Promise((r) => setTimeout(r, 800));
         }
 
-        // After the switch, targetChainId is the active chain
-        const activeChainId = targetChainId;
+        // Verify the switch actually happened — some wallets resolve the
+        // promise without switching (WalletConnect, certain mobile wallets).
+        const activeChainId = getChainId(wagmiConfig);
+        if (!SUPPORTED_CHAIN_IDS.includes(activeChainId)) {
+          dispatch({
+            type: "ERROR",
+            error: "Your wallet is still on the wrong network. Please switch to Celo manually and try again.",
+          });
+          return;
+        }
 
         // ── 1. Check balance ──────────────────────────────────────
         dispatch({
@@ -353,7 +356,7 @@ export function usePayment() {
         dispatch({ type: "ERROR", error: getErrorMessage(err) });
       }
     },
-    [address, chainId, switchChainAsync, hasSufficient, refetchBalances, swap, getQuote, escrow]
+    [address, switchChainAsync, hasSufficient, refetchBalances, swap, getQuote, escrow]
   );
 
   return {

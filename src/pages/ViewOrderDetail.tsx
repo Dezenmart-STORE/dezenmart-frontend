@@ -1,17 +1,35 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { useChainId, useSwitchChain } from "wagmi";
 import { useGetOrderByIdQuery, useUpdateOrderStatusMutation } from "../store/api";
 import { TradeStatus, TradeActions, TransactionResult, PaymentFlow } from "../lean";
 import type { TradeState } from "../lean";
 import { useCurrency } from "../lean";
 import { calculateOrderTotal } from "../lean/utils/format";
-import { useChainGuard } from "../lean/hooks/useChainGuard";
+import { CHAIN_IDS } from "../lean/config/chains";
 
 const ViewOrderDetail = () => {
   const { orderId } = useParams<{ orderId: string }>();
   const navigate = useNavigate();
   const { formatAmount } = useCurrency();
-  const { isOnCelo, isSwitching, switchToCelo } = useChainGuard();
+
+  // Chain state — read directly from wagmi (no auto-switch; WrongNetworkBanner
+  // in Layout already handles the one-time auto-switch on connect).
+  const chainId = useChainId();
+  const { switchChainAsync } = useSwitchChain();
+  const [isSwitching, setIsSwitching] = useState(false);
+  const isOnCelo = chainId === CHAIN_IDS.CELO || chainId === CHAIN_IDS.ALFAJORES;
+
+  const switchToCelo = async () => {
+    setIsSwitching(true);
+    try {
+      await switchChainAsync({ chainId: CHAIN_IDS.CELO });
+    } catch {
+      // User rejected — banner will remain visible
+    } finally {
+      setIsSwitching(false);
+    }
+  };
 
   const {
     data: order,
