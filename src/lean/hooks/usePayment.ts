@@ -325,26 +325,44 @@ export function usePayment() {
           productTokenInfo.decimals
         );
 
-        // Pre-flight: verify logistics provider is registered on-chain.
-        // Log diagnostic info unconditionally so it's visible in any environment.
+        // Pre-flight: verify provider and trade state on-chain.
+        // Logs are unconditional so they're visible in any environment.
+        const safeQuantity = Math.max(1, params.quantity || 1);
         try {
           const { getEscrowAddress: _getEscrow } = await import("../config/chains");
           const _escrowAddr = _getEscrow(activeChainId);
-          const isProviderRegistered = await readContract(wagmiConfig, {
-            address: _escrowAddr as `0x${string}`,
-            abi: ESCROW_ABI,
-            functionName: "logisticsProviders",
-            args: [params.logisticsProvider],
-            chainId: activeChainId,
-          });
+
+          const [isProviderRegistered, tradeData] = await Promise.all([
+            readContract(wagmiConfig, {
+              address: _escrowAddr as `0x${string}`,
+              abi: ESCROW_ABI,
+              functionName: "logisticsProviders",
+              args: [params.logisticsProvider],
+              chainId: activeChainId,
+            }),
+            readContract(wagmiConfig, {
+              address: _escrowAddr as `0x${string}`,
+              abi: ESCROW_ABI,
+              functionName: "getTrade",
+              args: [BigInt(params.tradeId)],
+              chainId: activeChainId,
+            }),
+          ]);
+
+          const trade = tradeData as any;
           console.info("[DezenPay] pre-flight check", {
             chainId: activeChainId,
             escrowContract: _escrowAddr,
             logisticsProvider: params.logisticsProvider,
             providerRegistered: isProviderRegistered,
             tradeId: params.tradeId,
-            quantity: params.quantity,
+            quantityRequested: safeQuantity,
+            tradeActive: trade?.active,
+            remainingQuantity: trade?.remainingQuantity?.toString(),
+            totalQuantity: trade?.totalQuantity?.toString(),
+            productCost: trade?.productCost?.toString(),
           });
+
           if (!isProviderRegistered) {
             dispatch({
               type: "ERROR",
@@ -352,14 +370,31 @@ export function usePayment() {
             });
             return;
           }
+
+          if (!trade?.active) {
+            dispatch({
+              type: "ERROR",
+              error: "This listing is no longer active.",
+            });
+            return;
+          }
+
+          if (trade?.remainingQuantity !== undefined &&
+              BigInt(safeQuantity) > (trade.remainingQuantity as bigint)) {
+            dispatch({
+              type: "ERROR",
+              error: `Only ${trade.remainingQuantity.toString()} item(s) are available on-chain. Please contact the seller.`,
+            });
+            return;
+          }
         } catch (checkErr) {
-          // Non-fatal — log and proceed; buyTrade simulation will catch it
-          console.warn("[DezenPay] provider check failed:", checkErr);
+          // Non-fatal — log and proceed; buyTrade simulation will surface errors
+          console.warn("[DezenPay] pre-flight check failed:", checkErr);
         }
 
         const result = await escrow.buyTrade(
           BigInt(params.tradeId),
-          BigInt(params.quantity),
+          BigInt(safeQuantity),
           params.logisticsProvider,
           logisticsCostWei
         );

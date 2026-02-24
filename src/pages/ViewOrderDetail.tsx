@@ -219,7 +219,7 @@ const ViewOrderDetail = () => {
                 </div>
                 <PaymentFlow
                   tradeId={tradeId}
-                  quantity={order.quantity ?? 1}
+                  quantity={order.quantity || 1}
                   productToken={tokenSymbol}
                   totalAmount={orderTotal.total}
                   logisticsProvider={providerAddr}
