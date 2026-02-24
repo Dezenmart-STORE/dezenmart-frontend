@@ -388,8 +388,10 @@ export function usePayment() {
             return;
           }
         } catch (checkErr) {
-          // Non-fatal — log and proceed; buyTrade simulation will surface errors
-          console.warn("[DezenPay] pre-flight check failed:", checkErr);
+          // Pre-flight read failed — surface the raw error so it's visible in the UI
+          const msg = getErrorMessage(checkErr);
+          dispatch({ type: "ERROR", error: `Pre-flight check failed: ${msg}` });
+          return;
         }
 
         const result = await escrow.buyTrade(
