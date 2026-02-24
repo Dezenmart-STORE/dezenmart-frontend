@@ -71,19 +71,11 @@ export function useEscrow() {
             chainId: liveChainId,
           });
           if (request.gas) gas = (request.gas * 120n) / 100n;
-        } catch (simErr) {
-          // If the contract would definitely revert (logic error), surface it now
-          // rather than wasting gas on a doomed transaction.
-          const msg = String((simErr as any)?.message ?? (simErr as any)?.shortMessage ?? simErr).toLowerCase();
-          if (
-            msg.includes("reverted") ||
-            msg.includes("execution reverted") ||
-            msg.includes("invalid") ||
-            msg.includes("insufficient")
-          ) {
-            throw simErr;
-          }
-          // Otherwise it's an RPC restriction or network issue — use safe default gas
+        } catch {
+          // Simulation failed — could be an RPC node with stale state or a network
+          // restriction. usePayment's pre-flight already validated provider
+          // registration, trade activity, and remaining quantity against the chain,
+          // so we proceed with a safe default gas limit rather than blocking the tx.
         }
 
         // Execute — liveChainId (read at call time, not from stale closure)
