@@ -66,12 +66,8 @@ const Home = lazy(() => import("./pages/Home.tsx"));
 const Product = lazy(() => import("./pages/Product.tsx"));
 const SingleProduct = lazy(() => import("./pages/SingleProduct.tsx"));
 const Account = lazy(() => import("./pages/Account.tsx"));
-const Trade = lazy(() => import("./pages/Trade.tsx"));
-const BuyCheckout = lazy(() => import("./pages/BuyCheckout.tsx"));
-const SellCheckout = lazy(() => import("./pages/SellCheckout.tsx"));
-const ViewTrade = lazy(() => import("./pages/ViewTrade.tsx"));
-const ViewTradeDetail = lazy(() => import("./pages/ViewTradeDetail.tsx"));
 const ViewOrderDetail = lazy(() => import("./pages/ViewOrderDetail.tsx"));
+const ComingSoon = lazy(() => import("./pages/ComingSoon.tsx"));
 const Notifications = lazy(() => import("./pages/Notifications.tsx"));
 const Community = lazy(() => import("./pages/Community.tsx"));
 const ReferralLanding = lazy(() => import("./pages/ReferralLanding.tsx"));
@@ -207,19 +203,19 @@ const router = createBrowserRouter([
           },
           {
             path: "/trades/viewtrades",
-            element: <ViewTrade />,
+            element: <ComingSoon />,
           },
           {
             path: "/trades/buy/:productId",
-            element: <BuyCheckout />,
+            element: <ComingSoon />,
           },
           {
             path: "/trades/sell/:productId",
-            element: <SellCheckout />,
+            element: <ComingSoon />,
           },
           {
             path: "/trades/viewtrades/:tradeId",
-            element: <ViewTradeDetail />,
+            element: <ComingSoon />,
           },
           {
             path: "/orders/:orderId",
@@ -250,7 +246,7 @@ const router = createBrowserRouter([
       },
       {
         path: "/trades",
-        element: <Trade />,
+        element: <ComingSoon />,
       },
       {
         path: "/community",

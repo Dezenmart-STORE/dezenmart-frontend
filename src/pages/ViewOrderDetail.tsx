@@ -1,8 +1,10 @@
+import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useGetOrderByIdQuery, useUpdateOrderStatusMutation } from "../store/api";
-import { TradeStatus, TradeActions, TransactionResult } from "../lean";
+import { TradeStatus, TradeActions, TransactionResult, PaymentFlow } from "../lean";
 import type { TradeState } from "../lean";
 import { useCurrency } from "../lean";
+import { calculateOrderTotal } from "../lean/utils/format";
 
 const ViewOrderDetail = () => {
   const { orderId } = useParams<{ orderId: string }>();
@@ -17,6 +19,7 @@ const ViewOrderDetail = () => {
   } = useGetOrderByIdQuery(orderId!, { skip: !orderId });
 
   const [updateOrderStatus] = useUpdateOrderStatusMutation();
+  const [showPayment, setShowPayment] = useState(false);
 
   if (isLoading) {
     return (
@@ -35,7 +38,7 @@ const ViewOrderDetail = () => {
         <TransactionResult
           success={false}
           message="Could not load this order. It may not exist or you may not have access."
-          onDone={() => navigate("/trades/viewtrades")}
+          onDone={() => navigate("/account")}
           onRetry={() => refetch()}
         />
       </div>
@@ -50,13 +53,42 @@ const ViewOrderDetail = () => {
   const sellerId =
     typeof order.seller === "object" ? order.seller?._id : order.seller;
 
+  // ── Payment params (for pending orders without a purchaseId) ──────────
+  const tradeId = order.product?.tradeId ?? "";
+  const canPay =
+    status === "pending_payment" &&
+    !order.purchaseId &&
+    /^\d+$/.test(tradeId); // tradeId must be a valid on-chain integer
+
+  const providerAddr =
+    (order.logisticsProviderWalletAddress?.[0] as `0x${string}`) ??
+    ("0x0000000000000000000000000000000000000000" as `0x${string}`);
+
+  const providerIndex =
+    order.product?.logisticsProviders?.indexOf(
+      order.logisticsProviderWalletAddress?.[0] ?? ""
+    ) ?? -1;
+
+  const logisticsCostRaw =
+    providerIndex >= 0
+      ? (order.product?.logisticsCost?.[providerIndex] ?? "0")
+      : "0";
+
+  const logisticsCostNumeric = parseFloat(logisticsCostRaw) || 0;
+
+  const orderTotal = calculateOrderTotal(
+    order.product?.price ?? order.amount,
+    order.quantity ?? 1,
+    logisticsCostNumeric
+  );
+
   return (
     <div className="min-h-screen bg-gray-50 px-4 py-6">
       <div className="mx-auto max-w-lg space-y-6">
         {/* Header */}
         <div className="flex items-center gap-3">
           <button
-            onClick={() => navigate("/trades/viewtrades")}
+            onClick={() => navigate("/account")}
             className="rounded-full p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
           >
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -96,6 +128,76 @@ const ViewOrderDetail = () => {
           <TradeStatus status={status} />
         </div>
 
+        {/* ── Payment section (pending orders only) ─────────────────── */}
+        {canPay && (
+          <div className="rounded-2xl bg-white p-5 shadow-sm">
+            {!showPayment ? (
+              <div className="text-center">
+                <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-amber-50">
+                  <svg className="h-6 w-6 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                  </svg>
+                </div>
+                <h3 className="text-base font-semibold text-gray-900">
+                  Payment Pending
+                </h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  Complete your payment to confirm this order.
+                </p>
+                <div className="mt-2 rounded-lg bg-gray-50 px-3 py-2">
+                  <p className="text-sm font-bold text-gray-900">
+                    Total: {orderTotal.total.toFixed(2)} {tokenSymbol}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowPayment(true)}
+                  className="mt-4 w-full rounded-xl bg-red-600 py-3 text-sm font-bold text-white transition-colors hover:bg-red-700 active:scale-[0.98]"
+                >
+                  Pay Now
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="mb-4 flex items-center gap-2">
+                  <button
+                    onClick={() => setShowPayment(false)}
+                    className="rounded-full p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                  >
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                  </button>
+                  <span className="text-sm font-medium text-gray-700">Complete Payment</span>
+                </div>
+                <PaymentFlow
+                  tradeId={tradeId}
+                  quantity={order.quantity ?? 1}
+                  productToken={tokenSymbol}
+                  totalAmount={orderTotal.total}
+                  logisticsProvider={providerAddr}
+                  logisticsCost={logisticsCostRaw}
+                  onSuccess={async (txHash, purchaseId) => {
+                    if (orderId) {
+                      await updateOrderStatus({
+                        orderId,
+                        details: {
+                          status: "accepted",
+                          purchaseId: purchaseId ?? txHash,
+                        },
+                      }).catch(() => {});
+                    }
+                    await refetch();
+                    setShowPayment(false);
+                  }}
+                  onClose={() => setShowPayment(false)}
+                  productName={order.product?.name}
+                  productImage={order.product?.images?.[0]}
+                />
+              </>
+            )}
+          </div>
+        )}
+
         {/* Order details */}
         <div className="rounded-2xl bg-white p-4 shadow-sm">
           <h3 className="mb-3 text-sm font-medium text-gray-700">
@@ -127,13 +229,12 @@ const ViewOrderDetail = () => {
           </div>
         </div>
 
-        {/* Actions — uses escrow contract calls */}
+        {/* Post-payment actions (confirm delivery, dispute, cancel) */}
         {order.purchaseId && (
           <TradeActions
             purchaseId={order.purchaseId}
             status={status}
-            onActionComplete={async (action, result) => {
-              // Sync backend order status after on-chain action
+            onActionComplete={async (action) => {
               if (action === "confirm" && orderId) {
                 await updateOrderStatus({
                   orderId,
@@ -155,7 +256,7 @@ const ViewOrderDetail = () => {
 
               refetch();
               if (action === "cancel") {
-                navigate("/trades/viewtrades");
+                navigate("/account");
               }
             }}
           />

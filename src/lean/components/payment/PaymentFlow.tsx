@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAccount } from "wagmi";
 import { usePayment, type PaymentParams, type PaymentStep } from "../../hooks/usePayment";
 import { useTokenBalances } from "../../hooks/useTokenBalances";
@@ -79,10 +79,19 @@ export default function PaymentFlow({
 
   const [paymentToken, setPaymentToken] = useState(selectedToken.symbol);
   const [showConnectModal, setShowConnectModal] = useState(false);
+  const successCalledRef = useRef(false);
 
   const balance = getBalance(paymentToken);
   const needsSwap = paymentToken !== productToken;
   const stepConfig = STEP_CONFIG[state.step];
+
+  // Notify parent on success — only once
+  useEffect(() => {
+    if (state.step === "success" && state.txHash && onSuccess && !successCalledRef.current) {
+      successCalledRef.current = true;
+      onSuccess(state.txHash, state.purchaseId ?? undefined);
+    }
+  }, [state.step, state.txHash, state.purchaseId, onSuccess]);
 
   const handleTokenChange = (token: StableToken) => {
     setPaymentToken(token.symbol);
@@ -107,12 +116,6 @@ export default function PaymentFlow({
 
     startPayment(params);
   };
-
-  // Notify parent on success
-  if (state.step === "success" && state.txHash && onSuccess) {
-    // Use setTimeout to avoid calling during render
-    setTimeout(() => onSuccess(state.txHash!, state.purchaseId ?? undefined), 0);
-  }
 
   // ── Idle: show payment form ──────────────────────────────────────
   if (state.step === "idle") {
