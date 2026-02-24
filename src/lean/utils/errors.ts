@@ -255,8 +255,16 @@ function extractMessage(error: unknown): string {
   const err = error as Record<string, any>;
 
   // Viem ContractFunctionExecutionError: the decoded custom Solidity error name
-  // lives at cause.data.errorName (e.g. "InvalidLogisticsProvider")
-  if (err.cause?.data?.errorName) return err.cause.data.errorName;
+  // lives at cause.data.errorName (e.g. "InvalidLogisticsProvider").
+  // Include args so patterns like InsufficientQuantity(1,0) are fully visible.
+  if (err.cause?.data?.errorName) {
+    const name = err.cause.data.errorName as string;
+    const args = err.cause?.data?.args as unknown[] | undefined;
+    if (args?.length) {
+      return `${name}(${args.map(String).join(",")})`;
+    }
+    return name;
+  }
 
   // Viem / wagmi structured errors
   if (err.cause?.reason) return err.cause.reason;
