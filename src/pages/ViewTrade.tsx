@@ -189,7 +189,7 @@ function TabButton({
 
 function mapOrderToTradeData(order: any): TradeData {
   return {
-    id: order._id,
+    id: order.orderId,
     productName: order.product?.name ?? "Unknown Product",
     productImage: order.product?.images?.[0],
     amount: order.amount ?? 0,

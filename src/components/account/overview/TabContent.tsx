@@ -233,7 +233,7 @@ const TabContent: React.FC<TabContentProps> = React.memo(({ activeTab }) => {
                   .filter((order: Order) => order?._id && order?.product?._id)
                   .map((order: Order, index: number) => (
                     <OrderHistoryItem
-                      key={`order-${order._id}`}
+                      key={`order-${order.orderId}`}
                       {...order}
                       index={index}
                     />
@@ -291,7 +291,7 @@ const TabContent: React.FC<TabContentProps> = React.memo(({ activeTab }) => {
                   .filter((order: Order) => order?._id && order?.product?._id)
                   .map((order: Order) => (
                     <DisputeItem
-                      key={`dispute-${order._id}`}
+                      key={`dispute-${order.orderId}`}
                       disputeStatus={
                         order.dispute?.resolved === false
                           ? "Under Review"

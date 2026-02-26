@@ -99,7 +99,7 @@ const ViewTradeDetail = () => {
             Order Information
           </h3>
           <div className="space-y-3">
-            <DetailRow label="Order ID" value={`#${order._id}`} mono />
+            <DetailRow label="Order ID" value={`#${order.orderId}`} mono />
             {order.purchaseId && (
               <DetailRow label="Purchase ID" value={`#${order.purchaseId}`} mono />
             )}
