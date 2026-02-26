@@ -218,13 +218,13 @@ const Header = () => {
               alt="dezenmart logo"
             />
           </div>
-          <span className="ml-2 text-white font-medium hidden md:inline transition-opacity group-hover:opacity-90">
+          <span className="ml-2 text-white font-medium hidden lg:inline transition-opacity group-hover:opacity-90">
             DezenMart
           </span>
         </Link>
 
         {/* Desktop Navigation */}
-        <nav className="hidden md:flex items-center max-lg:gap-4 lg:gap-8 xl:gap-10">
+        <nav className="hidden md:flex items-center gap-3 lg:gap-7 xl:gap-10">
           {NavList.map(({ title, path }) => (
             <NavLink
               key={path}
@@ -275,19 +275,19 @@ const Header = () => {
           ))}
         </nav>
 
-        <div className="flex items-center gap-1 sm:gap-2 md:gap-3">
+        <div className="flex items-center gap-1 sm:gap-1.5 lg:gap-3">
           {/* Currency Toggle - always visible */}
           <CurrencyToggle />
 
-          {/* Token Selector - visible when wallet is connected, sm+ only */}
+          {/* Token Selector - sm only and lg+; hidden at md (desktop nav takes space) */}
           {isConnected && (
-            <div className="hidden sm:block">
+            <div className="hidden sm:block md:hidden lg:block">
               <TokenSelector />
             </div>
           )}
 
-          {/* Tutorial/Help Button - sm+ only */}
-          <div className="hidden sm:block">
+          {/* Tutorial/Help Button - sm only and lg+; hidden at md */}
+          <div className="hidden sm:block md:hidden lg:block">
             <WalkthroughTrigger variant="icon" />
           </div>
 
