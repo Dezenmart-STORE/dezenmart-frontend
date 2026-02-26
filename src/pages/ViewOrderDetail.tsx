@@ -41,7 +41,7 @@ const ViewOrderDetail = () => {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center bg-[#1a1c20]">
+      <div className="flex min-h-[60vh] items-center justify-center bg-[#212428]">
         <div className="text-center">
           <div className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-[#292B30] border-t-red-600" />
           <p className="mt-4 text-sm text-gray-500">Loading order details…</p>
