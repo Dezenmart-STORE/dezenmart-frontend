@@ -6,7 +6,7 @@ import { TradeStatus, TradeActions, TransactionResult, PaymentFlow } from "../le
 import type { TradeState } from "../lean";
 import { useCurrency } from "../lean";
 import { calculateOrderTotal } from "../lean/utils/format";
-import { CHAIN_IDS, DEFAULT_LOGISTICS_PROVIDER } from "../lean/config/chains";
+import { CHAIN_IDS, DEFAULT_LOGISTICS_PROVIDER, getExplorerUrl } from "../lean/config/chains";
 
 const ViewOrderDetail = () => {
   const { orderId } = useParams<{ orderId: string }>();
@@ -148,6 +148,16 @@ const ViewOrderDetail = () => {
           </h3>
           <TradeStatus status={status} />
         </div>
+
+        {/* Status-contextual info panel */}
+        <StatusInfoPanel
+          status={status}
+          order={order}
+          orderTotal={orderTotal}
+          tokenSymbol={tokenSymbol}
+          logisticsCostNumeric={logisticsCostNumeric}
+          chainId={chainId}
+        />
 
         {/* Wrong network warning (payment pending, wrong chain) */}
         {canPay && !isOnCelo && (
@@ -356,6 +366,326 @@ function DetailRow({
       </span>
     </div>
   );
+}
+
+// ── Status-contextual information panel ──────────────────────────────
+
+function StatusInfoPanel({
+  status,
+  order,
+  orderTotal,
+  tokenSymbol,
+  logisticsCostNumeric,
+  chainId,
+}: {
+  status: TradeState;
+  order: any;
+  orderTotal: { subtotal: number; escrowFee: number; total: number };
+  tokenSymbol: string;
+  logisticsCostNumeric: number;
+  chainId: number;
+}) {
+  const purchaseId = order.purchaseId as string | undefined;
+  const isTxHash = typeof purchaseId === "string" && purchaseId.startsWith("0x") && purchaseId.length === 66;
+
+  if (status === "pending_payment") {
+    return (
+      <div className="rounded-2xl border border-[#292B30] bg-[#212428] p-5">
+        <div className="mb-4 flex items-center gap-3">
+          <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[#292B30]">
+            <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-white">Order Placed</h3>
+            <p className="text-xs text-gray-500">Awaiting your payment</p>
+          </div>
+        </div>
+
+        <div className="rounded-xl bg-[#292B30] p-4">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
+            Price Breakdown
+          </p>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-400">
+                {order.product?.name ?? "Product"} × {order.quantity ?? 1}
+              </span>
+              <span className="text-sm text-white">
+                {orderTotal.subtotal.toFixed(2)} {tokenSymbol}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-400">Delivery</span>
+              <span className="text-sm text-white">
+                {logisticsCostNumeric.toFixed(2)} {tokenSymbol}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-400">Escrow fee (2.5%)</span>
+              <span className="text-sm text-white">
+                {orderTotal.escrowFee.toFixed(2)} {tokenSymbol}
+              </span>
+            </div>
+            <div className="flex items-center justify-between border-t border-[#373A3F] pt-2.5">
+              <span className="text-sm font-semibold text-white">Total Due</span>
+              <span className="text-sm font-bold text-red-400">
+                {orderTotal.total.toFixed(2)} {tokenSymbol}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <p className="mt-3 text-center text-xs text-gray-500">
+          Your order is reserved — complete payment to confirm it.
+        </p>
+      </div>
+    );
+  }
+
+  if (status === "paid") {
+    return (
+      <div className="rounded-2xl border border-green-900/40 bg-green-900/10 p-5">
+        <div className="mb-4 flex items-center gap-3">
+          <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border border-green-800/50 bg-green-900/40">
+            <svg className="h-4 w-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-white">Payment Confirmed</h3>
+            <p className="text-xs text-green-500">Funds secured in escrow</p>
+          </div>
+        </div>
+
+        <div className="space-y-3 rounded-xl bg-[#292B30] p-4">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-gray-500">Amount in Escrow</span>
+            <span className="text-sm font-bold text-white">
+              {orderTotal.total.toFixed(2)} {tokenSymbol}
+            </span>
+          </div>
+          {purchaseId && (
+            <div className="space-y-1">
+              <span className="text-xs text-gray-500">Purchase ID</span>
+              <p className="break-all font-mono text-xs text-gray-300">{purchaseId}</p>
+            </div>
+          )}
+        </div>
+
+        <div className="mt-3 flex items-start gap-2.5 rounded-xl border border-[#373A3F] bg-[#292B30] p-3">
+          <svg className="mt-0.5 h-4 w-4 flex-shrink-0 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+          </svg>
+          <p className="text-xs text-gray-400">
+            Payment is held in a smart contract escrow and will only be released once you confirm delivery.
+          </p>
+        </div>
+
+        <p className="mt-3 text-center text-xs text-gray-500">
+          Waiting for the seller to ship your order…
+        </p>
+      </div>
+    );
+  }
+
+  if (status === "shipped") {
+    return (
+      <div className="rounded-2xl border border-blue-900/40 bg-blue-900/10 p-5">
+        <div className="mb-4 flex items-center gap-3">
+          <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border border-blue-800/50 bg-blue-900/40">
+            <svg className="h-4 w-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+            </svg>
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-white">Your Order Is On The Way</h3>
+            <p className="text-xs text-blue-400">Shipped · In transit</p>
+          </div>
+        </div>
+
+        <div className="space-y-2 rounded-xl bg-[#292B30] p-4">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-gray-500">Fulfillment</span>
+            <span className="text-xs text-gray-300">Platform Escrow</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-gray-500">Amount Protected</span>
+            <span className="text-xs font-medium text-white">
+              {orderTotal.total.toFixed(2)} {tokenSymbol}
+            </span>
+          </div>
+        </div>
+
+        <div className="mt-3 flex items-start gap-2.5 rounded-xl border border-amber-800/40 bg-amber-900/20 p-3">
+          <svg className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <p className="text-xs text-amber-300">
+            Only confirm delivery <strong>after</strong> you have received and inspected your item. Confirming releases payment to the seller.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (status === "delivered") {
+    return (
+      <div className="rounded-2xl border border-amber-800/40 bg-amber-900/10 p-5">
+        <div className="mb-4 flex items-center gap-3">
+          <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border border-amber-800/50 bg-amber-900/40">
+            <svg className="h-4 w-4 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-white">Confirm Your Delivery</h3>
+            <p className="text-xs text-amber-400">Action required</p>
+          </div>
+        </div>
+
+        <div className="rounded-xl bg-[#292B30] p-4">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
+            Before confirming, please:
+          </p>
+          <div className="space-y-2.5">
+            {[
+              "Inspect the item carefully",
+              "Verify it matches the description",
+              "Check for any damage or defects",
+              "Ensure all items were included",
+            ].map((check) => (
+              <div key={check} className="flex items-center gap-2.5">
+                <div className="h-4 w-4 flex-shrink-0 rounded border border-[#373A3F] bg-[#1a1c20]" />
+                <span className="text-sm text-gray-300">{check}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-3 flex items-start gap-2.5 rounded-xl border border-red-900/40 bg-red-900/20 p-3">
+          <svg className="mt-0.5 h-4 w-4 flex-shrink-0 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <p className="text-xs text-red-300">
+            Confirming delivery <strong>permanently releases payment</strong> from escrow to the seller. This cannot be undone.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (status === "completed") {
+    const explorerHref = isTxHash && purchaseId
+      ? getExplorerUrl(chainId, purchaseId, "tx")
+      : null;
+    const completedDate = order.updatedAt ?? order.createdAt;
+
+    return (
+      <div className="rounded-2xl border border-green-900/40 bg-green-900/10 p-5">
+        <div className="mb-4 flex items-center gap-3">
+          <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border border-green-800/50 bg-green-900/40">
+            <svg className="h-5 w-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-white">Order Complete</h3>
+            <p className="text-xs text-green-500">Successfully delivered</p>
+          </div>
+        </div>
+
+        <div className="rounded-xl bg-[#292B30] p-4">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
+            Order Summary
+          </p>
+          <div className="space-y-2.5">
+            <DetailRow label="Product" value={order.product?.name ?? "—"} />
+            <DetailRow label="Quantity" value={String(order.quantity ?? 1)} />
+            <DetailRow
+              label="Total Paid"
+              value={`${orderTotal.total.toFixed(2)} ${tokenSymbol}`}
+            />
+            {completedDate && (
+              <DetailRow
+                label="Completed"
+                value={new Date(completedDate).toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                })}
+              />
+            )}
+            {purchaseId && (
+              <DetailRow label="Purchase ID" value={purchaseId} mono />
+            )}
+          </div>
+
+          {explorerHref && (
+            <a
+              href={explorerHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-lg border border-[#373A3F] bg-[#1a1c20] py-2.5 text-xs font-medium text-gray-400 transition-colors hover:text-white"
+            >
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+              View on Blockchain Explorer
+            </a>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (status === "disputed") {
+    return (
+      <div className="rounded-2xl border border-amber-800/40 bg-amber-900/10 p-5">
+        <div className="mb-3 flex items-center gap-3">
+          <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border border-amber-800/50 bg-amber-900/40">
+            <svg className="h-4 w-4 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-white">Order Under Dispute</h3>
+            <p className="text-xs text-amber-400">Under review</p>
+          </div>
+        </div>
+        <p className="text-sm text-gray-400">
+          This order is currently under dispute. Our team will review the situation and mediate a fair resolution. Funds remain safely in escrow until the dispute is resolved.
+        </p>
+        <p className="mt-2 text-xs text-gray-500">
+          Please avoid taking any action until you hear from us.
+        </p>
+      </div>
+    );
+  }
+
+  if (status === "cancelled") {
+    return (
+      <div className="rounded-2xl border border-[#292B30] bg-[#212428] p-5">
+        <div className="mb-3 flex items-center gap-3">
+          <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[#292B30]">
+            <svg className="h-4 w-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-white">Order Cancelled</h3>
+            <p className="text-xs text-gray-500">No further action needed</p>
+          </div>
+        </div>
+        <p className="text-sm text-gray-400">
+          This order has been cancelled. If a payment was made, a refund will be processed to your wallet.
+        </p>
+      </div>
+    );
+  }
+
+  return null;
 }
 
 function mapStatus(status: string): TradeState {
