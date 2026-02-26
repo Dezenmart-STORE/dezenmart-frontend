@@ -18,10 +18,10 @@ const ViewTradeDetail = () => {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center">
+      <div className="flex min-h-[60vh] items-center justify-center bg-[#1a1c20]">
         <div className="text-center">
-          <div className="mx-auto h-10 w-10 animate-spin rounded-full border-3 border-gray-200 border-t-red-600" />
-          <p className="mt-4 text-sm text-gray-500">Loading order details...</p>
+          <div className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-[#292B30] border-t-red-600" />
+          <p className="mt-4 text-sm text-gray-500">Loading order details…</p>
         </div>
       </div>
     );
@@ -29,13 +29,15 @@ const ViewTradeDetail = () => {
 
   if (error || !order) {
     return (
-      <div className="mx-auto max-w-lg px-4 py-12">
-        <TransactionResult
-          success={false}
-          message="Could not load this order. It may not exist or you may not have access."
-          onDone={() => navigate("/trades/viewtrades")}
-          onRetry={() => refetch()}
-        />
+      <div className="min-h-screen bg-[#1a1c20] px-4 py-12">
+        <div className="mx-auto max-w-lg">
+          <TransactionResult
+            success={false}
+            message="Could not load this order. It may not exist or you may not have access."
+            onDone={() => navigate("/trades/viewtrades")}
+            onRetry={() => refetch()}
+          />
+        </div>
       </div>
     );
   }
@@ -44,36 +46,38 @@ const ViewTradeDetail = () => {
   const tokenSymbol = order.product?.paymentToken ?? "cUSD";
 
   return (
-    <div className="min-h-screen bg-gray-50 px-4 py-6">
-      <div className="mx-auto max-w-lg space-y-6">
-        {/* Header */}
+    <div className="min-h-screen bg-[#1a1c20] px-4 py-6">
+      <div className="mx-auto max-w-lg space-y-4">
+        {/* Back + title */}
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigate("/trades/viewtrades")}
-            className="rounded-full p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+            className="rounded-full p-2 text-gray-500 transition-colors hover:bg-[#292B30] hover:text-white"
+            aria-label="Go back"
           >
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </button>
-          <h1 className="text-xl font-bold text-gray-900">Order Details</h1>
+          <h1 className="text-xl font-bold text-white">Order Details</h1>
         </div>
 
         {/* Product info card */}
-        <div className="flex gap-4 rounded-2xl bg-white p-4 shadow-sm">
+        <div className="flex gap-4 rounded-2xl border border-[#292B30] bg-[#292B30] p-4">
           {order.product?.images?.[0] && (
             <img
               src={order.product.images[0]}
               alt={order.product.name}
-              className="h-20 w-20 rounded-xl object-cover"
+              className="h-20 w-20 flex-shrink-0 rounded-xl object-cover"
             />
           )}
           <div className="min-w-0 flex-1">
-            <h2 className="text-base font-semibold text-gray-900">
+            <h2 className="text-base font-semibold text-white">
               {order.product?.name ?? "Product"}
             </h2>
-            <p className="mt-1 text-lg font-bold text-gray-900">
-              {(order.amount ?? 0).toFixed(2)} {tokenSymbol}
+            <p className="mt-1 text-xl font-bold text-white">
+              {(order.amount ?? 0).toFixed(2)}{" "}
+              <span className="text-base font-medium text-gray-400">{tokenSymbol}</span>
             </p>
             <p className="text-xs text-gray-500">
               {formatAmount(order.amount ?? 0, tokenSymbol)}
@@ -82,19 +86,19 @@ const ViewTradeDetail = () => {
         </div>
 
         {/* Status stepper */}
-        <div className="rounded-2xl bg-white p-5 shadow-sm">
-          <h3 className="mb-4 text-sm font-medium text-gray-700">
+        <div className="rounded-2xl border border-[#292B30] bg-[#212428] p-5">
+          <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-400">
             Order Status
           </h3>
           <TradeStatus status={status} />
         </div>
 
-        {/* Order details */}
-        <div className="rounded-2xl bg-white p-4 shadow-sm">
-          <h3 className="mb-3 text-sm font-medium text-gray-700">
+        {/* Order information */}
+        <div className="rounded-2xl border border-[#292B30] bg-[#212428] p-4">
+          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-400">
             Order Information
           </h3>
-          <div className="space-y-2">
+          <div className="space-y-3">
             <DetailRow label="Order ID" value={`#${order._id}`} mono />
             {order.purchaseId && (
               <DetailRow label="Purchase ID" value={`#${order.purchaseId}`} mono />
@@ -136,11 +140,11 @@ const ViewTradeDetail = () => {
           />
         )}
 
-        {/* Chat with seller/buyer */}
+        {/* Contact seller/buyer */}
         {typeof order.seller === "object" && order.seller?._id && (
           <button
             onClick={() => navigate(`/chat/${(order.seller as { _id: string })._id}`)}
-            className="flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white py-3 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-[#292B30] bg-[#292B30] py-3 text-sm font-medium text-gray-300 transition-colors hover:bg-[#373A3F] hover:text-white"
           >
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
@@ -165,11 +169,11 @@ function DetailRow({
   mono?: boolean;
 }) {
   return (
-    <div className="flex items-center justify-between">
-      <span className="text-sm text-gray-500">{label}</span>
+    <div className="flex items-start justify-between gap-4">
+      <span className="text-sm text-gray-500 flex-shrink-0">{label}</span>
       <span
-        className={`text-sm font-medium text-gray-900 ${
-          mono ? "font-mono" : ""
+        className={`text-sm font-medium text-white text-right break-all ${
+          mono ? "font-mono text-xs" : ""
         }`}
       >
         {value}

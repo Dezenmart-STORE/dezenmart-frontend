@@ -60,20 +60,20 @@ const ViewTrade = () => {
   // ── Not connected ──────────────────────────────────────────────
   if (!isConnected && !isConnecting) {
     return (
-      <div className="min-h-screen bg-gray-50 px-4">
+      <div className="min-h-screen bg-[#1a1c20] px-4">
         <div className="mx-auto max-w-lg py-20 text-center">
-          <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-gray-100">
-            <svg className="h-10 w-10 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-[#292B30]">
+            <svg className="h-10 w-10 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
             </svg>
           </div>
-          <h2 className="text-2xl font-bold text-gray-900">Connect Your Wallet</h2>
-          <p className="mt-2 text-sm text-gray-500">
+          <h2 className="text-2xl font-bold text-white">Connect Your Wallet</h2>
+          <p className="mt-2 text-sm text-gray-400">
             Connect your wallet to view your trades and orders.
           </p>
           <button
             onClick={() => setShowConnectModal(true)}
-            className="mt-6 rounded-xl bg-red-600 px-8 py-3 text-sm font-bold text-white hover:bg-red-700"
+            className="mt-6 rounded-xl bg-red-600 px-8 py-3 text-sm font-bold text-white transition-colors hover:bg-red-700 active:scale-[0.98]"
           >
             Connect Wallet
           </button>
@@ -88,13 +88,13 @@ const ViewTrade = () => {
 
   // ── Main view ──────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-gray-50 px-4 py-6">
+    <div className="min-h-screen bg-[#1a1c20] px-4 py-6">
       <div className="mx-auto max-w-2xl">
-        {/* Header */}
-        <h1 className="mb-6 text-2xl font-bold text-gray-900">My Trades</h1>
+        {/* Page heading */}
+        <h1 className="mb-6 text-2xl font-bold text-white">My Trades</h1>
 
         {/* Tab navigation */}
-        <div className="mb-6 flex rounded-xl bg-white p-1 shadow-sm">
+        <div className="mb-6 flex rounded-xl bg-[#292B30] p-1">
           <TabButton
             label="Active"
             count={activeTrades.length}
@@ -115,30 +115,28 @@ const ViewTrade = () => {
             {[1, 2, 3].map((i) => (
               <div
                 key={i}
-                className="h-32 animate-pulse rounded-2xl bg-white"
+                className="h-28 animate-pulse rounded-2xl bg-[#292B30]"
               />
             ))}
           </div>
         ) : currentTrades.length > 0 ? (
           <div className="space-y-3">
             {currentTrades.map((trade) => (
-              <div
+              <TradeCard
                 key={trade.id}
+                trade={trade}
                 onClick={() => handleTradeClick(trade.id)}
-                className="cursor-pointer transition-transform active:scale-[0.98]"
-              >
-                <TradeCard trade={trade} />
-              </div>
+              />
             ))}
           </div>
         ) : (
-          <div className="rounded-2xl bg-white py-16 text-center">
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-100">
-              <svg className="h-8 w-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="rounded-2xl border border-[#292B30] bg-[#292B30] py-16 text-center">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[#1a1c20]">
+              <svg className="h-8 w-8 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
               </svg>
             </div>
-            <h3 className="text-lg font-semibold text-gray-900">
+            <h3 className="text-lg font-semibold text-white">
               {activeTab === "active" ? "No Active Trades" : "No Completed Trades"}
             </h3>
             <p className="mt-1 text-sm text-gray-500">
@@ -172,14 +170,14 @@ function TabButton({
       className={`flex flex-1 items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-semibold transition-all ${
         isActive
           ? "bg-red-600 text-white shadow-sm"
-          : "text-gray-500 hover:text-gray-700"
+          : "text-gray-500 hover:text-gray-300"
       }`}
     >
       {label}
       {count > 0 && (
         <span
           className={`rounded-full px-2 py-0.5 text-xs font-bold ${
-            isActive ? "bg-white/20 text-white" : "bg-gray-100 text-gray-600"
+            isActive ? "bg-white/20 text-white" : "bg-[#1a1c20] text-gray-400"
           }`}
         >
           {count}

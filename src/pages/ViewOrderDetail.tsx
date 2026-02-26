@@ -13,8 +13,6 @@ const ViewOrderDetail = () => {
   const navigate = useNavigate();
   const { formatAmount } = useCurrency();
 
-  // Chain state — read directly from wagmi (no auto-switch; WrongNetworkBanner
-  // in Layout already handles the one-time auto-switch on connect).
   const chainId = useChainId();
   const { switchChainAsync } = useSwitchChain();
   const [isSwitching, setIsSwitching] = useState(false);
@@ -43,10 +41,10 @@ const ViewOrderDetail = () => {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center">
+      <div className="flex min-h-[60vh] items-center justify-center bg-[#1a1c20]">
         <div className="text-center">
-          <div className="mx-auto h-10 w-10 animate-spin rounded-full border-3 border-gray-200 border-t-red-600" />
-          <p className="mt-4 text-sm text-gray-500">Loading order details...</p>
+          <div className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-[#292B30] border-t-red-600" />
+          <p className="mt-4 text-sm text-gray-500">Loading order details…</p>
         </div>
       </div>
     );
@@ -54,13 +52,15 @@ const ViewOrderDetail = () => {
 
   if (error || !order) {
     return (
-      <div className="mx-auto max-w-lg px-4 py-12">
-        <TransactionResult
-          success={false}
-          message="Could not load this order. It may not exist or you may not have access."
-          onDone={() => navigate("/account")}
-          onRetry={() => refetch()}
-        />
+      <div className="min-h-screen bg-[#1a1c20] px-4 py-12">
+        <div className="mx-auto max-w-lg">
+          <TransactionResult
+            success={false}
+            message="Could not load this order. It may not exist or you may not have access."
+            onDone={() => navigate("/account")}
+            onRetry={() => refetch()}
+          />
+        </div>
       </div>
     );
   }
@@ -73,21 +73,14 @@ const ViewOrderDetail = () => {
   const sellerId =
     typeof order.seller === "object" ? order.seller?._id : order.seller;
 
-  // ── Payment params (for pending orders without a purchaseId) ──────────
   const tradeId = order.product?.tradeId ?? "";
   const canPay =
     status === "pending_payment" &&
     !order.purchaseId &&
-    /^\d+$/.test(tradeId); // tradeId must be a valid on-chain integer
+    /^\d+$/.test(tradeId);
 
-  // Always use the registered on-chain provider — it's the only one registered.
-  // The DB-stored address may differ or be unregistered.
   const providerAddr = DEFAULT_LOGISTICS_PROVIDER;
 
-  // Resolve logistics cost from product data. The contract requires non-zero
-  // logisticsCost, so we look up the cost for DEFAULT_LOGISTICS_PROVIDER from
-  // the product's logistics list, then fall back to the first available cost,
-  // then to "1" (matching the CreateProduct default).
   const _providerList = order.product?.logisticsProviders as string[] | undefined;
   const _costList = order.product?.logisticsCost as string[] | undefined;
   const _providerIdx = _providerList?.findIndex(
@@ -98,7 +91,7 @@ const ViewOrderDetail = () => {
       ? _costList[_providerIdx]
       : (_costList?.[0] && parseFloat(_costList[0]) > 0)
       ? _costList[0]
-      : "0.1"; // contract requires non-zero; small default to avoid overcharging
+      : "0.1";
 
   const logisticsCostNumeric = parseFloat(logisticsCostRaw) || 0.1;
 
@@ -109,36 +102,38 @@ const ViewOrderDetail = () => {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 px-4 py-6">
-      <div className="mx-auto max-w-lg space-y-6">
-        {/* Header */}
+    <div className="min-h-screen bg-[#1a1c20] px-4 py-6">
+      <div className="mx-auto max-w-lg space-y-4">
+        {/* Back + title */}
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigate("/account")}
-            className="rounded-full p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+            className="rounded-full p-2 text-gray-500 transition-colors hover:bg-[#292B30] hover:text-white"
+            aria-label="Go back"
           >
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </button>
-          <h1 className="text-xl font-bold text-gray-900">Order Details</h1>
+          <h1 className="text-xl font-bold text-white">Order Details</h1>
         </div>
 
         {/* Product info card */}
-        <div className="flex gap-4 rounded-2xl bg-white p-4 shadow-sm">
+        <div className="flex gap-4 rounded-2xl border border-[#292B30] bg-[#292B30] p-4">
           {order.product?.images?.[0] && (
             <img
               src={order.product.images[0]}
               alt={order.product?.name}
-              className="h-20 w-20 rounded-xl object-cover"
+              className="h-20 w-20 flex-shrink-0 rounded-xl object-cover"
             />
           )}
           <div className="min-w-0 flex-1">
-            <h2 className="text-base font-semibold text-gray-900">
+            <h2 className="text-base font-semibold text-white">
               {order.product?.name ?? "Product"}
             </h2>
-            <p className="mt-1 text-lg font-bold text-gray-900">
-              {(order.amount ?? 0).toFixed(2)} {tokenSymbol}
+            <p className="mt-1 text-xl font-bold text-white">
+              {(order.amount ?? 0).toFixed(2)}{" "}
+              <span className="text-base font-medium text-gray-400">{tokenSymbol}</span>
             </p>
             <p className="text-xs text-gray-500">
               {formatAmount(order.amount ?? 0, tokenSymbol)}
@@ -147,33 +142,30 @@ const ViewOrderDetail = () => {
         </div>
 
         {/* Status stepper */}
-        <div className="rounded-2xl bg-white p-5 shadow-sm">
-          <h3 className="mb-4 text-sm font-medium text-gray-700">
+        <div className="rounded-2xl border border-[#292B30] bg-[#212428] p-5">
+          <h3 className="mb-4 text-sm font-semibold text-gray-400 uppercase tracking-wide">
             Order Status
           </h3>
           <TradeStatus status={status} />
         </div>
 
-        {/* ── Payment section (pending orders only) ─────────────────── */}
+        {/* Wrong network warning (payment pending, wrong chain) */}
         {canPay && !isOnCelo && (
-          /* User needs to switch to Celo before they can pay */
-          <div className="rounded-2xl bg-white p-5 shadow-sm">
+          <div className="rounded-2xl border border-amber-800/40 bg-amber-900/20 p-5">
             <div className="text-center">
-              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-amber-50">
-                <svg className="h-6 w-6 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full border border-amber-800/50 bg-amber-900/30">
+                <svg className="h-6 w-6 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0" />
                 </svg>
               </div>
-              <h3 className="text-base font-semibold text-gray-900">
-                Wrong Network
-              </h3>
-              <p className="mt-1 text-sm text-gray-500">
+              <h3 className="text-base font-semibold text-amber-300">Wrong Network</h3>
+              <p className="mt-1 text-sm text-amber-500">
                 Your wallet needs to be on Celo to complete this payment.
               </p>
               <button
                 onClick={switchToCelo}
                 disabled={isSwitching}
-                className="mt-4 w-full rounded-xl bg-amber-500 py-3 text-sm font-bold text-white transition-colors hover:bg-amber-600 active:scale-[0.98] disabled:opacity-60"
+                className="mt-4 w-full rounded-xl bg-amber-600 py-3 text-sm font-bold text-white transition-colors hover:bg-amber-500 active:scale-[0.98] disabled:opacity-60"
               >
                 {isSwitching ? (
                   <span className="flex items-center justify-center gap-2">
@@ -191,24 +183,26 @@ const ViewOrderDetail = () => {
           </div>
         )}
 
+        {/* Payment section (pending + correct chain) */}
         {canPay && isOnCelo && (
-          <div className="rounded-2xl bg-white p-5 shadow-sm">
+          <div className="rounded-2xl border border-[#292B30] bg-[#212428] p-5">
             {!showPayment ? (
               <div className="text-center">
-                <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-amber-50">
-                  <svg className="h-6 w-6 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full border border-amber-800/50 bg-amber-900/30">
+                  <svg className="h-6 w-6 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
                   </svg>
                 </div>
-                <h3 className="text-base font-semibold text-gray-900">
-                  Payment Pending
-                </h3>
-                <p className="mt-1 text-sm text-gray-500">
+                <h3 className="text-base font-semibold text-white">Payment Pending</h3>
+                <p className="mt-1 text-sm text-gray-400">
                   Complete your payment to confirm this order.
                 </p>
-                <div className="mt-2 rounded-lg bg-gray-50 px-3 py-2">
-                  <p className="text-sm font-bold text-gray-900">
-                    Total: {orderTotal.total.toFixed(2)} {tokenSymbol}
+                <div className="mt-3 rounded-lg border border-[#292B30] bg-[#292B30] px-3 py-2.5">
+                  <p className="text-sm font-bold text-white">
+                    Total:{" "}
+                    <span className="text-red-400">
+                      {orderTotal.total.toFixed(2)} {tokenSymbol}
+                    </span>
                   </p>
                 </div>
                 <button
@@ -223,13 +217,13 @@ const ViewOrderDetail = () => {
                 <div className="mb-4 flex items-center gap-2">
                   <button
                     onClick={() => setShowPayment(false)}
-                    className="rounded-full p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                    className="rounded-full p-1 text-gray-500 transition-colors hover:bg-[#292B30] hover:text-white"
                   >
                     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                     </svg>
                   </button>
-                  <span className="text-sm font-medium text-gray-700">Complete Payment</span>
+                  <span className="text-sm font-medium text-gray-300">Complete Payment</span>
                 </div>
                 <PaymentFlow
                   tradeId={tradeId}
@@ -260,12 +254,12 @@ const ViewOrderDetail = () => {
           </div>
         )}
 
-        {/* Order details */}
-        <div className="rounded-2xl bg-white p-4 shadow-sm">
-          <h3 className="mb-3 text-sm font-medium text-gray-700">
+        {/* Order information */}
+        <div className="rounded-2xl border border-[#292B30] bg-[#212428] p-4">
+          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-400">
             Order Information
           </h3>
-          <div className="space-y-2">
+          <div className="space-y-3">
             <DetailRow label="Order ID" value={`#${order._id}`} mono />
             {order.purchaseId && (
               <DetailRow label="Purchase ID" value={`#${order.purchaseId}`} mono />
@@ -291,7 +285,7 @@ const ViewOrderDetail = () => {
           </div>
         </div>
 
-        {/* Post-payment actions (confirm delivery, dispute, cancel) */}
+        {/* Post-payment actions */}
         {order.purchaseId && (
           <TradeActions
             purchaseId={order.purchaseId}
@@ -328,7 +322,7 @@ const ViewOrderDetail = () => {
         {sellerId && (
           <button
             onClick={() => navigate(`/chat/${sellerId}`)}
-            className="flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white py-3 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-[#292B30] bg-[#292B30] py-3 text-sm font-medium text-gray-300 transition-colors hover:bg-[#373A3F] hover:text-white"
           >
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
@@ -341,6 +335,8 @@ const ViewOrderDetail = () => {
   );
 };
 
+// ── Helpers ──────────────────────────────────────────────────────────
+
 function DetailRow({
   label,
   value,
@@ -351,10 +347,10 @@ function DetailRow({
   mono?: boolean;
 }) {
   return (
-    <div className="flex items-center justify-between">
-      <span className="text-sm text-gray-500">{label}</span>
+    <div className="flex items-start justify-between gap-4">
+      <span className="text-sm text-gray-500 flex-shrink-0">{label}</span>
       <span
-        className={`text-sm font-medium text-gray-900 ${mono ? "font-mono" : ""}`}
+        className={`text-sm font-medium text-white text-right break-all ${mono ? "font-mono text-xs" : ""}`}
       >
         {value}
       </span>
