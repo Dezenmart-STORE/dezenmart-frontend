@@ -490,45 +490,9 @@ function StatusInfoPanel({
     );
   }
 
-  if (status === "shipped") {
-    return (
-      <div className="rounded-2xl border border-blue-900/40 bg-blue-900/10 p-5">
-        <div className="mb-4 flex items-center gap-3">
-          <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border border-blue-800/50 bg-blue-900/40">
-            <svg className="h-4 w-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
-            </svg>
-          </div>
-          <div>
-            <h3 className="text-sm font-semibold text-white">Your Order Is On The Way</h3>
-            <p className="text-xs text-blue-400">Shipped · In transit</p>
-          </div>
-        </div>
-
-        <div className="space-y-2 rounded-xl bg-[#292B30] p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-gray-500">Fulfillment</span>
-            <span className="text-xs text-gray-300">Platform Escrow</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-gray-500">Amount Protected</span>
-            <span className="text-xs font-medium text-white">
-              {orderTotal.total.toFixed(2)} {tokenSymbol}
-            </span>
-          </div>
-        </div>
-
-        <div className="mt-3 flex items-start gap-2.5 rounded-xl border border-amber-800/40 bg-amber-900/20 p-3">
-          <svg className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <p className="text-xs text-amber-300">
-            Only confirm delivery <strong>after</strong> you have received and inspected your item. Confirming releases payment to the seller.
-          </p>
-        </div>
-      </div>
-    );
-  }
+  // Shipped panel — commented out until logistics provider management system is ready.
+  // To restore: uncomment this block and revert STATE_TO_STEP["shipped"] in TradeStatus.tsx.
+  // if (status === "shipped") { ... }
 
   if (status === "delivered") {
     return (
@@ -693,7 +657,7 @@ function mapStatus(status: string): TradeState {
     pending: "pending_payment",
     accepted: "paid",
     paid: "paid",
-    shipped: "shipped",
+    shipped: "paid", // logistics system not ready — show as paid until delivered
     delivered: "delivered",
     completed: "completed",
     disputed: "disputed",

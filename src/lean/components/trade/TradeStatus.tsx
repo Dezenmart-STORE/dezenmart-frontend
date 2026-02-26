@@ -24,7 +24,7 @@ interface StepDef {
 const STEPS: StepDef[] = [
   { label: "Ordered", shortLabel: "Order", description: "Payment is being processed" },
   { label: "Paid", shortLabel: "Paid", description: "Payment confirmed in escrow" },
-  { label: "Shipped", shortLabel: "Sent", description: "Seller has shipped the item" },
+  // { label: "Shipped", shortLabel: "Sent", description: "Seller has shipped the item" }, // logistics system not yet ready
   { label: "Delivered", shortLabel: "Dlvrd", description: "Item delivered to you" },
   { label: "Complete", shortLabel: "Done", description: "Funds released to seller" },
 ];
@@ -32,9 +32,9 @@ const STEPS: StepDef[] = [
 const STATE_TO_STEP: Record<TradeState, number> = {
   pending_payment: 0,
   paid: 1,
-  shipped: 2,
-  delivered: 3,
-  completed: 4,
+  shipped: 1, // logistics system not yet ready — treat as paid
+  delivered: 2,
+  completed: 3,
   disputed: -1,
   cancelled: -1,
 };
