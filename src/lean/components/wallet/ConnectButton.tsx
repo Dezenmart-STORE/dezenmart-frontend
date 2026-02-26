@@ -15,8 +15,8 @@ import ConnectModal from "./ConnectModal";
 /**
  * Wallet connect/disconnect button with inline dropdown.
  *
- * - Disconnected: shows "Connect Wallet" -> opens ConnectModal
- * - Connected: shows truncated address -> dropdown with balance, chain, copy, disconnect
+ * - Disconnected: compact icon on mobile, "Connect" on sm+ → opens ConnectModal
+ * - Connected: dark pill with status dot + truncated address → dropdown with balance, copy, disconnect
  */
 export default function ConnectButton() {
   const { address, isConnected } = useAccount();
@@ -57,15 +57,29 @@ export default function ConnectButton() {
   if (!isConnected) {
     return (
       <>
+        {/* xs: icon-only wallet button */}
         <button
           onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 rounded-full bg-red-600 px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-red-700 active:scale-95"
+          className="flex items-center justify-center rounded-md bg-red-600 p-1.5 text-white transition-all hover:bg-red-700 active:scale-95 sm:hidden"
+          aria-label="Connect Wallet"
         >
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
           </svg>
-          Connect Wallet
         </button>
+
+        {/* sm+: "Connect" with icon */}
+        <button
+          onClick={() => setShowModal(true)}
+          className="hidden items-center gap-1.5 rounded-md bg-red-600 px-2.5 py-1.5 text-sm font-semibold text-white transition-all hover:bg-red-700 active:scale-95 sm:flex"
+          aria-label="Connect Wallet"
+        >
+          <svg className="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+          </svg>
+          <span>Connect</span>
+        </button>
+
         {showModal && <ConnectModal onClose={() => setShowModal(false)} />}
       </>
     );
@@ -77,25 +91,29 @@ export default function ConnectButton() {
       {/* Trigger button */}
       <button
         onClick={() => setShowDropdown((v) => !v)}
-        className="flex items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-800 shadow-sm transition-all hover:bg-gray-50 active:scale-[0.98]"
+        className="flex items-center gap-1.5 rounded-md border border-[#373A3F] bg-[#292B30] px-2 py-1.5 text-sm font-medium text-white transition-all hover:bg-[#373A3F] active:scale-[0.98]"
+        aria-expanded={showDropdown}
+        aria-haspopup="true"
       >
         {/* Status dot */}
         <span
-          className={`h-2 w-2 rounded-full ${
-            isCorrectChain ? "bg-green-500" : "bg-amber-500"
+          className={`h-2 w-2 flex-shrink-0 rounded-full ${
+            isCorrectChain ? "bg-green-400" : "bg-amber-400"
           }`}
         />
-        {/* Balance (if available) */}
+        {/* Balance — sm+ only */}
         {balance && (
-          <span className="hidden text-gray-600 sm:inline">
+          <span className="hidden text-xs text-gray-300 sm:inline">
             {balance.numeric.toFixed(2)} {selectedToken.symbol}
           </span>
         )}
-        {/* Address */}
-        <span className="font-mono">{truncateAddress(address!, 4)}</span>
+        {/* Truncated address */}
+        <span className="font-mono text-xs text-gray-200">
+          {truncateAddress(address!, 4)}
+        </span>
         {/* Chevron */}
         <svg
-          className={`h-4 w-4 text-gray-400 transition-transform ${
+          className={`h-3.5 w-3.5 flex-shrink-0 text-gray-500 transition-transform ${
             showDropdown ? "rotate-180" : ""
           }`}
           fill="none"
@@ -106,44 +124,43 @@ export default function ConnectButton() {
         </svg>
       </button>
 
-      {/* Dropdown */}
+      {/* Dropdown panel */}
       {showDropdown && (
-        <div className="absolute right-0 z-50 mt-2 w-72 rounded-2xl border border-gray-100 bg-white p-4 shadow-xl">
-          {/* Chain indicator */}
+        <div className="absolute right-0 z-50 mt-2 w-64 rounded-xl border border-[#292B30] bg-[#212428] p-3 shadow-2xl shadow-black/60 sm:w-72">
+          {/* Wrong network */}
           {!isCorrectChain && (
             <button
               onClick={() => switchChain({ chainId: TARGET_CHAIN.id })}
-              className="mb-3 flex w-full items-center gap-2 rounded-xl bg-amber-50 p-3 text-left text-sm text-amber-800 transition-colors hover:bg-amber-100"
+              className="mb-3 flex w-full items-center gap-2 rounded-lg border border-amber-800/50 bg-amber-900/30 p-3 text-left text-sm transition-colors hover:bg-amber-900/50"
             >
-              <svg className="h-5 w-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="h-4 w-4 flex-shrink-0 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               <div>
-                <p className="font-medium">Wrong network</p>
-                <p className="text-xs text-amber-600">Tap to switch to {TARGET_CHAIN.name}</p>
+                <p className="font-semibold text-amber-300">Wrong network</p>
+                <p className="text-xs text-amber-400">Tap to switch to {TARGET_CHAIN.name}</p>
               </div>
             </button>
           )}
 
           {/* Balance section */}
-          <div className="mb-3 rounded-xl bg-gray-50 p-3">
-            <p className="text-xs font-medium uppercase tracking-wider text-gray-500">
+          <div className="mb-2 rounded-lg bg-[#292B30] p-3">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">
               Balance
             </p>
             {balance ? (
               <div className="mt-1">
-                <p className="text-lg font-bold text-gray-900">
-                  {balance.numeric.toFixed(2)} {selectedToken.symbol}
+                <p className="text-base font-bold text-white">
+                  {balance.numeric.toFixed(2)}{" "}
+                  <span className="text-gray-400">{selectedToken.symbol}</span>
                 </p>
-                <p className="text-sm text-gray-500">
-                  {formatAmount(balance.numeric)}
-                </p>
+                <p className="text-xs text-gray-500">{formatAmount(balance.numeric)}</p>
               </div>
             ) : (
-              <p className="mt-1 text-sm text-gray-400">Loading...</p>
+              <p className="mt-1 text-sm text-gray-500">Loading…</p>
             )}
             {celoBalance && (
-              <p className="mt-1 text-xs text-gray-400">
+              <p className="mt-1.5 text-xs text-gray-600">
                 Gas: {parseFloat(celoBalance.formatted).toFixed(4)} CELO
               </p>
             )}
@@ -152,12 +169,12 @@ export default function ConnectButton() {
           {/* Address + copy */}
           <button
             onClick={handleCopy}
-            className="mb-3 flex w-full items-center justify-between rounded-xl p-3 text-sm transition-colors hover:bg-gray-50"
+            className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-colors hover:bg-[#292B30]"
           >
-            <span className="font-mono text-gray-600">
+            <span className="font-mono text-sm text-gray-400">
               {truncateAddress(address!, 6)}
             </span>
-            <span className="text-xs text-gray-400">
+            <span className={`text-xs font-medium transition-colors ${copied ? "text-green-400" : "text-gray-600 hover:text-gray-400"}`}>
               {copied ? "Copied!" : "Copy"}
             </span>
           </button>
@@ -167,13 +184,15 @@ export default function ConnectButton() {
             href={getExplorerUrl(chainId, address!, "address")}
             target="_blank"
             rel="noopener noreferrer"
-            className="mb-3 flex w-full items-center gap-2 rounded-xl p-3 text-sm text-gray-600 transition-colors hover:bg-gray-50"
+            className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm text-gray-400 transition-colors hover:bg-[#292B30] hover:text-white"
           >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
             </svg>
             View on Explorer
           </a>
+
+          <div className="my-1.5 border-t border-[#292B30]" />
 
           {/* Disconnect */}
           <button
@@ -181,7 +200,7 @@ export default function ConnectButton() {
               disconnect();
               setShowDropdown(false);
             }}
-            className="flex w-full items-center gap-2 rounded-xl p-3 text-sm text-red-600 transition-colors hover:bg-red-50"
+            className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm text-red-400 transition-colors hover:bg-red-900/20 hover:text-red-300"
           >
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />

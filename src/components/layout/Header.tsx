@@ -211,15 +211,10 @@ const Header = () => {
           className="flex items-center group transition-transform hover:scale-105"
           aria-label="DezenMart Home"
         >
-          <div className="w-8 h-8 md:w-9 md:h-9 relative overflow-hidden">
+          <div className="w-8 h-8 md:w-9 md:h-9 relative overflow-hidden flex-shrink-0">
             <img
               src={LogoSVG}
-              className="w-full md:hidden transition-transform group-hover:scale-110 object-contain"
-              alt="dezenmart logo"
-            />
-            <img
-              src={LogoSVG}
-              className="w-full hidden md:block transition-transform group-hover:scale-110 object-contain"
+              className="w-full h-full transition-transform group-hover:scale-110 object-contain"
               alt="dezenmart logo"
             />
           </div>
@@ -280,23 +275,23 @@ const Header = () => {
           ))}
         </nav>
 
-        <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3">
-          {/* Currency Toggle - always visible on all screen sizes */}
+        <div className="flex items-center gap-1 sm:gap-2 md:gap-3">
+          {/* Currency Toggle - always visible */}
           <CurrencyToggle />
 
-          {/* Token Selector - visible when wallet is connected */}
+          {/* Token Selector - visible when wallet is connected, sm+ only */}
           {isConnected && (
             <div className="hidden sm:block">
               <TokenSelector />
             </div>
           )}
 
-          {/* Tutorial/Help Button - hidden on extra small screens */}
+          {/* Tutorial/Help Button - sm+ only */}
           <div className="hidden sm:block">
             <WalkthroughTrigger variant="icon" />
           </div>
 
-          {/* Wallet button - always visible */}
+          {/* Wallet button - always visible (lean ConnectButton, dark themed) */}
           <WalletConnectButton />
 
           {isAuthenticated ? (
@@ -305,7 +300,7 @@ const Header = () => {
                 aria-label={`Notifications ${
                   unreadCount > 0 ? ", " + unreadCount + " unread" : ""
                 }`}
-                className="p-1 sm:p-1.5 rounded-full hover:bg-[#292B30] transition-colors relative"
+                className="relative rounded-full p-1 transition-colors hover:bg-[#292B30] sm:p-1.5"
                 onClick={() =>
                   startTransition(() => navigate("/notifications"))
                 }
@@ -322,7 +317,7 @@ const Header = () => {
                     repeatDelay: 3,
                   }}
                 >
-                  <HiOutlineBell className="text-lg sm:text-xl text-white" />
+                  <HiOutlineBell className="text-lg text-white sm:text-xl" />
                 </motion.div>
                 <NotificationBadge count={unreadCount} />
               </motion.button>
@@ -476,9 +471,18 @@ const Header = () => {
             </>
           ) : (
             <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+              {/* xs: icon-only */}
+              <button
+                onClick={() => startTransition(() => navigate("/login"))}
+                className="flex items-center justify-center rounded-md bg-Red p-1.5 text-white transition-all hover:bg-opacity-90 sm:hidden"
+                aria-label="Sign in"
+              >
+                <BiLogIn className="text-lg" />
+              </button>
+              {/* sm+: icon + text */}
               <Button
                 title="Sign In"
-                className="bg-Red text-white px-2 md:pl-2 md:pr-3 py-1.5 md:py-2 rounded-md hover:bg-opacity-90 transition-all"
+                className="hidden bg-Red text-white pl-2 pr-3 py-1.5 rounded-md hover:bg-opacity-90 transition-all sm:flex"
                 onClick={() => startTransition(() => navigate("/login"))}
                 icon={<BiLogIn className="text-lg" />}
                 iconPosition="start"

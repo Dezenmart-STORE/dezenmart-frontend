@@ -60,6 +60,18 @@ const MobileNavigation = () => {
       else if (pathname.startsWith('/orders/')) {
         currentIndex = navItems.findIndex((item) => item.path === '/product');
       }
+      // Handle all trade routes: /trades/buy/*, /trades/sell/*, /trades/viewtrades/*
+      else if (pathname.startsWith('/trades')) {
+        currentIndex = navItems.findIndex((item) => item.path === '/trades');
+      }
+      // Handle account sub-routes
+      else if (pathname.startsWith('/account')) {
+        currentIndex = navItems.findIndex((item) => item.path === '/account');
+      }
+      // Handle chat routes
+      else if (pathname.startsWith('/chat')) {
+        currentIndex = navItems.findIndex((item) => item.path === '/community');
+      }
     }
 
     // Only set active index if we found a match

@@ -18,11 +18,11 @@ export default function WrongNetworkBanner() {
   if (!isConnected || isOnCelo) return null;
 
   return (
-    <div className="w-full bg-amber-500 px-4 py-3 shadow-sm">
-      <div className="mx-auto flex max-w-5xl items-center gap-3">
+    <div className="w-full bg-amber-500 px-3 py-2.5 shadow-sm sm:py-3">
+      <div className="mx-auto flex max-w-5xl items-center gap-2 sm:gap-3">
         {/* Warning icon */}
         <svg
-          className="h-5 w-5 flex-shrink-0 text-white"
+          className="h-4 w-4 flex-shrink-0 text-white sm:h-5 sm:w-5"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -38,11 +38,11 @@ export default function WrongNetworkBanner() {
 
         {/* Message */}
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-white">
-            Your wallet is on the wrong network
+          <p className="text-xs font-semibold text-white sm:text-sm">
+            Wrong network — Dezenmart runs on Celo
           </p>
-          <p className="text-xs text-amber-100">
-            Dezenmart runs on Celo — switch to continue shopping
+          <p className="hidden text-xs text-amber-100 sm:block">
+            Switch your wallet network to continue shopping
           </p>
         </div>
 
@@ -50,7 +50,7 @@ export default function WrongNetworkBanner() {
         <button
           onClick={switchToCelo}
           disabled={isSwitching}
-          className="flex-shrink-0 rounded-lg bg-white px-4 py-1.5 text-xs font-bold text-amber-700 transition-opacity hover:opacity-90 active:scale-[0.98] disabled:opacity-60"
+          className="flex-shrink-0 rounded-lg bg-white px-3 py-1.5 text-xs font-bold text-amber-700 transition-opacity hover:opacity-90 active:scale-[0.98] disabled:opacity-60 sm:px-4"
         >
           {isSwitching ? (
             <span className="flex items-center gap-1.5">
