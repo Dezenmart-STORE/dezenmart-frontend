@@ -46,7 +46,7 @@ const ViewTradeDetail = () => {
   const tokenSymbol = order.product?.paymentToken ?? "cUSD";
 
   return (
-    <div className="min-h-screen bg-[#1a1c20] px-4 py-6">
+    <div className="min-h-screen bg-[#212428] px-4 py-6">
       <div className="mx-auto max-w-lg space-y-4">
         {/* Back + title */}
         <div className="flex items-center gap-3">

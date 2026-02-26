@@ -88,7 +88,7 @@ const ViewTrade = () => {
 
   // ── Main view ──────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-[#1a1c20] px-4 py-6">
+    <div className="min-h-screen bg-[#212428] px-4 py-6">
       <div className="mx-auto max-w-2xl">
         {/* Page heading */}
         <h1 className="mb-6 text-2xl font-bold text-white">My Trades</h1>
