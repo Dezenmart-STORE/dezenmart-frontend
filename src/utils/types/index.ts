@@ -323,7 +323,9 @@ export type OrderStatus =
   | "completed"
   | "disputed"
   | "refunded"
-  | "delivery_confirmed";
+  | "delivery_confirmed"
+  | "delivered"
+  | "shipped";
 
 export interface TradeDetails {
   productName: string;
