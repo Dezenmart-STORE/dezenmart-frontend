@@ -40,7 +40,9 @@ export default function TradeActions({
     setConfirming(null);
   };
 
-  const canConfirmDelivery = status === "delivered" || status === "shipped";
+  // "paid" included here because buyer self-reports receipt (no seller/logistics side yet).
+  // Once seller side is built, remove "paid" and let seller push to "delivered" first.
+  const canConfirmDelivery = status === "paid" || status === "delivered" || status === "shipped";
   const canDispute = status === "paid" || status === "shipped" || status === "delivered";
   const canCancel = status === "pending_payment" || status === "paid";
 
