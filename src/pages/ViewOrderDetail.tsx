@@ -1,7 +1,12 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useChainId, useSwitchChain } from "wagmi";
-import { useGetOrderByIdQuery, useUpdateOrderStatusMutation } from "../store/api";
+import {
+  useGetOrderByIdQuery,
+  useUpdateOrderStatusMutation,
+  useCreateReviewMutation,
+  useGetOrderReviewQuery,
+} from "../store/api";
 import { TradeStatus, TradeActions, TransactionResult, PaymentFlow } from "../lean";
 import type { TradeState } from "../lean";
 import { useCurrency } from "../lean";
@@ -340,6 +345,11 @@ const ViewOrderDetail = () => {
               }
             }}
           />
+        )}
+
+        {/* Review — only after order is completed */}
+        {status === "completed" && sellerId && orderId && (
+          <ReviewForm orderId={orderId} reviewed={sellerId} />
         )}
 
         {/* Contact seller */}
@@ -684,6 +694,139 @@ function StatusInfoPanel({
   }
 
   return null;
+}
+
+// ── Review form (shown after order is completed) ──────────────────────
+
+function ReviewForm({ orderId, reviewed }: { orderId: string; reviewed: string }) {
+  const { data: existingReview, isLoading: reviewLoading } = useGetOrderReviewQuery(orderId);
+  const [createReview, { isLoading: submitting }] = useCreateReviewMutation();
+
+  const [rating, setRating] = useState(0);
+  const [hovered, setHovered] = useState(0);
+  const [comment, setComment] = useState("");
+  const [done, setDone] = useState(false);
+  const [error, setError] = useState("");
+
+  if (reviewLoading) return null;
+
+  // Already reviewed — show the submitted review
+  if (existingReview || done) {
+    const r = existingReview;
+    const displayRating = r?.rating ?? rating;
+    const displayComment = r?.comment ?? comment;
+    return (
+      <div className="rounded-2xl border border-[#292B30] bg-[#212428] p-5">
+        <div className="mb-3 flex items-center gap-3">
+          <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border border-green-800/50 bg-green-900/40">
+            <svg className="h-4 w-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-white">Review Submitted</h3>
+            <p className="text-xs text-gray-500">Thank you for your feedback</p>
+          </div>
+        </div>
+        <div className="rounded-xl bg-[#292B30] p-4">
+          <div className="mb-2 flex gap-0.5">
+            {[1, 2, 3, 4, 5].map((s) => (
+              <svg
+                key={s}
+                className={`h-5 w-5 ${s <= displayRating ? "text-amber-400" : "text-gray-600"}`}
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
+                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+              </svg>
+            ))}
+          </div>
+          {displayComment && (
+            <p className="text-sm text-gray-300">{displayComment}</p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  const handleSubmit = async () => {
+    if (rating === 0) { setError("Please select a star rating."); return; }
+    if (!comment.trim()) { setError("Please write a short comment."); return; }
+    setError("");
+    const result = await createReview({ reviewed, order: orderId, rating: rating as 1|2|3|4|5, comment: comment.trim() });
+    if ("data" in result) {
+      setDone(true);
+    } else {
+      setError("Couldn't submit your review. Please try again.");
+    }
+  };
+
+  return (
+    <div className="rounded-2xl border border-[#292B30] bg-[#212428] p-5">
+      <h3 className="mb-1 text-sm font-semibold text-white">Rate Your Experience</h3>
+      <p className="mb-4 text-xs text-gray-500">How was the product and seller?</p>
+
+      {/* Star picker */}
+      <div className="mb-4 flex gap-1">
+        {[1, 2, 3, 4, 5].map((s) => (
+          <button
+            key={s}
+            onClick={() => setRating(s)}
+            onMouseEnter={() => setHovered(s)}
+            onMouseLeave={() => setHovered(0)}
+            className="transition-transform active:scale-90"
+            aria-label={`Rate ${s} star${s > 1 ? "s" : ""}`}
+          >
+            <svg
+              className={`h-8 w-8 transition-colors ${
+                s <= (hovered || rating) ? "text-amber-400" : "text-gray-600"
+              }`}
+              fill="currentColor"
+              viewBox="0 0 20 20"
+            >
+              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+            </svg>
+          </button>
+        ))}
+        {rating > 0 && (
+          <span className="ml-2 self-center text-xs text-gray-400">
+            {["", "Poor", "Fair", "Good", "Very Good", "Excellent"][rating]}
+          </span>
+        )}
+      </div>
+
+      {/* Comment */}
+      <textarea
+        value={comment}
+        onChange={(e) => setComment(e.target.value)}
+        placeholder="Share your experience with this product and seller…"
+        rows={3}
+        className="w-full resize-none rounded-xl border border-[#292B30] bg-[#1a1c20] px-3 py-2.5 text-sm text-white placeholder-gray-600 outline-none focus:border-red-600 focus:ring-1 focus:ring-red-600"
+      />
+
+      {error && (
+        <p className="mt-2 text-xs text-red-400">{error}</p>
+      )}
+
+      <button
+        onClick={handleSubmit}
+        disabled={submitting}
+        className="mt-3 w-full rounded-xl bg-red-600 py-3 text-sm font-bold text-white transition-colors hover:bg-red-700 active:scale-[0.98] disabled:opacity-60"
+      >
+        {submitting ? (
+          <span className="flex items-center justify-center gap-2">
+            <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+            Submitting…
+          </span>
+        ) : (
+          "Submit Review"
+        )}
+      </button>
+    </div>
+  );
 }
 
 function mapStatus(status: string): TradeState {

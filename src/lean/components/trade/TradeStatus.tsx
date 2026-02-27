@@ -97,8 +97,9 @@ export default function TradeStatus({ status, className = "" }: Props) {
     <div className={className}>
       <div className="flex items-center">
         {STEPS.map((step, i) => {
-          const isDone = i < currentStep;
-          const isCurrent = i === currentStep;
+          // When completed, all steps are done (fully green). Otherwise normal progress.
+          const isDone = status === "completed" || i < currentStep;
+          const isCurrent = status !== "completed" && i === currentStep;
 
           return (
             <div key={step.label} className="flex flex-1 flex-col items-center">
