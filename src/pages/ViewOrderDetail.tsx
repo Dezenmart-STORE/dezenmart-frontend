@@ -38,6 +38,18 @@ const ViewOrderDetail = () => {
 
   const [updateOrderStatus] = useUpdateOrderStatusMutation();
   const [showPayment, setShowPayment] = useState(false);
+  const [isMarkingReceived, setIsMarkingReceived] = useState(false);
+
+  const handleMarkReceived = async () => {
+    if (!orderId) return;
+    setIsMarkingReceived(true);
+    try {
+      await updateOrderStatus({ orderId, details: { status: "delivered" } });
+      await refetch();
+    } finally {
+      setIsMarkingReceived(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -157,6 +169,8 @@ const ViewOrderDetail = () => {
           tokenSymbol={tokenSymbol}
           logisticsCostNumeric={logisticsCostNumeric}
           chainId={chainId}
+          onMarkReceived={handleMarkReceived}
+          isMarkingReceived={isMarkingReceived}
         />
 
         {/* Wrong network warning (payment pending, wrong chain) */}
@@ -377,6 +391,8 @@ function StatusInfoPanel({
   tokenSymbol,
   logisticsCostNumeric,
   chainId,
+  onMarkReceived,
+  isMarkingReceived = false,
 }: {
   status: TradeState;
   order: any;
@@ -384,6 +400,8 @@ function StatusInfoPanel({
   tokenSymbol: string;
   logisticsCostNumeric: number;
   chainId: number;
+  onMarkReceived?: () => Promise<void>;
+  isMarkingReceived?: boolean;
 }) {
   const purchaseId = order.purchaseId as string | undefined;
   const isTxHash = typeof purchaseId === "string" && purchaseId.startsWith("0x") && purchaseId.length === 66;
@@ -483,9 +501,25 @@ function StatusInfoPanel({
           </p>
         </div>
 
-        <p className="mt-3 text-center text-xs text-gray-500">
-          Once you receive your order, tap <span className="text-gray-400 font-medium">I Received My Item</span> below to release payment.
-        </p>
+        {onMarkReceived && (
+          <button
+            onClick={onMarkReceived}
+            disabled={isMarkingReceived}
+            className="mt-4 w-full rounded-xl bg-[#292B30] py-3 text-sm font-semibold text-white transition-colors hover:bg-[#373A3F] active:scale-[0.98] disabled:opacity-60"
+          >
+            {isMarkingReceived ? (
+              <span className="flex items-center justify-center gap-2">
+                <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                Updating…
+              </span>
+            ) : (
+              "I've Received My Order"
+            )}
+          </button>
+        )}
       </div>
     );
   }
