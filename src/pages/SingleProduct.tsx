@@ -20,7 +20,11 @@ import ProductImage from "../components/product/singleProduct/ProductImage";
 import ProductTabs from "../components/product/singleProduct/ProductTabs";
 import ProductDetails from "../components/product/singleProduct/ProductDetails";
 import CustomerReviews from "../components/product/singleProduct/CustomerReviews";
-import PurchaseSection from "../components/product/singleProduct/PurchaseSection";
+import {
+  PurchaseSectionProvider,
+  PurchaseSectionBody,
+  PurchaseSectionFooter,
+} from "../components/product/singleProduct/PurchaseSection";
 import ProductLoadingSkeleton from "../components/product/singleProduct/LoadingSkeleton";
 import ProductCard from "../components/product/ProductCard";
 import { useAccount } from "wagmi";
@@ -64,25 +68,28 @@ const SingleProduct = () => {
     .filter((p: ProductType) => p._id !== productId)
     .slice(0, 5);
 
-  const { secondaryCurrency, fiatCurrency, selectedTokenSymbol, formatPrice, convertPrice } =
-    useCurrency();
+  const {
+    secondaryCurrency,
+    fiatCurrency,
+    selectedTokenSymbol,
+    formatPrice,
+    convertPrice,
+  } = useCurrency();
 
   const [activeTab, setActiveTab] = useState<TabType>("details");
   const [reviewCount, setReviewCount] = useState(0);
-  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
+  const [selectedVariant, setSelectedVariant] =
+    useState<ProductVariant | null>(null);
 
   const isFavorite = watchlistStatus?.isWatchlist || false;
 
   const formattedProduct = useMemo(() => {
     if (!product) return null;
-
     const base = product as ProductType;
-    const productPriceUsd = base.price;
-
-    const priceInToken = convertPrice(productPriceUsd, "USD", selectedTokenSymbol);
-    const priceInFiat = convertPrice(productPriceUsd, "USD", "FIAT");
-    const priceInCelo = convertPrice(productPriceUsd, "USD", "CELO");
-
+    const usd = base.price;
+    const priceInToken = convertPrice(usd, "USD", selectedTokenSymbol);
+    const priceInFiat = convertPrice(usd, "USD", "FIAT");
+    const priceInCelo = convertPrice(usd, "USD", "CELO");
     return {
       ...base,
       celoPrice: priceInCelo,
@@ -90,7 +97,7 @@ const SingleProduct = () => {
       tokenPrice: priceInToken,
       formattedCeloPrice: formatPrice(priceInCelo, "CELO"),
       formattedTokenPrice: formatPrice(priceInToken, selectedTokenSymbol),
-      formattedUsdtPrice: formatPrice(productPriceUsd, "USDT"),
+      formattedUsdtPrice: formatPrice(usd, "USDT"),
       formattedFiatPrice: formatPrice(priceInFiat, fiatCurrency),
     };
   }, [product, selectedTokenSymbol, fiatCurrency, convertPrice, formatPrice]);
@@ -179,10 +186,9 @@ const SingleProduct = () => {
 
   const displayPrice = useMemo(() => {
     if (!formattedProduct) return null;
-    if (secondaryCurrency === "TOKEN") {
-      return formattedProduct.formattedTokenPrice;
-    }
-    return formattedProduct.formattedFiatPrice;
+    return secondaryCurrency === "TOKEN"
+      ? formattedProduct.formattedTokenPrice
+      : formattedProduct.formattedFiatPrice;
   }, [formattedProduct, secondaryCurrency]);
 
   const handleGoBack = () => navigate(-1);
@@ -196,7 +202,7 @@ const SingleProduct = () => {
         await addToWatchlist(productId).unwrap();
       }
     } catch {
-      // silent — watchlist is non-critical
+      // silent — non-critical
     }
   };
 
@@ -212,21 +218,19 @@ const SingleProduct = () => {
           url: window.location.href,
         });
       } catch {
-        // user cancelled share sheet — no action needed
+        // user dismissed share sheet
       }
     } else {
       try {
         await navigator.clipboard.writeText(window.location.href);
         showSnackbar("Link copied to clipboard!", "success");
       } catch {
-        showSnackbar("Could not copy link. Please copy the URL manually.", "error");
+        showSnackbar("Could not copy link.", "error");
       }
     }
   };
 
-  if (loading || !formattedProduct) {
-    return <ProductLoadingSkeleton />;
-  }
+  if (loading || !formattedProduct) return <ProductLoadingSkeleton />;
 
   if (error) {
     return (
@@ -249,6 +253,11 @@ const SingleProduct = () => {
     );
   }
 
+  // Only show purchase UI when viewer is not the seller
+  const showPurchase =
+    typeof formattedProduct.seller === "object" &&
+    formattedProduct.seller?._id !== user?._id;
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -257,22 +266,29 @@ const SingleProduct = () => {
       className="bg-Dark min-h-screen"
     >
       <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
-        <div className="flex flex-col xl:flex-row gap-6">
-          {/* Left column — image */}
+        {/*
+          Two-column area.
+          On xl: fixed height = 100vh minus header (4rem/pt-16) minus
+          container top-padding (lg:p-8 = 2rem). Below this, the page
+          continues to scroll for related products.
+        */}
+        <div className="flex flex-col xl:flex-row gap-6 xl:h-[calc(100vh-6rem)]">
+
+          {/* ── Left column — image panel ── */}
           <div
-            className="w-full xl:w-5/12 rounded-xl shadow-lg"
+            className="w-full xl:w-5/12 xl:h-full xl:overflow-hidden rounded-xl shadow-lg flex-shrink-0"
             style={{
               background:
                 "linear-gradient(to bottom, #292B30 0%, rgba(41,43,48,0.95) 100%)",
             }}
           >
-            <div className="relative flex flex-col items-center p-4 sm:p-6 h-full">
-              {/* Nav controls */}
+            <div className="relative flex flex-col items-center justify-center p-4 sm:p-6 xl:h-full">
+              {/* Nav controls — absolute overlay */}
               <div className="flex items-center justify-between w-full absolute top-4 px-2 sm:px-4 z-10">
                 <button
                   onClick={handleGoBack}
                   aria-label="Go back"
-                  className="p-2.5 bg-black/20 backdrop-blur-sm rounded-full hover:bg-black/40 transition-colors"
+                  className="p-2.5 bg-black/25 backdrop-blur-sm rounded-full hover:bg-black/45 transition-colors"
                 >
                   <LiaAngleLeftSolid className="text-xl text-white" />
                 </button>
@@ -281,7 +297,7 @@ const SingleProduct = () => {
                   <button
                     onClick={handleShare}
                     aria-label="Share product"
-                    className="p-2.5 bg-black/20 backdrop-blur-sm rounded-full hover:bg-black/40 transition-colors"
+                    className="p-2.5 bg-black/25 backdrop-blur-sm rounded-full hover:bg-black/45 transition-colors"
                   >
                     <IoShareSocialOutline className="text-xl text-white" />
                   </button>
@@ -291,7 +307,7 @@ const SingleProduct = () => {
                     aria-label={
                       isFavorite ? "Remove from favorites" : "Add to favorites"
                     }
-                    className="p-2.5 bg-black/20 backdrop-blur-sm rounded-full hover:bg-black/40 transition-colors"
+                    className="p-2.5 bg-black/25 backdrop-blur-sm rounded-full hover:bg-black/45 transition-colors"
                   >
                     {isFavorite ? (
                       <FaHeart className="text-xl text-Red" />
@@ -310,70 +326,114 @@ const SingleProduct = () => {
             </div>
           </div>
 
-          {/* Right column — product info */}
-          <div className="w-full xl:w-7/12">
-            <div className="bg-[#292B30] shadow-xl text-white w-full rounded-xl overflow-hidden">
-              {/* Name + price header */}
-              <div className="px-4 sm:px-6 py-5">
-                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                  <h1 className="flex-1 min-w-0 text-xl sm:text-2xl font-bold break-words leading-snug">
-                    {formattedProduct.name}
-                  </h1>
-                  <span className="text-2xl font-bold text-red-500 whitespace-nowrap sm:text-right flex-shrink-0">
-                    {displayPrice}
-                  </span>
+          {/* ── Right column — product info panel ── */}
+          <div className="w-full xl:w-7/12 xl:h-full xl:flex xl:flex-col xl:min-h-0">
+            {showPurchase ? (
+              <PurchaseSectionProvider
+                product={formattedProduct as any}
+                selectedVariant={selectedVariant as ProductVariant}
+              >
+                <div className="xl:flex-1 xl:min-h-0 xl:flex xl:flex-col bg-[#292B30] shadow-xl text-white w-full rounded-xl overflow-hidden">
+
+                  {/* ①  Always visible: name + price */}
+                  <div className="xl:flex-shrink-0 px-4 sm:px-6 py-5 border-b border-gray-700/30">
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                      <h1 className="flex-1 min-w-0 text-xl sm:text-2xl font-bold break-words leading-snug">
+                        {formattedProduct.name}
+                      </h1>
+                      <span className="text-2xl font-bold text-red-500 whitespace-nowrap sm:text-right flex-shrink-0">
+                        {displayPrice}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* ②  Always visible: tab switcher */}
+                  <div className="xl:flex-shrink-0">
+                    <ProductTabs
+                      activeTab={activeTab}
+                      setActiveTab={setActiveTab}
+                      reviewCount={reviewCount}
+                    />
+                  </div>
+
+                  {/* ③  Scrollable: tab content + purchase body */}
+                  <div className="xl:flex-1 xl:min-h-0 xl:overflow-y-auto scrollbar-hide">
+                    {activeTab === "details" ? (
+                      <ProductDetails
+                        product={formattedProduct}
+                        onVariantSelect={(v) => setSelectedVariant(v)}
+                      />
+                    ) : (
+                      <CustomerReviews
+                        productId={formattedProduct._id}
+                        reviewcount={setReviewCount}
+                      />
+                    )}
+
+                    {/* Purchase body (quantity, address, logistics, swap, wallet info) */}
+                    <PurchaseSectionBody />
+                  </div>
+
+                  {/* ④  Always visible: buy button */}
+                  <PurchaseSectionFooter />
+                </div>
+              </PurchaseSectionProvider>
+            ) : (
+              // Viewer IS the seller — no purchase section
+              <div className="xl:flex-1 xl:min-h-0 xl:flex xl:flex-col bg-[#292B30] shadow-xl text-white w-full rounded-xl overflow-hidden">
+                {/* Always visible: name + price */}
+                <div className="xl:flex-shrink-0 px-4 sm:px-6 py-5 border-b border-gray-700/30">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                    <h1 className="flex-1 min-w-0 text-xl sm:text-2xl font-bold break-words leading-snug">
+                      {formattedProduct.name}
+                    </h1>
+                    <span className="text-2xl font-bold text-red-500 whitespace-nowrap sm:text-right flex-shrink-0">
+                      {displayPrice}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Always visible: tabs */}
+                <div className="xl:flex-shrink-0">
+                  <ProductTabs
+                    activeTab={activeTab}
+                    setActiveTab={setActiveTab}
+                    reviewCount={reviewCount}
+                  />
+                </div>
+
+                {/* Scrollable: all content */}
+                <div className="xl:flex-1 xl:min-h-0 xl:overflow-y-auto scrollbar-hide">
+                  {activeTab === "details" ? (
+                    <ProductDetails
+                      product={formattedProduct}
+                      onVariantSelect={(v) => setSelectedVariant(v)}
+                    />
+                  ) : (
+                    <CustomerReviews
+                      productId={formattedProduct._id}
+                      reviewcount={setReviewCount}
+                    />
+                  )}
                 </div>
               </div>
-
-              {/* Tabs */}
-              <ProductTabs
-                activeTab={activeTab}
-                setActiveTab={setActiveTab}
-                reviewCount={reviewCount}
-              />
-
-              {/* Tab content */}
-              {activeTab === "details" ? (
-                <ProductDetails
-                  product={formattedProduct}
-                  onVariantSelect={(v) => setSelectedVariant(v)}
-                />
-              ) : (
-                <CustomerReviews
-                  productId={formattedProduct._id}
-                  reviewcount={setReviewCount}
-                />
-              )}
-
-              {/* Purchase section — only show if viewer is not the seller */}
-              {typeof formattedProduct.seller === "object" &&
-                formattedProduct.seller?._id !== user?._id && (
-                  <PurchaseSection
-                    product={formattedProduct}
-                    selectedVariant={selectedVariant as ProductVariant}
-                  />
-                )}
-            </div>
+            )}
           </div>
         </div>
 
-        {/* Related products */}
-        <div className="mt-8">
-          <h2 className="text-lg font-semibold text-white mb-4">
-            Related Products
-          </h2>
-          {relatedProducts.length > 0 ? (
+        {/* Related products — below the fixed-height two-column area, scrolls naturally */}
+        {relatedProducts.length > 0 && (
+          <div className="mt-8">
+            <h2 className="text-lg font-semibold text-white mb-4">
+              Related Products
+            </h2>
             <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-5 md:gap-4">
               {relatedProducts.map((p) =>
                 p ? <ProductCard key={p._id} product={p} /> : null
               )}
             </div>
-          ) : (
-            <p className="text-gray-500 text-sm text-center py-6">
-              No related products found
-            </p>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </motion.div>
   );
