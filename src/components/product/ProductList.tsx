@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState, useMemo, useCallback, useTransition } from "react";
 import { twMerge } from "tailwind-merge";
 import ProductCard from "./ProductCard";
 import Title from "../common/Title";
@@ -37,7 +37,7 @@ interface Props {
   iconColor?: string;
 }
 
-const ITEMS_PER_PAGE = 12;
+const ITEMS_PER_PAGE = 20;
 
 const ProductList = ({
   title,
@@ -102,9 +102,11 @@ const ProductList = ({
   const [displayedCount, setDisplayedCount] = useState(maxItems || ITEMS_PER_PAGE);
 
   // Intersection observer for infinite scroll with increased root margin for earlier loading
+  const [isLoadingMore, startLoadMore] = useTransition();
+
   const { targetRef, isIntersecting } = useIntersectionObserver({
     threshold: 0.1,
-    rootMargin: "400px", // Load content earlier for smoother scrolling
+    rootMargin: "800px", // Trigger well before user reaches the bottom
   });
 
   // Helper function to check if product belongs to current user
@@ -304,10 +306,13 @@ const ProductList = ({
     setDisplayedCount(maxItems || ITEMS_PER_PAGE);
   }, [category, isFeatured, isUserProducts, maxItems]);
 
-  // Load more — data is already in memory so this is synchronous
+  // Load more — data is already in memory; wrapped in startTransition so
+  // React can keep existing UI responsive while committing the larger render.
   const loadMore = useCallback(() => {
     if (!hasMore || isInitialLoading) return;
-    setDisplayedCount((prev) => Math.min(prev + ITEMS_PER_PAGE, totalProducts));
+    startLoadMore(() => {
+      setDisplayedCount((prev) => Math.min(prev + ITEMS_PER_PAGE, totalProducts));
+    });
   }, [hasMore, isInitialLoading, totalProducts]);
 
   // Trigger load more on intersection
@@ -428,20 +433,36 @@ const ProductList = ({
               </div>
             )}
 
-            {/* Intersection observer target for infinite scroll */}
-            {hasMore && (
-              <div ref={targetRef} className="h-10 w-full" aria-hidden="true" />
+            {/* Skeleton cards while next batch is rendering */}
+            {isLoadingMore && hasMore && (
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 md:gap-5 mt-3">
+                {Array.from({ length: ITEMS_PER_PAGE }).map((_, i) => (
+                  <div key={i} className="bg-[#292B30] rounded-xl overflow-hidden animate-pulse">
+                    <div className="aspect-square bg-[#1a1c20]" />
+                    <div className="p-3 space-y-2">
+                      <div className="h-4 bg-[#1a1c20] rounded w-3/4" />
+                      <div className="h-3 bg-[#1a1c20] rounded w-1/2" />
+                      <div className="h-5 bg-[#1a1c20] rounded w-1/3 mt-1" />
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
 
-            {/* End of results indicator */}
+            {/* Intersection observer sentinel — positioned 800 px above visual bottom */}
+            {hasMore && (
+              <div ref={targetRef} className="h-px w-full" aria-hidden="true" />
+            )}
+
+            {/* End of results */}
             {!hasMore && totalDisplayed > ITEMS_PER_PAGE && (
               <div className="text-center py-8 text-gray-400">
                 <div className="inline-flex items-center gap-2">
-                  <div className="h-px bg-gray-600 w-8"></div>
+                  <div className="h-px bg-gray-600 w-8" />
                   <span className="text-sm">
                     You've seen all {totalDisplayed} product{totalDisplayed !== 1 ? "s" : ""}
                   </span>
-                  <div className="h-px bg-gray-600 w-8"></div>
+                  <div className="h-px bg-gray-600 w-8" />
                 </div>
               </div>
             )}

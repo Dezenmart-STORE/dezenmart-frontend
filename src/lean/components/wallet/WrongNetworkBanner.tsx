@@ -9,8 +9,6 @@ import { useChainGuard } from "../../hooks/useChainGuard";
  * - Returns null silently when not needed (disconnected or correct chain).
  * - Non-dismissible: the wrong network blocks purchases, so the user must
  *   resolve it before proceeding.
- *
- * Web2-friendly copy: no blockchain jargon, clear single action.
  */
 export default function WrongNetworkBanner() {
   const { isConnected, isOnCelo, isSwitching, switchToCelo } = useChainGuard();

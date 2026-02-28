@@ -1,21 +1,22 @@
 import { useState, useRef, useEffect } from "react";
+import { useAccount, useBalance, useDisconnect, useChainId, useSwitchChain } from "wagmi";
 import {
-  useAccount,
-  useBalance,
-  useDisconnect,
-  useChainId,
-  useSwitchChain,
-} from "wagmi";
-import { truncateAddress, copyToClipboard } from "../../utils/format";
-import { TARGET_CHAIN, getExplorerUrl } from "../../config/chains";
-import { useTokenBalances } from "../../hooks/useTokenBalances";
-import { useCurrency } from "../../context/CurrencyContext";
-import ConnectModal from "./ConnectModal";
+  useCurrency,
+  ConnectModal,
+  useTokenBalances,
+  truncateAddress,
+  copyToClipboard,
+  TARGET_CHAIN,
+  getExplorerUrl,
+} from "../../lean";
+import { Mywallet } from "../../pages";
 
 /**
- * Wallet connect/disconnect button with inline dropdown.
+ * Quick-action wallet button for the home page.
+ * - Not connected: opens ConnectModal
+ * - Connected: shows a dropdown with balance, address copy, explorer link, disconnect
  */
-export default function ConnectButton() {
+export default function WalletQuickAction() {
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
   const { disconnect } = useDisconnect();
@@ -54,77 +55,52 @@ export default function ConnectButton() {
   if (!isConnected) {
     return (
       <>
-        {/* xs: icon-only wallet button */}
         <button
+          type="button"
           onClick={() => setShowModal(true)}
-          className="flex items-center justify-center rounded-md bg-red-600 p-1.5 text-white transition-all hover:bg-red-700 active:scale-95 sm:hidden"
-          aria-label="Connect Wallet"
+          className="flex flex-col items-center gap-2 group transition-transform hover:scale-105 active:scale-95"
         >
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-          </svg>
+          <span className="bg-[#292B30] rounded-full p-4 md:p-6 flex items-center justify-center transition-colors group-hover:bg-[#33363b]">
+            <img src={Mywallet} alt="" className="w-5 h-5 md:w-6 md:h-6" loading="lazy" />
+          </span>
+          <span className="text-[#AEAEB2] text-sm md:text-base group-hover:text-white transition-colors">
+            My Wallet
+          </span>
         </button>
-
-        {/* sm+: "Connect" with icon */}
-        <button
-          onClick={() => setShowModal(true)}
-          className="hidden items-center gap-1.5 rounded-md bg-red-600 px-2.5 py-1.5 text-sm font-semibold text-white transition-all hover:bg-red-700 active:scale-95 sm:flex"
-          aria-label="Connect Wallet"
-        >
-          <svg className="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-          </svg>
-          <span>Connect</span>
-        </button>
-
         {showModal && <ConnectModal onClose={() => setShowModal(false)} />}
       </>
     );
   }
 
-  // ── Connected ────────────────────────────────────────────────────
+  // ── Connected ─────────────────────────────────────────────────────
   return (
-    <div className="relative" ref={dropdownRef}>
-      {/* Trigger button */}
+    <div className="relative flex flex-col items-center" ref={dropdownRef}>
+      {/* Trigger */}
       <button
+        type="button"
         onClick={() => setShowDropdown((v) => !v)}
-        className="flex items-center gap-1.5 rounded-md border border-[#373A3F] bg-[#292B30] px-2 py-1.5 text-sm font-medium text-white transition-all hover:bg-[#373A3F] active:scale-[0.98]"
         aria-expanded={showDropdown}
         aria-haspopup="true"
+        className="flex flex-col items-center gap-2 group transition-transform hover:scale-105 active:scale-95"
       >
-        {/* Status dot */}
-        <span
-          className={`h-2 w-2 flex-shrink-0 rounded-full ${
-            isCorrectChain ? "bg-green-400" : "bg-amber-400"
-          }`}
-        />
-        {/* Balance — lg+ only (hides at the tight md breakpoint) */}
-        {balance && (
-          <span className="hidden text-xs text-gray-300 lg:inline">
-            {balance.numeric.toFixed(2)} {selectedToken.symbol}
-          </span>
-        )}
-        {/* Truncated address */}
-        <span className="font-mono text-xs text-gray-200">
-          {truncateAddress(address!, 4)}
+        <span className="relative bg-[#292B30] rounded-full p-4 md:p-6 flex items-center justify-center transition-colors group-hover:bg-[#33363b]">
+          <img src={Mywallet} alt="" className="w-5 h-5 md:w-6 md:h-6" loading="lazy" />
+          {/* Network status dot */}
+          <span
+            className={`absolute top-1 right-1 h-2.5 w-2.5 rounded-full border-2 border-[#212428] ${
+              isCorrectChain ? "bg-green-400" : "bg-amber-400"
+            }`}
+          />
         </span>
-        {/* Chevron */}
-        <svg
-          className={`h-3.5 w-3.5 flex-shrink-0 text-gray-500 transition-transform ${
-            showDropdown ? "rotate-180" : ""
-          }`}
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
+        <span className="text-[#AEAEB2] text-sm md:text-base group-hover:text-white transition-colors">
+          My Wallet
+        </span>
       </button>
 
       {/* Dropdown panel */}
       {showDropdown && (
-        <div className="absolute right-0 z-50 mt-2 w-64 rounded-xl border border-[#292B30] bg-[#212428] p-3 shadow-2xl shadow-black/60 sm:w-72">
-          {/* Wrong network */}
+        <div className="absolute top-full left-1/2 -translate-x-1/2 mt-3 z-50 w-64 rounded-xl border border-[#373A3F] bg-[#212428] p-3 shadow-2xl shadow-black/60 sm:w-72">
+          {/* Wrong network warning */}
           {!isCorrectChain && (
             <button
               onClick={() => switchChain({ chainId: TARGET_CHAIN.id })}
@@ -171,7 +147,11 @@ export default function ConnectButton() {
             <span className="font-mono text-sm text-gray-400">
               {truncateAddress(address!, 6)}
             </span>
-            <span className={`text-xs font-medium transition-colors ${copied ? "text-green-400" : "text-gray-600 hover:text-gray-400"}`}>
+            <span
+              className={`text-xs font-medium transition-colors ${
+                copied ? "text-green-400" : "text-gray-600 hover:text-gray-400"
+              }`}
+            >
               {copied ? "Copied!" : "Copy"}
             </span>
           </button>

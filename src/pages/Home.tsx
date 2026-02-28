@@ -1,7 +1,7 @@
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { GoVerified, GoUnverified } from "react-icons/go";
-import { Browseproduct, Mywallet, Pen, Pen2, Trackorder } from ".";
+import { Browseproduct, Pen, Pen2, Trackorder } from ".";
 import Container from "../components/common/Container";
 import ProductList from "../components/product/ProductList";
 import ProductShelf from "../components/product/ProductShelf";
@@ -11,7 +11,8 @@ import CategoryPreview from "../components/common/CategoryPreview";
 import { SectionIcons } from "../components/common/SectionIcons";
 import { CategoryIcons } from "../components/common/CategoryIcons";
 import { useAuth } from "../context/AuthContext";
-import { useCurrency, ConnectModal } from "../lean";
+import { useCurrency } from "../lean";
+import WalletQuickAction from "../components/wallet/WalletQuickAction";
 import { useGetSponsoredProductsQuery } from "../store/api";
 import { useSEO } from "../utils/hooks/useSEO";
 import { PAGE_SEO, SEO_CONFIG } from "../utils/seo/seoConfig";
@@ -120,7 +121,6 @@ const FeaturedSkeleton = () => (
 
 const Home = () => {
   const { user, isAuthenticated } = useAuth();
-  const [showWallet, setShowWallet] = useState(false);
   const { convertPrice, selectedTokenSymbol } = useCurrency();
 
   const { data: sponsoredProducts = [], isLoading: sponsoredLoading } =
@@ -211,7 +211,7 @@ const Home = () => {
           </Link>
 
           <Link
-            to="/account"
+            to="/account?tab=3"
             className="flex flex-col items-center gap-2 group transition-transform hover:scale-105 active:scale-95"
           >
             <span className="bg-[#292B30] rounded-full p-4 md:p-6 flex items-center justify-center transition-colors group-hover:bg-[#33363b]">
@@ -222,18 +222,7 @@ const Home = () => {
             </span>
           </Link>
 
-          <button
-            type="button"
-            onClick={() => setShowWallet(true)}
-            className="flex flex-col items-center gap-2 group transition-transform hover:scale-105 active:scale-95"
-          >
-            <span className="bg-[#292B30] rounded-full p-4 md:p-6 flex items-center justify-center transition-colors group-hover:bg-[#33363b]">
-              <img src={Mywallet} alt="" className="w-5 h-5 md:w-6 md:h-6" loading="lazy" />
-            </span>
-            <span className="text-[#AEAEB2] text-sm md:text-base group-hover:text-white transition-colors">
-              My Wallet
-            </span>
-          </button>
+          <WalletQuickAction />
         </div>
 
         {/* ── Banner Carousel ───────────────────────────────── */}
@@ -318,7 +307,6 @@ const Home = () => {
 
       </Container>
 
-      {showWallet && <ConnectModal onClose={() => setShowWallet(false)} />}
     </div>
   );
 };
