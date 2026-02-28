@@ -66,9 +66,9 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
         </div>
       </motion.div>
 
-      {/* Action buttons */}
+      {/* Action buttons — stack on tiny screens, side-by-side from xxs up */}
       <motion.div
-        className="flex gap-3 mt-3"
+        className="flex flex-col xxs:flex-row gap-2 xxs:gap-3 mt-3"
         initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3, delay: 0.1 }}

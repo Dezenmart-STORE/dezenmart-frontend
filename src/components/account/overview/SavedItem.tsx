@@ -25,16 +25,16 @@ const SavedItem: React.FC<Props> = React.memo(({ item, onRemove }) => {
   );
 
   return (
-    <div className="bg-[#292B30] rounded-xl p-3 flex items-center gap-3">
+    <div className="bg-[#292B30] rounded-xl p-3 flex items-center gap-2 xxs:gap-3">
       <button
         onClick={() => navigate(`/product/${item.product._id}`)}
-        className="flex items-center gap-3 flex-1 min-w-0 text-left"
+        className="flex items-center gap-2 xxs:gap-3 flex-1 min-w-0 text-left"
       >
         <img
           src={productImage}
           alt={item.product?.name ?? "Product"}
           loading="lazy"
-          className="w-16 h-16 rounded-lg object-cover flex-shrink-0 bg-[#1a1c20]"
+          className="w-14 h-14 xxs:w-16 xxs:h-16 rounded-lg object-cover flex-shrink-0 bg-[#1a1c20]"
         />
         <div className="flex-1 min-w-0">
           <p className="font-semibold text-white text-sm truncate">

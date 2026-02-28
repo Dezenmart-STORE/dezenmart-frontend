@@ -25,7 +25,7 @@ const TabNavigation: React.FC<TabNavigationProps> = ({
   return (
     <div
       ref={containerRef}
-      className="flex gap-1 overflow-x-auto scrollbar-hide bg-[#292B30] rounded-xl p-1 mt-4"
+      className="flex gap-1 overflow-x-auto scrollbar-hide bg-[#292B30] rounded-xl p-1 mt-4 sticky top-0 z-20"
     >
       {options.map(({ id, label }) => (
         <button

@@ -47,13 +47,13 @@ const DisputeItem: React.FC<Props> = React.memo(({ order, disputeStatus }) => {
   return (
     <button
       onClick={() => navigate(`/orders/${order._id}`)}
-      className="w-full text-left bg-[#292B30] rounded-xl p-3 flex items-center gap-3 hover:bg-[#32353A] active:bg-[#3A3D42] transition-colors"
+      className="w-full text-left bg-[#292B30] rounded-xl p-3 flex items-center gap-2 xxs:gap-3 hover:bg-[#32353A] active:bg-[#3A3D42] transition-colors"
     >
       <img
         src={productImage}
         alt={order.product?.name ?? "Product"}
         loading="lazy"
-        className="w-16 h-16 rounded-lg object-cover flex-shrink-0 bg-[#1a1c20]"
+        className="w-14 h-14 xxs:w-16 xxs:h-16 rounded-lg object-cover flex-shrink-0 bg-[#1a1c20]"
       />
 
       <div className="flex-1 min-w-0">
