@@ -63,7 +63,8 @@ const ProductList = ({
   const { user } = useAuth();
 
   // Determine which query to use based on props
-  const shouldFetchAll = !isFeatured && !category && !isUserProducts;
+  const shouldFetchAll =
+    !isFeatured && !isUserProducts && (!category || category === "All");
   const shouldFetchCategory = !!category && category !== "All";
   const shouldFetchSponsored = isFeatured || !!category || isUserProducts;
   const shouldFetchUser = isUserProducts && !!user?._id;
@@ -72,9 +73,8 @@ const ProductList = ({
   const {
     data: allProducts = [],
     isLoading: loadingAll,
-    isFetching: fetchingAll,
   } = useGetProductsQuery(undefined, {
-    skip: !shouldFetchAll && category !== "All",
+    skip: !shouldFetchAll,
   });
 
   const {
@@ -100,7 +100,6 @@ const ProductList = ({
 
   // State for pagination
   const [displayedCount, setDisplayedCount] = useState(maxItems || ITEMS_PER_PAGE);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   // Intersection observer for infinite scroll with increased root margin for earlier loading
   const { targetRef, isIntersecting } = useIntersectionObserver({
@@ -305,25 +304,18 @@ const ProductList = ({
     setDisplayedCount(maxItems || ITEMS_PER_PAGE);
   }, [category, isFeatured, isUserProducts, maxItems]);
 
-  // Load more handler - optimized for instant loading
-  const loadMore = useCallback(async () => {
-    if (isLoadingMore || !hasMore || isInitialLoading) return;
-
-    setIsLoadingMore(true);
-
-    // Minimal delay for smooth transition
-    await new Promise((resolve) => setTimeout(resolve, 50));
-
+  // Load more — data is already in memory so this is synchronous
+  const loadMore = useCallback(() => {
+    if (!hasMore || isInitialLoading) return;
     setDisplayedCount((prev) => Math.min(prev + ITEMS_PER_PAGE, totalProducts));
-    setIsLoadingMore(false);
-  }, [isLoadingMore, hasMore, isInitialLoading, totalProducts]);
+  }, [hasMore, isInitialLoading, totalProducts]);
 
   // Trigger load more on intersection
   useEffect(() => {
-    if (isIntersecting && !isLoadingMore && hasMore && !isInitialLoading) {
+    if (isIntersecting && hasMore && !isInitialLoading) {
       loadMore();
     }
-  }, [isIntersecting, loadMore, isLoadingMore, hasMore, isInitialLoading]);
+  }, [isIntersecting, loadMore, hasMore, isInitialLoading]);
 
   // Get products to display
   const productsToDisplay = processedProducts.slice(0, displayedCount);
@@ -436,23 +428,8 @@ const ProductList = ({
               </div>
             )}
 
-            {/* Loading more indicator - Skeleton cards for seamless UX */}
-            {isLoadingMore && (
-              <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 md:gap-5 mt-5">
-                {Array.from({ length: Math.min(ITEMS_PER_PAGE, totalProducts - displayedCount) }).map((_, i) => (
-                  <div key={`skeleton-${i}`} className="bg-Dark rounded-lg overflow-hidden animate-pulse">
-                    <div className="aspect-square bg-gray-700"></div>
-                    <div className="p-3 space-y-2">
-                      <div className="h-4 bg-gray-700 rounded w-3/4"></div>
-                      <div className="h-3 bg-gray-700 rounded w-1/2"></div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Intersection observer target */}
-            {hasMore && !isLoadingMore && (
+            {/* Intersection observer target for infinite scroll */}
+            {hasMore && (
               <div ref={targetRef} className="h-10 w-full" aria-hidden="true" />
             )}
 

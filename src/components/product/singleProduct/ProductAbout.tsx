@@ -29,7 +29,11 @@ const ProductAbout = ({ product }: { product: Product }) => {
 
       <div>
         <button
-          onClick={() => navigate(`/product/category/${product.category}`)}
+          onClick={() =>
+            navigate(
+              `/product/category/${encodeURIComponent(product.category.toLowerCase())}`
+            )
+          }
           className="text-xs bg-[#1a1b1f] text-gray-400 hover:text-gray-200 px-2.5 py-1 rounded transition-colors"
         >
           {product.category}

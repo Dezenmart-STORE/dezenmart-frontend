@@ -126,7 +126,7 @@ const CategoryPreview = ({
               }}
             >
               <Link
-                to={`/product/category/${category.name.toLowerCase()}`}
+                to={`/product/category/${encodeURIComponent(category.name.toLowerCase())}`}
                 className="group block"
               >
                 <motion.div

@@ -1,6 +1,6 @@
-import React, { useMemo, startTransition } from "react";
+import React, { useMemo } from "react";
 import { FaRegHeart, FaHeart } from "react-icons/fa";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { Product } from "../../utils/types";
 import {
   useCheckWatchlistQuery,
@@ -18,25 +18,29 @@ interface ProductCardProps {
   hideFavorite?: boolean;
 }
 
-// Utility function to check if image is PNG
 const isPngImage = (url: string): boolean => {
   if (!url) return false;
-  // Check file extension (case-insensitive)
   const urlLower = url.toLowerCase();
-  return urlLower.endsWith('.png') || urlLower.includes('.png?') || urlLower.includes('.png#');
+  return (
+    urlLower.endsWith(".png") ||
+    urlLower.includes(".png?") ||
+    urlLower.includes(".png#")
+  );
 };
 
 const ProductCard = React.memo(
   ({ product, isNew = false, hideFavorite = false }: ProductCardProps) => {
-    const navigate = useNavigate();
     const { isAuthenticated } = useAuth();
     const { showSnackbar } = useSnackbar();
-    const { _id, name, description, images, isSponsored, price, paymentToken } =
-      product;
-    const { secondaryCurrency, fiatCurrency, selectedTokenSymbol, convertPrice, formatPrice } =
-      useCurrency();
+    const { _id, name, description, images, isSponsored, price } = product;
+    const {
+      secondaryCurrency,
+      fiatCurrency,
+      selectedTokenSymbol,
+      convertPrice,
+      formatPrice,
+    } = useCurrency();
 
-    // RTK Query hooks - only fetch watchlist status when authenticated
     const { data: watchlistData } = useCheckWatchlistQuery(_id, {
       skip: !isAuthenticated,
     });
@@ -45,44 +49,22 @@ const ProductCard = React.memo(
 
     const isFavorite = watchlistData?.isWatchlist || false;
 
-    // Calculate formatted prices
-    // IMPORTANT: Product prices from backend are in USD
-    const formattedPrices = useMemo(() => {
-      const usdtPrice = convertPrice(price, "USD", "USDT");
-      const fiatPrice = convertPrice(price, "USD", "FIAT");
-      const tokenPrice = convertPrice(price, "USD", selectedTokenSymbol);
-
-      console.log(`💲 Product Price Conversion (${name}):`, {
-        originalUSD: price,
-        toUSDT: usdtPrice,
-        toFIAT: fiatPrice,
-        toToken: tokenPrice,
-        selectedToken: selectedTokenSymbol,
-      });
-
-      return {
-        formattedUsdtPrice: formatPrice(usdtPrice, "USDT"),
-        formattedFiatPrice: formatPrice(fiatPrice, "FIAT"),
-        formattedTokenPrice: formatPrice(tokenPrice, selectedTokenSymbol),
-      };
-    }, [price, selectedTokenSymbol, convertPrice, formatPrice, name]);
-
-    // Price display respects user's currency toggle preference
-    const { primaryPrice, secondaryPrice } = useMemo(() => {
+    const displayPrice = useMemo(() => {
       if (secondaryCurrency === "TOKEN") {
-        // User prefers to see token prices
-        return {
-          primaryPrice: formattedPrices.formattedTokenPrice,
-          secondaryPrice: price.toString(),
-        };
+        return formatPrice(
+          convertPrice(price, "USD", selectedTokenSymbol),
+          selectedTokenSymbol
+        );
       }
-
-      // User prefers to see fiat prices
-      return {
-        primaryPrice: formattedPrices.formattedFiatPrice,
-        secondaryPrice: price.toString(),
-      };
-    }, [secondaryCurrency, formattedPrices]);
+      return formatPrice(convertPrice(price, "USD", "FIAT"), fiatCurrency);
+    }, [
+      price,
+      secondaryCurrency,
+      selectedTokenSymbol,
+      fiatCurrency,
+      convertPrice,
+      formatPrice,
+    ]);
 
     const imageUrl =
       images && images.length > 0
@@ -105,13 +87,6 @@ const ProductCard = React.memo(
       }
     };
 
-    const navigateToProduct = (e: React.MouseEvent) => {
-      e.preventDefault();
-      startTransition(() => {
-        navigate(`/product/${_id}`);
-      });
-    };
-
     return (
       <motion.div
         whileHover={{ y: -5 }}
@@ -122,7 +97,7 @@ const ProductCard = React.memo(
           to={`/product/${_id}`}
           className="bg-[#292B30] rounded-lg relative flex flex-col overflow-hidden h-full shadow-lg hover:shadow-xl transition-shadow duration-300"
         >
-          {/* Top section with New tag and favorite */}
+          {/* New tag + favorite button */}
           <div className="absolute top-0 left-0 right-0 z-10 flex justify-between p-2 sm:p-3">
             {isNew && (
               <motion.div
@@ -136,9 +111,7 @@ const ProductCard = React.memo(
             {!hideFavorite && (
               <motion.button
                 whileTap={{ scale: 0.9 }}
-                className={`ml-auto bg-[#1A1B1F]/50 rounded-full p-1.5 sm:p-2 backdrop-blur-md ${
-                  !isNew ? "mr-0" : ""
-                }`}
+                className="ml-auto bg-[#1A1B1F]/50 rounded-full p-1.5 sm:p-2 backdrop-blur-md"
                 aria-label={
                   isFavorite ? "Remove from favorites" : "Add to favorites"
                 }
@@ -153,10 +126,12 @@ const ProductCard = React.memo(
             )}
           </div>
 
-          {/* Image container */}
-          <div className={`w-full pt-[100%] relative overflow-hidden ${
-            isPngImage(imageUrl) ? "bg-white" : "bg-[#1A1B1F]/30"
-          }`}>
+          {/* Image */}
+          <div
+            className={`w-full pt-[100%] relative overflow-hidden ${
+              isPngImage(imageUrl) ? "bg-white" : "bg-[#1A1B1F]/30"
+            }`}
+          >
             <motion.div
               className={`absolute inset-0 flex items-center justify-center ${
                 isPngImage(imageUrl) ? "p-3" : ""
@@ -166,9 +141,7 @@ const ProductCard = React.memo(
             >
               <img
                 src={imageUrl}
-                alt={`${name} - ${
-                  product.category || "Product"
-                } - Buy with crypto | DezenMart`}
+                alt={`${name} - ${product.category || "Product"} - Buy with crypto | DezenMart`}
                 className="max-w-full max-h-full object-contain"
                 width="300"
                 height="300"
@@ -178,7 +151,7 @@ const ProductCard = React.memo(
             </motion.div>
           </div>
 
-          {/* Product info */}
+          {/* Info */}
           <div className="flex flex-col w-full p-3 sm:p-4 flex-grow">
             {isSponsored && (
               <div className="mb-1">
@@ -191,38 +164,14 @@ const ProductCard = React.memo(
             <h4 className="text-white text-sm sm:text-base md:text-lg font-bold truncate">
               {name}
             </h4>
-            {/* <div className="flex items-center gap-1 text-xs md:text-sm text-[#AEAEB2] py-0.5 sm:py-1">
-              <span>
-                By {typeof seller === "string" ? seller : "Unknown Seller"}
-              </span>
-              <RiVerifiedBadgeFill className="text-[#4FA3FF] text-xs" />
-            </div> */}
-            <p className="text-white/80 text-xs md:text-sm py-0.5 sm:py-1 line-clamp-1 ">
+            <p className="text-white/80 text-xs md:text-sm py-0.5 sm:py-1 line-clamp-1">
               {description}
             </p>
 
-            {/* Price and buy button container */}
             <div className="mt-auto pt-1 sm:pt-2">
-              <div className="flex flex-col gap-0.5">
-                <span className="text-white text-base md:text-lg font-bold">
-                  {primaryPrice}
-                </span>
-                {/* {primaryPrice !== secondaryPrice && (
-                  <span className="text-[#AEAEB2] text-xs md:text-sm">
-                    ≈ {secondaryPrice}
-                  </span>
-                )} */}
-              </div>
-
-              {/* <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className="mt-2 sm:mt-3 gap-2 font-medium text-white bg-Red py-2 sm:py-2.5 rounded-md flex justify-center items-center w-full transition-all duration-300"
-                onClick={navigateToProduct}
-              >
-                <span>Buy Now</span>
-                <BsCart3 className="text-lg" />
-              </motion.button> */}
+              <span className="text-white text-base md:text-lg font-bold">
+                {displayPrice}
+              </span>
             </div>
           </div>
         </Link>
@@ -230,5 +179,7 @@ const ProductCard = React.memo(
     );
   }
 );
+
+ProductCard.displayName = "ProductCard";
 
 export default ProductCard;

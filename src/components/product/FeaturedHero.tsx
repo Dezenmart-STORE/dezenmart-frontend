@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { Product } from "../../utils/types";
 import { GoVerified } from "react-icons/go";
+import { useCurrency } from "../../lean";
 
 interface Props {
   title: string;
@@ -10,6 +11,14 @@ interface Props {
 }
 
 const FeaturedHero = ({ title, subtitle, products, maxItems = 4 }: Props) => {
+  const {
+    secondaryCurrency,
+    selectedTokenSymbol,
+    fiatCurrency,
+    convertPrice,
+    formatPrice,
+  } = useCurrency();
+
   const displayProducts = products.slice(0, maxItems);
 
   if (displayProducts.length === 0) {
@@ -27,48 +36,55 @@ const FeaturedHero = ({ title, subtitle, products, maxItems = 4 }: Props) => {
         )}
       </div>
 
-      {/* Large card grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-        {displayProducts.map((product) => (
-          <Link
-            key={product._id}
-            to={`/product/${product._id}`}
-            className="group bg-[#1a1c20] rounded-xl overflow-hidden hover:ring-2 hover:ring-Red transition-all duration-300"
-          >
-            {/* Large image */}
-            <div className="aspect-square overflow-hidden bg-gray-800 relative">
-              <img
-                src={product.images[0]}
-                alt={product.name}
-                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                loading="lazy"
-              />
+        {displayProducts.map((product) => {
+          const displayPrice =
+            secondaryCurrency === "TOKEN"
+              ? formatPrice(
+                  convertPrice(product.price, "USD", selectedTokenSymbol),
+                  selectedTokenSymbol
+                )
+              : formatPrice(
+                  convertPrice(product.price, "USD", "FIAT"),
+                  fiatCurrency
+                );
 
-              {/* Sponsored badge */}
-              {product.isSponsored && (
-                <div className="absolute top-3 right-3 bg-Green/90 text-white text-xs px-2 py-1 rounded-full font-semibold">
-                  Featured
-                </div>
-              )}
+          return (
+            <Link
+              key={product._id}
+              to={`/product/${product._id}`}
+              className="group bg-[#1a1c20] rounded-xl overflow-hidden hover:ring-2 hover:ring-Red transition-all duration-300"
+            >
+              {/* Large image */}
+              <div className="aspect-square overflow-hidden bg-gray-800 relative">
+                <img
+                  src={product.images[0]}
+                  alt={product.name}
+                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                  loading="lazy"
+                />
 
-              {/* Stock indicator */}
-              {Number(product.stock) < 5 && Number(product.stock) > 0 && (
-                <div className="absolute bottom-3 left-3 bg-red-500/90 text-white text-xs px-2 py-1 rounded-full">
-                  Only {product.stock} left
-                </div>
-              )}
-            </div>
+                {product.isSponsored && (
+                  <div className="absolute top-3 right-3 bg-Green/90 text-white text-xs px-2 py-1 rounded-full font-semibold">
+                    Featured
+                  </div>
+                )}
 
-            {/* Rich info */}
-            <div className="p-4">
-              <h3 className="text-white font-semibold text-base md:text-lg mb-2 line-clamp-2 min-h-[3rem]">
-                {product.name}
-              </h3>
+                {Number(product.stock) < 5 && Number(product.stock) > 0 && (
+                  <div className="absolute bottom-3 left-3 bg-red-500/90 text-white text-xs px-2 py-1 rounded-full">
+                    Only {product.stock} left
+                  </div>
+                )}
+              </div>
 
-              {/* Seller info */}
-              <div className="flex items-center gap-2 mb-3">
+              {/* Info */}
+              <div className="p-4">
+                <h3 className="text-white font-semibold text-base md:text-lg mb-2 line-clamp-2 min-h-[3rem]">
+                  {product.name}
+                </h3>
+
                 {typeof product.seller === "object" && product.seller && (
-                  <>
+                  <div className="flex items-center gap-2 mb-3">
                     <img
                       src={product.seller.profileImage || "/default-avatar.png"}
                       alt={product.seller.name}
@@ -79,41 +95,35 @@ const FeaturedHero = ({ title, subtitle, products, maxItems = 4 }: Props) => {
                       {product.seller.name}
                     </span>
                     {product.seller.rating >= 4.5 && (
-                      <GoVerified className="text-green-400 text-sm flex-shrink-0" title="Verified Seller" />
+                      <GoVerified
+                        className="text-green-400 text-sm flex-shrink-0"
+                        title="Verified Seller"
+                      />
                     )}
-                  </>
+                  </div>
                 )}
-              </div>
 
-              {/* Price and action */}
-              <div className="flex items-center justify-between mt-4">
-                <div className="flex flex-col">
+                <div className="flex items-center justify-between mt-4">
                   <span className="text-Green text-xl md:text-2xl font-bold">
-                    {product.price}
+                    {displayPrice}
                   </span>
-                  <span className="text-gray-400 text-xs">
-                    {product.paymentToken || "cUSD"}
-                  </span>
+                  <button className="bg-Red text-white px-4 py-2 rounded-lg text-sm font-medium group-hover:bg-red-600 transition-colors">
+                    View
+                  </button>
                 </div>
-                <button className="bg-Red text-white px-4 py-2 rounded-lg text-sm font-medium group-hover:bg-red-600 transition-colors">
-                  View
-                </button>
               </div>
-            </div>
-          </Link>
-        ))}
+            </Link>
+          );
+        })}
       </div>
 
-      {/* View all link */}
       <div className="text-center mt-8">
         <Link
           to="/product"
           className="text-Red hover:text-red-400 inline-flex items-center gap-2 text-sm md:text-base font-medium transition-colors"
         >
           View all products
-          <span className="group-hover:translate-x-1 transition-transform">
-            →
-          </span>
+          <span>→</span>
         </Link>
       </div>
     </section>

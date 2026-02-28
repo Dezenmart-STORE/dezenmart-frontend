@@ -24,25 +24,27 @@ export const productsApi = baseApi.injectEndpoints({
       providesTags: (result, error, id) => [{ type: "Product", id }],
     }),
 
-    // Get products by category (client-side filtering)
+    // Get products by category
+    // Uses category query param so each category has its own cache entry.
+    // transformResponse acts as a safety net if the backend ignores the param.
     getProductsByCategory: builder.query<Product[], string>({
-      query: () => "/products",
-      transformResponse: (response: Product[], meta, category) => {
-        return response.filter(
+      query: (category) =>
+        `/products?category=${encodeURIComponent(category)}`,
+      transformResponse: (response: Product[], meta, category) =>
+        response.filter(
           (product) =>
             product.category?.toLowerCase() === category.toLowerCase()
-        );
-      },
-      providesTags: (result) =>
+        ),
+      providesTags: (result, error, category) =>
         result
           ? [
               ...result.map(({ _id }) => ({
                 type: "Products" as const,
                 id: _id,
               })),
-              { type: "Products", id: "CATEGORY" },
+              { type: "Products", id: `CATEGORY-${category.toLowerCase()}` },
             ]
-          : [{ type: "Products", id: "CATEGORY" }],
+          : [{ type: "Products", id: `CATEGORY-${category.toLowerCase()}` }],
     }),
 
     // Get products by seller
