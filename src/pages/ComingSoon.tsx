@@ -24,10 +24,10 @@ export default function ComingSoon() {
         </div>
 
         {/* Text */}
-        <h1 className="text-2xl font-bold text-gray-900">Coming Soon</h1>
+        <h1 className="text-2xl font-bold text-white-900">Coming Soon</h1>
         <p className="mt-3 text-sm leading-relaxed text-gray-500">
           We're putting the finishing touches on this feature. It will be ready
-          very soon — check back shortly!
+          very soon. check back shortly!
         </p>
 
         {/* CTA */}
