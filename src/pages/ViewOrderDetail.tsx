@@ -44,6 +44,7 @@ const ViewOrderDetail = () => {
   const [updateOrderStatus] = useUpdateOrderStatusMutation();
   const [showPayment, setShowPayment] = useState(false);
   const [isMarkingReceived, setIsMarkingReceived] = useState(false);
+  const [checklistComplete, setChecklistComplete] = useState(false);
 
   const handleMarkReceived = async () => {
     if (!orderId) return;
@@ -176,6 +177,7 @@ const ViewOrderDetail = () => {
           chainId={chainId}
           onMarkReceived={handleMarkReceived}
           isMarkingReceived={isMarkingReceived}
+          onChecklistChange={setChecklistComplete}
         />
 
         {/* Wrong network warning (payment pending, wrong chain) */}
@@ -319,6 +321,7 @@ const ViewOrderDetail = () => {
           <TradeActions
             purchaseId={order.purchaseId}
             status={status}
+            checklistComplete={checklistComplete}
             onActionComplete={async (action) => {
               if (action === "confirm" && orderId) {
                 await updateOrderStatus({
@@ -394,6 +397,14 @@ function DetailRow({
 
 // ── Status-contextual information panel ──────────────────────────────
 
+const DELIVERY_CHECKS = [
+  { id: "received",     label: "I have received the package" },
+  { id: "matches",      label: "The item matches the listing description" },
+  { id: "condition",    label: "There is no damage or visible defects" },
+  { id: "complete",     label: "All parts and accessories are included" },
+  { id: "acknowledge",  label: "I understand this will release payment to the seller" },
+];
+
 function StatusInfoPanel({
   status,
   order,
@@ -403,6 +414,7 @@ function StatusInfoPanel({
   chainId,
   onMarkReceived,
   isMarkingReceived = false,
+  onChecklistChange,
 }: {
   status: TradeState;
   order: any;
@@ -412,7 +424,25 @@ function StatusInfoPanel({
   chainId: number;
   onMarkReceived?: () => Promise<void>;
   isMarkingReceived?: boolean;
+  onChecklistChange?: (complete: boolean) => void;
 }) {
+  const [checked, setChecked] = useState<Record<string, boolean>>(
+    () => Object.fromEntries(DELIVERY_CHECKS.map((c) => [c.id, false]))
+  );
+  const allChecked = DELIVERY_CHECKS.every((c) => checked[c.id]);
+
+  const toggle = (id: string) => {
+    const next = { ...checked, [id]: !checked[id] };
+    setChecked(next);
+    onChecklistChange?.(DELIVERY_CHECKS.every((c) => next[c.id]));
+  };
+
+  const toggleAll = () => {
+    const next = Object.fromEntries(DELIVERY_CHECKS.map((c) => [c.id, !allChecked]));
+    setChecked(next);
+    onChecklistChange?.(!allChecked);
+  };
+
   const purchaseId = order.purchaseId as string | undefined;
   const isTxHash = typeof purchaseId === "string" && purchaseId.startsWith("0x") && purchaseId.length === 66;
 
@@ -544,31 +574,77 @@ function StatusInfoPanel({
         <div className="mb-4 flex items-center gap-3">
           <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border border-amber-800/50 bg-amber-900/40">
             <svg className="h-4 w-4 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
             </svg>
           </div>
           <div>
-            <h3 className="text-sm font-semibold text-white">Confirm Your Delivery</h3>
-            <p className="text-xs text-amber-400">Action required</p>
+            <h3 className="text-sm font-semibold text-white">Inspect Your Delivery</h3>
+            <p className="text-xs text-amber-400">Check each item before confirming</p>
           </div>
         </div>
 
         <div className="rounded-xl bg-[#292B30] p-4">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
-            Before confirming, please:
-          </p>
-          <div className="space-y-2.5">
-            {[
-              "Inspect the item carefully",
-              "Verify it matches the description",
-              "Check for any damage or defects",
-              "Ensure all items were included",
-            ].map((check) => (
-              <div key={check} className="flex items-center gap-2.5">
-                <div className="h-4 w-4 flex-shrink-0 rounded border border-[#373A3F] bg-[#1a1c20]" />
-                <span className="text-sm text-gray-300">{check}</span>
-              </div>
+          <div className="mb-3 flex items-center justify-between">
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+              Delivery checklist
+            </p>
+            <button
+              onClick={toggleAll}
+              className="text-xs font-medium text-amber-400 transition-colors hover:text-amber-300"
+            >
+              {allChecked ? "Deselect all" : "Select all"}
+            </button>
+          </div>
+
+          <div className="space-y-3">
+            {DELIVERY_CHECKS.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => toggle(item.id)}
+                className="flex w-full items-center gap-3 text-left"
+              >
+                <div
+                  className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded border transition-all ${
+                    checked[item.id]
+                      ? "border-green-600 bg-green-600"
+                      : "border-[#373A3F] bg-[#1a1c20] hover:border-gray-500"
+                  }`}
+                >
+                  {checked[item.id] && (
+                    <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                </div>
+                <span
+                  className={`text-sm transition-colors ${
+                    checked[item.id] ? "text-white" : "text-gray-400"
+                  }`}
+                >
+                  {item.label}
+                </span>
+              </button>
             ))}
+          </div>
+
+          {/* Progress indicator */}
+          <div className="mt-4">
+            <div className="mb-1.5 flex items-center justify-between">
+              <span className="text-xs text-gray-500">
+                {DELIVERY_CHECKS.filter((c) => checked[c.id]).length} of {DELIVERY_CHECKS.length} completed
+              </span>
+              {allChecked && (
+                <span className="text-xs font-medium text-green-400">Ready to confirm</span>
+              )}
+            </div>
+            <div className="h-1 w-full overflow-hidden rounded-full bg-[#1a1c20]">
+              <div
+                className="h-full rounded-full bg-green-600 transition-all duration-300"
+                style={{
+                  width: `${(DELIVERY_CHECKS.filter((c) => checked[c.id]).length / DELIVERY_CHECKS.length) * 100}%`,
+                }}
+              />
+            </div>
           </div>
         </div>
 

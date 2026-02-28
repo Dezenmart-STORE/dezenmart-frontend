@@ -6,6 +6,8 @@ interface Props {
   purchaseId: string;
   status: TradeState;
   onActionComplete?: (action: string, result: { hash?: string }) => void;
+  /** Must be true before confirm delivery is available (enforced for "delivered" status) */
+  checklistComplete?: boolean;
 }
 
 /**
@@ -16,6 +18,7 @@ export default function TradeActions({
   purchaseId,
   status,
   onActionComplete,
+  checklistComplete,
 }: Props) {
   const { confirmDelivery, raiseDispute, cancelPurchase, isPending } = useEscrow();
   const [confirming, setConfirming] = useState<string | null>(null);
@@ -62,45 +65,60 @@ export default function TradeActions({
       )}
 
       {/* Confirm Delivery */}
-      {canConfirmDelivery && (
-        <>
-          {confirming === "confirm" ? (
-            <div className="rounded-xl border border-green-800/50 bg-green-900/20 p-4">
-              <p className="text-sm font-semibold text-green-300">
-                Confirm you received the item?
-              </p>
-              <p className="mt-1 text-xs text-green-500">
-                This will release payment to the seller. Only confirm after inspecting your item.
-              </p>
-              <div className="mt-3 flex gap-2">
-                <button
-                  onClick={() => handleAction("confirm", confirmDelivery)}
-                  disabled={isPending}
-                  className="flex-1 rounded-lg bg-green-700 py-2.5 text-sm font-bold text-white transition-colors hover:bg-green-600 disabled:opacity-50"
-                >
-                  {isPending ? "Processing…" : "Yes, I Received It"}
-                </button>
-                <button
-                  onClick={() => setConfirming(null)}
-                  className="rounded-lg border border-green-800/50 bg-green-900/20 px-4 py-2.5 text-sm font-medium text-green-400 hover:bg-green-900/40"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          ) : (
-            <button
-              onClick={() => setConfirming("confirm")}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-green-700 py-3.5 text-sm font-bold text-white transition-colors hover:bg-green-600"
-            >
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+      {canConfirmDelivery && (() => {
+        const checklistBlocked = status === "delivered" && !checklistComplete;
+        if (checklistBlocked) {
+          return (
+            <div className="rounded-xl border border-[#292B30] bg-[#292B30] p-4 text-center">
+              <svg className="mx-auto mb-2 h-5 w-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              I Received My Item
-            </button>
-          )}
-        </>
-      )}
+              <p className="text-sm text-gray-500">
+                Complete the delivery checklist above to confirm receipt.
+              </p>
+            </div>
+          );
+        }
+        return (
+          <>
+            {confirming === "confirm" ? (
+              <div className="rounded-xl border border-green-800/50 bg-green-900/20 p-4">
+                <p className="text-sm font-semibold text-green-300">
+                  Confirm you received the item?
+                </p>
+                <p className="mt-1 text-xs text-green-500">
+                  This will release payment to the seller. Only confirm after inspecting your item.
+                </p>
+                <div className="mt-3 flex gap-2">
+                  <button
+                    onClick={() => handleAction("confirm", confirmDelivery)}
+                    disabled={isPending}
+                    className="flex-1 rounded-lg bg-green-700 py-2.5 text-sm font-bold text-white transition-colors hover:bg-green-600 disabled:opacity-50"
+                  >
+                    {isPending ? "Processing…" : "Yes, I Received It"}
+                  </button>
+                  <button
+                    onClick={() => setConfirming(null)}
+                    className="rounded-lg border border-green-800/50 bg-green-900/20 px-4 py-2.5 text-sm font-medium text-green-400 hover:bg-green-900/40"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={() => setConfirming("confirm")}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-green-700 py-3.5 text-sm font-bold text-white transition-colors hover:bg-green-600"
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                </svg>
+                I Received My Item
+              </button>
+            )}
+          </>
+        );
+      })()}
 
       {/* Raise Dispute */}
       {canDispute && (
