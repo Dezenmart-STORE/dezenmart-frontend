@@ -243,7 +243,6 @@ const ProductProperties = ({
     const matchingVariant = findMatchingVariant();
     if (matchingVariant) {
       setInternalUpdate(true);
-      console.log("matchingVariant", matchingVariant);
       onVariantSelect(matchingVariant);
     }
   }, [selectedOptions, onVariantSelect, findMatchingVariant]);

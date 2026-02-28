@@ -1,4 +1,5 @@
-import { Detail, Comment } from "../../../pages";
+import { motion } from "framer-motion";
+import { RiFileList3Line, RiChat3Line } from "react-icons/ri";
 
 interface ProductTabsProps {
   activeTab: "details" | "reviews";
@@ -6,63 +7,49 @@ interface ProductTabsProps {
   reviewCount?: number;
 }
 
+const TABS = [
+  { id: "details" as const, label: "Details", icon: RiFileList3Line },
+  { id: "reviews" as const, label: "Reviews", icon: RiChat3Line },
+];
+
 const ProductTabs = ({
   activeTab,
   setActiveTab,
   reviewCount = 0,
-}: ProductTabsProps) => {
-  return (
-    <div className="flex items-center justify-between border-b border-gray-700 px-3 sm:px-6 md:px-12 lg:px-20 pt-2 sm:pt-4 overflow-x-auto">
-      {/* Details Tab */}
-      <button
-        className={`flex-1 flex items-center justify-center gap-1 sm:gap-2 text-base sm:text-lg md:text-xl font-bold px-2 sm:px-4 transition-all focus:outline-none  ${
-          activeTab === "details"
-            ? "text-Red"
-            : "text-gray-400 hover:text-gray-200"
-        }`}
-        onClick={() => setActiveTab("details")}
-        aria-selected={activeTab === "details"}
-        role="tab"
-      >
-        <span className="relative pb-4">
-          <span className="flex items-center gap-1 sm:gap-2">
-            <img src={Detail} alt="" className="w-4 h-4 sm:w-5 sm:h-5" />
-            <span className="whitespace-nowrap">Details</span>
-          </span>
-          {activeTab === "details" && (
-            <span className="absolute bottom-0 left-0 bg-Red rounded-full w-full h-1"></span>
+}: ProductTabsProps) => (
+  <div className="flex bg-[#212428] rounded-xl p-1 gap-1 mx-4 sm:mx-6 my-4">
+    {TABS.map(({ id, label, icon: Icon }) => (
+      <div key={id} className="relative flex-1">
+        <button
+          onClick={() => setActiveTab(id)}
+          role="tab"
+          aria-selected={activeTab === id}
+          className={`relative z-10 w-full flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+            activeTab === id
+              ? "text-white"
+              : "text-gray-400 hover:text-gray-200"
+          }`}
+        >
+          <Icon size={15} />
+          <span>{label}</span>
+          {id === "reviews" && reviewCount > 0 && (
+            <span className="bg-red-600 text-white text-xs rounded-full px-1.5 leading-5 min-w-[20px] text-center">
+              {reviewCount}
+            </span>
           )}
-        </span>
-      </button>
-
-      {/* Reviews Tab */}
-      <button
-        className={`flex-1 flex items-center justify-center gap-1 sm:gap-2 text-base sm:text-lg md:text-xl font-bold px-2 sm:px-4 transition-all focus:outline-none  ${
-          activeTab === "reviews"
-            ? "text-Red"
-            : "text-gray-400 hover:text-gray-200"
-        }`}
-        onClick={() => setActiveTab("reviews")}
-        aria-selected={activeTab === "reviews"}
-        role="tab"
-      >
-        <span className="relative pb-4">
-          <span className="flex items-center justify-center gap-1 sm:gap-2">
-            <img src={Comment} alt="" className="w-4 h-4 sm:w-5 sm:h-5" />
-            <span className="whitespace-nowrap">Reviews</span>
-            {reviewCount > 0 && (
-              <span className="bg-Red text-xs rounded-full px-1.5 py-0.5 ml-1 text-white">
-                {reviewCount}
-              </span>
-            )}
-          </span>
-          {activeTab === "reviews" && (
-            <span className="absolute bottom-0 left-0 bg-Red rounded-full w-full h-1"></span>
-          )}
-        </span>
-      </button>
-    </div>
-  );
-};
+        </button>
+        {activeTab === id && (
+          <motion.div
+            className="absolute inset-0 bg-red-600 rounded-lg"
+            layoutId="activeProductTab"
+            initial={false}
+            transition={{ type: "spring", stiffness: 380, damping: 32 }}
+            style={{ zIndex: 0 }}
+          />
+        )}
+      </div>
+    ))}
+  </div>
+);
 
 export default ProductTabs;

@@ -131,19 +131,6 @@ const useCalculatedTotals = ({
       paymentTokenSymbol
     );
 
-    console.log("💰 Total Calculation:", {
-      productPrice: product.price,
-      quantity,
-      subtotal,
-      escrowFee,
-      logisticsCost,
-      grandTotalUsd,
-      selectedTokenSymbol,
-      paymentTokenSymbol,
-      totalInSelected,
-      totalInPayment,
-    });
-
     return {
       grandTotalUsd,
       totalInSelected,
@@ -464,12 +451,6 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = memo(
       const currentBalance = getBalance(walletSelectedToken.symbol);
       if (!currentBalance) return false;
 
-      console.log("💵 Balance Check:", {
-        requiredAmount,
-        currentBalance: currentBalance.numeric,
-        hasEnough: currentBalance.numeric >= requiredAmount,
-      });
-
       return currentBalance.numeric >= requiredAmount;
     }, [isConnected, walletSelectedToken, product, computedTotals, state.mounted, getBalance]);
 
@@ -535,19 +516,11 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = memo(
         });
 
         try {
-          console.log("🔄 Getting swap quote:", {
-            from: walletSelectedToken.symbol,
-            to: product.paymentToken,
-            amount: computedTotals.totalInSelected,
-          });
-
           const quote = await getQuote(
             walletSelectedToken.symbol,
             product.paymentToken,
             computedTotals.totalInSelected
           );
-
-          console.log("✅ Swap quote received:", quote);
 
           if (!abortControllerRef.current.signal.aborted) {
             startTransition(() => {
@@ -559,7 +532,6 @@ const PurchaseSection: React.FC<PurchaseSectionProps> = memo(
           }
         } catch (error) {
           if (!abortControllerRef.current?.signal.aborted) {
-            console.error("❌ Failed to get swap quote:", error);
             startTransition(() => {
               updateState({ swapQuote: "", isGettingQuote: false });
             });
