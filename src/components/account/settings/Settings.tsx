@@ -68,7 +68,14 @@ const Settings = ({
   const { logout } = useAuth();
   const navigate = useNavigate();
 
-  const sections = [
+  type SectionItem = {
+    icon: React.ReactNode;
+    label: string;
+    onClick?: () => void;
+    variant?: "default" | "danger";
+  };
+
+  const sections: { title: string; items: SectionItem[] }[] = [
     {
       title: "Account",
       items: [

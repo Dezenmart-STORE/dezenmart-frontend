@@ -19,9 +19,9 @@ const SavedItem: React.FC<Props> = React.memo(({ item, onRemove }) => {
   );
 
   const price = useMemo(
-    () => formatAmount(item.product?.price ?? 0, item.product?.paymentToken ?? "cUSD"),
+    () => formatAmount(item.product?.price ?? 0, "cUSD"),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [item.product?.price, item.product?.paymentToken]
+    [item.product?.price]
   );
 
   return (
