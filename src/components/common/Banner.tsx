@@ -1,4 +1,5 @@
 import { FC } from "react";
+import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 
 export interface BannerProps {
@@ -9,6 +10,8 @@ export interface BannerProps {
   secondaryImage?: string;
   backgroundColor?: string;
   textColor?: string;
+  ctaText?: string;
+  ctaPath?: string;
 }
 
 const Banner: FC<BannerProps> = ({
@@ -19,29 +22,42 @@ const Banner: FC<BannerProps> = ({
   secondaryImage,
   backgroundColor = "#ff3b3b",
   textColor = "white",
+  ctaText,
+  ctaPath,
 }) => {
   return (
     <motion.div
-      className="flex justify-between items-center px-4 rounded-lg overflow-hidden"
+      className="flex justify-between items-center px-4 sm:px-6 rounded-lg overflow-hidden"
       style={{ backgroundColor }}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
     >
-      <h5 className={`text-${textColor} text-base md:text-xl p-4`}>
-        {title}{" "}
-        <span
-          className={`${
-            isUppercase ? "uppercase" : ""
-          } font-bold block md:inline`}
-        >
-          {subtitle}
-        </span>
-      </h5>
-      <div className="flex items-center justify-center">
+      <div className={`text-${textColor} p-4 sm:p-5`}>
+        <h5 className="text-base md:text-xl font-medium leading-snug">
+          {title}{" "}
+          <span
+            className={`font-bold block md:inline ${
+              isUppercase ? "uppercase" : ""
+            }`}
+          >
+            {subtitle}
+          </span>
+        </h5>
+        {ctaText && ctaPath && (
+          <Link
+            to={ctaPath}
+            className="mt-3 inline-block bg-white/20 hover:bg-white/30 text-white text-sm font-medium px-4 py-1.5 rounded-full transition-colors"
+          >
+            {ctaText} →
+          </Link>
+        )}
+      </div>
+
+      <div className="flex items-center justify-center flex-shrink-0">
         <motion.img
           src={primaryImage}
-          alt={`${title} primary image`}
+          alt=""
           className="w-[50px] h-[50px] md:w-[90px] md:h-[90px]"
           initial={{ rotate: -10 }}
           animate={{ rotate: 0 }}
@@ -50,7 +66,7 @@ const Banner: FC<BannerProps> = ({
         {secondaryImage && (
           <motion.img
             src={secondaryImage}
-            alt={`${title} secondary image`}
+            alt=""
             className="w-[30px] h-[30px] md:w-[69px] md:h-[67px]"
             initial={{ rotate: 10, scale: 0.8 }}
             animate={{ rotate: 0, scale: 1 }}
