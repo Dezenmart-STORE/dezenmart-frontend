@@ -1,7 +1,5 @@
 import { motion } from "framer-motion";
-import { RiSettings3Fill, RiVerifiedBadgeFill } from "react-icons/ri";
-import { RiEdit2Fill } from "react-icons/ri";
-import { MdOutlineVerifiedUser } from "react-icons/md";
+import { RiSettings3Fill, RiVerifiedBadgeFill, RiEdit2Fill, RiShieldCheckLine, RiArrowRightSLine } from "react-icons/ri";
 
 interface ProfileHeaderProps {
   avatar: string;
@@ -36,7 +34,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
         </button>
       </div>
 
-      {/* Profile card */}
+      {/* Profile card — avatar + info + edit icon */}
       <motion.div
         className="bg-[#292B30] rounded-2xl p-4 flex items-center gap-4"
         initial={{ opacity: 0, y: -10 }}
@@ -48,49 +46,51 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
           alt={name}
           className="w-16 h-16 rounded-full object-cover border-2 border-red-600 flex-shrink-0"
         />
+
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 flex-wrap">
             <h2 className="font-bold text-white text-base truncate">{name}</h2>
-            {isVerified ? (
+            {isVerified && (
               <RiVerifiedBadgeFill
                 className="text-green-400 text-base flex-shrink-0"
                 title="Verified account"
               />
-            ) : (
-              <span className="text-xs bg-amber-900/40 text-amber-400 px-1.5 py-0.5 rounded font-medium flex-shrink-0">
-                Unverified
-              </span>
             )}
           </div>
           <p className="text-gray-400 text-sm truncate mt-0.5">{email}</p>
         </div>
-      </motion.div>
 
-      {/* Action buttons — stack on tiny screens, side-by-side from xxs up */}
-      <motion.div
-        className="flex flex-col xxs:flex-row gap-2 xxs:gap-3 mt-3"
-        initial={{ opacity: 0, y: 6 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3, delay: 0.1 }}
-      >
+        {/* Edit icon — replaces the full-width button */}
         <button
           onClick={onEditProfile}
-          className="flex-1 flex items-center justify-center gap-2 bg-white text-black py-2.5 rounded-xl text-sm font-semibold hover:bg-gray-100 active:scale-[0.98] transition-all"
+          aria-label="Edit profile"
+          className="p-2.5 rounded-full bg-[#3A3C41] hover:bg-[#484B52] active:scale-95 transition-all flex-shrink-0"
         >
-          <RiEdit2Fill className="text-base" />
-          Edit Profile
+          <RiEdit2Fill className="text-gray-300 text-base" />
         </button>
-
-        {!isVerified && (
-          <button
-            onClick={onVerify}
-            className="flex-1 flex items-center justify-center gap-2 bg-red-600 text-white py-2.5 rounded-xl text-sm font-semibold hover:bg-red-700 active:scale-[0.98] transition-all"
-          >
-            <MdOutlineVerifiedUser className="text-base" />
-            Verify Account
-          </button>
-        )}
       </motion.div>
+
+      {/* Verify notice — compact contextual banner, only shown when unverified */}
+      {!isVerified && (
+        <motion.button
+          onClick={onVerify}
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25, delay: 0.1 }}
+          className="mt-2 w-full flex items-center gap-3 bg-amber-900/20 border border-amber-800/40 rounded-xl px-4 py-3 text-left hover:bg-amber-900/30 active:scale-[0.99] transition-all"
+        >
+          <span className="p-1.5 bg-amber-800/30 rounded-lg flex-shrink-0">
+            <RiShieldCheckLine className="text-amber-400 text-base" />
+          </span>
+          <div className="flex-1 min-w-0">
+            <p className="text-amber-300 text-xs font-semibold">Verify your account</p>
+            <p className="text-amber-500/80 text-xs mt-0.5 truncate">
+              Unlock full access and build trust with sellers
+            </p>
+          </div>
+          <RiArrowRightSLine className="text-amber-500 text-lg flex-shrink-0" />
+        </motion.button>
+      )}
     </div>
   );
 };

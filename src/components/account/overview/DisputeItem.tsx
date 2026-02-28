@@ -13,9 +13,10 @@ const DISPUTE_STATUS_STYLES: Record<string, string> = {
 interface Props {
   order: Order;
   disputeStatus: string;
+  viewMode?: "list" | "grid";
 }
 
-const DisputeItem: React.FC<Props> = React.memo(({ order, disputeStatus }) => {
+const DisputeItem: React.FC<Props> = React.memo(({ order, disputeStatus, viewMode = "list" }) => {
   const navigate = useNavigate();
   const { formatAmount } = useCurrency();
 
@@ -27,7 +28,7 @@ const DisputeItem: React.FC<Props> = React.memo(({ order, disputeStatus }) => {
   );
 
   const productImage = useMemo(
-    () => order.product?.images?.[0] || "https://placehold.co/64x64?text=?",
+    () => order.product?.images?.[0] || "https://placehold.co/200x200?text=?",
     [order.product?.images]
   );
 
@@ -44,6 +45,35 @@ const DisputeItem: React.FC<Props> = React.memo(({ order, disputeStatus }) => {
     DISPUTE_STATUS_STYLES[disputeStatus.toLowerCase()] ??
     "bg-amber-900/40 text-amber-300";
 
+  if (viewMode === "grid") {
+    return (
+      <button
+        onClick={() => navigate(`/orders/${order._id}`)}
+        className="w-full text-left bg-[#292B30] rounded-xl overflow-hidden hover:bg-[#32353A] active:bg-[#3A3D42] transition-colors"
+      >
+        <img
+          src={productImage}
+          alt={order.product?.name ?? "Product"}
+          loading="lazy"
+          className="w-full aspect-square object-cover bg-[#1a1c20]"
+        />
+        <div className="p-2.5">
+          <p className="font-semibold text-white text-xs truncate">
+            {order.product?.name ?? "Unknown Product"}
+          </p>
+          <p className="text-xs text-gray-400 mt-0.5 truncate">by {sellerName}</p>
+          <div className="flex items-center justify-between mt-1.5 gap-1">
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap ${statusStyle}`}>
+              {disputeStatus}
+            </span>
+            <span className="text-[10px] text-gray-500 truncate">{date}</span>
+          </div>
+        </div>
+      </button>
+    );
+  }
+
+  // List view (default)
   return (
     <button
       onClick={() => navigate(`/orders/${order._id}`)}

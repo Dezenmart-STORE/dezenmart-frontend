@@ -1,5 +1,6 @@
-import React, { lazy, Suspense, useCallback } from "react";
+import React, { lazy, Suspense, useCallback, useState } from "react";
 import { LazyMotion, domAnimation, m } from "framer-motion";
+import { RiListCheck2, RiGridFill } from "react-icons/ri";
 import OrderHistoryItem from "./OrderHistoryItem";
 import DisputeItem from "./DisputeItem";
 import EmptyState from "./EmptyState";
@@ -15,12 +16,94 @@ import {
 
 const ProductContainer = lazy(() => import("./products/Container"));
 
+type ViewMode = "list" | "grid";
+
 interface TabContentProps {
   activeTab: TabType;
   milestones?: { sales: number; purchases: number };
   referralCode?: string;
   referralCount?: number;
   points?: { total: number; available: number };
+}
+
+// ── Persisted view-mode hook ──────────────────────────────────────────
+function useViewMode(key: string): [ViewMode, (m: ViewMode) => void] {
+  const storageKey = `account_view_${key}`;
+  const [mode, setMode] = useState<ViewMode>(() => {
+    try {
+      return (localStorage.getItem(storageKey) as ViewMode) ?? "list";
+    } catch {
+      return "list";
+    }
+  });
+
+  const update = useCallback(
+    (next: ViewMode) => {
+      setMode(next);
+      try { localStorage.setItem(storageKey, next); } catch { /* noop */ }
+    },
+    [storageKey]
+  );
+
+  return [mode, update];
+}
+
+// ── View toggle buttons ───────────────────────────────────────────────
+function ViewToggle({
+  mode,
+  onChange,
+}: {
+  mode: ViewMode;
+  onChange: (m: ViewMode) => void;
+}) {
+  return (
+    <div className="flex items-center gap-1 bg-[#292B30] rounded-lg p-1">
+      <button
+        onClick={() => onChange("list")}
+        aria-label="List view"
+        className={`p-1.5 rounded-md transition-colors ${
+          mode === "list"
+            ? "bg-[#3A3C41] text-white"
+            : "text-gray-500 hover:text-gray-300"
+        }`}
+      >
+        <RiListCheck2 size={14} />
+      </button>
+      <button
+        onClick={() => onChange("grid")}
+        aria-label="Grid view"
+        className={`p-1.5 rounded-md transition-colors ${
+          mode === "grid"
+            ? "bg-[#3A3C41] text-white"
+            : "text-gray-500 hover:text-gray-300"
+        }`}
+      >
+        <RiGridFill size={14} />
+      </button>
+    </div>
+  );
+}
+
+// ── Content header: count + view toggle ──────────────────────────────
+function ContentHeader({
+  count,
+  label,
+  mode,
+  onModeChange,
+}: {
+  count: number;
+  label: string;
+  mode: ViewMode;
+  onModeChange: (m: ViewMode) => void;
+}) {
+  return (
+    <div className="flex items-center justify-between mt-4 mb-3">
+      <p className="text-xs text-gray-400">
+        {count} {label}
+      </p>
+      <ViewToggle mode={mode} onChange={onModeChange} />
+    </div>
+  );
 }
 
 // ── Shared tab panel: handles loading / error / empty uniformly ───────
@@ -88,6 +171,10 @@ const slideProps = {
 
 // ── Main component ────────────────────────────────────────────────────
 const TabContent: React.FC<TabContentProps> = React.memo(({ activeTab }) => {
+  const [savedMode, setSavedMode] = useViewMode("saved");
+  const [ordersMode, setOrdersMode] = useViewMode("orders");
+  const [disputesMode, setDisputesMode] = useViewMode("disputes");
+
   const {
     data: ordersData,
     isLoading: ordersLoading,
@@ -137,7 +224,19 @@ const TabContent: React.FC<TabContentProps> = React.memo(({ activeTab }) => {
             emptyButtonText="Browse Products"
             emptyButtonPath="/product"
           >
-            <div className="space-y-3 mt-4">
+            <ContentHeader
+              count={watchlistItems.filter((i) => i?.product?._id).length}
+              label="saved"
+              mode={savedMode}
+              onModeChange={setSavedMode}
+            />
+            <div
+              className={
+                savedMode === "grid"
+                  ? "grid grid-cols-2 sm:grid-cols-3 gap-3"
+                  : "space-y-3"
+              }
+            >
               {watchlistItems
                 .filter((item) => item?.product?._id)
                 .map((item, i) => (
@@ -146,6 +245,7 @@ const TabContent: React.FC<TabContentProps> = React.memo(({ activeTab }) => {
                     item={item}
                     index={i}
                     onRemove={handleRemove}
+                    viewMode={savedMode}
                   />
                 ))}
             </div>
@@ -172,11 +272,28 @@ const TabContent: React.FC<TabContentProps> = React.memo(({ activeTab }) => {
             emptyButtonText="Browse Products"
             emptyButtonPath="/product"
           >
-            <div className="space-y-3 mt-4">
+            <ContentHeader
+              count={regularOrders.filter((o: Order) => o?._id && o?.product?._id).length}
+              label="orders"
+              mode={ordersMode}
+              onModeChange={setOrdersMode}
+            />
+            <div
+              className={
+                ordersMode === "grid"
+                  ? "grid grid-cols-2 sm:grid-cols-3 gap-3"
+                  : "space-y-3"
+              }
+            >
               {regularOrders
                 .filter((o: Order) => o?._id && o?.product?._id)
                 .map((o: Order, i: number) => (
-                  <OrderHistoryItem key={o.orderId} {...o} index={i} />
+                  <OrderHistoryItem
+                    key={o.orderId}
+                    {...o}
+                    index={i}
+                    viewMode={ordersMode}
+                  />
                 ))}
             </div>
           </TabPanel>
@@ -195,7 +312,19 @@ const TabContent: React.FC<TabContentProps> = React.memo(({ activeTab }) => {
             emptyButtonText="View Orders"
             emptyButtonPath="/account"
           >
-            <div className="space-y-3 mt-4">
+            <ContentHeader
+              count={disputeOrders.filter((o: Order) => o?._id && o?.product?._id).length}
+              label="disputes"
+              mode={disputesMode}
+              onModeChange={setDisputesMode}
+            />
+            <div
+              className={
+                disputesMode === "grid"
+                  ? "grid grid-cols-2 sm:grid-cols-3 gap-3"
+                  : "space-y-3"
+              }
+            >
               {disputeOrders
                 .filter((o: Order) => o?._id && o?.product?._id)
                 .map((o: Order) => (
@@ -205,6 +334,7 @@ const TabContent: React.FC<TabContentProps> = React.memo(({ activeTab }) => {
                     disputeStatus={
                       o.dispute?.resolved === false ? "Under Review" : "Resolved"
                     }
+                    viewMode={disputesMode}
                   />
                 ))}
             </div>

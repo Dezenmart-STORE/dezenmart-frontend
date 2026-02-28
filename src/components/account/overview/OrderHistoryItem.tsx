@@ -34,11 +34,13 @@ const STATUS_LABELS: Record<string, string> = {
 
 interface Props extends Order {
   index?: number;
+  viewMode?: "list" | "grid";
 }
 
 const OrderHistoryItem: React.FC<Props> = React.memo((item) => {
   const navigate = useNavigate();
   const { formatAmount } = useCurrency();
+  const viewMode = item.viewMode ?? "list";
 
   const sellerName = useMemo(
     () =>
@@ -48,7 +50,7 @@ const OrderHistoryItem: React.FC<Props> = React.memo((item) => {
   );
 
   const productImage = useMemo(
-    () => item.product?.images?.[0] || "https://placehold.co/64x64?text=?",
+    () => item.product?.images?.[0] || "https://placehold.co/200x200?text=?",
     [item.product?.images]
   );
 
@@ -66,6 +68,35 @@ const OrderHistoryItem: React.FC<Props> = React.memo((item) => {
   const statusStyle = STATUS_STYLES[statusKey] ?? "bg-gray-700/30 text-gray-300";
   const statusLabel = STATUS_LABELS[statusKey] ?? item.status;
 
+  if (viewMode === "grid") {
+    return (
+      <button
+        onClick={() => navigate(`/orders/${item._id}`)}
+        className="w-full text-left bg-[#292B30] rounded-xl overflow-hidden hover:bg-[#32353A] active:bg-[#3A3D42] transition-colors"
+      >
+        <img
+          src={productImage}
+          alt={item.product?.name ?? "Product"}
+          loading="lazy"
+          className="w-full aspect-square object-cover bg-[#1a1c20]"
+        />
+        <div className="p-2.5">
+          <p className="font-semibold text-white text-xs truncate">
+            {item.product?.name ?? "Unknown Product"}
+          </p>
+          <p className="text-xs text-gray-400 mt-0.5 truncate">by {sellerName}</p>
+          <div className="flex items-center justify-between mt-1.5 gap-1">
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap ${statusStyle}`}>
+              {statusLabel}
+            </span>
+            <span className="text-[10px] text-gray-500 truncate">{date}</span>
+          </div>
+        </div>
+      </button>
+    );
+  }
+
+  // List view (default)
   return (
     <button
       onClick={() => navigate(`/orders/${item._id}`)}
