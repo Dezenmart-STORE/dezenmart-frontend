@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import {
   RiHeartLine,
@@ -24,7 +24,31 @@ const TabNavigation: React.FC<TabNavigationProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const [showFade, setShowFade] = useState(false);
 
+  // Check if the nav overflows and whether the end has been reached
+  const updateFade = useCallback(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 2;
+    setShowFade(el.scrollWidth > el.clientWidth && !atEnd);
+  }, []);
+
+  // Re-evaluate on mount, resize, and scroll
+  useEffect(() => {
+    updateFade();
+    const el = containerRef.current;
+    if (!el) return;
+    el.addEventListener("scroll", updateFade, { passive: true });
+    const ro = new ResizeObserver(updateFade);
+    ro.observe(el);
+    return () => {
+      el.removeEventListener("scroll", updateFade);
+      ro.disconnect();
+    };
+  }, [updateFade]);
+
+  // Scroll active tab into view when it changes
   useEffect(() => {
     const container = containerRef.current;
     const activeEl = tabRefs.current[activeTab];
@@ -39,12 +63,11 @@ const TabNavigation: React.FC<TabNavigationProps> = ({
 
   return (
     <div className="sticky top-0 z-20 -mx-4 bg-[#212428] pt-2 pb-1 mt-4">
-      {/* Wrapper clips the nav and carries the scroll-fade gradient */}
       <div className="relative px-4">
         <nav
           ref={containerRef}
           aria-label="Account tabs"
-          className="flex overflow-x-auto scrollbar-hide bg-[#292B30] rounded-xl p-1 gap-1"
+          className="flex overflow-x-auto scrollbar-hide bg-[#292B30] rounded-xl p-1.5 gap-1.5"
         >
           {options.map(({ id, label }) => {
             const meta = TAB_META[id];
@@ -58,9 +81,9 @@ const TabNavigation: React.FC<TabNavigationProps> = ({
                 aria-selected={isActive}
                 role="tab"
                 className={`
-                  relative flex-1 min-w-[64px]
+                  relative flex-1 min-w-[72px]
                   flex items-center justify-center gap-1.5
-                  px-2 py-2 rounded-lg text-xs font-medium
+                  px-3 py-2 rounded-lg text-xs font-medium
                   whitespace-nowrap transition-colors select-none
                   ${isActive ? "text-white" : "text-gray-400 hover:text-gray-200"}
                 `}
@@ -81,8 +104,10 @@ const TabNavigation: React.FC<TabNavigationProps> = ({
           })}
         </nav>
 
-        {/* Right-edge fade — hints that the strip is scrollable on small screens */}
-        <div className="pointer-events-none absolute right-4 top-0 bottom-0 w-8 rounded-r-xl bg-gradient-to-l from-[#212428] to-transparent" />
+        {/* Fade only while there is hidden content to the right */}
+        {showFade && (
+          <div className="pointer-events-none absolute right-4 top-0 bottom-0 w-10 rounded-r-xl bg-gradient-to-l from-[#212428] to-transparent" />
+        )}
       </div>
     </div>
   );
