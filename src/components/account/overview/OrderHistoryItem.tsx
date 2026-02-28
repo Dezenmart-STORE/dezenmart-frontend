@@ -1,195 +1,105 @@
-import React, { useMemo, startTransition } from "react";
-import { motion } from "framer-motion";
-import { RiVerifiedBadgeFill } from "react-icons/ri";
-import Button from "../../common/Button";
-import { FaArrowRightLong } from "react-icons/fa6";
-import { Order } from "../../../utils/types";
+import React, { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { Order } from "../../../utils/types";
 import { useCurrency } from "../../../lean";
 
-interface EnhancedOrder extends Order {
-  formattedDate?: string;
-  formattedUsdtPrice?: string;
-  formattedTokenPrice?: string;
-  formattedCeloPrice?: string;
-  formattedFiatPrice?: string;
-  formattedTokenAmount?: string;
-  formattedUsdtAmount?: string;
-  formattedCeloAmount?: string;
-  formattedFiatAmount?: string;
-  usdtPrice?: number;
-  celoPrice?: number;
-  fiatPrice?: number;
+const STATUS_STYLES: Record<string, string> = {
+  pending:              "bg-blue-900/40 text-blue-300",
+  accepted:             "bg-blue-900/40 text-blue-300",
+  paid:                 "bg-green-900/40 text-green-300",
+  shipped:              "bg-amber-900/40 text-amber-300",
+  processing:           "bg-amber-900/40 text-amber-300",
+  delivered:            "bg-amber-900/40 text-amber-300",
+  completed:            "bg-green-900/40 text-green-300",
+  delivery_confirmed:   "bg-green-900/40 text-green-300",
+  cancelled:            "bg-red-900/40 text-red-300",
+  rejected:             "bg-red-900/40 text-red-300",
+  disputed:             "bg-red-900/40 text-red-300",
+  refunded:             "bg-yellow-900/40 text-yellow-300",
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  pending:              "Pending",
+  accepted:             "Accepted",
+  paid:                 "Paid",
+  shipped:              "Shipped",
+  delivered:            "Delivered",
+  completed:            "Completed",
+  delivery_confirmed:   "Delivered",
+  cancelled:            "Cancelled",
+  rejected:             "Cancelled",
+  disputed:             "Disputed",
+  refunded:             "Refunded",
+};
+
+interface Props extends Order {
   index?: number;
 }
 
-const OrderHistoryItem: React.FC<EnhancedOrder> = React.memo((item) => {
+const OrderHistoryItem: React.FC<Props> = React.memo((item) => {
   const navigate = useNavigate();
-  const { secondaryCurrency, fiatCurrency, selectedTokenSymbol } =
-    useCurrency();
-
-  const secondaryPrice = useMemo(() => {
-    switch (secondaryCurrency) {
-      case "TOKEN":
-        return {
-          unit: item.formattedTokenPrice,
-          total: item.formattedTokenAmount,
-        };
-      default:
-        if (fiatCurrency === selectedTokenSymbol.replace(/^c/, "")) {
-          return {
-            unit: item.formattedUsdtPrice,
-            total: item.formattedUsdtAmount,
-          };
-        } else {
-          return {
-            unit: item.formattedFiatPrice,
-            total: item.formattedFiatAmount,
-          };
-        }
-    }
-  }, [secondaryCurrency, item]);
-
-  const formattedDate = useMemo(() => {
-    if (item.formattedDate) return item.formattedDate;
-    return new Date(item.createdAt).toLocaleDateString();
-  }, [item]);
-
-  const getStatusStyle = useMemo(() => {
-    const statusStyles = {
-      "in escrow": "bg-[#62FF0033] text-[#62FF00]",
-      pending: "bg-[#62FF0033] text-[#62FF00]",
-      accepted: "bg-blue-800/30 text-blue-300",
-      shipped: "bg-[#543A2E] text-orange-300",
-      processing: "bg-[#543A2E] text-orange-300",
-      delivery_confirmed: "bg-green-800/30 text-green-300",
-      completed: "bg-green-800/30 text-green-300",
-      cancelled: "bg-red-800/30 text-red-300",
-      rejected: "bg-red-800/30 text-red-300",
-      disputed: "bg-red-800/30 text-red-300",
-      refunded: "bg-yellow-800/30 text-yellow-300",
-    };
-
-    return (status: string) =>
-      statusStyles[status.toLowerCase() as keyof typeof statusStyles] ||
-      "bg-gray-700/30 text-gray-300";
-  }, []);
+  const { formatAmount } = useCurrency();
 
   const sellerName = useMemo(
     () =>
-      typeof item.seller === "object"
-        ? item.seller?.name
-        : item.seller || "Unknown Vendor",
+      (typeof item.seller === "object" ? item.seller?.name : item.seller) ||
+      "Unknown Seller",
     [item.seller]
   );
 
   const productImage = useMemo(
-    () =>
-      item.product?.images?.[0] || "https://placehold.co/300x300?text=No+Image",
+    () => item.product?.images?.[0] || "https://placehold.co/64x64?text=?",
     [item.product?.images]
   );
 
-  const viewOrderDetails = () => {
-    startTransition(() => {
-      navigate(`/orders/${item._id}`);
-    });
-  };
+  const date = useMemo(
+    () =>
+      new Date(item.createdAt).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      }),
+    [item.createdAt]
+  );
+
+  const statusKey = item.status?.toLowerCase() ?? "";
+  const statusStyle = STATUS_STYLES[statusKey] ?? "bg-gray-700/30 text-gray-300";
+  const statusLabel = STATUS_LABELS[statusKey] ?? item.status;
 
   return (
-    <motion.div
-      className="grid grid-cols-1 xs:grid-cols-[2fr_3fr] h-full items-center gap-6 md:gap-10 p-6 md:px-[10%] lg:px-[15%] md:py-10 bg-[#292B30] mt-8 rounded-lg"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay: 0.1 * (item.index || 0) }}
-      whileHover={{ scale: 1.01 }}
+    <button
+      onClick={() => navigate(`/orders/${item._id}`)}
+      className="w-full text-left bg-[#292B30] rounded-xl p-3 flex items-center gap-3 hover:bg-[#32353A] active:bg-[#3A3D42] transition-colors"
     >
-      <motion.img
+      <img
         src={productImage}
-        alt={item.product?.name || "Product"}
-        className="w-full h-auto mx-auto md:mx-0 rounded-md lg:row-span-2 object-cover aspect-square"
-        whileHover={{ scale: 1.05 }}
-        transition={{ type: "spring", stiffness: 300, damping: 25 }}
+        alt={item.product?.name ?? "Product"}
         loading="lazy"
+        className="w-16 h-16 rounded-lg object-cover flex-shrink-0 bg-[#1a1c20]"
       />
 
-      <div className="flex flex-col w-full overflow-hidden">
-        <div className="text-white flex flex-col w-full text-left">
-          <h3 className="font-normal text-2xl md:text-3xl">
-            {item.product?.name || "Unknown Product"}
-          </h3>
-          <span className="flex items-center gap-2 text-[12px] text-[#AEAEB2]">
-            By {sellerName}
-            <RiVerifiedBadgeFill className="text-[#4FA3FF] text-xs" />
-          </span>
-          <h6 className="text-[#AEAEB2] text-[12px] mt-1">
-            {item.quantity || 1} {(item.quantity || 1) === 1 ? "item" : "items"}
-          </h6>
-        </div>
-
-        <div className="flex flex-col text-white mt-4 md:mt-2">
-          <div className="text-sm flex justify-between text-white mb-2">
-            <span>Unit Price:</span>
-            <div className="text-right">
-              <div className="text-white font-medium">
-                {/* {item.formattedCeloPrice} */}
-                {secondaryPrice.unit}
-              </div>
-              {/* <div className="text-[#AEAEB2] text-xs">
-                {secondaryPrice.unit}
-              </div> */}
-            </div>
-          </div>
-
-          <div className="text-sm flex justify-between text-white mb-2">
-            <span>Total:</span>
-            <div className="text-right">
-              <div className="text-white font-medium">
-                {/* {item.formattedCeloAmount} */}
-                {secondaryPrice.total}
-              </div>
-              {/* <div className="text-[#AEAEB2] text-xs">
-                {secondaryPrice.total}
-              </div> */}
-            </div>
-          </div>
-
-          <div className="text-sm flex justify-between text-white mb-2">
-            <span>Ordered:</span>
-            <span>{formattedDate}</span>
-          </div>
-
-          <div className="text-sm flex justify-between text-white mb-2">
-            <span>Status:</span>
-            <span
-              className={`px-2 py-1 rounded-md text-xs ${getStatusStyle(
-                item.status
-              )}`}
-            >
-              {item.status
-                .replace("_", " ")
-                .replace(/\b\w/g, (l) => l.toUpperCase())}
-            </span>
-          </div>
-        </div>
+      <div className="flex-1 min-w-0">
+        <p className="font-semibold text-white text-sm truncate">
+          {item.product?.name ?? "Unknown Product"}
+        </p>
+        <p className="text-xs text-gray-400 mt-0.5 truncate">by {sellerName}</p>
+        <p className="text-sm font-medium text-white mt-1.5">
+          {formatAmount(item.amount ?? 0, item.product?.paymentToken ?? "cUSD")}
+        </p>
       </div>
 
-      <motion.div
-        whileHover={{ scale: 1.02 }}
-        whileTap={{ scale: 0.95 }}
-        className="text-center xs:col-span-2 mx-auto xs:w-[80%] w-full lg:w-full lg:col-start-2"
-      >
-        <Button
-          title="View Details"
-          className="flex justify-between items-center w-full bg-Red border-0 rounded text-white px-8 md:px-14 py-2 mt-4 md:mt-0 transition-colors hover:bg-[#e02d37]"
-          onClick={viewOrderDetails}
-          icon={<FaArrowRightLong />}
-          iconPosition="end"
-        />
-      </motion.div>
-    </motion.div>
+      <div className="flex flex-col items-end gap-2 flex-shrink-0">
+        <span className={`text-xs px-2 py-0.5 rounded-full font-medium whitespace-nowrap ${statusStyle}`}>
+          {statusLabel}
+        </span>
+        <span className="text-xs text-gray-500">{date}</span>
+        <svg className="h-4 w-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+        </svg>
+      </div>
+    </button>
   );
 });
 
 OrderHistoryItem.displayName = "OrderHistoryItem";
-
 export default OrderHistoryItem;

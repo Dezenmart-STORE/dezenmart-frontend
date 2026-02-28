@@ -7,65 +7,45 @@ const TabNavigation: React.FC<TabNavigationProps> = ({
   onTabChange,
   options,
 }) => {
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const tabRefs = useRef<{ [key: string]: HTMLButtonElement | null }>({});
+  const containerRef = useRef<HTMLDivElement>(null);
+  const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
   useEffect(() => {
-    const activeIndex = options.findIndex((opt) => opt.id === activeTab);
-
-    // Only scroll if it's not the first or last tab
-    if (activeIndex > 0 && activeIndex < options.length - 1) {
-      const container = containerRef.current;
-      const activeTabEl = tabRefs.current[activeTab];
-
-      if (container && activeTabEl) {
-        const containerRect = container.getBoundingClientRect();
-        const tabRect = activeTabEl.getBoundingClientRect();
-        const scrollOffset =
-          tabRect.left -
-          containerRect.left -
-          container.clientWidth / 2 +
-          tabRect.width / 2;
-
-        container.scrollTo({
-          left: container.scrollLeft + scrollOffset,
-          behavior: "smooth",
-        });
-      }
-    }
-  }, [activeTab, options]);
+    const container = containerRef.current;
+    const activeEl = tabRefs.current[activeTab];
+    if (!container || !activeEl) return;
+    const { left, width } = activeEl.getBoundingClientRect();
+    const { left: cLeft, width: cWidth } = container.getBoundingClientRect();
+    container.scrollTo({
+      left: container.scrollLeft + left - cLeft - cWidth / 2 + width / 2,
+      behavior: "smooth",
+    });
+  }, [activeTab]);
 
   return (
-    <motion.div
+    <div
       ref={containerRef}
-      className="flex bg-[#292B30] items-center gap-4 md:gap-8 mt-20 md:mt-40 p-2 w-fit max-lg:w-full overflow-x-auto scrollbar-hide rounded"
-      initial={{ opacity: 0, y: 30 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, delay: 0.6 }}
+      className="flex gap-1 overflow-x-auto scrollbar-hide bg-[#292B30] rounded-xl p-1 mt-4"
     >
       {options.map(({ id, label }) => (
-        <div key={id} className="relative">
-          <button
-            ref={(el) => void (tabRefs.current[id] = el)}
-            className={`text-white rounded-lg px-4 py-2 font-bold whitespace-nowrap relative z-10 ${
-              activeTab === id ? "text-white" : "text-gray-400"
-            }`}
-            onClick={() => onTabChange(id)}
-          >
-            {label}
-          </button>
+        <button
+          key={id}
+          ref={(el) => void (tabRefs.current[id] = el)}
+          onClick={() => onTabChange(id)}
+          className="relative flex-shrink-0 px-4 py-2 text-sm font-medium rounded-lg whitespace-nowrap z-10 transition-colors"
+          style={{ color: activeTab === id ? "#fff" : "#9ca3af" }}
+        >
           {activeTab === id && (
             <motion.div
-              className="absolute inset-0 bg-Red rounded-lg"
+              className="absolute inset-0 bg-red-600 rounded-lg"
               layoutId="activeTab"
-              initial={false}
-              transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              style={{ zIndex: 0 }}
+              transition={{ type: "spring", stiffness: 350, damping: 30 }}
             />
           )}
-        </div>
+          <span className="relative z-10">{label}</span>
+        </button>
       ))}
-    </motion.div>
+    </div>
   );
 };
 
