@@ -15,8 +15,11 @@ export default defineConfig({
         process: true,
       },
     }),
-    // PWA Plugin
+    // PWA Plugin — injectManifest so src/sw.ts handles push + caching
     VitePWA({
+      strategies: "injectManifest",
+      srcDir: "src",
+      filename: "sw.ts",
       registerType: "autoUpdate",
       includeAssets: ["robots.txt", "icons/*.png", "images/logo.svg", "images/logo.png"],
       manifest: {
@@ -77,91 +80,14 @@ export default defineConfig({
           },
         ],
       },
-      workbox: {
+      injectManifest: {
         // Increase file size limit to allow larger assets
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5 MB
-        // Exclude stats.html and other large files from precaching
         globPatterns: ["**/*.{js,css,html,ico,png,svg,jpg,jpeg,webp,woff,woff2}"],
         globIgnores: ["**/stats.html", "**/node_modules/**"],
-        // Cache strategies
-        runtimeCaching: [
-          // API calls - Network First (try network, fallback to cache)
-          {
-            urlPattern: ({ url }) => url.pathname.startsWith("/api/"),
-            handler: "NetworkFirst",
-            options: {
-              cacheName: "api-cache",
-              expiration: {
-                maxEntries: 100,
-                maxAgeSeconds: 60 * 60, // 1 hour
-              },
-              networkTimeoutSeconds: 10,
-              cacheableResponse: {
-                statuses: [0, 200],
-              },
-            },
-          },
-          // Images - Cache First (use cache, update in background)
-          {
-            urlPattern: ({ request }) => request.destination === "image",
-            handler: "CacheFirst",
-            options: {
-              cacheName: "images-cache",
-              expiration: {
-                maxEntries: 200,
-                maxAgeSeconds: 60 * 60 * 24 * 30, // 30 days
-              },
-            },
-          },
-          // Product images from external sources
-          {
-            urlPattern: /^https:\/\/.*\.(png|jpg|jpeg|svg|gif|webp)$/,
-            handler: "CacheFirst",
-            options: {
-              cacheName: "external-images-cache",
-              expiration: {
-                maxEntries: 100,
-                maxAgeSeconds: 60 * 60 * 24 * 7, // 7 days
-              },
-            },
-          },
-          // Google Fonts
-          {
-            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
-            handler: "CacheFirst",
-            options: {
-              cacheName: "google-fonts-cache",
-              expiration: {
-                maxEntries: 10,
-                maxAgeSeconds: 60 * 60 * 24 * 365, // 1 year
-              },
-            },
-          },
-          // Static assets - Cache First
-          {
-            urlPattern: ({ request }) =>
-              request.destination === "style" ||
-              request.destination === "script" ||
-              request.destination === "worker",
-            handler: "StaleWhileRevalidate",
-            options: {
-              cacheName: "static-assets-cache",
-              expiration: {
-                maxEntries: 60,
-                maxAgeSeconds: 60 * 60 * 24 * 7, // 7 days
-              },
-            },
-          },
-        ],
-        // Precache important routes
-        navigateFallback: "/index.html",
-        navigateFallbackDenylist: [/^\/api\//, /^\/auth\//],
-        cleanupOutdatedCaches: true,
-        skipWaiting: true,
-        clientsClaim: true,
       },
       devOptions: {
-        enabled: false, // Enable in development if needed
+        enabled: false,
         type: "module",
       },
     }),

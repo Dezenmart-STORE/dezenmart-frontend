@@ -46,6 +46,23 @@ export const notificationsApi = baseApi.injectEndpoints({
         }
       },
     }),
+
+    // Push subscription
+    subscribeToPush: builder.mutation<{ success: boolean }, PushSubscriptionJSON>({
+      query: (subscription) => ({
+        url: '/notifications/push/subscribe',
+        method: 'POST',
+        body: subscription,
+      }),
+    }),
+
+    unsubscribeFromPush: builder.mutation<{ success: boolean }, { endpoint: string }>({
+      query: (body) => ({
+        url: '/notifications/push/subscribe',
+        method: 'DELETE',
+        body,
+      }),
+    }),
   }),
 });
 
@@ -53,4 +70,6 @@ export const {
   useGetUserNotificationsQuery,
   useGetUnreadNotificationCountQuery,
   useMarkNotificationsAsReadMutation,
+  useSubscribeToPushMutation,
+  useUnsubscribeFromPushMutation,
 } = notificationsApi;
