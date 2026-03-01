@@ -29,12 +29,12 @@ const TIPS: Tip[] = [
   {
     icon: <HiOutlineEye className="w-5 h-5 text-yellow-400" />,
     title: 'Verify sellers before buying',
-    body: 'Check the seller's rating, completed trades, and reviews. Be extra cautious with sellers who have few transactions.',
+    body: "Check the seller's rating, completed trades, and reviews. Be extra cautious with sellers who have few transactions.",
   },
   {
     icon: <HiOutlineChatAlt2 className="w-5 h-5 text-purple-400" />,
     title: 'Keep conversations in-app',
-    body: 'Only communicate through Dezenmart's chat. Sellers who push you to WhatsApp or Telegram to agree on price may be trying to bypass protections.',
+    body: "Only communicate through Dezenmart's chat. Sellers who push you to WhatsApp or Telegram to agree on price may be trying to bypass protections.",
   },
   {
     icon: <HiOutlineExclamationCircle className="w-5 h-5 text-orange-400" />,

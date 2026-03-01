@@ -6,7 +6,7 @@ const BENEFITS = [
   {
     icon: <HiOutlineLockClosed className="w-5 h-5 text-blue-400" />,
     title: 'Block unauthorized logins',
-    body: 'Even if someone gets your Google credentials, they can't access your account without the second factor.',
+    body: "Even if someone gets your Google credentials, they can't access your account without the second factor.",
   },
   {
     icon: <HiOutlineShieldCheck className="w-5 h-5 text-green-400" />,
@@ -16,7 +16,7 @@ const BENEFITS = [
   {
     icon: <HiOutlineBell className="w-5 h-5 text-yellow-400" />,
     title: 'Login alerts',
-    body: 'Get notified whenever a new device signs into your account, so you can act immediately if it wasn't you.',
+    body: "Get notified whenever a new device signs into your account, so you can act immediately if it wasn't you.",
   },
 ];
 

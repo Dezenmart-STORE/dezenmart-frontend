@@ -15,15 +15,15 @@ const FAQS: { category: string; items: FAQ[] }[] = [
     items: [
       {
         q: 'How do I track my order?',
-        a: 'Go to Account → Order History and tap on any order to see its current status and logistics updates. You'll also receive notifications for every status change.',
+        a: "Go to Account > Order History and tap on any order to see its current status and logistics updates. You'll also receive notifications for every status change.",
       },
       {
         q: 'What does each order status mean?',
-        a: '"Pending" means the seller hasn't accepted yet. "Accepted" means the seller confirmed and will ship. "Delivered" means the seller marked it shipped. "Completed" means you confirmed receipt and funds were released.',
+        a: "Pending means the seller hasn't accepted yet. Accepted means the seller confirmed and will ship. Delivered means the seller marked it shipped. Completed means you confirmed receipt and funds were released.",
       },
       {
         q: 'Can I cancel an order?',
-        a: 'You can cancel a pending order before the seller accepts it. Once accepted, cancellation requires the seller's agreement or a dispute.',
+        a: "You can cancel a pending order before the seller accepts it. Once accepted, cancellation requires the seller's agreement or a dispute.",
       },
     ],
   },
@@ -53,7 +53,7 @@ const FAQS: { category: string; items: FAQ[] }[] = [
       },
       {
         q: 'How long do disputes take?',
-        a: 'Our team aims to review disputes within 3–5 business days. Complex cases may take longer. You'll receive email and in-app notifications as the case progresses.',
+        a: "Our team aims to review disputes within 3-5 business days. Complex cases may take longer. You'll receive email and in-app notifications as the case progresses.",
       },
     ],
   },
@@ -66,7 +66,7 @@ const FAQS: { category: string; items: FAQ[] }[] = [
       },
       {
         q: 'What if my account is compromised?',
-        a: 'Log out immediately from Account → Settings → Log Out. Contact us at safety@dezenmart.io and we'll lock the account while you regain access.',
+        a: "Log out immediately from Account > Settings > Log Out. Contact us at safety@dezenmart.io and we'll lock the account while you regain access.",
       },
     ],
   },
