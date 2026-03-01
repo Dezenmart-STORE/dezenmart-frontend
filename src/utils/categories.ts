@@ -68,18 +68,18 @@ export const CATEGORIES: readonly CategoryDef[] = [
   {
     name: 'Art Work',
     Icon: ArtWorkIcon,
-    color: 'text-yellow-400',
-    bg: 'bg-yellow-500/15',
-    ring: 'ring-yellow-500/50',
-    hex: '#eab308',
+    color: 'text-amber-400',
+    bg: 'bg-amber-500/15',
+    ring: 'ring-amber-500/50',
+    hex: '#f59e0b',
   },
   {
     name: 'Accessories',
     Icon: AccessoriesIcon,
-    color: 'text-red-400',
-    bg: 'bg-red-500/15',
-    ring: 'ring-red-500/50',
-    hex: '#ef4444',
+    color: 'text-rose-400',
+    bg: 'bg-rose-500/15',
+    ring: 'ring-rose-500/50',
+    hex: '#f43f5e',
   },
 ] as const;
 
