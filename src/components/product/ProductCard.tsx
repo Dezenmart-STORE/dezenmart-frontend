@@ -133,9 +133,7 @@ const ProductCard = React.memo(
             }`}
           >
             <motion.div
-              className={`absolute inset-0 flex items-center justify-center ${
-                isPngImage(imageUrl) ? "p-3" : ""
-              }`}
+              className={`absolute inset-0 flex items-center justify-center`} //${isPngImage(imageUrl) ? "p-3" : ""}
               whileHover={{ scale: 1.05 }}
               transition={{ type: "spring", stiffness: 300 }}
             >

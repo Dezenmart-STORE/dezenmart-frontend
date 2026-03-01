@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useCallback, useTransition } from "react";
+import { useEffect, useRef, useState, useMemo, useCallback, useTransition } from "react";
 import { twMerge } from "tailwind-merge";
 import ProductCard from "./ProductCard";
 import Title from "../common/Title";
@@ -11,7 +11,6 @@ import {
 } from "../../store/api";
 import { Product } from "../../utils/types";
 import LoadingSpinner from "../common/LoadingSpinner";
-import { useIntersectionObserver } from "../../utils/hooks/useIntersectionObserver";
 import { useAuth } from "../../context/AuthContext";
 import EmptyState from "../account/overview/EmptyState";
 
@@ -101,13 +100,16 @@ const ProductList = ({
   // State for pagination
   const [displayedCount, setDisplayedCount] = useState(maxItems || ITEMS_PER_PAGE);
 
-  // Intersection observer for infinite scroll with increased root margin for earlier loading
   const [isLoadingMore, startLoadMore] = useTransition();
 
-  const { targetRef, isIntersecting } = useIntersectionObserver({
-    threshold: 0.1,
-    rootMargin: "800px", // Trigger well before user reaches the bottom
-  });
+  // Sentinel ref — always rendered so the observer is always attached
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
+  // Mirror reactive values into refs so the observer callback (set up once)
+  // always reads the latest values without needing to reconnect.
+  const stateRef = useRef({ hasMore: false, isLoading: false, totalProducts: 0 });
+  const isLoadingMoreRef = useRef(false);
+  isLoadingMoreRef.current = isLoadingMore;
 
   // Helper function to check if product belongs to current user
   const isUserProduct = (product: Product): boolean => {
@@ -301,26 +303,37 @@ const ProductList = ({
   const totalProducts = processedProducts.length;
   const hasMore = displayedCount < totalProducts;
 
-  // Reset displayed count when products change
+  // Keep the ref mirror in sync every render (synchronous assignment — safe for refs)
+  stateRef.current = { hasMore, isLoading: isInitialLoading, totalProducts };
+
+  // Reset displayed count when the view changes
   useEffect(() => {
     setDisplayedCount(maxItems || ITEMS_PER_PAGE);
   }, [category, isFeatured, isUserProducts, maxItems]);
 
-  // Load more — data is already in memory; wrapped in startTransition so
-  // React can keep existing UI responsive while committing the larger render.
-  const loadMore = useCallback(() => {
-    if (!hasMore || isInitialLoading) return;
-    startLoadMore(() => {
-      setDisplayedCount((prev) => Math.min(prev + ITEMS_PER_PAGE, totalProducts));
-    });
-  }, [hasMore, isInitialLoading, totalProducts]);
-
-  // Trigger load more on intersection
+  // Wire up the IntersectionObserver once.
+  // The sentinel div is always rendered so this effect never needs to re-run.
+  // All dynamic values are read through stateRef / isLoadingMoreRef, which stay
+  // current on every render without recreating the observer.
   useEffect(() => {
-    if (isIntersecting && hasMore && !isInitialLoading) {
-      loadMore();
-    }
-  }, [isIntersecting, loadMore, hasMore, isInitialLoading]);
+    const node = sentinelRef.current;
+    if (!node) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        const { hasMore, isLoading, totalProducts } = stateRef.current;
+        if (!entry.isIntersecting || !hasMore || isLoading || isLoadingMoreRef.current) return;
+
+        startLoadMore(() => {
+          setDisplayedCount((prev) => Math.min(prev + ITEMS_PER_PAGE, totalProducts));
+        });
+      },
+      { rootMargin: "600px", threshold: 0 },
+    );
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Get products to display
   const productsToDisplay = processedProducts.slice(0, displayedCount);
@@ -449,11 +462,6 @@ const ProductList = ({
               </div>
             )}
 
-            {/* Intersection observer sentinel — positioned 800 px above visual bottom */}
-            {hasMore && (
-              <div ref={targetRef} className="h-px w-full" aria-hidden="true" />
-            )}
-
             {/* End of results */}
             {!hasMore && totalDisplayed > ITEMS_PER_PAGE && (
               <div className="text-center py-8 text-gray-400">
@@ -469,6 +477,14 @@ const ProductList = ({
           </>
         )}
       </div>
+
+      {/*
+        Sentinel lives outside the conditional so it is in the DOM from the very
+        first render — even while products are still loading. This guarantees the
+        IntersectionObserver (set up once in useEffect([])) always has a real node
+        to observe and will fire as soon as the user scrolls near the bottom.
+      */}
+      <div ref={sentinelRef} className="h-px w-full" aria-hidden="true" />
     </section>
   );
 };
