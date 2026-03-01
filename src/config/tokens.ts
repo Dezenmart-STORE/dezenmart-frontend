@@ -1,23 +1,23 @@
 import { celo, celoAlfajores } from "wagmi/chains";
 
 // Icon imports
-import cUSDIcon from "../../assets/icons/cUSD.svg";
-import cEURIcon from "../../assets/icons/cEUR.svg";
-import cREALIcon from "../../assets/icons/cREAL.svg";
-import cKESIcon from "../../assets/icons/cKES.svg";
-import PUSOIcon from "../../assets/icons/PUSO.svg";
-import cCOPIcon from "../../assets/icons/cCOP.svg";
-import eXOFIcon from "../../assets/icons/eXOF.svg";
-import cNGNIcon from "../../assets/icons/cNGN.svg";
-import cJPYIcon from "../../assets/icons/cJPY.svg";
-import cCHFIcon from "../../assets/icons/cCHF.svg";
-import cZARIcon from "../../assets/icons/cZAR.svg";
-import cGBPIcon from "../../assets/icons/cGBP.svg";
-import cAUDIcon from "../../assets/icons/cAUD.svg";
-import cCADIcon from "../../assets/icons/cCAD.svg";
-import cGHSIcon from "../../assets/icons/cGHS.svg";
-import USDTIcon from "../../assets/icons/USDT.svg";
-import GDIcon from "../../assets/icons/G$.svg";
+import cUSDIcon from "../assets/icons/cUSD.svg";
+import cEURIcon from "../assets/icons/cEUR.svg";
+import cREALIcon from "../assets/icons/cREAL.svg";
+import cKESIcon from "../assets/icons/cKES.svg";
+import PUSOIcon from "../assets/icons/PUSO.svg";
+import cCOPIcon from "../assets/icons/cCOP.svg";
+import eXOFIcon from "../assets/icons/eXOF.svg";
+import cNGNIcon from "../assets/icons/cNGN.svg";
+import cJPYIcon from "../assets/icons/cJPY.svg";
+import cCHFIcon from "../assets/icons/cCHF.svg";
+import cZARIcon from "../assets/icons/cZAR.svg";
+import cGBPIcon from "../assets/icons/cGBP.svg";
+import cAUDIcon from "../assets/icons/cAUD.svg";
+import cCADIcon from "../assets/icons/cCAD.svg";
+import cGHSIcon from "../assets/icons/cGHS.svg";
+import USDTIcon from "../assets/icons/USDT.svg";
+import GDIcon from "../assets/icons/G$.svg";
 
 // ---------------------------------------------------------------------------
 // Token type

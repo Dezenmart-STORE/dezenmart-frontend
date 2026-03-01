@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { FiChevronDown, FiCheck } from "react-icons/fi";
-import { StableToken } from "../../../../lean/config/tokens";
+import { StableToken } from "../../../../config/tokens";
 
 interface Props {
   priceUSDT: string;

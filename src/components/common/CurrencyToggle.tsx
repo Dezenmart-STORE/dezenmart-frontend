@@ -1,37 +1,36 @@
-import { memo, useMemo } from "react";
-import { IoMdSwap } from "react-icons/io";
-import { useCurrency } from "../../lean";
+import { useCurrency } from "../../context/CurrencyContext";
 
-const CurrencyToggle = () => {
-  const {
-    secondaryCurrency,
-    toggleSecondaryCurrency,
-    selectedTokenSymbol,
-    fiatCurrency,
-  } = useCurrency();
+interface Props {
+  className?: string;
+}
 
-  const displayCurrency = secondaryCurrency === "FIAT" ? fiatCurrency : selectedTokenSymbol;
+export default function CurrencyToggle({ className = "" }: Props) {
+  const { displayMode, toggleDisplayMode, selectedToken, isFetching, updatedAt } =
+    useCurrency();
 
-  const nextCurrency = useMemo(() => {
-    return secondaryCurrency === "FIAT" ? selectedTokenSymbol : fiatCurrency;
-  }, [secondaryCurrency, selectedTokenSymbol, fiatCurrency]);
+  const activeLabel = displayMode === "token" ? selectedToken.symbol : "Fiat";
+  const nextLabel   = displayMode === "token" ? "Fiat" : selectedToken.symbol;
+
+  const ageMs = Date.now() - updatedAt;
+  const dotColor =
+    isFetching           ? "bg-yellow-400 animate-pulse" :
+    updatedAt === 0      ? "bg-gray-500"                 :
+    ageMs < 3 * 60_000  ? "bg-green-400"                :
+    ageMs < 10 * 60_000 ? "bg-yellow-400"               :
+                          "bg-red-400";
 
   return (
-    <>
-      {fiatCurrency === selectedTokenSymbol && fiatCurrency === "USD" ? (
-        <></>
-      ) : (
-        <button
-          onClick={toggleSecondaryCurrency}
-          className="flex items-center gap-1 px-1.5 md:px-2 py-1 rounded bg-[#373A3F] hover:bg-[#42464d] transition-colors focus:outline-none focus:ring-2 focus:ring-Red focus:ring-opacity-50"
-          aria-label={`Toggle currency display to ${nextCurrency}`}
-        >
-          <span className="text-xs text-white">{displayCurrency}</span>
-          <IoMdSwap className="text-white text-xs" />
-        </button>
-      )}
-    </>
+    <button
+      onClick={toggleDisplayMode}
+      title={`Switch to ${nextLabel} prices`}
+      aria-label={`Showing prices in ${activeLabel}. Click to switch to ${nextLabel}`}
+      className={`flex items-center gap-1.5 rounded bg-[#373A3F] px-2 py-1 text-xs font-medium text-white transition-colors hover:bg-[#42464d] focus:outline-none focus:ring-2 focus:ring-red-600 focus:ring-opacity-50 ${className}`}
+    >
+      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dotColor}`} />
+      <span className="truncate max-w-[3.5rem]">{activeLabel}</span>
+      <svg className="h-3 w-3 flex-shrink-0 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+      </svg>
+    </button>
   );
-};
-
-export default memo(CurrencyToggle);
+}

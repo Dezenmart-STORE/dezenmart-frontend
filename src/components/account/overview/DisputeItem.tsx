@@ -1,7 +1,7 @@
 import React, { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Order } from "../../../utils/types";
-import { useCurrency } from "../../../lean";
+import { useCurrency } from "../../../context/CurrencyContext";
 
 const DISPUTE_STATUS_STYLES: Record<string, string> = {
   "pending":      "bg-yellow-900/40 text-yellow-300",

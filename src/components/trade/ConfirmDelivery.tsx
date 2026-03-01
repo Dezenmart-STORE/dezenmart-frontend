@@ -6,7 +6,7 @@ import {
   FaExclamationTriangle,
 } from "react-icons/fa";
 import { motion } from "framer-motion";
-import { useEscrow } from "../../lean";
+import { useEscrow } from "../../hooks/useEscrow";
 import { useUpdateOrderStatusMutation } from "../../store/api";
 
 interface ConfirmDeliveryProps {

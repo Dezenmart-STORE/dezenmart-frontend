@@ -22,14 +22,12 @@ import { useCreateOrderMutation } from "../../../store/api";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../../context/AuthContext";
 import { useAccount, useChainId } from "wagmi";
-import {
-  useCurrency,
-  useSwap,
-  useTokenBalances,
-  ConnectModal,
-  TOKENS,
-} from "../../../lean";
-import type { StableToken } from "../../../lean";
+import { useCurrency } from "../../../context/CurrencyContext";
+import { useSwap } from "../../../hooks/useSwap";
+import { useTokenBalances } from "../../../hooks/useTokenBalances";
+import ConnectModal from "../../wallet/ConnectModal";
+import { TOKENS } from "../../../config/tokens";
+import type { StableToken } from "../../../config/tokens";
 import { debounce } from "lodash-es";
 
 import QuantitySelector from "./QuantitySelector";

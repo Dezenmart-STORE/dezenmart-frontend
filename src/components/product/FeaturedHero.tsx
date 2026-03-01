@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { Product } from "../../utils/types";
 import { GoVerified } from "react-icons/go";
-import { useCurrency } from "../../lean";
+import { useCurrency } from "../../context/CurrencyContext";
 
 interface Props {
   title: string;

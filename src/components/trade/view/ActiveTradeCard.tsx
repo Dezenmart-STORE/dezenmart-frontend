@@ -6,7 +6,7 @@ import TradeDetailRow from "./TradeDetailRow";
 import { FaCopy } from "react-icons/fa";
 import { LuMessageSquare } from "react-icons/lu";
 import { Order } from "../../../utils/types";
-import { useCurrency } from "../../../lean";
+import { useCurrency } from "../../../context/CurrencyContext";
 
 interface ActiveTradeCardProps {
   trade: Order & {

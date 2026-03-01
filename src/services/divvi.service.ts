@@ -1,5 +1,5 @@
 import { getReferralTag, submitReferral } from "@divvi/referral-sdk";
-import { parseError } from "../../lean/utils/errors";
+import { parseError } from "../utils/errors";
 
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000" as const;
 

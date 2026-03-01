@@ -1,8 +1,8 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useGetProductByIdQuery } from "../store/api";
 import { useGetLogisticsProvidersQuery } from "../store/api";
-import { Checkout } from "../lean";
-import { DEFAULT_LOGISTICS_PROVIDER } from "../lean/config/chains";
+import Checkout from "../components/trade/Checkout";
+import { DEFAULT_LOGISTICS_PROVIDER } from "../config/chains";
 
 const BuyCheckout = () => {
   const { productId } = useParams<{ productId: string }>();

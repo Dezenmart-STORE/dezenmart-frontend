@@ -1,7 +1,7 @@
 import React, { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { WatchlistItem } from "../../../utils/types";
-import { useCurrency } from "../../../lean";
+import { useCurrency } from "../../../context/CurrencyContext";
 
 interface Props {
   item: WatchlistItem;

@@ -12,7 +12,8 @@ import {
 } from "../../../../store/api";
 import { useSnackbar } from "../../../../context/SnackbarContext";
 import { useAccount, useChainId } from "wagmi";
-import { useCurrency, TOKENS, buildTradeParams } from "../../../../lean";
+import { useCurrency } from "../../../../context/CurrencyContext";
+import { TOKENS, buildTradeParams } from "../../../../config/tokens";
 import MediaUpload, { MediaFile } from "./MediaUpload";
 import VariantsSection, { ProductVariant } from "./VariantsSection";
 import PriceField from "./PriceField";

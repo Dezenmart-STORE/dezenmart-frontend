@@ -1,14 +1,10 @@
 import { useState, useRef, useEffect } from "react";
 import { useAccount, useBalance, useDisconnect, useChainId, useSwitchChain } from "wagmi";
-import {
-  useCurrency,
-  ConnectModal,
-  useTokenBalances,
-  truncateAddress,
-  copyToClipboard,
-  TARGET_CHAIN,
-  getExplorerUrl,
-} from "../../lean";
+import ConnectModal from "./ConnectModal";
+import { useCurrency } from "../../context/CurrencyContext";
+import { useTokenBalances } from "../../hooks/useTokenBalances";
+import { truncateAddress, copyToClipboard } from "../../utils/format";
+import { TARGET_CHAIN, getExplorerUrl } from "../../config/chains";
 import { Mywallet } from "../../pages";
 
 /**

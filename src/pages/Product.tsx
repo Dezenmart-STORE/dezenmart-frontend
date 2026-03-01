@@ -9,7 +9,7 @@ import {
 } from "../store/api/productsApi";
 import { debounce } from "../utils/helpers";
 import ProductCard from "../components/product/ProductCard";
-import { useSEO } from "../utils/hooks/useSEO";
+import { useSEO } from "../hooks/useSEO";
 import {
   PAGE_SEO,
   SEO_CONFIG,

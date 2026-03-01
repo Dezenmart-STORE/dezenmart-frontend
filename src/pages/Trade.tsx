@@ -21,7 +21,7 @@ import ProductListingSkeleton from "../components/trade/ProductListingSkeleton";
 import Tab from "../components/trade/Tab";
 import LazyFloatingButton from "../components/common/LazyFloatingButton";
 import { useAccount } from "wagmi";
-import { ConnectModal } from "../lean";
+import ConnectModal from "../components/wallet/ConnectModal";
 
 const ProductCard = lazy(() => import("../components/trade/ProductCard"));
 const IncomingOrderCard = lazy(

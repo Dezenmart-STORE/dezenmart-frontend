@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { HiOutlineBell, HiX } from 'react-icons/hi';
-import { usePushNotifications } from '../../utils/hooks/usePushNotifications';
+import { usePushNotifications } from '../../hooks/usePushNotifications';
 
 const DISMISSED_KEY = 'push_dismissed';
 

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { HiChevronDown, HiStar } from "react-icons/hi2";
-import { useCurrency } from "../../lean";
-import type { StableToken } from "../../lean";
+import { useCurrency } from "../../context/CurrencyContext";
+import type { StableToken } from "../../config/tokens";
 import { useAccount } from "wagmi";
 
 const TokenSelector: React.FC = () => {

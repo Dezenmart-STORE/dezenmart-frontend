@@ -1,8 +1,10 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useGetOrderByIdQuery } from "../store/api";
-import { TradeStatus, TradeActions, TransactionResult } from "../lean";
-import type { TradeState } from "../lean";
-import { useCurrency } from "../lean";
+import TradeStatus from "../components/trade/TradeStatus";
+import TradeActions from "../components/trade/TradeActions";
+import TransactionResult from "../components/trade/TransactionResult";
+import type { TradeState } from "../components/trade/TradeStatus";
+import { useCurrency } from "../context/CurrencyContext";
 
 const ViewTradeDetail = () => {
   const { tradeId } = useParams<{ tradeId: string }>();

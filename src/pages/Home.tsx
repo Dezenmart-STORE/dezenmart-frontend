@@ -11,10 +11,10 @@ import CategoryPreview from "../components/common/CategoryPreview";
 import { SectionIcons } from "../components/common/SectionIcons";
 import { CATEGORIES } from "../utils/categories";
 import { useAuth } from "../context/AuthContext";
-import { useCurrency } from "../lean";
+import { useCurrency } from "../context/CurrencyContext";
 import WalletQuickAction from "../components/wallet/WalletQuickAction";
 import { useGetSponsoredProductsQuery } from "../store/api";
-import { useSEO } from "../utils/hooks/useSEO";
+import { useSEO } from "../hooks/useSEO";
 import { PAGE_SEO, SEO_CONFIG } from "../utils/seo/seoConfig";
 
 // ─── Banners ─────────────────────────────────────────────────────────────────

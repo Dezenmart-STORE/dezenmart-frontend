@@ -9,7 +9,7 @@ import { simulateContract, waitForTransactionReceipt, getChainId } from "@wagmi/
 import { getEscrowContract, ESCROW_ABI } from "../abi/escrow";
 import { wagmiConfig } from "../config/chains";
 import { parseError, logError } from "../utils/errors";
-import { paymentDebug } from "../utils/debug";
+import { paymentDebug } from "../utils/paymentDebug";
 
 // ---------------------------------------------------------------------------
 // Types

@@ -8,7 +8,7 @@ import { OfflineIndicator } from "../pwa/OfflineIndicator.tsx";
 import { InstallPrompt } from "../pwa/InstallPrompt.tsx";
 import { registerServiceWorker } from "../../utils/pwa/serviceWorkerRegistration";
 import { setupOfflineSyncListener } from "../../utils/pwa/offlineSync";
-import WrongNetworkBanner from "../../lean/components/wallet/WrongNetworkBanner";
+import WrongNetworkBanner from "../wallet/WrongNetworkBanner";
 
 const Layout = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();

@@ -9,7 +9,7 @@ import {
   useAddToWatchlistMutation,
   useRemoveFromWatchlistMutation,
 } from "../store/api/watchlistApi";
-import { useSEO } from "../utils/hooks/useSEO";
+import { useSEO } from "../hooks/useSEO";
 import {
   generateProductSchema,
   generateBreadcrumbSchema,
@@ -32,7 +32,7 @@ import {
   useGetProductByIdQuery,
   useGetProductsByCategoryQuery,
 } from "../store/api/productsApi";
-import { useCurrency } from "../lean";
+import { useCurrency } from "../context/CurrencyContext";
 import { ProductVariant, Product as ProductType } from "../utils/types";
 import { useAuth } from "../context/AuthContext";
 import { useSnackbar } from "../context/SnackbarContext";

@@ -2,8 +2,9 @@ import { useState, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAccount } from "wagmi";
 import { useGetUserOrdersQuery } from "../store/api";
-import { TradeCard, ConnectModal } from "../lean";
-import type { TradeData } from "../lean";
+import TradeCard from "../components/trade/TradeCard";
+import ConnectModal from "../components/wallet/ConnectModal";
+import type { TradeData } from "../components/trade/TradeCard";
 
 type Tab = "active" | "completed";
 

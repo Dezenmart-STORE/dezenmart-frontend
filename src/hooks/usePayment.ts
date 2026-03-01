@@ -5,7 +5,7 @@ import { useTokenBalances } from "./useTokenBalances";
 import { useSwap } from "./useSwap";
 import { useEscrow } from "./useEscrow";
 import { getToken, getTokenAddress } from "../config/tokens";
-import { paymentDebug } from "../utils/debug";
+import { paymentDebug } from "../utils/paymentDebug";
 import { getErrorMessage } from "../utils/errors";
 import { wagmiConfig, CHAIN_IDS } from "../config/chains";
 import { ESCROW_ABI } from "../abi/escrow";

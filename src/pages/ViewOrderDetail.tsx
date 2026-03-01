@@ -7,11 +7,14 @@ import {
   useCreateReviewMutation,
   useGetOrderReviewQuery,
 } from "../store/api";
-import { TradeStatus, TradeActions, TransactionResult, PaymentFlow } from "../lean";
-import type { TradeState } from "../lean";
-import { useCurrency } from "../lean";
-import { calculateOrderTotal } from "../lean/utils/format";
-import { CHAIN_IDS, DEFAULT_LOGISTICS_PROVIDER, getExplorerUrl } from "../lean/config/chains";
+import TradeStatus from "../components/trade/TradeStatus";
+import TradeActions from "../components/trade/TradeActions";
+import TransactionResult from "../components/trade/TransactionResult";
+import PaymentFlow from "../components/payment/PaymentFlow";
+import type { TradeState } from "../components/trade/TradeStatus";
+import { useCurrency } from "../context/CurrencyContext";
+import { calculateOrderTotal } from "../utils/format";
+import { CHAIN_IDS, DEFAULT_LOGISTICS_PROVIDER, getExplorerUrl } from "../config/chains";
 
 const ViewOrderDetail = () => {
   const { orderId } = useParams<{ orderId: string }>();

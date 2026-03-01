@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useSubscribeToPushMutation, useUnsubscribeFromPushMutation } from '../../store/api/notificationsApi';
+import { useSubscribeToPushMutation, useUnsubscribeFromPushMutation } from '../store/api/notificationsApi';
 
 const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined;
 

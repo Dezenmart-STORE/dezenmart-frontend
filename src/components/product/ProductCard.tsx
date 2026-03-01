@@ -7,7 +7,7 @@ import {
   useAddToWatchlistMutation,
   useRemoveFromWatchlistMutation,
 } from "../../store/api";
-import { useCurrency } from "../../lean";
+import { useCurrency } from "../../context/CurrencyContext";
 import { motion } from "framer-motion";
 import { useAuth } from "../../context/AuthContext";
 import { useSnackbar } from "../../context/SnackbarContext";

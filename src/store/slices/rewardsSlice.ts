@@ -1,6 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
 import { Reward, RewardSummary } from "../../utils/types";
-import { api } from "../../utils/services/apiService";
+import { api } from "../../services/apiService";
 
 interface RewardsState {
   rewards: Reward[];

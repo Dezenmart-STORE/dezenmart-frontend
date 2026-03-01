@@ -4,7 +4,7 @@ import {
   NotificationCount,
   MarkReadResponse,
 } from "../../utils/types";
-import { api } from "../../utils/services/apiService";
+import { api } from "../../services/apiService";
 
 interface NotificationsState {
   notifications: Notification[];
