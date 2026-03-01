@@ -14,30 +14,33 @@ import type { IconType } from 'react-icons';
 
 export function getNotificationRoute(n: Notification): string | null {
   const { type, metadata } = n;
+  const t = type.toUpperCase();
 
-  if (type === 'order' || type === 'order_update') {
+  if (t === 'ORDER_PLACED' || t === 'ORDER_UPDATE' || t === 'ORDER') {
     if (metadata?.orderId) return `/orders/${metadata.orderId}`;
   }
 
-  if (type === 'trade' || type === 'buyer') {
+  if (t === 'NEW_MESSAGE' || t === 'MESSAGE') {
+    // API uses metadata.sender for message notifications
+    const senderId = metadata?.sender ?? metadata?.senderId;
+    if (senderId) return `/chat/${senderId}`;
+    return '/chat';
+  }
+
+  if (t === 'TRADE' || t === 'BUYER') {
     if (metadata?.tradeId) return `/trades/viewtrades/${metadata.tradeId}`;
     if (metadata?.orderId) return `/orders/${metadata.orderId}`;
   }
 
-  if (type === 'message') {
-    if (metadata?.senderId) return `/chat/${metadata.senderId}`;
-    return '/chat';
-  }
-
-  if (type === 'funds' || type === 'payment') {
+  if (t === 'FUNDS' || t === 'PAYMENT') {
     return '/account';
   }
 
-  if (type === 'referral') {
+  if (t === 'REFERRAL') {
     return '/account';
   }
 
-  if (type === 'product') {
+  if (t === 'PRODUCT') {
     if (metadata?.productId) return `/product/${metadata.productId}`;
   }
 
@@ -71,12 +74,11 @@ export function formatRelativeTime(iso: string): string {
     return date.toLocaleDateString('en-US', { weekday: 'short' });
   }
 
-  // Same year → show "Jan 15"
+  // Same year → "Jan 15"
   if (date.getFullYear() === nowDate.getFullYear()) {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   }
 
-  // Older → show "Jan 15, 2024"
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
@@ -90,26 +92,28 @@ interface NotificationMeta {
 }
 
 export function getNotificationMeta(type: string): NotificationMeta {
-  switch (type) {
-    case 'order':
-    case 'order_update':
-      return { icon: HiOutlineCube, color: 'text-orange-400', bgColor: 'bg-orange-500/20', label: 'Order' };
-    case 'trade':
-    case 'buyer':
-      return { icon: HiOutlineShoppingBag, color: 'text-purple-400', bgColor: 'bg-purple-500/20', label: 'Trade' };
-    case 'message':
-      return { icon: HiOutlineChatAlt2, color: 'text-blue-400', bgColor: 'bg-blue-500/20', label: 'Message' };
-    case 'funds':
-    case 'payment':
-      return { icon: HiOutlineCurrencyDollar, color: 'text-green-400', bgColor: 'bg-green-500/20', label: 'Payment' };
-    case 'referral':
-      return { icon: HiOutlineUsers, color: 'text-yellow-400', bgColor: 'bg-yellow-500/20', label: 'Referral' };
-    case 'product':
-      return { icon: HiOutlineCube, color: 'text-indigo-400', bgColor: 'bg-indigo-500/20', label: 'Product' };
-    case 'update':
-    default:
-      return { icon: HiOutlineInformationCircle, color: 'text-gray-400', bgColor: 'bg-gray-500/20', label: 'Update' };
+  const t = type.toUpperCase();
+
+  if (t === 'ORDER_PLACED' || t === 'ORDER_UPDATE' || t === 'ORDER') {
+    return { icon: HiOutlineCube, color: 'text-orange-400', bgColor: 'bg-orange-500/20', label: 'Order' };
   }
+  if (t === 'NEW_MESSAGE' || t === 'MESSAGE') {
+    return { icon: HiOutlineChatAlt2, color: 'text-blue-400', bgColor: 'bg-blue-500/20', label: 'Message' };
+  }
+  if (t === 'TRADE' || t === 'BUYER') {
+    return { icon: HiOutlineShoppingBag, color: 'text-purple-400', bgColor: 'bg-purple-500/20', label: 'Trade' };
+  }
+  if (t === 'FUNDS' || t === 'PAYMENT') {
+    return { icon: HiOutlineCurrencyDollar, color: 'text-green-400', bgColor: 'bg-green-500/20', label: 'Payment' };
+  }
+  if (t === 'REFERRAL') {
+    return { icon: HiOutlineUsers, color: 'text-yellow-400', bgColor: 'bg-yellow-500/20', label: 'Referral' };
+  }
+  if (t === 'PRODUCT') {
+    return { icon: HiOutlineCube, color: 'text-indigo-400', bgColor: 'bg-indigo-500/20', label: 'Product' };
+  }
+
+  return { icon: HiOutlineInformationCircle, color: 'text-gray-400', bgColor: 'bg-gray-500/20', label: 'Update' };
 }
 
 // ---------- Date grouping ----------

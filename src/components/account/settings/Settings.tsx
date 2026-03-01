@@ -14,8 +14,7 @@ import { FaQuestion } from "react-icons/fa";
 import { TwoFactor } from "../../../pages";
 import { useAuth } from "../../../context/AuthContext";
 import { useNavigate } from "react-router";
-
-type ViewState = "overview" | "settings" | "edit-profile" | "delivery-addresses";
+import type { AccountViewState } from "../../../pages/Account";
 
 interface SettingItemProps {
   icon: React.ReactNode;
@@ -63,7 +62,7 @@ const SettingItem = ({
 const Settings = ({
   setViewState,
 }: {
-  setViewState: (state: ViewState) => void;
+  setViewState: (state: AccountViewState) => void;
 }) => {
   const { logout } = useAuth();
   const navigate = useNavigate();
@@ -102,14 +101,17 @@ const Settings = ({
         {
           icon: <RiShieldKeyholeFill className="text-white text-base" />,
           label: "Privacy",
+          onClick: () => setViewState("privacy"),
         },
         {
           icon: <RiShieldCheckFill className="text-white text-base" />,
           label: "Safety",
+          onClick: () => setViewState("safety"),
         },
         {
           icon: <img src={TwoFactor} alt="" className="w-4 h-4" />,
           label: "Two-Factor Authentication",
+          onClick: () => setViewState("two-factor"),
         },
       ],
     },
@@ -119,14 +121,17 @@ const Settings = ({
         {
           icon: <FaQuestion className="text-white text-sm" />,
           label: "Help & Support",
+          onClick: () => setViewState("help"),
         },
         {
           icon: <RiThumbUpLine className="text-white text-base" />,
           label: "Rate the App",
+          onClick: () => setViewState("rate"),
         },
         {
           icon: <RiBuilding2Line className="text-white text-base" />,
           label: "About Dezenmart",
+          onClick: () => setViewState("about"),
         },
         {
           icon: <RiLogoutBoxRLine className="text-red-400 text-base" />,
