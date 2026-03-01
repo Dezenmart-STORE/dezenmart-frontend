@@ -1,21 +1,215 @@
-import { useSyncExternalStore, useCallback } from "react";
-import { ratesStore, TOKEN_FIAT_MAP } from "../core/ratesStore";
+import { useCallback } from "react";
+import {
+  useQuery,
+  useQueryClient,
+  keepPreviousData,
+} from "@tanstack/react-query";
 
-export { TOKEN_FIAT_MAP };
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+const TOKEN_IDS: Record<string, string> = {
+  USDT: "tether",
+  cUSD: "celo-dollar",
+  cEUR: "celo-euro",
+  cREAL: "celo-real-creal",
+  "G$": "gooddollar",
+  CELO: "celo",
+};
+
+/** Fallback token→USD rates used before live data arrives. */
+const PEGGED_RATES: Record<string, number> = {
+  USDT: 1,
+  cUSD: 1,
+  cEUR: 1.08,
+  cREAL: 0.18,
+  cKES: 0.0065,
+  cNGN: 0.00063,
+  cGBP: 1.27,
+  cJPY: 0.0067,
+  cCHF: 1.13,
+  cZAR: 0.055,
+  cAUD: 0.66,
+  cCAD: 0.74,
+  cCOP: 0.00024,
+  eXOF: 0.0016,
+  PUSO: 0.018,
+  cGHS: 0.062,
+  "G$": 0.00015,
+  CELO: 0.5,
+  USD: 1,
+};
+
+/** Token → corresponding fiat currency ISO code. */
+export const TOKEN_FIAT_MAP: Record<string, string> = {
+  cUSD: "USD",
+  cEUR: "EUR",
+  cREAL: "BRL",
+  cKES: "KES",
+  PUSO: "PHP",
+  cCOP: "COP",
+  eXOF: "XOF",
+  cNGN: "NGN",
+  cJPY: "JPY",
+  cCHF: "CHF",
+  cZAR: "ZAR",
+  cGBP: "GBP",
+  cAUD: "AUD",
+  cCAD: "CAD",
+  cGHS: "GHS",
+  "G$": "USD",
+  USDT: "USD",
+};
+
+const GEO_KEY = "dezen_user_geo";
+const GEO_EXPIRY = 24 * 60 * 60 * 1000; // 24 hours
+
+const RATES_KEY = "dezen_rates_cache";
+const RATES_EXPIRY = 60 * 60 * 1000; // 1 hour — used for cold-start warm-up only
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+interface RatesSnapshot {
+  rates: Record<string, number>;
+  fiatRates: Record<string, number>;
+  userFiat: string;
+}
+
+// ---------------------------------------------------------------------------
+// Helpers (module-level, no side effects on import)
+// ---------------------------------------------------------------------------
+
+function getCachedGeo(): string | null {
+  try {
+    const raw = localStorage.getItem(GEO_KEY);
+    if (!raw) return null;
+    const data = JSON.parse(raw) as { currency: string; ts: number };
+    if (Date.now() - data.ts < GEO_EXPIRY) return data.currency;
+  } catch { /* ignore */ }
+  return null;
+}
+
+async function fetchGeo(): Promise<string> {
+  const cached = getCachedGeo();
+  if (cached) return cached;
+  try {
+    const res = await fetch("https://ipapi.co/json/", {
+      signal: AbortSignal.timeout(5000),
+    });
+    const data = (await res.json()) as { currency?: string };
+    const currency = data.currency ?? "USD";
+    localStorage.setItem(GEO_KEY, JSON.stringify({ currency, ts: Date.now() }));
+    return currency;
+  } catch {
+    return "USD";
+  }
+}
+
+function loadFromStorage(): (RatesSnapshot & { updatedAt: number }) | null {
+  try {
+    const raw = localStorage.getItem(RATES_KEY);
+    if (!raw) return null;
+    const data = JSON.parse(raw) as RatesSnapshot & { updatedAt: number };
+    if (Date.now() - data.updatedAt < RATES_EXPIRY) return data;
+  } catch { /* ignore */ }
+  return null;
+}
+
+function getStoredUpdatedAt(): number {
+  return loadFromStorage()?.updatedAt ?? 0;
+}
+
+/** Fetches geo + CoinGecko, persists to localStorage, returns snapshot. */
+async function fetchRatesSnapshot(): Promise<RatesSnapshot> {
+  const userFiat = await fetchGeo();
+
+  const fiatCurrencies = Array.from(new Set(Object.values(TOKEN_FIAT_MAP)));
+  const vsCurrencies = [
+    ...new Set([
+      userFiat.toLowerCase(),
+      ...fiatCurrencies.map((c) => c.toLowerCase()),
+      "usd",
+    ]),
+  ].join(",");
+
+  const ids = Object.values(TOKEN_IDS).join(",");
+  const res = await fetch(
+    `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=${vsCurrencies}&precision=8`,
+    { signal: AbortSignal.timeout(8000) }
+  );
+
+  if (!res.ok) throw new Error(`CoinGecko ${res.status}`);
+
+  const data = (await res.json()) as Record<string, Record<string, number>>;
+
+  const rates: Record<string, number> = { ...PEGGED_RATES };
+  for (const [symbol, cgId] of Object.entries(TOKEN_IDS)) {
+    if (data[cgId]?.usd) rates[symbol] = data[cgId].usd;
+  }
+
+  const fiatRates: Record<string, number> = { USD_USD: 1 };
+  const tetherData = data.tether ?? {};
+  for (const [fiatCode, rate] of Object.entries(tetherData)) {
+    if (typeof rate === "number") {
+      fiatRates[`USD_${fiatCode.toUpperCase()}`] = rate;
+    }
+  }
+
+  const snapshot: RatesSnapshot & { updatedAt: number } = {
+    rates,
+    fiatRates,
+    userFiat,
+    updatedAt: Date.now(),
+  };
+
+  try {
+    localStorage.setItem(RATES_KEY, JSON.stringify(snapshot));
+  } catch { /* storage quota — skip silently */ }
+
+  return { rates, fiatRates, userFiat };
+}
+
+// ---------------------------------------------------------------------------
+// Hook
+// ---------------------------------------------------------------------------
 
 /**
- * Token → USD exchange rates.
+ * Token → USD exchange rates, powered by TanStack Query.
  *
- * Subscribes to the module-level ratesStore singleton via useSyncExternalStore,
- * so every component always sees the same data and React can safely batch
- * updates in concurrent mode.
- *
- * The store refreshes every 2 minutes, on window focus, and on network
- * reconnect — no component needs to trigger this manually.
+ * - Cold starts: immediately returns rates from localStorage (via initialData)
+ *   so the UI never shows pegged fallbacks on first render.
+ * - Background poll: refetches every 2 minutes automatically.
+ * - Window focus / network reconnect: triggers a fresh fetch.
+ * - Manual refresh: call refreshRates() to invalidate immediately.
  */
 export function usePrices() {
-  const { rates, fiatRates, userFiat, isFetching, updatedAt } =
-    useSyncExternalStore(ratesStore.subscribe, ratesStore.getSnapshot);
+  const queryClient = useQueryClient();
+
+  const { data, isFetching, dataUpdatedAt } = useQuery({
+    queryKey: ["exchange-rates"],
+    queryFn: fetchRatesSnapshot,
+    staleTime: 2 * 60_000,
+    refetchInterval: 2 * 60_000,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+    placeholderData: keepPreviousData,
+    initialData: () =>
+      loadFromStorage() ?? {
+        rates: { ...PEGGED_RATES },
+        fiatRates: {},
+        userFiat: getCachedGeo() ?? "USD",
+      },
+    initialDataUpdatedAt: getStoredUpdatedAt,
+  });
+
+  const { rates, fiatRates, userFiat } = data;
+
+  const refreshRates = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["exchange-rates"] });
+  }, [queryClient]);
 
   /** Convert a token amount to USD. */
   const toUSD = useCallback(
@@ -109,12 +303,6 @@ export function usePrices() {
     [userFiat]
   );
 
-  /** Format a USD amount as "$X.XX". */
-  const formatUSD = useCallback(
-    (usd: number): string => (isNaN(usd) ? "$0.00" : `$${usd.toFixed(2)}`),
-    []
-  );
-
   /**
    * Best secondary fiat currency for a given token.
    * Avoids showing the same denomination twice:
@@ -132,14 +320,13 @@ export function usePrices() {
 
   return {
     toUSD,
-    formatUSD,
     convertPrice,
     formatPrice,
     getSecondaryFiat,
     rates,
     userFiat,
     isFetching,
-    updatedAt,
-    refreshRates: ratesStore.refresh,
+    updatedAt: dataUpdatedAt,
+    refreshRates,
   };
 }

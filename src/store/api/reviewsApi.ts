@@ -34,9 +34,9 @@ export const reviewsApi = baseApi.injectEndpoints({
         headers: { 'Content-Type': 'application/json' },
         body: data,
       }),
-      invalidatesTags: (result, error, { order }) => [
-        { type: 'Reviews', id: 'LIST' },
-        { type: 'Order', id: order },
+      invalidatesTags: (_, __, arg) => [
+        { type: 'Reviews', id: `USER_${arg.reviewed}` },
+        { type: 'Reviews', id: `ORDER_${arg.order}` },
       ],
     }),
 

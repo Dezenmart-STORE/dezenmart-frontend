@@ -38,6 +38,24 @@ export interface SwapResult {
 }
 
 // ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Races `p` against a timeout.
+ * The losing side's rejection is suppressed to prevent unhandled rejection warnings.
+ */
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  p.catch(() => {}); // suppress unhandled rejection on the losing promise
+  return Promise.race([
+    p,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("Operation timed out")), ms)
+    ),
+  ]);
+}
+
+// ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 const QUOTE_CACHE_TTL = 10_000;
@@ -159,68 +177,63 @@ export function useMentoInternal() {
   const publicClient = usePublicClient();
 
   const [isInitialized, setIsInitialized] = useState(false);
-  const [isInitializing, setIsInitializing] = useState(false);
-  const [initAttempts, setInitAttempts] = useState(0);
 
   const mentoRef = useRef<Mento | null>(null);
   const quoteCache = useRef<Map<string, SwapQuote>>(new Map());
+  // Promise-mutex: prevents concurrent initialization calls
+  const initPromiseRef = useRef<Promise<boolean> | null>(null);
 
   // ── Initialize ──────────────────────────────────────────────────
-  const initialize = useCallback(async (): Promise<boolean> => {
-    if (isInitialized || isInitializing) return isInitialized;
-    if (!window.ethereum || !address || !walletClient || !publicClient) return false;
+  const initialize = useCallback((): Promise<boolean> => {
+    // Return in-flight promise if one exists (mutex)
+    if (initPromiseRef.current) return initPromiseRef.current;
 
-    setIsInitializing(true);
-    setInitAttempts((n) => n + 1);
+    const doInit = async (): Promise<boolean> => {
+      if (!window.ethereum || !address || !walletClient || !publicClient) return false;
 
-    let retries = 0;
-    while (retries < MAX_RETRIES) {
-      try {
-        const provider = new providers.Web3Provider(window.ethereum);
-        const signer = provider.getSigner();
-        const network = await provider.getNetwork();
+      let retries = 0;
+      while (retries < MAX_RETRIES) {
+        try {
+          const provider = new providers.Web3Provider(window.ethereum);
+          const signer = provider.getSigner();
+          const network = await provider.getNetwork();
 
-        if (network.chainId !== TARGET_CHAIN.id) {
-          throw new Error(`Please switch to ${TARGET_CHAIN.name}`);
-        }
+          if (network.chainId !== TARGET_CHAIN.id) {
+            throw new Error(`Please switch to ${TARGET_CHAIN.name}`);
+          }
 
-        const mento = await Promise.race([
-          Mento.create(signer),
-          new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error("SDK init timeout")), 15_000)
-          ),
-        ]);
+          const mento = await withTimeout(Mento.create(signer), 15_000);
 
-        // Verify pairs are fetchable
-        await Promise.race([
-          mento.getTradablePairs(),
-          new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error("Pairs timeout")), 10_000)
-          ),
-        ]);
+          // Verify pairs are fetchable
+          await withTimeout(mento.getTradablePairs(), 10_000);
 
-        mentoRef.current = mento;
-        setIsInitializing(false);
-        setIsInitialized(true);
-        return true;
-      } catch {
-        retries++;
-        if (retries < MAX_RETRIES) {
-          await new Promise((r) => setTimeout(r, RETRY_DELAY * retries));
+          mentoRef.current = mento;
+          setIsInitialized(true);
+          return true;
+        } catch {
+          retries++;
+          if (retries < MAX_RETRIES) {
+            await new Promise((r) => setTimeout(r, RETRY_DELAY * retries));
+          }
         }
       }
-    }
 
-    setIsInitializing(false);
-    return false;
-  }, [address, walletClient, publicClient, isInitialized, isInitializing]);
+      return false;
+    };
+
+    initPromiseRef.current = doInit().finally(() => {
+      initPromiseRef.current = null;
+    });
+
+    return initPromiseRef.current;
+  }, [address, walletClient, publicClient]);
 
   // Auto-init
   useEffect(() => {
-    if (address && walletClient && !isInitialized && !isInitializing && initAttempts < 3) {
+    if (address && walletClient && !isInitialized) {
       initialize();
     }
-  }, [address, walletClient, isInitialized, isInitializing, initAttempts, initialize]);
+  }, [address, walletClient, isInitialized, initialize]);
 
   // ── Get quote ───────────────────────────────────────────────────
   const getSwapQuote = useCallback(
@@ -260,39 +273,33 @@ export function useMentoInternal() {
 
       // Try direct pair
       try {
-        tradablePair = await Promise.race([
+        tradablePair = await withTimeout(
           mentoRef.current.findPairForTokens(fromAddress, toAddress),
-          new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error("Pair lookup timeout")), 5_000)
-          ),
-        ]);
+          5_000
+        );
 
-        amountOut = await Promise.race([
+        amountOut = await withTimeout(
           mentoRef.current.getAmountOut(
             fromAddress,
             toAddress,
             BigNumber.from(amountIn.toString()),
             tradablePair
           ),
-          new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error("Amount calc timeout")), 5_000)
-          ),
-        ]) as BigNumber;
+          5_000
+        ) as BigNumber;
 
         route = buildRouteFromPair(tradablePair, fromSymbol, toSymbol, chainId);
       } catch {
         // Try direct without pair
         try {
-          amountOut = await Promise.race([
+          amountOut = await withTimeout(
             mentoRef.current!.getAmountOut(
               fromAddress,
               toAddress,
               BigNumber.from(amountIn.toString())
             ),
-            new Promise<never>((_, reject) =>
-              setTimeout(() => reject(new Error("Direct swap timeout")), 5_000)
-            ),
-          ]) as BigNumber;
+            5_000
+          ) as BigNumber;
           route = [fromSymbol, toSymbol];
         } catch {
           // Try multi-hop
@@ -345,7 +352,7 @@ export function useMentoInternal() {
       };
 
       quoteCache.current.set(cacheKey, quote);
-      setTimeout(() => quoteCache.current.delete(cacheKey), QUOTE_CACHE_TTL);
+      // TTL is checked on cache hit (Date.now() - timestamp < QUOTE_CACHE_TTL); no timer needed
 
       return quote;
     },

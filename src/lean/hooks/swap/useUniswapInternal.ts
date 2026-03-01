@@ -210,51 +210,59 @@ export function useUniswapInternal() {
   const publicClient = usePublicClient();
 
   const [isInitialized, setIsInitialized] = useState(false);
-  const [isInitializing, setIsInitializing] = useState(false);
-  const [initAttempts, setInitAttempts] = useState(0);
 
   const providerRef = useRef<ethers.providers.Web3Provider | null>(null);
   const quoteCache = useRef<Map<string, SwapQuote>>(new Map());
+  // Promise-mutex: prevents concurrent initialization calls
+  const initPromiseRef = useRef<Promise<boolean> | null>(null);
 
   // ── Initialize ──────────────────────────────────────────────────
-  const initialize = useCallback(async (): Promise<boolean> => {
-    if (isInitialized || isInitializing) return isInitialized;
-    if (!window.ethereum || !address || !walletClient || !publicClient) return false;
+  const initialize = useCallback((): Promise<boolean> => {
+    // Return in-flight promise if one exists (mutex)
+    if (initPromiseRef.current) return initPromiseRef.current;
 
-    setIsInitializing(true);
-    setInitAttempts((n) => n + 1);
+    const doInit = async (): Promise<boolean> => {
+      if (!window.ethereum || !address || !walletClient || !publicClient) return false;
 
-    let retries = 0;
-    while (retries < MAX_RETRIES) {
-      try {
-        const provider = new ethers.providers.Web3Provider(window.ethereum);
-        const network = await provider.getNetwork();
-        if (network.chainId !== TARGET_CHAIN.id) {
-          throw new Error(`Please switch to ${TARGET_CHAIN.name}`);
-        }
+      let retries = 0;
+      while (retries < MAX_RETRIES) {
+        try {
+          const provider = new ethers.providers.Web3Provider(window.ethereum);
+          const network = await provider.getNetwork();
+          if (network.chainId !== TARGET_CHAIN.id) {
+            throw new Error(`Please switch to ${TARGET_CHAIN.name}`);
+          }
 
-        providerRef.current = provider;
-        setIsInitializing(false);
-        setIsInitialized(true);
-        return true;
-      } catch {
-        retries++;
-        if (retries < MAX_RETRIES) {
-          await new Promise((r) => setTimeout(r, RETRY_DELAY * retries));
+          providerRef.current = provider;
+          setIsInitialized(true);
+          return true;
+        } catch {
+          retries++;
+          if (retries < MAX_RETRIES) {
+            await new Promise((r) => setTimeout(r, RETRY_DELAY * retries));
+          }
         }
       }
-    }
 
-    setIsInitializing(false);
-    return false;
-  }, [address, walletClient, publicClient, isInitialized, isInitializing]);
+      return false;
+    };
+
+    initPromiseRef.current = doInit().finally(() => {
+      initPromiseRef.current = null;
+    });
+
+    return initPromiseRef.current;
+  }, [address, walletClient, publicClient]);
 
   // Auto-init
   useEffect(() => {
-    if (address && walletClient && !isInitialized && !isInitializing && initAttempts < 3) {
+    if (address && walletClient && !isInitialized) {
       initialize();
     }
-  }, [address, walletClient, isInitialized, isInitializing, initAttempts, initialize]);
+    return () => {
+      providerRef.current = null;
+    };
+  }, [address, walletClient, isInitialized, initialize]);
 
   // ── Get quote ───────────────────────────────────────────────────
   const getSwapQuote = useCallback(
@@ -354,7 +362,7 @@ export function useUniswapInternal() {
       };
 
       quoteCache.current.set(cacheKey, quote);
-      setTimeout(() => quoteCache.current.delete(cacheKey), QUOTE_CACHE_TTL);
+      // TTL is checked on cache hit (Date.now() - timestamp < QUOTE_CACHE_TTL); no timer needed
 
       return quote;
     },

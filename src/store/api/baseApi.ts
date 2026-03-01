@@ -48,6 +48,7 @@ export const baseApi = createApi({
     'Orders',
     'Order',
     'Trades',
+    'Trade',
     'Reviews',
     'Referrals',
     'Watchlist',

@@ -1,4 +1,4 @@
-import { useCallback, useReducer } from "react";
+import { useCallback, useEffect, useReducer, useRef } from "react";
 import { useAccount, useSwitchChain } from "wagmi";
 import { parseUnits } from "viem";
 import { useTokenBalances } from "./useTokenBalances";
@@ -109,6 +109,8 @@ const SUPPORTED_CHAIN_IDS = [CHAIN_IDS.CELO, CHAIN_IDS.ALFAJORES] as number[];
  */
 export function usePayment() {
   const [state, dispatch] = useReducer(reducer, initialState);
+  const mountedRef = useRef(true);
+  useEffect(() => () => { mountedRef.current = false; }, []);
   const { address } = useAccount();
   const { switchChainAsync } = useSwitchChain();
   const { refetch: refetchBalances, hasSufficient } = useTokenBalances();
@@ -247,7 +249,7 @@ export function usePayment() {
 
           // Wait for swap to settle
           await new Promise((r) => setTimeout(r, 3000));
-          refetchBalances();
+          if (mountedRef.current) refetchBalances();
         } else {
           if (!hasSufficient(params.productToken, params.totalAmount)) {
             dispatch({
@@ -421,6 +423,8 @@ export function usePayment() {
 
         await new Promise((r) => setTimeout(r, 1500));
 
+        if (!mountedRef.current) return;
+
         dispatch({
           type: "SUCCESS",
           txHash: result.hash!,
@@ -434,7 +438,7 @@ export function usePayment() {
           duration: paymentDebug.getDuration(),
         });
 
-        setTimeout(() => refetchBalances(), 2000);
+        setTimeout(() => { if (mountedRef.current) refetchBalances(); }, 2000);
       } catch (err) {
         paymentDebug.error("payment:unexpected", err);
         dispatch({ type: "ERROR", error: getErrorMessage(err) });

@@ -1,5 +1,5 @@
 import { baseApi } from './baseApi';
-import type { CreateTradeParams, TradeResponse } from '../../utils/types';
+import type { CreateTradeParams, TradeResponse, Order } from '../../utils/types/index';
 
 interface LogisticsProvider {
   _id: string;
@@ -13,31 +13,31 @@ export const tradesApi = baseApi.injectEndpoints({
     // Get trade by ID
     getTradeById: builder.query<TradeResponse, string>({
       query: (tradeId) => `/contracts/trades/${tradeId}`,
-      providesTags: (result, error, tradeId) => [{ type: 'Order', id: tradeId }],
+      providesTags: (result, error, tradeId) => [{ type: 'Trade', id: tradeId }],
     }),
 
     // Get trades by seller
-    getTradesBySeller: builder.query<any[], void>({
+    getTradesBySeller: builder.query<Order[], void>({
       query: () => '/contracts/trades/seller/list',
       providesTags: (result) =>
         result
           ? [
-              ...result.map((trade: any) => ({ type: 'Order' as const, id: trade._id })),
-              { type: 'Order', id: 'SELLER_LIST' },
+              ...result.map((trade) => ({ type: 'Trade' as const, id: trade._id })),
+              { type: 'Trades', id: 'SELLER' },
             ]
-          : [{ type: 'Order', id: 'SELLER_LIST' }],
+          : [{ type: 'Trades', id: 'SELLER' }],
     }),
 
     // Get trades by buyer
-    getTradesByBuyer: builder.query<any[], void>({
+    getTradesByBuyer: builder.query<Order[], void>({
       query: () => '/contracts/trades/buyer/list',
       providesTags: (result) =>
         result
           ? [
-              ...result.map((trade: any) => ({ type: 'Order' as const, id: trade._id })),
-              { type: 'Order', id: 'BUYER_LIST' },
+              ...result.map((trade) => ({ type: 'Trade' as const, id: trade._id })),
+              { type: 'Trades', id: 'BUYER' },
             ]
-          : [{ type: 'Order', id: 'BUYER_LIST' }],
+          : [{ type: 'Trades', id: 'BUYER' }],
     }),
 
     // Create trade
@@ -49,8 +49,8 @@ export const tradesApi = baseApi.injectEndpoints({
         body: tradeData,
       }),
       invalidatesTags: [
-        { type: 'Order', id: 'SELLER_LIST' },
-        { type: 'Order', id: 'BUYER_LIST' },
+        { type: 'Trades', id: 'SELLER' },
+        { type: 'Trades', id: 'BUYER' },
       ],
     }),
 
@@ -66,8 +66,8 @@ export const tradesApi = baseApi.injectEndpoints({
         body: data,
       }),
       invalidatesTags: (result, error, { tradeId }) => [
-        { type: 'Order', id: tradeId },
-        { type: 'Order', id: 'BUYER_LIST' },
+        { type: 'Trade', id: tradeId },
+        { type: 'Trades', id: 'BUYER' },
       ],
     }),
 
@@ -78,9 +78,9 @@ export const tradesApi = baseApi.injectEndpoints({
         method: 'POST',
       }),
       invalidatesTags: (result, error, tradeId) => [
-        { type: 'Order', id: tradeId },
-        { type: 'Order', id: 'BUYER_LIST' },
-        { type: 'Order', id: 'SELLER_LIST' },
+        { type: 'Trade', id: tradeId },
+        { type: 'Trades', id: 'BUYER' },
+        { type: 'Trades', id: 'SELLER' },
       ],
     }),
 

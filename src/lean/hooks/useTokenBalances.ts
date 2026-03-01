@@ -17,6 +17,8 @@ interface UseTokenBalancesReturn {
   celoBalance: string;
   /** True while any balance is loading */
   isLoading: boolean;
+  /** True if any RPC call failed — lets UI distinguish empty vs failed */
+  isError: boolean;
   /** Re-fetch all balances */
   refetch: () => void;
   /** Get a single token balance by symbol */
@@ -32,26 +34,25 @@ export function useTokenBalances(): UseTokenBalancesReturn {
   const { address } = useAccount();
   const chainId = useChainId();
 
-  // Build multicall contracts for all tokens on the current chain
-  const contracts = useMemo(() => {
-    if (!address) return [];
-    return TOKENS.filter((t) => t.address[chainId]).map((t) => ({
-      address: t.address[chainId] as `0x${string}`,
-      abi: erc20Abi,
-      functionName: "balanceOf" as const,
-      args: [address] as const,
-    }));
+  // Build multicall contracts + active-token list in one pass
+  const { contracts, activeTokens } = useMemo(() => {
+    if (!address) return { contracts: [], activeTokens: [] as StableToken[] };
+    const active = TOKENS.filter((t) => t.address[chainId]);
+    return {
+      activeTokens: active,
+      contracts: active.map((t) => ({
+        address: t.address[chainId] as `0x${string}`,
+        abi: erc20Abi,
+        functionName: "balanceOf" as const,
+        args: [address] as const,
+      })),
+    };
   }, [address, chainId]);
-
-  // Tokens that are on this chain (same order as contracts)
-  const activeTokens = useMemo(
-    () => TOKENS.filter((t) => t.address[chainId]),
-    [chainId]
-  );
 
   const {
     data: results,
     isLoading: isLoadingTokens,
+    isError: tokenError,
     refetch: refetchTokens,
   } = useReadContracts({
     contracts,
@@ -69,6 +70,7 @@ export function useTokenBalances(): UseTokenBalancesReturn {
   const {
     data: celoData,
     isLoading: isLoadingCelo,
+    isError: celoError,
     refetch: refetchCelo,
   } = useBalance({
     address,
@@ -118,6 +120,7 @@ export function useTokenBalances(): UseTokenBalancesReturn {
     balances,
     celoBalance,
     isLoading: isLoadingTokens || isLoadingCelo,
+    isError: tokenError || celoError,
     refetch,
     getBalance,
     hasSufficient,

@@ -230,15 +230,15 @@ const Community = () => {
           </motion.div>
 
           {/* Launch Estimate */}
-          <motion.div
+          {/* <motion.div
             variants={itemVariants}
             className="mb-12 px-6 py-5 bg-[#292B30] rounded-lg inline-flex items-center"
           >
             <span className="w-3 h-3 bg-Red rounded-full animate-pulse mr-3"></span>
             <p className="text-white text-sm">
-              Estimated launch: <span className="font-semibold">Q3 2025</span>
+              Estimated launch: <span className="font-semibold">Q4 2026</span>
             </p>
-          </motion.div>
+          </motion.div> */}
 
           {/* Footer */}
           <motion.div variants={itemVariants} className="mt-auto w-full">

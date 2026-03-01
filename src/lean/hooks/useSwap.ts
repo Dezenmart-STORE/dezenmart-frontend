@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useUniswapInternal } from "./swap/useUniswapInternal";
 import { useMentoInternal } from "./swap/useMentoInternal";
 import { parseError, logError } from "../utils/errors";
@@ -48,7 +48,6 @@ export function useSwap(): UseSwapReturn {
   const uniswap = useUniswapInternal();
   const mento = useMentoInternal();
   const [isSwapping, setIsSwapping] = useState(false);
-  const abortRef = useRef(false);
 
   const isReady = uniswap.isReady || mento.isReady;
 
@@ -61,7 +60,8 @@ export function useSwap(): UseSwapReturn {
       if (mento.isReady) return { protocol: mento, name: "mento" as const };
       return null;
     },
-    [uniswap.isReady, mento.isReady, uniswap, mento]
+    // Only stable primitives in deps — objects captured via closure are valid for the call's duration
+    [uniswap.isReady, mento.isReady]
   );
 
   // ── Quote ────────────────────────────────────────────────────────
@@ -124,7 +124,6 @@ export function useSwap(): UseSwapReturn {
         return { success: false, error: "Swap service unavailable. Try again shortly." };
       }
 
-      abortRef.current = false;
       setIsSwapping(true);
 
       try {
@@ -142,8 +141,6 @@ export function useSwap(): UseSwapReturn {
             error: `Exchange rate too low (${(rate * 100).toFixed(1)}%). Low liquidity.`,
           };
         }
-
-        if (abortRef.current) return { success: false, error: "Cancelled." };
 
         const result = await picked.protocol.performSwap({
           fromSymbol: from,

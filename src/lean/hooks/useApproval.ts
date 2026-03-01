@@ -1,8 +1,9 @@
 import { useCallback } from "react";
 import { useAccount, useChainId, useReadContract, useWriteContract } from "wagmi";
+import { waitForTransactionReceipt } from "@wagmi/core";
 import { erc20Abi, parseUnits, formatUnits } from "viem";
 import { getTokenAddress, getTokenDecimals } from "../config/tokens";
-import { getEscrowAddress } from "../config/chains";
+import { getEscrowAddress, wagmiConfig } from "../config/chains";
 
 interface UseApprovalReturn {
   /** Current allowance as a formatted number */
@@ -94,8 +95,9 @@ export function useApproval(
         chainId
       });
 
-      // Refresh allowance after approval
-      setTimeout(() => refetch(), 2000);
+      // Wait for confirmation before refreshing allowance — avoids stale "not approved" flash
+      await waitForTransactionReceipt(wagmiConfig, { hash, timeout: 60_000 });
+      refetch();
 
       return hash;
     },
@@ -106,6 +108,7 @@ export function useApproval(
       isApproved,
       requiredAmount,
       decimals,
+      chainId,
       writeContractAsync,
       refetch,
     ]

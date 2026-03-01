@@ -29,7 +29,7 @@ export const chatApi = baseApi.injectEndpoints({
       // Optimistic update
       async onQueryStarted(data, { dispatch, queryFulfilled }) {
         const optimisticMessage: Partial<Message> = {
-          _id: `temp-${Date.now()}`,
+          _id: `temp-${crypto.randomUUID()}`,
           content: data.content,
           sender: 'current-user', // Will be replaced with actual user
           recipient: data.recipient,

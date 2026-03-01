@@ -101,6 +101,34 @@ export const productsApi = baseApi.injectEndpoints({
         body: formData,
       }),
       invalidatesTags: [{ type: "Products", id: "LIST" }],
+      async onQueryStarted(_, { dispatch, queryFulfilled }) {
+        // Optimistically prepend a placeholder to the list
+        const placeholder: Product = {
+          _id: "opt-new",
+          name: "New listing…",
+          price: 0,
+          currency: "cUSD",
+          category: "",
+          description: "",
+          quantity: 1,
+          images: [],
+          seller: { _id: "", name: "" } as any,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        } as unknown as Product;
+
+        const patchResult = dispatch(
+          productsApi.util.updateQueryData("getProducts", undefined, (draft) => {
+            draft.unshift(placeholder);
+          })
+        );
+
+        try {
+          await queryFulfilled;
+        } catch {
+          patchResult.undo();
+        }
+      },
     }),
 
     // Update product
@@ -114,6 +142,28 @@ export const productsApi = baseApi.injectEndpoints({
         { type: "Product", id },
         { type: "Products", id: "LIST" },
       ],
+      async onQueryStarted({ id, data }, { dispatch, queryFulfilled }) {
+        // Optimistically patch the single-product cache entry with form fields
+        const updates: Partial<Product> = {};
+        const name = data.get("name");
+        const price = data.get("price");
+        const description = data.get("description");
+        if (name) updates.name = name as string;
+        if (price) updates.price = parseFloat(price as string);
+        if (description) updates.description = description as string;
+
+        const patchResult = dispatch(
+          productsApi.util.updateQueryData("getProductById", id, (draft) => {
+            Object.assign(draft, updates);
+          })
+        );
+
+        try {
+          await queryFulfilled;
+        } catch {
+          patchResult.undo();
+        }
+      },
     }),
 
     // Delete product
@@ -126,6 +176,21 @@ export const productsApi = baseApi.injectEndpoints({
         { type: "Product", id },
         { type: "Products", id: "LIST" },
       ],
+      async onQueryStarted(id, { dispatch, queryFulfilled }) {
+        // Optimistically remove from the list cache
+        const patchResult = dispatch(
+          productsApi.util.updateQueryData("getProducts", undefined, (draft) => {
+            const idx = draft.findIndex((p) => p._id === id);
+            if (idx !== -1) draft.splice(idx, 1);
+          })
+        );
+
+        try {
+          await queryFulfilled;
+        } catch {
+          patchResult.undo();
+        }
+      },
     }),
   }),
 });
