@@ -33,13 +33,7 @@ const ProductCard = React.memo(
     const { isAuthenticated } = useAuth();
     const { showSnackbar } = useSnackbar();
     const { _id, name, description, images, isSponsored, price } = product;
-    const {
-      secondaryCurrency,
-      fiatCurrency,
-      selectedTokenSymbol,
-      convertPrice,
-      formatPrice,
-    } = useCurrency();
+    const { formatDisplayPrice } = useCurrency();
 
     const { data: watchlistData } = useCheckWatchlistQuery(_id, {
       skip: !isAuthenticated,
@@ -49,22 +43,10 @@ const ProductCard = React.memo(
 
     const isFavorite = watchlistData?.isWatchlist || false;
 
-    const displayPrice = useMemo(() => {
-      if (secondaryCurrency === "TOKEN") {
-        return formatPrice(
-          convertPrice(price, "USD", selectedTokenSymbol),
-          selectedTokenSymbol
-        );
-      }
-      return formatPrice(convertPrice(price, "USD", "FIAT"), fiatCurrency);
-    }, [
-      price,
-      secondaryCurrency,
-      selectedTokenSymbol,
-      fiatCurrency,
-      convertPrice,
-      formatPrice,
-    ]);
+    const displayPrice = useMemo(
+      () => formatDisplayPrice(price),
+      [price, formatDisplayPrice]
+    );
 
     const imageUrl =
       images && images.length > 0

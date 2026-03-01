@@ -5,25 +5,52 @@ interface Props {
 }
 
 /**
- * Toggle between showing prices in the selected token or USD.
- * Dark-themed to match the app's design language.
+ * Pill toggle for switching between token and local-fiat price display.
+ *
+ * The coloured dot signals rate freshness at a glance:
+ *   • green  — data updated < 3 minutes ago
+ *   • yellow — data is 3–10 minutes old (or a fetch is in progress)
+ *   • red    — data is > 10 minutes old
+ *   • gray   — only pegged fallback rates loaded (no live fetch succeeded yet)
  */
 export default function CurrencyToggle({ className = "" }: Props) {
-  const { displayMode, toggleDisplayMode, selectedToken } = useCurrency();
+  const { displayMode, toggleDisplayMode, selectedToken, isFetching, updatedAt } =
+    useCurrency();
 
-  const activeSymbol = displayMode === "token" ? selectedToken.symbol : "USD";
-  const nextSymbol = displayMode === "token" ? "USD" : selectedToken.symbol;
+  const activeLabel = displayMode === "token" ? selectedToken.symbol : "Fiat";
+  const nextLabel   = displayMode === "token" ? "Fiat" : selectedToken.symbol;
+
+  // Rate freshness dot
+  const ageMs = Date.now() - updatedAt;
+  const dotColor =
+    isFetching           ? "bg-yellow-400 animate-pulse" :
+    updatedAt === 0      ? "bg-gray-500"                 :
+    ageMs < 3 * 60_000  ? "bg-green-400"                :
+    ageMs < 10 * 60_000 ? "bg-yellow-400"               :
+                          "bg-red-400";
 
   return (
     <button
       onClick={toggleDisplayMode}
-      title={`Switch to ${nextSymbol}`}
-      aria-label={`Showing prices in ${activeSymbol}. Click to switch to ${nextSymbol}`}
-      className={`flex items-center gap-1 rounded bg-[#373A3F] px-1.5 py-1 text-xs font-medium text-white transition-colors hover:bg-[#42464d] focus:outline-none focus:ring-2 focus:ring-red-600 focus:ring-opacity-50 md:px-2 ${className}`}
+      title={`Switch to ${nextLabel} prices`}
+      aria-label={`Showing prices in ${activeLabel}. Click to switch to ${nextLabel}`}
+      className={`flex items-center gap-1.5 rounded bg-[#373A3F] px-2 py-1 text-xs font-medium text-white transition-colors hover:bg-[#42464d] focus:outline-none focus:ring-2 focus:ring-red-600 focus:ring-opacity-50 ${className}`}
     >
-      <span className="truncate max-w-[3.5rem]">{activeSymbol}</span>
-      <svg className="h-3 w-3 flex-shrink-0 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dotColor}`} />
+      <span className="truncate max-w-[3.5rem]">{activeLabel}</span>
+      {/* Swap arrows */}
+      <svg
+        className="h-3 w-3 flex-shrink-0 text-gray-400"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
+        />
       </svg>
     </button>
   );

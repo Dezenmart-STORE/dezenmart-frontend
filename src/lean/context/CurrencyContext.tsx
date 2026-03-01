@@ -1,52 +1,90 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { DEFAULT_TOKEN, type StableToken, TOKENS, getToken } from "../config/tokens";
 import { usePrices } from "../hooks/usePrices";
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
+
 type DisplayMode = "token" | "fiat";
 type SecondaryCurrency = "TOKEN" | "FIAT";
 
 interface CurrencyContextValue {
-  /** Currently selected display token */
+  /** Currently selected payment/display token */
   selectedToken: StableToken;
-  /** Set the active token */
   setSelectedToken: (token: StableToken) => void;
-  /** Toggle token or fiat display */
+
+  /** "token" shows prices in the selected token; "fiat" shows in local fiat */
   displayMode: DisplayMode;
   toggleDisplayMode: () => void;
-  /** Format an amount for display using current settings */
-  formatAmount: (amount: number, symbol?: string) => string;
-  /** Convert amount from one token to USD */
-  toUSD: (amount: number, symbol: string) => number;
+
   /** All available tokens */
   tokens: StableToken[];
 
-  // ── Backward-compatible  ──
+  /**
+   * Primary method for displaying a product price stored in USD.
+   *
+   * Token mode → converts USD → selected token, formats with symbol.
+   * Fiat mode  → converts USD → user's local fiat, formats with currency symbol.
+   *
+   * @example formatDisplayPrice(19.99) → "19.99 USDT" | "₦32,985"
+   */
+  formatDisplayPrice: (usdAmount: number) => string;
 
-  /** "TOKEN" or "FIAT" — same as displayMode but matches old API */
+  /**
+   * Format an amount already denominated in a specific token.
+   * Used for trade amounts, order totals, and wallet balances.
+   *
+   * Respects displayMode: in fiat mode the amount is first converted to
+   * the user's local fiat before formatting.
+   *
+   * @example formatAmount(5.0, "CELO") → "5.00 CELO" | "₦5,850"
+   */
+  formatAmount: (amount: number, symbol?: string) => string;
+
+  /** Convert an amount from one currency to another */
+  convertPrice: (price: number, from: string, to: string) => number;
+
+  /** Format a price with its currency symbol */
+  formatPrice: (price: number, currency: string) => string;
+
+  /** Convert a token amount to USD */
+  toUSD: (amount: number, symbol: string) => number;
+
+  /** True while live exchange rates are being fetched */
+  isFetching: boolean;
+
+  /** Timestamp (ms) of the last successful rate fetch — 0 if only pegged rates loaded */
+  updatedAt: number;
+
+  /** Trigger an immediate rate refresh */
+  refreshRates: () => void;
+
+  // ── Backward-compatible props ─────────────────────────────────────────────
+
+  /** "TOKEN" or "FIAT" — same meaning as displayMode */
   secondaryCurrency: SecondaryCurrency;
+
   /** Shortcut for selectedToken.symbol */
   selectedTokenSymbol: string;
-  /** User's best secondary fiat currency */
+
+  /** Best secondary fiat code for the selected token (avoids duplicate denomination) */
   fiatCurrency: string;
-  /** User's local fiat currency code (from geolocation) */
+
+  /** User's local fiat code from geolocation (e.g. "NGN", "GBP") */
   userLocalCurrency: string;
-  /** Convert price between any two currencies */
-  convertPrice: (price: number, from: string, to: string) => number;
-  /** Format price with currency symbol */
-  formatPrice: (price: number, currency: string) => string;
-  /** Toggle between TOKEN and FIAT */
+
   toggleSecondaryCurrency: () => void;
-  /** Set display preference */
   setSecondaryCurrency: (currency: SecondaryCurrency) => void;
-  /** Format price in the selected token */
   formatTokenPrice: (price: number) => string;
-  /** Format price in the determined fiat currency */
   formatFiatPrice: (price: number) => string;
-  /** Format according to current preference */
-  formatDisplayPrice: (priceInToken: number) => string;
 }
 
 const CurrencyCtx = createContext<CurrencyContextValue | null>(null);
@@ -56,15 +94,25 @@ const STORAGE_KEY = "dezenmart_secondary_currency";
 // ---------------------------------------------------------------------------
 // Provider
 // ---------------------------------------------------------------------------
+
 export function CurrencyProvider({ children }: { children: React.ReactNode }) {
-  const { toUSD, formatUSD, convertPrice, formatPrice, getSecondaryFiat, userFiat } = usePrices();
+  const {
+    toUSD,
+    convertPrice,
+    formatPrice,
+    getSecondaryFiat,
+    userFiat,
+    isFetching,
+    updatedAt,
+    refreshRates,
+  } = usePrices();
 
   const [selectedToken, setSelectedTokenRaw] = useState<StableToken>(() => {
     try {
       const saved = localStorage.getItem("selectedToken");
       if (saved) {
-        const parsed = JSON.parse(saved);
-        return getToken(parsed.symbol) ?? DEFAULT_TOKEN;
+        const parsed = JSON.parse(saved) as { symbol?: string };
+        return getToken(parsed.symbol ?? "") ?? DEFAULT_TOKEN;
       }
     } catch { /* ignore */ }
     return DEFAULT_TOKEN;
@@ -79,7 +127,6 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
     return "fiat";
   });
 
-  // Persist display mode
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, displayMode === "token" ? "TOKEN" : "FIAT");
@@ -88,28 +135,53 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
 
   const setSelectedToken = useCallback((token: StableToken) => {
     setSelectedTokenRaw(token);
-    localStorage.setItem("selectedToken", JSON.stringify({ symbol: token.symbol }));
+    try {
+      localStorage.setItem("selectedToken", JSON.stringify({ symbol: token.symbol }));
+    } catch { /* ignore */ }
   }, []);
 
   const toggleDisplayMode = useCallback(() => {
     setDisplayMode((prev) => (prev === "token" ? "fiat" : "token"));
   }, []);
 
-  const formatAmount = useCallback(
-    (amount: number, symbol?: string) => {
-      const sym = symbol ?? selectedToken.symbol;
+  const selectedTokenSymbol = selectedToken.symbol;
+
+  /**
+   * Primary product-price display.
+   * Always starts from a USD amount (product.price is stored in USD).
+   */
+  const formatDisplayPrice = useCallback(
+    (usdAmount: number): string => {
       if (displayMode === "fiat") {
-        return formatUSD(toUSD(amount, sym));
+        const fiatAmount = convertPrice(usdAmount, "USD", "FIAT");
+        return formatPrice(fiatAmount, "FIAT");
+      }
+      const tokenAmount = convertPrice(usdAmount, "USD", selectedTokenSymbol);
+      return formatPrice(tokenAmount, selectedTokenSymbol);
+    },
+    [displayMode, selectedTokenSymbol, convertPrice, formatPrice]
+  );
+
+  /**
+   * Format a token-denominated amount for display.
+   * Converts to user's local fiat when in fiat mode.
+   */
+  const formatAmount = useCallback(
+    (amount: number, symbol?: string): string => {
+      const sym = symbol ?? selectedTokenSymbol;
+      if (displayMode === "fiat") {
+        const usdAmount = toUSD(amount, sym);
+        const fiatAmount = convertPrice(usdAmount, "USD", "FIAT");
+        return formatPrice(fiatAmount, "FIAT");
       }
       return `${amount.toFixed(2)} ${sym}`;
     },
-    [displayMode, selectedToken.symbol, toUSD, formatUSD]
+    [displayMode, selectedTokenSymbol, toUSD, convertPrice, formatPrice]
   );
 
-  // ── Backward-compatible  ─────────────────────────────────────
+  // ── Backward-compat helpers ──────────────────────────────────────────────
 
   const secondaryCurrency: SecondaryCurrency = displayMode === "token" ? "TOKEN" : "FIAT";
-  const selectedTokenSymbol = selectedToken.symbol;
 
   const fiatCurrency = useMemo(
     () => getSecondaryFiat(selectedTokenSymbol),
@@ -135,15 +207,6 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
     [convertPrice, formatPrice, selectedTokenSymbol, fiatCurrency]
   );
 
-  const formatDisplayPrice = useCallback(
-    (priceInToken: number) => {
-      return secondaryCurrency === "TOKEN"
-        ? formatTokenPrice(priceInToken)
-        : formatFiatPrice(priceInToken);
-    },
-    [secondaryCurrency, formatTokenPrice, formatFiatPrice]
-  );
-
   return (
     <CurrencyCtx.Provider
       value={{
@@ -151,21 +214,24 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
         setSelectedToken,
         displayMode,
         toggleDisplayMode,
-        formatAmount,
-        toUSD,
         tokens: TOKENS,
-        // Backward compat
+        formatDisplayPrice,
+        formatAmount,
+        convertPrice,
+        formatPrice,
+        toUSD,
+        isFetching,
+        updatedAt,
+        refreshRates,
+        // Backward-compat
         secondaryCurrency,
         selectedTokenSymbol,
         fiatCurrency,
         userLocalCurrency: userFiat,
-        convertPrice,
-        formatPrice,
         toggleSecondaryCurrency,
         setSecondaryCurrency,
         formatTokenPrice,
         formatFiatPrice,
-        formatDisplayPrice,
       }}
     >
       {children}

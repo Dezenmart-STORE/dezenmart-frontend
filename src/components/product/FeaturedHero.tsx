@@ -11,13 +11,7 @@ interface Props {
 }
 
 const FeaturedHero = ({ title, subtitle, products, maxItems = 4 }: Props) => {
-  const {
-    secondaryCurrency,
-    selectedTokenSymbol,
-    fiatCurrency,
-    convertPrice,
-    formatPrice,
-  } = useCurrency();
+  const { formatDisplayPrice } = useCurrency();
 
   const displayProducts = products.slice(0, maxItems);
 
@@ -38,16 +32,7 @@ const FeaturedHero = ({ title, subtitle, products, maxItems = 4 }: Props) => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
         {displayProducts.map((product) => {
-          const displayPrice =
-            secondaryCurrency === "TOKEN"
-              ? formatPrice(
-                  convertPrice(product.price, "USD", selectedTokenSymbol),
-                  selectedTokenSymbol
-                )
-              : formatPrice(
-                  convertPrice(product.price, "USD", "FIAT"),
-                  fiatCurrency
-                );
+          const displayPrice = formatDisplayPrice(product.price);
 
           return (
             <Link
