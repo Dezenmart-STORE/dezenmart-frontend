@@ -81,7 +81,7 @@ const TokenSelector: React.FC = () => {
       </button>
 
       {isTokenSelectorOpen && (
-        <div className="absolute top-full left-0 right-0 mt-2 bg-[#1a1c20] border border-Red/30 rounded-lg shadow-xl z-[99999] max-h-64 overflow-y-auto min-w-full scrollbar-thin scrollbar-thumb-Red/30 scrollbar-track-gray-800">
+        <div className="absolute top-full left-0 right-0 mt-2 bg-[#1a1c20] border border-Red/30 rounded-lg shadow-xl z-[99999] max-h-64 overflow-y-auto min-w-full lg:right-auto lg:min-w-[240px] scrollbar-thin scrollbar-thumb-Red/30 scrollbar-track-gray-800">
           {tokens.map((token) => (
             <button
               key={token.symbol}
