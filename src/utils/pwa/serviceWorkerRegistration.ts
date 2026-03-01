@@ -42,13 +42,9 @@ export const registerServiceWorker = (config?: ServiceWorkerConfig) => {
       immediate: true,
 
       onNeedRefresh() {
-        console.log('[PWA] New content available, please refresh');
         config?.onNeedRefresh?.();
-
-        // Show update notification to user
-        if (confirm('New version available! Click OK to update.')) {
-          updateSW?.(true); // Reload page after update
-        }
+        // Notify the React app — it will show a brief banner then reload
+        window.dispatchEvent(new CustomEvent('pwa:update-ready'));
       },
 
       onOfflineReady() {
