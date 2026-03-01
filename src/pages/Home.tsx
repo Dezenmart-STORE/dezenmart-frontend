@@ -9,7 +9,7 @@ import BannerCarousel from "../components/common/BannerCarousel";
 import FeaturedHero from "../components/product/FeaturedHero";
 import CategoryPreview from "../components/common/CategoryPreview";
 import { SectionIcons } from "../components/common/SectionIcons";
-import { CategoryIcons } from "../components/common/CategoryIcons";
+import { CATEGORIES } from "../utils/categories";
 import { useAuth } from "../context/AuthContext";
 import { useCurrency } from "../lean";
 import WalletQuickAction from "../components/wallet/WalletQuickAction";
@@ -40,46 +40,6 @@ const BANNERS = [
     isUppercase: false,
     ctaText: "Browse Products",
     ctaPath: "/product",
-  },
-] as const;
-
-// ─── Category shelf config ────────────────────────────────────────────────────
-
-const CATEGORY_SHELVES = [
-  {
-    name: "Electronics",
-    icon: CategoryIcons.Electronics,
-    iconColor: "text-blue-400",
-  },
-  {
-    name: "Clothing",
-    icon: CategoryIcons.Clothing,
-    iconColor: "text-purple-400",
-  },
-  {
-    name: "Home & Garden",
-    icon: CategoryIcons["Home & Garden"],
-    iconColor: "text-green-400",
-  },
-  {
-    name: "Beauty & Personal Care",
-    icon: CategoryIcons["Beauty & Personal Care"],
-    iconColor: "text-pink-400",
-  },
-  {
-    name: "Sports & Outdoors",
-    icon: CategoryIcons["Sports & Outdoors"],
-    iconColor: "text-orange-400",
-  },
-  {
-    name: "Art Work",
-    icon: CategoryIcons["Art Work"],
-    iconColor: "text-yellow-400",
-  },
-  {
-    name: "Accessories",
-    icon: CategoryIcons.Accessories,
-    iconColor: "text-red-400",
   },
 ] as const;
 
@@ -254,10 +214,7 @@ const Home = () => {
         />
 
         {/* ── Shop by Category ─────────────────────────────── */}
-        <CategoryPreview
-          title="Shop by Category"
-          subtitle="Explore our diverse marketplace"
-        />
+        <CategoryPreview />
 
         {/* ── Top-Rated Sellers shelf ───────────────────────── */}
         <ProductShelf
@@ -271,13 +228,13 @@ const Home = () => {
         />
 
         {/* ── Per-category shelves ──────────────────────────── */}
-        {CATEGORY_SHELVES.map((cat) => (
+        {CATEGORIES.map((cat) => (
           <ProductShelf
             key={cat.name}
             title={cat.name}
             path={`/product/category/${encodeURIComponent(cat.name.toLowerCase())}`}
-            icon={cat.icon}
-            iconColor={cat.iconColor}
+            icon={cat.Icon}
+            iconColor={cat.color}
             category={cat.name}
             maxItems={16}
           />
