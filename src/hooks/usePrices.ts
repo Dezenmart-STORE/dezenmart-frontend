@@ -211,20 +211,44 @@ export function usePrices() {
     queryClient.invalidateQueries({ queryKey: ["exchange-rates"] });
   }, [queryClient]);
 
+  /**
+   * For stablecoins NOT directly tracked by CoinGecko (i.e. not in TOKEN_IDS),
+   * use the live USDT/fiat rate fetched via TOKEN_FIAT_MAP as a bridge.
+   *
+   * e.g. cKES → TOKEN_FIAT_MAP["cKES"] = "KES" → fiatRates["USD_KES"] ≈ 129
+   *   $100 → cKES: 100 * 129 = 12,900 cKES  (pegged fallback was 100/0.0065 ≈ 15,384 — wrong)
+   *
+   * Returns the live bridge rate (USD per 1 fiat unit → multiplier FROM usd),
+   * or undefined when the token has a direct CoinGecko rate or no fiat mapping.
+   */
+  const getFiatBridgeRate = (symbol: string): number | undefined => {
+    if (TOKEN_IDS[symbol]) return undefined; // has direct CoinGecko rate
+    const fiatCode = TOKEN_FIAT_MAP[symbol];
+    if (!fiatCode) return undefined;
+    const r = fiatRates[`USD_${fiatCode}`];
+    return r && r > 0 ? r : undefined;
+  };
+
   /** Convert a token amount to USD. */
   const toUSD = useCallback(
     (amount: number, symbol: string): number => {
       if (symbol === "USD" || symbol === "FIAT") return amount;
+      const bridgeRate = getFiatBridgeRate(symbol);
+      if (bridgeRate !== undefined) return amount / bridgeRate;
       const rate = rates[symbol];
       return rate !== undefined ? amount * rate : 0;
     },
-    [rates]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [rates, fiatRates]
   );
 
   /**
    * Convert an amount from one currency to another.
    * Accepts token symbols (cUSD, USDT, CELO…), "USD", or "FIAT".
    * "FIAT" always refers to the user's local fiat currency (from geolocation).
+   *
+   * For stablecoins pegged to fiat (cKES, PUSO, cNGN, cGBP, etc.) live
+   * fiatRates from CoinGecko are used — not the stale hardcoded PEGGED_RATES.
    */
   const convertPrice = useCallback(
     (amount: number, from: string, to: string): number => {
@@ -238,8 +262,13 @@ export function usePrices() {
         const localRate = fiatRates[`USD_${userFiat}`] ?? 1;
         usdAmount = amount / localRate;
       } else {
-        const rate = rates[from];
-        usdAmount = rate !== undefined ? amount * rate : amount;
+        const bridgeRate = getFiatBridgeRate(from);
+        if (bridgeRate !== undefined) {
+          usdAmount = amount / bridgeRate; // e.g. 12900 cKES / 129 = $100
+        } else {
+          const rate = rates[from];
+          usdAmount = rate !== undefined ? amount * rate : amount;
+        }
       }
 
       // Step 2: USD → target currency
@@ -249,9 +278,15 @@ export function usePrices() {
         return usdAmount * localRate;
       }
 
+      const bridgeRate = getFiatBridgeRate(to);
+      if (bridgeRate !== undefined) {
+        return usdAmount * bridgeRate; // e.g. $100 * 129 = 12,900 cKES
+      }
+
       const toRate = rates[to];
       return toRate !== undefined && toRate > 0 ? usdAmount / toRate : usdAmount;
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [rates, fiatRates, userFiat]
   );
 
