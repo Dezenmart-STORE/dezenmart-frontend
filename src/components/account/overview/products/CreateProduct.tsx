@@ -96,7 +96,7 @@ function Section({
 const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
   const { isConnected, address } = useAccount();
   const chainId = useChainId();
-  const { selectedToken, convertPrice, fiatCurrency, tokens: availableTokens } = useCurrency();
+  const { selectedToken, convertPrice, tokens: availableTokens } = useCurrency();
   const [createProduct, { isLoading }] = useCreateProductMutation();
   const { showSnackbar } = useSnackbar();
   const nameRef = useRef<HTMLInputElement>(null);
@@ -108,7 +108,7 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
     stock: "",
     sellerWalletAddress: "",
     priceInUSDT: "",
-    priceInFiat: "",
+    priceInToken: "",
   });
   const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
   const [paymentToken, setPaymentToken] = useState(selectedToken?.symbol ?? "USDT");
@@ -138,25 +138,45 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
     }
   };
 
+  // Format payment token amounts: up to 4 decimals, trailing zeros trimmed
+  // but always at least 2 decimal places (e.g. 100.0000 → 100.00, 0.0013 → 0.0013)
+  const formatTokenAmount = (amount: number): string =>
+    amount.toFixed(4).replace(/(\.\d\d)0+$/, "$1");
+
+  // USDT → payment token (Box 1 drives Box 2)
   const handleUSDTChange = useCallback(
     (value: string) => {
       setField("priceInUSDT", value);
       const n = parseFloat(value);
-      setField("priceInFiat", isNaN(n) ? "" : convertPrice(n, "USD", fiatCurrency).toFixed(2));
+      const converted = isNaN(n) ? "" : formatTokenAmount(convertPrice(n, "USD", paymentToken));
+      setField("priceInToken", converted);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [convertPrice, fiatCurrency]
+    [convertPrice, paymentToken]
   );
 
-  const handleFiatChange = useCallback(
+  // Payment token → USDT (Box 2 drives Box 1)
+  const handleTokenPriceChange = useCallback(
     (value: string) => {
-      setField("priceInFiat", value);
+      setField("priceInToken", value);
       const n = parseFloat(value);
-      setField("priceInUSDT", isNaN(n) ? "" : convertPrice(n, fiatCurrency, "USD").toFixed(2));
+      setField("priceInUSDT", isNaN(n) ? "" : convertPrice(n, paymentToken, "USD").toFixed(2));
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [convertPrice, fiatCurrency]
+    [convertPrice, paymentToken]
   );
+
+  // Token selector change: switch token and instantly recalculate Box 2 from Box 1
+  const handleTokenChange = (symbol: string) => {
+    setPaymentToken(symbol);
+    const usdtVal = parseFloat(form.priceInUSDT);
+    if (!isNaN(usdtVal) && usdtVal > 0) {
+      setForm((prev) => ({
+        ...prev,
+        priceInToken: formatTokenAmount(convertPrice(usdtVal, "USD", symbol)),
+      }));
+    }
+  };
 
   const handleAddMedia = useCallback((incoming: MediaFile[]) => {
     setMediaFiles((prev) => [...prev, ...incoming].slice(0, 5));
@@ -274,7 +294,7 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
       onProductCreated?.();
 
       setTimeout(() => {
-        setForm({ name: "", description: "", category: "", stock: "", sellerWalletAddress: address ?? "", priceInUSDT: "", priceInFiat: "" });
+        setForm({ name: "", description: "", category: "", stock: "", sellerWalletAddress: address ?? "", priceInUSDT: "", priceInToken: "" });
         setMediaFiles([]);
         setVariants([{ id: `v-${Date.now()}`, properties: [], quantity: 0 }]);
         setSuccess(false);
@@ -347,13 +367,12 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
       <Section title="Price">
         <PriceField
           priceUSDT={form.priceInUSDT}
-          priceFiat={form.priceInFiat}
-          fiatCurrency={fiatCurrency}
+          priceToken={form.priceInToken}
           paymentToken={paymentToken}
           tokens={availableTokens as typeof TOKENS}
           onUSDTChange={handleUSDTChange}
-          onFiatChange={handleFiatChange}
-          onTokenChange={setPaymentToken}
+          onTokenPriceChange={handleTokenPriceChange}
+          onTokenChange={handleTokenChange}
           error={errors.price}
         />
       </Section>

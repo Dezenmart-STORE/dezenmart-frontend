@@ -5,24 +5,22 @@ import { StableToken } from "../../../../config/tokens";
 
 interface Props {
   priceUSDT: string;
-  priceFiat: string;
-  fiatCurrency: string;
+  priceToken: string;
   paymentToken: string | undefined;
   tokens: StableToken[];
   onUSDTChange: (v: string) => void;
-  onFiatChange: (v: string) => void;
+  onTokenPriceChange: (v: string) => void;
   onTokenChange: (symbol: string) => void;
   error?: string;
 }
 
 const PriceField: React.FC<Props> = ({
   priceUSDT,
-  priceFiat,
-  fiatCurrency,
+  priceToken,
   paymentToken,
   tokens,
   onUSDTChange,
-  onFiatChange,
+  onTokenPriceChange,
   onTokenChange,
   error,
 }) => {
@@ -33,44 +31,71 @@ const PriceField: React.FC<Props> = ({
     <div className="space-y-3">
       {/* Dual price inputs */}
       <div className="grid grid-cols-2 gap-2">
-        <div className="relative">
-          <input
-            type="text"
-            inputMode="decimal"
-            value={priceUSDT}
-            onChange={(e) => onUSDTChange(e.target.value)}
-            placeholder="0.00"
-            aria-label="Price in USDT"
-            className={`w-full bg-[#3A3C41] text-white pl-3 pr-14 py-3 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-600 transition-all ${
-              error ? "ring-1 ring-red-500" : ""
-            }`}
-          />
-          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 pointer-events-none">
-            USDT
-          </span>
+        {/* Box 1 — canonical USDT price (stored by backend) */}
+        <div>
+          <p className="text-[10px] font-medium text-gray-500 uppercase tracking-wide mb-1">
+            List price
+          </p>
+          <div className="relative">
+            <input
+              type="text"
+              inputMode="decimal"
+              value={priceUSDT}
+              onChange={(e) => onUSDTChange(e.target.value)}
+              placeholder="0.00"
+              aria-label="Price in USDT"
+              className={`w-full bg-[#3A3C41] text-white pl-3 pr-14 py-3 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-600 transition-all ${
+                error ? "ring-1 ring-red-500" : ""
+              }`}
+            />
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-gray-400 pointer-events-none">
+              USDT
+            </span>
+          </div>
         </div>
-        <div className="relative">
-          <input
-            type="text"
-            inputMode="decimal"
-            value={priceFiat}
-            onChange={(e) => onFiatChange(e.target.value)}
-            placeholder="0.00"
-            aria-label={`Price in ${fiatCurrency}`}
-            className="w-full bg-[#3A3C41] text-white pl-3 pr-14 py-3 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-600 transition-all"
-          />
-          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 pointer-events-none">
-            {fiatCurrency}
-          </span>
+
+        {/* Box 2 — equivalent in the buyer's selected payment token */}
+        <div>
+          <p className="text-[10px] font-medium text-gray-500 uppercase tracking-wide mb-1">
+            Buyer pays
+          </p>
+          <div className="relative">
+            <input
+              type="text"
+              inputMode="decimal"
+              value={priceToken}
+              onChange={(e) => onTokenPriceChange(e.target.value)}
+              placeholder="0.00"
+              aria-label={`Price in ${paymentToken ?? "selected token"}`}
+              className="w-full bg-[#3A3C41] text-white pl-3 pr-16 py-3 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-600 transition-all"
+            />
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 pointer-events-none">
+              {selectedToken?.icon && (
+                <img
+                  src={selectedToken.icon}
+                  alt=""
+                  className="w-3.5 h-3.5 rounded-full flex-shrink-0"
+                />
+              )}
+              <span className="text-xs font-medium text-gray-400 truncate max-w-[2.5rem]">
+                {paymentToken ?? "—"}
+              </span>
+            </span>
+          </div>
         </div>
       </div>
+
       <p className="text-gray-500 text-xs">
-        Type in either field — the other updates automatically.
+        Type in either field — the other updates instantly.
       </p>
 
-      {error && <p className="text-red-400 text-xs" role="alert">{error}</p>}
+      {error && (
+        <p className="text-red-400 text-xs" role="alert">
+          {error}
+        </p>
+      )}
 
-      {/* Token selector */}
+      {/* Payment token selector */}
       <div className="relative">
         <label className="block text-xs text-gray-400 mb-1.5">
           Buyers pay with <span className="text-red-400">*</span>
@@ -84,18 +109,26 @@ const PriceField: React.FC<Props> = ({
         >
           <div className="flex items-center gap-2.5 min-w-0">
             {selectedToken?.icon ? (
-              <img src={selectedToken.icon} alt={selectedToken.symbol} className="w-6 h-6 rounded-full flex-shrink-0" />
+              <img
+                src={selectedToken.icon}
+                alt={selectedToken.symbol}
+                className="w-6 h-6 rounded-full flex-shrink-0"
+              />
             ) : (
               <span className="text-base flex-shrink-0">💰</span>
             )}
             <div className="text-left min-w-0">
-              <p className="text-white text-sm font-medium">{selectedToken?.symbol ?? "Select token"}</p>
+              <p className="text-white text-sm font-medium">
+                {selectedToken?.symbol ?? "Select token"}
+              </p>
               <p className="text-gray-400 text-xs truncate">{selectedToken?.name}</p>
             </div>
           </div>
           <FiChevronDown
             size={16}
-            className={`text-gray-400 flex-shrink-0 transition-transform duration-200 ${tokenOpen ? "rotate-180" : ""}`}
+            className={`text-gray-400 flex-shrink-0 transition-transform duration-200 ${
+              tokenOpen ? "rotate-180" : ""
+            }`}
           />
         </button>
 
@@ -115,13 +148,20 @@ const PriceField: React.FC<Props> = ({
                   type="button"
                   role="option"
                   aria-selected={token.symbol === paymentToken}
-                  onClick={() => { onTokenChange(token.symbol); setTokenOpen(false); }}
+                  onClick={() => {
+                    onTokenChange(token.symbol);
+                    setTokenOpen(false);
+                  }}
                   className={`w-full flex items-center gap-3 px-3 py-2.5 hover:bg-[#3A3C41] transition-colors ${
                     token.symbol === paymentToken ? "bg-red-600/15" : ""
                   }`}
                 >
                   {token.icon ? (
-                    <img src={token.icon} alt={token.symbol} className="w-6 h-6 rounded-full flex-shrink-0" />
+                    <img
+                      src={token.icon}
+                      alt={token.symbol}
+                      className="w-6 h-6 rounded-full flex-shrink-0"
+                    />
                   ) : (
                     <span className="text-base flex-shrink-0">💰</span>
                   )}
