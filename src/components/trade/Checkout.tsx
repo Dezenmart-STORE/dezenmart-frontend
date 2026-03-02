@@ -44,7 +44,7 @@ export default function Checkout({
   onBack,
 }: Props) {
   const { isConnected } = useAccount();
-  const { formatAmount } = useCurrency();
+  const { formatAmount, formatDisplayPrice, convertPrice } = useCurrency();
 
   const [quantity, setQuantity] = useState(1);
   const [selectedLogistics, setSelectedLogistics] = useState<LogisticsOption | null>(
@@ -52,8 +52,12 @@ export default function Checkout({
   );
   const [showPayment, setShowPayment] = useState(false);
 
+  // product.price is stored in USD — convert to the payment token denomination
+  // so all math (subtotal, escrow fee, total) and the PaymentFlow amount are correct.
+  const priceInToken = convertPrice(product.price, "USD", product.tokenSymbol);
+
   const logisticsCost = selectedLogistics?.cost ?? 0;
-  const orderTotal = calculateOrderTotal(product.price, quantity, logisticsCost);
+  const orderTotal = calculateOrderTotal(priceInToken, quantity, logisticsCost);
 
   // ── Payment flow screen ──────────────────────────────────────────
   if (showPayment && selectedLogistics) {
@@ -118,11 +122,11 @@ export default function Checkout({
         <div className="min-w-0 flex-1">
           <h2 className="text-base font-semibold text-white">{product.name}</h2>
           <p className="mt-1 text-xl font-bold text-white">
-            {product.price.toFixed(2)}{" "}
+            {priceInToken.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}{" "}
             <span className="text-base font-medium text-gray-400">{product.tokenSymbol}</span>
           </p>
           <p className="text-xs text-gray-500">
-            {formatAmount(product.price, product.tokenSymbol)}
+            {formatDisplayPrice(product.price)}
           </p>
         </div>
       </div>

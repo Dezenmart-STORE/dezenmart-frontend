@@ -19,7 +19,7 @@ import { CHAIN_IDS, DEFAULT_LOGISTICS_PROVIDER, getExplorerUrl } from "../config
 const ViewOrderDetail = () => {
   const { orderId } = useParams<{ orderId: string }>();
   const navigate = useNavigate();
-  const { formatAmount } = useCurrency();
+  const { formatAmount, convertPrice } = useCurrency();
 
   const chainId = useChainId();
   const { switchChainAsync } = useSwitchChain();
@@ -116,8 +116,14 @@ const ViewOrderDetail = () => {
 
   const logisticsCostNumeric = parseFloat(logisticsCostRaw) || 0.1;
 
+  // order.product.price is stored in USD — convert to payment token for correct amounts.
+  // Fall back to order.amount (actual on-chain token amount) if product price unavailable.
+  const productPriceInToken = order.product?.price
+    ? convertPrice(order.product.price, "USD", tokenSymbol)
+    : (order.amount ?? 0);
+
   const orderTotal = calculateOrderTotal(
-    order.product?.price ?? order.amount,
+    productPriceInToken,
     order.quantity ?? 1,
     logisticsCostNumeric
   );
@@ -153,11 +159,11 @@ const ViewOrderDetail = () => {
               {order.product?.name ?? "Product"}
             </h2>
             <p className="mt-1 text-xl font-bold text-white">
-              {(order.amount ?? 0).toFixed(2)}{" "}
+              {(order.amount || productPriceInToken).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}{" "}
               <span className="text-base font-medium text-gray-400">{tokenSymbol}</span>
             </p>
             <p className="text-xs text-gray-500">
-              {formatAmount(order.amount ?? 0, tokenSymbol)}
+              {formatAmount(order.amount || productPriceInToken, tokenSymbol)}
             </p>
           </div>
         </div>
