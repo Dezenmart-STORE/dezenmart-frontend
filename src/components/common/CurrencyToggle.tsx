@@ -4,12 +4,25 @@ interface Props {
   className?: string;
 }
 
+function getFiatSymbol(code: string): string {
+  try {
+    return (
+      new Intl.NumberFormat(undefined, { style: "currency", currency: code, maximumFractionDigits: 0 })
+        .formatToParts(0)
+        .find((p) => p.type === "currency")?.value ?? code
+    );
+  } catch {
+    return code;
+  }
+}
+
 export default function CurrencyToggle({ className = "" }: Props) {
-  const { displayMode, toggleDisplayMode, selectedToken, isFetching, updatedAt } =
+  const { displayMode, toggleDisplayMode, selectedToken, fiatCurrency, isFetching, updatedAt } =
     useCurrency();
 
-  const activeLabel = displayMode === "token" ? selectedToken.symbol : "Fiat";
-  const nextLabel   = displayMode === "token" ? "Fiat" : selectedToken.symbol;
+  // const fiatSymbol  = getFiatSymbol(fiatCurrency);
+  const activeLabel = displayMode === "token" ? selectedToken.symbol : fiatCurrency;
+  const nextLabel   = displayMode === "token" ? fiatCurrency : selectedToken.symbol;
 
   const ageMs = Date.now() - updatedAt;
   const dotColor =

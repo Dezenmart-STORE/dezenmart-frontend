@@ -82,11 +82,11 @@ export default function WalletQuickAction() {
         <span className="relative bg-[#292B30] rounded-full p-4 md:p-6 flex items-center justify-center transition-colors group-hover:bg-[#33363b]">
           <img src={Mywallet} alt="" className="w-5 h-5 md:w-6 md:h-6" loading="lazy" />
           {/* Network status dot */}
-          <span
+          {/* <span
             className={`absolute top-1 right-1 h-2.5 w-2.5 rounded-full border-2 border-[#212428] ${
               isCorrectChain ? "bg-green-400" : "bg-amber-400"
             }`}
-          />
+          /> */}
         </span>
         <span className="text-[#AEAEB2] text-sm md:text-base group-hover:text-white transition-colors">
           My Wallet

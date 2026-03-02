@@ -44,8 +44,8 @@ export const SEO_CONFIG = {
     locale: "en_US",
     siteName: "DezenMart",
     images: {
-      default: "/og-image-default.jpg", // 1200x630px
-      logo: "/logo-og.png", // 1200x1200px
+      default: "/images/logo-full.png", // 1200x630px
+      logo: "/images/logo.svg",
     },
   },
 
@@ -113,7 +113,7 @@ export const PAGE_SEO: Record<
   }
 > = {
   home: {
-    title: "DezenMart - Secure Web3 Marketplace | Buy & Sell with Crypto",
+    title: "Secure Web3 Marketplace",
     description:
       "Discover the future of online shopping with DezenMart. Buy and sell products securely using stablecoins like USDT, cUSD, and GoodDollar. Enjoy escrow protection and instant crypto payments on the Celo blockchain.",
     keywords: [
@@ -126,7 +126,7 @@ export const PAGE_SEO: Record<
     ],
   },
   products: {
-    title: "Browse Products - Buy with Crypto | DezenMart",
+    title: "Browse Products",
     description:
       "Explore thousands of products available for purchase with cryptocurrency. Shop securely with USDT, cUSD, cEUR, and 16+ stablecoins. Escrow protection on every order.",
     keywords: [
@@ -205,9 +205,7 @@ export const generateProductSchema = (product: {
       price: product.price,
       priceCurrency: product.currency || "USD",
       availability: "https://schema.org/InStock",
-      priceValidUntil: new Date(
-        Date.now() + 30 * 24 * 60 * 60 * 1000
-      ).toISOString(),
+      priceValidUntil: `${new Date().getFullYear()}-12-31`,
       seller: {
         "@type": "Organization",
         name: product.seller?.name || "DezenMart Seller",
@@ -431,16 +429,41 @@ export const generateVideoSchema = (video: {
 };
 
 /**
- * Generate SearchAction for WebSite schema
+ * Generate WebSite schema with sitelinks searchbox
  */
-export const generateSearchActionSchema = (searchUrl: string) => {
+export const generateWebSiteSchema = () => {
   return {
     "@context": "https://schema.org",
-    "@type": "SearchAction",
-    target: {
-      "@type": "EntryPoint",
-      urlTemplate: searchUrl,
+    "@type": "WebSite",
+    name: SEO_CONFIG.siteName,
+    url: SEO_CONFIG.siteUrl,
+    potentialAction: {
+      "@type": "SearchAction",
+      target: {
+        "@type": "EntryPoint",
+        urlTemplate: `${SEO_CONFIG.siteUrl}/product?search={search_term_string}`,
+      },
+      "query-input": "required name=search_term_string",
     },
-    "query-input": "required name=search_term_string",
+  };
+};
+
+/**
+ * Generate Organization schema from central config
+ */
+export const generateOrganizationSchema = () => {
+  return {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: SEO_CONFIG.organization.name,
+    legalName: SEO_CONFIG.organization.legalName,
+    url: SEO_CONFIG.organization.url,
+    logo: {
+      "@type": "ImageObject",
+      url: SEO_CONFIG.organization.logo,
+    },
+    foundingDate: SEO_CONFIG.organization.foundingDate,
+    contactPoint: SEO_CONFIG.organization.contactPoint,
+    sameAs: SEO_CONFIG.organization.sameAs,
   };
 };

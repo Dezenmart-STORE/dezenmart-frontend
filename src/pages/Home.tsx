@@ -15,7 +15,11 @@ import { useCurrency } from "../context/CurrencyContext";
 import WalletQuickAction from "../components/wallet/WalletQuickAction";
 import { useGetSponsoredProductsQuery } from "../store/api";
 import { useSEO } from "../hooks/useSEO";
-import { PAGE_SEO, SEO_CONFIG } from "../utils/seo/seoConfig";
+import {
+  PAGE_SEO,
+  generateWebSiteSchema,
+  generateOrganizationSchema,
+} from "../utils/seo/seoConfig";
 
 // ─── Banners ─────────────────────────────────────────────────────────────────
 
@@ -91,24 +95,7 @@ const Home = () => {
     description: PAGE_SEO.home.description,
     keywords: PAGE_SEO.home.keywords,
     type: "website",
-    structuredData: [
-      {
-        "@context": "https://schema.org",
-        "@type": "Organization",
-        ...SEO_CONFIG.organization,
-      },
-      {
-        "@context": "https://schema.org",
-        "@type": "WebSite",
-        name: SEO_CONFIG.siteName,
-        url: SEO_CONFIG.siteUrl,
-        potentialAction: {
-          "@type": "SearchAction",
-          target: `${SEO_CONFIG.siteUrl}/product?search={search_term_string}`,
-          "query-input": "required name=search_term_string",
-        },
-      },
-    ],
+    structuredData: [generateOrganizationSchema(), generateWebSiteSchema()],
   });
 
   // First name only — keeps the greeting casual

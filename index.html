@@ -111,6 +111,50 @@
 
     <title>DezenMart - Secure Web3 Marketplace | Buy & Sell with Crypto</title>
 
+    <!-- Structured Data: static fallback for non-JS crawlers -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "DezenMart",
+      "legalName": "DezenMart Inc.",
+      "url": "https://dezenmart.com",
+      "logo": {
+        "@type": "ImageObject",
+        "url": "https://dezenmart.com/images/logo.svg"
+      },
+      "foundingDate": "2024",
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "contactType": "Customer Service",
+        "email": "support@dezenmart.com",
+        "availableLanguage": ["English"]
+      },
+      "sameAs": [
+        "https://twitter.com/dezenmart",
+        "https://facebook.com/dezenmart",
+        "https://instagram.com/dezenmart",
+        "https://linkedin.com/company/dezenmart"
+      ]
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "DezenMart",
+      "url": "https://dezenmart.com",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": {
+          "@type": "EntryPoint",
+          "urlTemplate": "https://dezenmart.com/product?search={search_term_string}"
+        },
+        "query-input": "required name=search_term_string"
+      }
+    }
+    </script>
+
     <!-- Preconnect to external domains for performance -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

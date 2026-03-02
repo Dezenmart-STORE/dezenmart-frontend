@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { SEO_CONFIG, getCanonicalUrl } from "../utils/seo/seoConfig";
 
@@ -14,9 +14,33 @@ interface SEOProps {
   structuredData?: object | object[];
 }
 
+/** Find-or-create a meta tag and set its content. */
+function setMeta(
+  attr: "name" | "property",
+  value: string,
+  content: string
+): void {
+  let el = document.querySelector(
+    `meta[${attr}="${value}"]`
+  ) as HTMLMetaElement | null;
+  if (!el) {
+    el = document.createElement("meta");
+    el.setAttribute(attr, value);
+    document.head.appendChild(el);
+  }
+  el.setAttribute("content", content);
+}
+
 /**
- * Custom hook for managing SEO meta tags
- * Updates document title and meta tags dynamically
+ * useSEO — manages page-level meta tags and JSON-LD structured data.
+ *
+ * Design:
+ * - Meta tags (description, og:*, twitter:*, robots, canonical) are written
+ *   on every render; index.html supplies the static fallback values.
+ * - JSON-LD <script> elements are tracked per-instance via ref so each page
+ *   only removes its own scripts on unmount — no cross-page contamination.
+ * - Static infrastructure tags (viewport, theme-color, preconnect) live only
+ *   in index.html and are never touched here.
  */
 export const useSEO = ({
   title,
@@ -30,39 +54,21 @@ export const useSEO = ({
   structuredData,
 }: SEOProps = {}) => {
   const location = useLocation();
+  /** Tracks JSON-LD scripts created by THIS hook instance. */
+  const ldScriptsRef = useRef<HTMLScriptElement[]>([]);
 
   useEffect(() => {
-    // Update document title
+    // ── Title ─────────────────────────────────────────────────────────
     const fullTitle = title
-      ? `${title} | ${SEO_CONFIG.siteName}`
+      ? SEO_CONFIG.titleTemplate.replace("%s", title)
       : SEO_CONFIG.defaultTitle;
     document.title = fullTitle;
 
-    // Update or create meta tags
-    const updateMetaTag = (
-      name: string,
-      content: string,
-      property?: boolean
-    ) => {
-      const attr = property ? "property" : "name";
-      let element = document.querySelector(
-        `meta[${attr}="${name}"]`
-      ) as HTMLMetaElement;
+    const pageUrl = canonicalUrl || getCanonicalUrl(location.pathname);
+    const ogImage = image
+      ? image
+      : `${SEO_CONFIG.siteUrl}${SEO_CONFIG.openGraph.images.default}`;
 
-      if (!element) {
-        element = document.createElement("meta");
-        element.setAttribute(attr, name);
-        document.head.appendChild(element);
-      }
-
-      element.setAttribute("content", content);
-    };
-
-    // Basic meta tags
-    updateMetaTag("description", description);
-    updateMetaTag("keywords", keywords.join(", "));
-
-    // Robots meta tag
     const robotsContent = [
       noindex ? "noindex" : "index",
       nofollow ? "nofollow" : "follow",
@@ -70,114 +76,62 @@ export const useSEO = ({
       "max-image-preview:large",
       "max-video-preview:-1",
     ].join(", ");
-    updateMetaTag("robots", robotsContent);
-    updateMetaTag("googlebot", robotsContent);
 
-    // Open Graph tags
-    updateMetaTag("og:title", fullTitle, true);
-    updateMetaTag("og:description", description, true);
-    updateMetaTag("og:type", type, true);
-    updateMetaTag("og:site_name", SEO_CONFIG.siteName, true);
-    updateMetaTag(
-      "og:url",
-      canonicalUrl || getCanonicalUrl(location.pathname),
-      true
-    );
+    // ── Basic meta ────────────────────────────────────────────────────
+    setMeta("name", "description", description);
+    setMeta("name", "keywords", (keywords as string[]).join(", "));
+    setMeta("name", "robots", robotsContent);
+    setMeta("name", "googlebot", robotsContent);
 
-    const ogImage = image || `${SEO_CONFIG.siteUrl}${SEO_CONFIG.openGraph.images.default}`;
-    updateMetaTag("og:image", ogImage, true);
-    updateMetaTag("og:image:width", "1200", true);
-    updateMetaTag("og:image:height", "630", true);
-    updateMetaTag("og:image:alt", fullTitle, true);
+    // ── Open Graph ────────────────────────────────────────────────────
+    setMeta("property", "og:title", fullTitle);
+    setMeta("property", "og:description", description);
+    setMeta("property", "og:type", type);
+    setMeta("property", "og:url", pageUrl);
+    setMeta("property", "og:image", ogImage);
+    setMeta("property", "og:image:width", "1200");
+    setMeta("property", "og:image:height", "630");
+    setMeta("property", "og:image:alt", fullTitle);
 
-    // Twitter Card tags
-    updateMetaTag("twitter:card", SEO_CONFIG.twitterCard.cardType);
-    updateMetaTag("twitter:site", SEO_CONFIG.twitterCard.site);
-    updateMetaTag("twitter:creator", SEO_CONFIG.twitterCard.creator);
-    updateMetaTag("twitter:title", fullTitle);
-    updateMetaTag("twitter:description", description);
-    updateMetaTag("twitter:image", ogImage);
+    // ── Twitter ───────────────────────────────────────────────────────
+    setMeta("name", "twitter:title", fullTitle);
+    setMeta("name", "twitter:description", description);
+    setMeta("name", "twitter:image", ogImage);
 
-    // Additional SEO tags
-    updateMetaTag("author", SEO_CONFIG.siteName);
-    updateMetaTag("publisher", SEO_CONFIG.siteName);
-    updateMetaTag("theme-color", "#ef4444"); // Red theme color
-
-    // Mobile optimization
-    updateMetaTag(
-      "viewport",
-      "width=device-width, initial-scale=1.0, maximum-scale=5.0"
-    );
-    updateMetaTag("format-detection", "telephone=no");
-
-    // Canonical URL
-    let canonicalLink = document.querySelector(
+    // ── Canonical link ────────────────────────────────────────────────
+    let canonical = document.querySelector(
       'link[rel="canonical"]'
-    ) as HTMLLinkElement;
-    if (!canonicalLink) {
-      canonicalLink = document.createElement("link");
-      canonicalLink.setAttribute("rel", "canonical");
-      document.head.appendChild(canonicalLink);
+    ) as HTMLLinkElement | null;
+    if (!canonical) {
+      canonical = document.createElement("link");
+      canonical.setAttribute("rel", "canonical");
+      document.head.appendChild(canonical);
     }
-    canonicalLink.setAttribute(
-      "href",
-      canonicalUrl || getCanonicalUrl(location.pathname)
-    );
+    canonical.setAttribute("href", pageUrl);
 
-    // Alternate language links (if multilingual in future)
-    let alternateLang = document.querySelector(
-      'link[rel="alternate"][hreflang="en"]'
-    ) as HTMLLinkElement;
-    if (!alternateLang) {
-      alternateLang = document.createElement("link");
-      alternateLang.setAttribute("rel", "alternate");
-      alternateLang.setAttribute("hreflang", "en");
-      document.head.appendChild(alternateLang);
-    }
-    alternateLang.setAttribute(
-      "href",
-      canonicalUrl || getCanonicalUrl(location.pathname)
-    );
+    // ── JSON-LD structured data ───────────────────────────────────────
+    // Remove this instance's previous scripts (re-run on dep change).
+    ldScriptsRef.current.forEach((s) => s.remove());
+    ldScriptsRef.current = [];
 
-    // Structured Data (JSON-LD)
     if (structuredData) {
       const dataArray = Array.isArray(structuredData)
         ? structuredData
         : [structuredData];
-
-      // Remove old structured data
-      document
-        .querySelectorAll('script[type="application/ld+json"]')
-        .forEach((el) => el.remove());
-
-      // Add new structured data
-      dataArray.forEach((data) => {
+      ldScriptsRef.current = dataArray.map((data) => {
         const script = document.createElement("script");
         script.type = "application/ld+json";
         script.text = JSON.stringify(data);
         document.head.appendChild(script);
+        return script;
       });
     }
 
-    // Preconnect to external domains for performance
-    const preconnectDomains = [
-      "https://fonts.googleapis.com",
-      "https://fonts.gstatic.com",
-      "https://api.coingecko.com",
-    ];
-
-    preconnectDomains.forEach((domain) => {
-      let link = document.querySelector(
-        `link[rel="preconnect"][href="${domain}"]`
-      ) as HTMLLinkElement;
-      if (!link) {
-        link = document.createElement("link");
-        link.rel = "preconnect";
-        link.href = domain;
-        link.crossOrigin = "anonymous";
-        document.head.appendChild(link);
-      }
-    });
+    return () => {
+      // On unmount: remove remaining scripts for this instance.
+      ldScriptsRef.current.forEach((s) => s.remove());
+      ldScriptsRef.current = [];
+    };
   }, [
     title,
     description,
@@ -193,13 +147,14 @@ export const useSEO = ({
 
   return {
     updateTitle: (newTitle: string) => {
-      document.title = `${newTitle} | ${SEO_CONFIG.siteName}`;
+      document.title = SEO_CONFIG.titleTemplate.replace("%s", newTitle);
     },
   };
 };
 
 /**
- * Hook for adding structured data without other SEO changes
+ * Lightweight hook for adding JSON-LD without touching other meta tags.
+ * Scripts are removed when the component unmounts.
  */
 export const useStructuredData = (data: object | object[]) => {
   useEffect(() => {
