@@ -110,7 +110,10 @@ const SUPPORTED_CHAIN_IDS = [CHAIN_IDS.CELO, CHAIN_IDS.ALFAJORES] as number[];
 export function usePayment() {
   const [state, dispatch] = useReducer(reducer, initialState);
   const mountedRef = useRef(true);
-  useEffect(() => () => { mountedRef.current = false; }, []);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
   const { address } = useAccount();
   const { switchChainAsync } = useSwitchChain();
   const { refetch: refetchBalances, hasSufficient } = useTokenBalances();
@@ -421,9 +424,7 @@ export function usePayment() {
           message: "Confirming on chain...",
         });
 
-        await new Promise((r) => setTimeout(r, 1500));
-
-        if (!mountedRef.current) return;
+        await new Promise((r) => setTimeout(r, 500));
 
         dispatch({
           type: "SUCCESS",

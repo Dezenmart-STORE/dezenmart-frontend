@@ -224,7 +224,7 @@ const ViewOrderDetail = () => {
         )}
 
         {/* Payment section (pending + correct chain) */}
-        {canPay && isOnCelo && (
+        {(canPay || showPayment) && isOnCelo && (
           <div className="rounded-2xl border border-[#292B30] bg-[#212428] p-5">
             {!showPayment ? (
               <div className="text-center">

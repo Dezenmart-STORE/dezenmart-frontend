@@ -91,11 +91,20 @@ export function useEscrow() {
           return { success: false, message: "Transaction failed to submit." };
         }
 
-        // Wait for receipt
+        // Wait for receipt — 120s timeout, poll every 4s (Celo blocks ~5s)
         const receipt = await waitForTransactionReceipt(wagmiConfig, {
           hash,
-          timeout: 60_000,
+          timeout: 120_000,
+          pollingInterval: 4_000,
         });
+
+        if (receipt.status === "reverted") {
+          return {
+            success: false,
+            error: "Transaction reverted",
+            message: "The transaction was rejected by the contract. Check your balance and try again.",
+          };
+        }
 
         // Extract purchase/trade ID from event logs
         let purchaseId: string | undefined;
