@@ -15,6 +15,8 @@ interface UseTokenBalancesReturn {
   balances: Map<string, TokenBalanceEntry>;
   /** Native CELO balance (for gas) */
   celoBalance: string;
+  /** Native CELO balance as a number */
+  celoNumeric: number;
   /** True while any balance is loading */
   isLoading: boolean;
   /** True if any RPC call failed — lets UI distinguish empty vs failed */
@@ -103,6 +105,7 @@ export function useTokenBalances(): UseTokenBalancesReturn {
   const celoBalance = celoData
     ? formatUnits(celoData.value, celoData.decimals)
     : "0";
+  const celoNumeric = parseFloat(celoBalance);
 
   const refetch = () => {
     refetchTokens();
@@ -119,6 +122,7 @@ export function useTokenBalances(): UseTokenBalancesReturn {
   return {
     balances,
     celoBalance,
+    celoNumeric,
     isLoading: isLoadingTokens || isLoadingCelo,
     isError: tokenError || celoError,
     refetch,

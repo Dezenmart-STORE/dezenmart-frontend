@@ -9,6 +9,7 @@ import { getExplorerUrl } from "../../config/chains";
 import { useChainId } from "wagmi";
 import TokenSelect from "./TokenSelect";
 import type { StableToken } from "../../config/tokens";
+import { getFeeCurrencyAddress } from "../../config/tokens";
 import ConnectModal from "../wallet/ConnectModal";
 
 // ---------------------------------------------------------------------------
@@ -65,7 +66,7 @@ export default function PaymentFlow({
   const chainId = useChainId();
   const queryClient = useQueryClient();
   const { state, startPayment, reset, isActive } = usePayment();
-  const { getBalance, refetch: refetchBalances } = useTokenBalances();
+  const { getBalance, refetch: refetchBalances, celoNumeric } = useTokenBalances();
   const { selectedToken, setSelectedToken, formatAmount, convertPrice } = useCurrency();
 
   const [paymentToken, setPaymentToken] = useState(selectedToken.symbol);
@@ -76,12 +77,25 @@ export default function PaymentFlow({
   const needsSwap = paymentToken !== productToken;
   const stepConfig = STEP_CONFIG[state.step];
 
-  // Estimate gas fee in the payment token so users see the true cost upfront
+  // Estimate gas fee and determine how it will be paid
   const { gasCelo } = useGasEstimate(needsSwap);
   const gasInPaymentToken = convertPrice(gasCelo, "CELO", paymentToken);
-  const totalWithGas = totalAmount + gasInPaymentToken;
 
-  const hasEnoughBalance = balance ? balance.numeric >= totalWithGas : false;
+  // Does the payment token support Celo's fee currency mechanism?
+  // If yes, gas is deducted from the payment token (no CELO needed).
+  // If no, gas must come from CELO.
+  const supportsFeeCurrency = !!getFeeCurrencyAddress(paymentToken, chainId);
+  const hasSufficientCelo = celoNumeric >= gasCelo;
+  const gasIsCovered = supportsFeeCurrency || hasSufficientCelo;
+
+  // Total the user needs in their payment token (order + gas if feeCurrency)
+  const totalWithGas = supportsFeeCurrency
+    ? totalAmount + gasInPaymentToken
+    : totalAmount;
+
+  const hasEnoughBalance = balance
+    ? balance.numeric >= totalWithGas && gasIsCovered
+    : false;
 
   // Notify parent on success — only once
   useEffect(() => {
@@ -116,7 +130,9 @@ export default function PaymentFlow({
       paymentToken,
       logisticsProvider,
       logisticsCost,
-      gasEstimateInPaymentToken: gasInPaymentToken,
+      // Only pass gas buffer for balance check when feeCurrency is supported
+      // (gas comes from payment token). Otherwise gas comes from CELO separately.
+      gasEstimateInPaymentToken: supportsFeeCurrency ? gasInPaymentToken : 0,
     };
 
     startPayment(params);
@@ -163,21 +179,52 @@ export default function PaymentFlow({
             </span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-xs text-gray-500 flex items-center gap-1">
-              Network fee (est.)
-              <span className="text-[10px] text-gray-600 italic">paid in {paymentToken}</span>
-            </span>
-            <span className="text-sm font-semibold text-gray-200">
-              ~{gasInPaymentToken.toFixed(4)} {paymentToken}
-            </span>
+            <span className="text-xs text-gray-500">Network fee (est.)</span>
+            {supportsFeeCurrency ? (
+              <span className="text-sm font-semibold text-green-400">
+                ~{gasInPaymentToken.toFixed(4)} {paymentToken}
+              </span>
+            ) : (
+              <span className="text-sm font-semibold text-gray-200">
+                ~{gasCelo.toFixed(4)} CELO
+              </span>
+            )}
           </div>
           <div className="border-t border-[#373A3F] pt-2 flex items-center justify-between">
             <span className="text-xs font-semibold text-gray-400">You need</span>
             <span className="text-sm font-bold text-white">
               ~{totalWithGas.toFixed(4)} {paymentToken}
+              {!supportsFeeCurrency && (
+                <span className="ml-1 text-xs font-normal text-gray-500">
+                  + ~{gasCelo.toFixed(4)} CELO
+                </span>
+              )}
             </span>
           </div>
         </div>
+
+        {/* Gas fee coverage notice */}
+        {supportsFeeCurrency ? (
+          <div className="flex items-start gap-2 rounded-xl border border-green-900/40 bg-green-900/20 p-3 text-sm text-green-300">
+            <svg className="mt-0.5 h-4 w-4 flex-shrink-0 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            <span>
+              Network fees are paid in {paymentToken} — you don't need any CELO.
+            </span>
+          </div>
+        ) : (
+          !hasSufficientCelo && (
+            <div className="flex items-start gap-2 rounded-xl border border-amber-800/40 bg-amber-900/20 p-3 text-sm text-amber-300">
+              <svg className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span>
+                {paymentToken} doesn't cover network fees. You need ~{gasCelo.toFixed(4)} CELO in your wallet (you have {celoNumeric.toFixed(4)}).
+              </span>
+            </div>
+          )
+        )}
 
         {/* Balance indicator */}
         {balance && (
@@ -200,14 +247,14 @@ export default function PaymentFlow({
           </div>
         )}
 
-        {/* Insufficient balance warning */}
-        {balance && !hasEnoughBalance && (
+        {/* Insufficient token balance warning */}
+        {balance && balance.numeric < totalWithGas && (
           <div className="flex items-start gap-2 rounded-xl border border-amber-800/40 bg-amber-900/20 p-3 text-sm text-amber-300">
             <svg className="mt-0.5 h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <span>
-              You need ~{totalWithGas.toFixed(4)} {paymentToken} (order + network fee). Try a different token.
+              You need ~{totalWithGas.toFixed(4)} {paymentToken}. Try a different token.
             </span>
           </div>
         )}
@@ -219,7 +266,7 @@ export default function PaymentFlow({
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
             </svg>
             <span>
-              Your {paymentToken} will be automatically converted to {productToken}. Network fee (~{gasInPaymentToken.toFixed(4)} {paymentToken}) is included in the estimate above.
+              Your {paymentToken} will be automatically converted to {productToken} at the best available rate.
             </span>
           </div>
         )}
