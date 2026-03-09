@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
-import { TOKENS, type StableToken } from "../../config/tokens";
+import { useChainId } from "wagmi";
+import { TOKENS, type StableToken, getFeeCurrencyAddress } from "../../config/tokens";
 import { useTokenBalances } from "../../hooks/useTokenBalances";
 
 interface Props {
@@ -17,6 +18,7 @@ export default function TokenSelect({ value, onChange, label }: Props) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const { getBalance } = useTokenBalances();
+  const chainId = useChainId();
 
   const selected = TOKENS.find((t) => t.symbol === value) ?? TOKENS[0];
 
@@ -101,7 +103,14 @@ export default function TokenSelect({ value, onChange, label }: Props) {
                   <img src={token.icon} alt="" className="h-6 w-6 flex-shrink-0 rounded-full" />
                 )}
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-white">{token.symbol}</p>
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-sm font-semibold text-white">{token.symbol}</p>
+                    {!!getFeeCurrencyAddress(token.symbol, chainId) && (
+                      <span className="rounded px-1 py-0.5 text-[10px] font-bold uppercase tracking-wide bg-green-900/40 text-green-400 leading-none">
+                        no CELO
+                      </span>
+                    )}
+                  </div>
                   <p className="truncate text-xs text-gray-500">{token.name}</p>
                 </div>
                 <div className="flex items-center gap-2">

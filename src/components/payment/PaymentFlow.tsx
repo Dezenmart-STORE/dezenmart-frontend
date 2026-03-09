@@ -62,9 +62,13 @@ export default function PaymentFlow({
   productName,
   productImage,
 }: Props) {
-  const { isConnected } = useAccount();
+  const { isConnected, connector } = useAccount();
   const chainId = useChainId();
   const queryClient = useQueryClient();
+
+  // MetaMask re-signs txs as EIP-1559 and strips the feeCurrency field,
+  // so CIP-64 gas deduction from ERC-20 tokens silently doesn't work.
+  const isMetaMask = connector?.name?.toLowerCase().includes("metamask") ?? false;
   const { state, startPayment, reset, isActive } = usePayment();
   const { getBalance, refetch: refetchBalances, celoNumeric } = useTokenBalances();
   const { selectedToken, setSelectedToken, formatAmount, convertPrice } = useCurrency();
@@ -79,12 +83,18 @@ export default function PaymentFlow({
 
   // Estimate gas fee and determine how it will be paid
   const { gasCelo } = useGasEstimate(needsSwap);
+  // Separate estimate for post-swap steps only (approval + buyTrade, no swap)
+  const { gasCelo: gasCeloPostSwap } = useGasEstimate(false);
   const gasInPaymentToken = convertPrice(gasCelo, "CELO", paymentToken);
 
   // Does the payment token support Celo's fee currency mechanism?
-  // If yes, gas is deducted from the payment token (no CELO needed).
-  // If no, gas must come from CELO.
-  const supportsFeeCurrency = !!getFeeCurrencyAddress(paymentToken, chainId);
+  // MetaMask strips feeCurrency from transactions, so treat it as unsupported.
+  const supportsFeeCurrency =
+    !!getFeeCurrencyAddress(paymentToken, chainId) && !isMetaMask;
+  // Same check for the product token (relevant when a swap is needed)
+  const supportsProductFeeCurrency =
+    !!getFeeCurrencyAddress(productToken, chainId) && !isMetaMask;
+
   const hasSufficientCelo = celoNumeric >= gasCelo;
   const gasIsCovered = supportsFeeCurrency || hasSufficientCelo;
 
@@ -92,6 +102,13 @@ export default function PaymentFlow({
   const totalWithGas = supportsFeeCurrency
     ? totalAmount + gasInPaymentToken
     : totalAmount;
+
+  // Extra product token to include in the swap so post-swap gas deductions
+  // (approval + buyTrade feeCurrency) don't eat into the transfer amount.
+  const gasInProductToken =
+    needsSwap && supportsProductFeeCurrency
+      ? convertPrice(gasCeloPostSwap, "CELO", productToken)
+      : 0;
 
   const hasEnoughBalance = balance
     ? balance.numeric >= totalWithGas && gasIsCovered
@@ -133,6 +150,8 @@ export default function PaymentFlow({
       // Only pass gas buffer for balance check when feeCurrency is supported
       // (gas comes from payment token). Otherwise gas comes from CELO separately.
       gasEstimateInPaymentToken: supportsFeeCurrency ? gasInPaymentToken : 0,
+      // Extra product token to swap so post-swap gas doesn't break the transfer.
+      gasEstimateInProductToken: gasInProductToken,
     };
 
     startPayment(params);

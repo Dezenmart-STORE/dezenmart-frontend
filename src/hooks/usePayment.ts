@@ -96,6 +96,13 @@ export interface PaymentParams {
    * Used to check the user has enough balance to cover both payment and gas.
    */
   gasEstimateInPaymentToken?: number;
+  /**
+   * When a swap is needed and the product token supports fee currency,
+   * this is the gas cost for post-swap steps (approval + buyTrade) in the
+   * product token. Added to the swap target so the transfer amount is intact
+   * after gas deduction.
+   */
+  gasEstimateInProductToken?: number;
 }
 
 const SUPPORTED_CHAIN_IDS = [CHAIN_IDS.CELO, CHAIN_IDS.ALFAJORES] as number[];
@@ -229,10 +236,16 @@ export function usePayment() {
             return;
           }
 
+          // Swap slightly more than the order amount so that post-swap
+          // feeCurrency gas deductions (approval + buyTrade) don't eat into
+          // the product token needed for the escrow transfer.
+          const postSwapGasBuffer = params.gasEstimateInProductToken ?? 0;
+          const swapTargetAmount = params.totalAmount + postSwapGasBuffer;
+
           const quote = await getQuote(
             payTokenSymbol,
             params.productToken,
-            params.totalAmount
+            swapTargetAmount
           );
 
           if (!quote) {
@@ -252,7 +265,7 @@ export function usePayment() {
           const swapResult = await swap(
             payTokenSymbol,
             params.productToken,
-            params.totalAmount,
+            swapTargetAmount,
             0.01,
             feeCurrency
           );

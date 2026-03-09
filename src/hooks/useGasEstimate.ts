@@ -7,15 +7,15 @@ import { CHAIN_IDS } from "../config/chains";
 // ---------------------------------------------------------------------------
 
 /** token approval + escrow buyTrade */
-const GAS_UNITS_NO_SWAP = 870_000n;
+const GAS_UNITS_NO_SWAP = 550_000n;
 
 /** swap approval + swap execution + escrow approval + escrow buyTrade */
-const GAS_UNITS_WITH_SWAP = 1_300_000n;
+const GAS_UNITS_WITH_SWAP = 900_000n;
 
 const GWEI = 1_000_000_000n;
 
-/** 25 Gwei — conservative Celo fallback (actual is usually 5–15 Gwei) */
-const FALLBACK_GAS_PRICE = 25n * GWEI;
+/** 10 Gwei — conservative Celo fallback (actual is usually 5–10 Gwei) */
+const FALLBACK_GAS_PRICE = 10n * GWEI;
 
 // ---------------------------------------------------------------------------
 // Hook
