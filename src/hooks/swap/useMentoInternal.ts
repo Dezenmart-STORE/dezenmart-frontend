@@ -29,6 +29,8 @@ export interface SwapParams {
   toSymbol: string;
   amount: number;
   slippageTolerance?: number;
+  /** Celo fee currency address — gas is deducted from this token instead of CELO */
+  feeCurrency?: `0x${string}`;
 }
 
 export interface SwapResult {
@@ -371,6 +373,7 @@ export function useMentoInternal() {
         toSymbol,
         amount,
         slippageTolerance = SLIPPAGE_DEFAULT,
+        feeCurrency,
       } = params;
 
       const chainId = await walletClient.getChainId();
@@ -419,7 +422,8 @@ export function useMentoInternal() {
         value: BigInt(allowanceTxObj.value?.toString() || "0"),
         gas: allowanceTxObj.gasLimit ? BigInt(allowanceTxObj.gasLimit.toString()) : undefined,
         chain: celoChain,
-      });
+        ...(feeCurrency ? { feeCurrency } : {}),
+      } as any);
 
       const allowanceReceipt = await publicClient.waitForTransactionReceipt({
         hash: allowanceHash,
@@ -445,7 +449,8 @@ export function useMentoInternal() {
         value: BigInt(swapTxObj.value?.toString() || "0"),
         gas: swapTxObj.gasLimit ? BigInt(swapTxObj.gasLimit.toString()) : undefined,
         chain: celoChain,
-      });
+        ...(feeCurrency ? { feeCurrency } : {}),
+      } as any);
 
       const swapReceipt = await publicClient.waitForTransactionReceipt({
         hash: swapHash,

@@ -22,7 +22,7 @@ interface StepDef {
 }
 
 const STEPS: StepDef[] = [
-  { label: "Ordered", shortLabel: "Order", description: "Payment is being processed" },
+  { label: "Ordered", shortLabel: "Ordered", description: "Payment is being processed" },
   { label: "Paid", shortLabel: "Paid", description: "Payment confirmed in escrow" },
   // { label: "Shipped", shortLabel: "Sent", description: "Seller has shipped the item" }, // logistics system not yet ready
   { label: "Delivered", shortLabel: "Dlvrd", description: "Item delivered to you" },
@@ -149,12 +149,12 @@ export default function TradeStatus({ status, className = "" }: Props) {
 
               {/* Step label — short on xs, full on sm+ */}
               <p
-                className={`mt-2 text-center text-[10px] font-medium sm:text-xs ${
+                className={`mt-2 ${i===0?"text-left w-full": i===STEPS.length-1 ? "text-right w-full": "text-center"} text-[10px] font-medium sm:text-xs ${
                   isDone
-                    ? "text-green-500"
-                    : isCurrent
-                    ? "text-red-500"
-                    : "text-gray-600"
+                  ? "text-green-500"
+                  : isCurrent
+                  ? "text-red-500"
+                  : "text-gray-600"
                 }`}
               >
                 <span className="sm:hidden">{step.shortLabel}</span>

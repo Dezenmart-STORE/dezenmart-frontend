@@ -117,6 +117,8 @@ export interface SwapParams {
   toSymbol: string;
   amount: number;
   slippageTolerance?: number;
+  /** Celo fee currency address — gas is deducted from this token instead of CELO */
+  feeCurrency?: `0x${string}`;
 }
 
 export interface SwapResult {
@@ -381,6 +383,7 @@ export function useUniswapInternal() {
         toSymbol,
         amount,
         slippageTolerance = SLIPPAGE_DEFAULT,
+        feeCurrency,
       } = params;
 
       const chainId = await walletClient.getChainId();
@@ -413,7 +416,8 @@ export function useUniswapInternal() {
         args: [routerAddress as `0x${string}`, maxApproval],
         account: address as `0x${string}`,
         chain: celoChain,
-      });
+        ...(feeCurrency ? { feeCurrency } : {}),
+      } as any);
 
       const allowanceReceipt = await publicClient.waitForTransactionReceipt({
         hash: allowanceHash,
@@ -464,7 +468,8 @@ export function useUniswapInternal() {
         value: 0n,
         gas: gasWithBuffer,
         chain: celoChain,
-      });
+        ...(feeCurrency ? { feeCurrency } : {}),
+      } as any);
 
       const swapReceipt = await publicClient.waitForTransactionReceipt({
         hash: swapHash,

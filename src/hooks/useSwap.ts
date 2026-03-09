@@ -22,7 +22,7 @@ interface UseSwapReturn {
   /** Get a quote for swapping tokenA -> tokenB */
   getQuote: (from: string, to: string, amount: number) => Promise<SwapQuote | null>;
   /** Execute swap */
-  swap: (from: string, to: string, amount: number, slippage?: number) => Promise<SwapResult>;
+  swap: (from: string, to: string, amount: number, slippage?: number, feeCurrency?: `0x${string}`) => Promise<SwapResult>;
   /** Is a swap currently executing? */
   isSwapping: boolean;
   /** Is at least one protocol ready? */
@@ -115,7 +115,8 @@ export function useSwap(): UseSwapReturn {
       from: string,
       to: string,
       amount: number,
-      slippage = 0.01
+      slippage = 0.01,
+      feeCurrency?: `0x${string}`
     ): Promise<SwapResult> => {
       if (from === to) return { success: true, hash: undefined };
 
@@ -147,6 +148,7 @@ export function useSwap(): UseSwapReturn {
           toSymbol: to,
           amount,
           slippageTolerance: slippage,
+          feeCurrency,
         });
 
         if (!result.success) {

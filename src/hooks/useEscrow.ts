@@ -42,7 +42,8 @@ export function useEscrow() {
     async (
       functionName: string,
       args: readonly unknown[],
-      eventName?: string
+      eventName?: string,
+      feeCurrency?: `0x${string}`
     ): Promise<EscrowResult> => {
       // Validate
       if (!isConnected || !address) {
@@ -79,13 +80,15 @@ export function useEscrow() {
         }
 
         // Execute — liveChainId (read at call time, not from stale closure)
+        // feeCurrency (Celo-specific): when set, gas is deducted from that token
         const hash = await writeContractAsync({
           ...contract,
           functionName,
           args,
           gas,
           chainId: liveChainId,
-        });
+          ...(feeCurrency ? { feeCurrency } : {}),
+        } as any);
 
         if (!hash) {
           return { success: false, message: "Transaction failed to submit." };
@@ -179,12 +182,14 @@ export function useEscrow() {
       tradeId: bigint,
       quantity: bigint,
       logisticsProvider: `0x${string}`,
-      logisticsCost: bigint
+      logisticsCost: bigint,
+      feeCurrency?: `0x${string}`
     ) =>
       execute(
         "buyTrade",
         [tradeId, quantity, logisticsProvider, logisticsCost],
-        "PurchaseCreated"
+        "PurchaseCreated",
+        feeCurrency
       ),
     [execute]
   );

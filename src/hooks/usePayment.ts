@@ -4,7 +4,7 @@ import { parseUnits } from "viem";
 import { useTokenBalances } from "./useTokenBalances";
 import { useSwap } from "./useSwap";
 import { useEscrow } from "./useEscrow";
-import { getToken, getTokenAddress } from "../config/tokens";
+import { getToken, getTokenAddress, getFeeCurrencyAddress } from "../config/tokens";
 import { paymentDebug } from "../utils/paymentDebug";
 import { getErrorMessage } from "../utils/errors";
 import { wagmiConfig, CHAIN_IDS } from "../config/chains";
@@ -91,6 +91,11 @@ export interface PaymentParams {
   logisticsProvider: `0x${string}`;
   /** Logistics cost in token units (as bigint-compatible string) */
   logisticsCost: string;
+  /**
+   * Estimated gas cost expressed in the payment token.
+   * Used to check the user has enough balance to cover both payment and gas.
+   */
+  gasEstimateInPaymentToken?: number;
 }
 
 const SUPPORTED_CHAIN_IDS = [CHAIN_IDS.CELO, CHAIN_IDS.ALFAJORES] as number[];
@@ -197,6 +202,13 @@ export function usePayment() {
           throw new Error(`${payTokenSymbol} is not available on this network.`);
         }
 
+        // Determine fee currency — if the payment token is whitelisted by the Celo gas
+        // oracle, gas is deducted from it instead of CELO (better UX, one token needed).
+        const feeCurrency = getFeeCurrencyAddress(payTokenSymbol, activeChainId);
+
+        const gasBuffer = params.gasEstimateInPaymentToken ?? 0;
+        const requiredPaymentBalance = params.totalAmount + gasBuffer;
+
         let effectiveAmount = params.totalAmount;
         let swapHash: string | undefined;
 
@@ -206,12 +218,13 @@ export function usePayment() {
             from: payTokenSymbol,
             to: params.productToken,
             amount: params.totalAmount,
+            gasBuffer,
           });
 
-          if (!hasSufficient(payTokenSymbol, params.totalAmount)) {
+          if (!hasSufficient(payTokenSymbol, requiredPaymentBalance)) {
             dispatch({
               type: "ERROR",
-              error: `You need at least ${params.totalAmount.toFixed(2)} ${payTokenSymbol} to complete this purchase.`,
+              error: `You need at least ${requiredPaymentBalance.toFixed(2)} ${payTokenSymbol}${gasBuffer > 0 ? ` (including ~${gasBuffer.toFixed(4)} for network fees)` : ""} to complete this purchase.`,
             });
             return;
           }
@@ -239,7 +252,9 @@ export function usePayment() {
           const swapResult = await swap(
             payTokenSymbol,
             params.productToken,
-            params.totalAmount
+            params.totalAmount,
+            0.01,
+            feeCurrency
           );
 
           if (!swapResult.success) {
@@ -254,10 +269,10 @@ export function usePayment() {
           await new Promise((r) => setTimeout(r, 3000));
           if (mountedRef.current) refetchBalances();
         } else {
-          if (!hasSufficient(params.productToken, params.totalAmount)) {
+          if (!hasSufficient(params.productToken, requiredPaymentBalance)) {
             dispatch({
               type: "ERROR",
-              error: `You need at least ${params.totalAmount.toFixed(2)} ${params.productToken}. Check your balance.`,
+              error: `You need at least ${requiredPaymentBalance.toFixed(2)} ${params.productToken}${gasBuffer > 0 ? ` (including ~${gasBuffer.toFixed(4)} for network fees)` : ""}. Check your balance.`,
             });
             return;
           }
@@ -299,6 +314,8 @@ export function usePayment() {
         if ((currentAllowance as bigint) < requiredRaw) {
           const approvalAmount = (requiredRaw * 105n) / 100n; // 5% buffer
 
+          // Use fee currency so gas for approval is paid in the same token
+          const productFeeCurrency = getFeeCurrencyAddress(params.productToken, activeChainId);
           const approveHash = await writeContract(wagmiConfig, {
             address: productTokenAddress,
             abi: erc20Abi,
@@ -306,7 +323,8 @@ export function usePayment() {
             args: [escrowAddr, approvalAmount],
             gas: 150_000n,
             chainId: activeChainId,
-          });
+            ...(productFeeCurrency ? { feeCurrency: productFeeCurrency } : {}),
+          } as any);
 
           await waitForTransactionReceipt(wagmiConfig, {
             hash: approveHash,
@@ -404,11 +422,17 @@ export function usePayment() {
           return;
         }
 
+        // After a swap, we're holding productToken — use its fee currency for buyTrade gas
+        const buyTradeFeeCurrency = needsSwap
+          ? getFeeCurrencyAddress(params.productToken, activeChainId)
+          : feeCurrency;
+
         const result = await escrow.buyTrade(
           BigInt(params.tradeId),
           BigInt(safeQuantity),
           params.logisticsProvider,
-          logisticsCostWei
+          logisticsCostWei,
+          buyTradeFeeCurrency
         );
 
         if (!result.success) {

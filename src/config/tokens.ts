@@ -234,6 +234,24 @@ export function getTokenDecimals(symbol: string): number {
   return ensureSymbolMap().get(symbol)?.decimals ?? 18;
 }
 
+/**
+ * Tokens the Celo gas oracle accepts as fee currencies.
+ * When a supported token is used, gas is deducted from that token instead of CELO.
+ */
+const FEE_CURRENCY_SYMBOLS = new Set(["cUSD", "cEUR", "cREAL", "USDT"]);
+
+/**
+ * Returns the on-chain address to pass as `feeCurrency` in a Celo transaction,
+ * or `undefined` if the token is not whitelisted by the Celo gas oracle.
+ */
+export function getFeeCurrencyAddress(
+  tokenSymbol: string,
+  chainId: number
+): `0x${string}` | undefined {
+  if (!FEE_CURRENCY_SYMBOLS.has(tokenSymbol)) return undefined;
+  return getTokenAddress(tokenSymbol, chainId);
+}
+
 // ---------------------------------------------------------------------------
 // Defaults
 // ---------------------------------------------------------------------------

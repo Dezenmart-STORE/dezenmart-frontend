@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useAccount } from "wagmi";
 import { usePayment, type PaymentParams, type PaymentStep } from "../../hooks/usePayment";
 import { useTokenBalances } from "../../hooks/useTokenBalances";
+import { useGasEstimate } from "../../hooks/useGasEstimate";
 import { useCurrency } from "../../context/CurrencyContext";
 import { getExplorerUrl } from "../../config/chains";
 import { useChainId } from "wagmi";
@@ -72,7 +73,13 @@ export default function PaymentFlow({
   const balance = getBalance(paymentToken);
   const needsSwap = paymentToken !== productToken;
   const stepConfig = STEP_CONFIG[state.step];
-  const hasEnoughBalance = balance ? balance.numeric >= totalAmount : false;
+
+  // Estimate gas fee in the payment token so users see the true cost upfront
+  const gasEstimate = useGasEstimate(needsSwap);
+  const gasInPaymentToken = gasEstimate.gasInToken(paymentToken);
+  const totalWithGas = totalAmount + gasInPaymentToken;
+
+  const hasEnoughBalance = balance ? balance.numeric >= totalWithGas : false;
 
   // Notify parent on success — only once
   useEffect(() => {
@@ -101,6 +108,7 @@ export default function PaymentFlow({
       paymentToken,
       logisticsProvider,
       logisticsCost,
+      gasEstimateInPaymentToken: gasInPaymentToken,
     };
 
     startPayment(params);
@@ -138,6 +146,31 @@ export default function PaymentFlow({
           label="Pay with"
         />
 
+        {/* Payment breakdown */}
+        <div className="rounded-xl border border-[#292B30] bg-[#292B30] px-3 py-2.5 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-gray-500">Order total</span>
+            <span className="text-sm font-semibold text-gray-200">
+              {totalAmount.toFixed(2)} {productToken}
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-gray-500 flex items-center gap-1">
+              Network fee (est.)
+              <span className="text-[10px] text-gray-600 italic">paid in {paymentToken}</span>
+            </span>
+            <span className="text-sm font-semibold text-gray-200">
+              ~{gasInPaymentToken.toFixed(4)} {paymentToken}
+            </span>
+          </div>
+          <div className="border-t border-[#373A3F] pt-2 flex items-center justify-between">
+            <span className="text-xs font-semibold text-gray-400">You need</span>
+            <span className="text-sm font-bold text-white">
+              ~{totalWithGas.toFixed(4)} {paymentToken}
+            </span>
+          </div>
+        </div>
+
         {/* Balance indicator */}
         {balance && (
           <div className="flex items-center justify-between rounded-lg border border-[#292B30] bg-[#292B30] px-3 py-2.5">
@@ -160,13 +193,13 @@ export default function PaymentFlow({
         )}
 
         {/* Insufficient balance warning */}
-        {balance && !hasEnoughBalance && !needsSwap && (
+        {balance && !hasEnoughBalance && (
           <div className="flex items-start gap-2 rounded-xl border border-amber-800/40 bg-amber-900/20 p-3 text-sm text-amber-300">
             <svg className="mt-0.5 h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <span>
-              You need at least {totalAmount.toFixed(2)} {paymentToken}. Try selecting a different token.
+              You need ~{totalWithGas.toFixed(4)} {paymentToken} (order + network fee). Try a different token.
             </span>
           </div>
         )}
@@ -178,7 +211,7 @@ export default function PaymentFlow({
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
             </svg>
             <span>
-              Your {paymentToken} will be automatically converted to {productToken} at the best available rate.
+              Your {paymentToken} will be automatically converted to {productToken}. Network fee (~{gasInPaymentToken.toFixed(4)} {paymentToken}) is included in the estimate above.
             </span>
           </div>
         )}
@@ -186,6 +219,7 @@ export default function PaymentFlow({
         {/* Pay button */}
         <button
           onClick={handlePay}
+          disabled={balance ? !hasEnoughBalance : false}
           className="w-full rounded-xl bg-red-600 py-3.5 text-sm font-bold text-white transition-all hover:bg-red-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
         >
           {!isConnected
