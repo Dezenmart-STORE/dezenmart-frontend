@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useAccount } from "wagmi";
+import { useQueryClient } from "@tanstack/react-query";
 import { usePayment, type PaymentParams, type PaymentStep } from "../../hooks/usePayment";
 import { useTokenBalances } from "../../hooks/useTokenBalances";
 import { useGasEstimate } from "../../hooks/useGasEstimate";
@@ -62,8 +63,9 @@ export default function PaymentFlow({
 }: Props) {
   const { isConnected } = useAccount();
   const chainId = useChainId();
+  const queryClient = useQueryClient();
   const { state, startPayment, reset, isActive } = usePayment();
-  const { getBalance } = useTokenBalances();
+  const { getBalance, refetch: refetchBalances } = useTokenBalances();
   const { selectedToken, setSelectedToken, formatAmount } = useCurrency();
 
   const [paymentToken, setPaymentToken] = useState(selectedToken.symbol);
@@ -83,11 +85,17 @@ export default function PaymentFlow({
 
   // Notify parent on success — only once
   useEffect(() => {
-    if (state.step === "success" && state.txHash && onSuccess && !successCalledRef.current) {
+    if (state.step === "success" && state.txHash && !successCalledRef.current) {
       successCalledRef.current = true;
-      onSuccess(state.txHash, state.purchaseId ?? undefined);
+
+      // Invalidate all wagmi contract read queries so ConnectButton,
+      // WalletQuickAction, and any other balance display updates immediately.
+      queryClient.invalidateQueries({ queryKey: ["readContracts"] });
+      refetchBalances();
+
+      if (onSuccess) onSuccess(state.txHash, state.purchaseId ?? undefined);
     }
-  }, [state.step, state.txHash, state.purchaseId, onSuccess]);
+  }, [state.step, state.txHash, state.purchaseId, onSuccess, queryClient, refetchBalances]);
 
   const handleTokenChange = (token: StableToken) => {
     setPaymentToken(token.symbol);

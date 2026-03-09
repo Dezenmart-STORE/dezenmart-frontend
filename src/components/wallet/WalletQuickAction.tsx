@@ -18,7 +18,7 @@ export default function WalletQuickAction() {
   const { disconnect } = useDisconnect();
   const { switchChain } = useSwitchChain();
   const { data: celoBalance } = useBalance({ address });
-  const { getBalance } = useTokenBalances();
+  const { getBalance, refetch: refetchBalances, isLoading: balancesLoading } = useTokenBalances();
   const { selectedToken, formatAmount } = useCurrency();
 
   const [showModal, setShowModal] = useState(false);
@@ -114,9 +114,27 @@ export default function WalletQuickAction() {
 
           {/* Balance section */}
           <div className="mb-2 rounded-lg bg-[#292B30] p-3">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">
-              Balance
-            </p>
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+                Balance
+              </p>
+              <button
+                onClick={() => refetchBalances()}
+                disabled={balancesLoading}
+                className="rounded p-0.5 text-gray-600 transition-colors hover:text-gray-300 disabled:opacity-50"
+                aria-label="Refresh balance"
+                title="Refresh balance"
+              >
+                <svg
+                  className={`h-3 w-3 ${balancesLoading ? "animate-spin" : ""}`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </button>
+            </div>
             {balance ? (
               <div className="mt-1">
                 <p className="text-base font-bold text-white">
