@@ -402,7 +402,7 @@ export function usePayment() {
           if (!trade?.active) {
             dispatch({
               type: "ERROR",
-              error: `This listing is no longer active. [${preflightDebug}]`,
+              error: `This listing is no longer active.`,
             });
             return;
           }
@@ -418,7 +418,7 @@ export function usePayment() {
         } catch (checkErr) {
           // Pre-flight read failed — surface the raw error so it's visible in the UI
           const msg = getErrorMessage(checkErr);
-          dispatch({ type: "ERROR", error: `Pre-flight check failed: ${msg} [${preflightDebug}]` });
+          dispatch({ type: "ERROR", error: `Pre-flight check failed: ${msg}` });
           return;
         }
 
@@ -437,7 +437,7 @@ export function usePayment() {
 
         if (!result.success) {
           // Include pre-flight snapshot so the discrepancy is visible in production
-          dispatch({ type: "ERROR", error: `${result.message} [${preflightDebug}]` });
+          dispatch({ type: "ERROR", error: result.message });
           return;
         }
 
