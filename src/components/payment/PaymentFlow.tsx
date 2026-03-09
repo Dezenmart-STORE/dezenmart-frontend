@@ -66,7 +66,7 @@ export default function PaymentFlow({
   const queryClient = useQueryClient();
   const { state, startPayment, reset, isActive } = usePayment();
   const { getBalance, refetch: refetchBalances } = useTokenBalances();
-  const { selectedToken, setSelectedToken, formatAmount } = useCurrency();
+  const { selectedToken, setSelectedToken, formatAmount, convertPrice } = useCurrency();
 
   const [paymentToken, setPaymentToken] = useState(selectedToken.symbol);
   const [showConnectModal, setShowConnectModal] = useState(false);
@@ -77,8 +77,8 @@ export default function PaymentFlow({
   const stepConfig = STEP_CONFIG[state.step];
 
   // Estimate gas fee in the payment token so users see the true cost upfront
-  const gasEstimate = useGasEstimate(needsSwap);
-  const gasInPaymentToken = gasEstimate.gasInToken(paymentToken);
+  const { gasCelo } = useGasEstimate(needsSwap);
+  const gasInPaymentToken = convertPrice(gasCelo, "CELO", paymentToken);
   const totalWithGas = totalAmount + gasInPaymentToken;
 
   const hasEnoughBalance = balance ? balance.numeric >= totalWithGas : false;
