@@ -29,6 +29,8 @@ export interface StableToken {
   /** address[chainId] -> contract address */
   address: Record<number, `0x${string}`>;
   icon: string;
+  /** True if the token is a fiat-pegged stablecoin */
+  isStableToken: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -44,6 +46,7 @@ export const TOKENS: StableToken[] = [
       [celoAlfajores.id]: "0x803700bD991d293306D6e7dCcF2B49F9137b437e",
     },
     icon: USDTIcon,
+    isStableToken: true,
   },
   {
     name: "GoodDollar",
@@ -54,6 +57,7 @@ export const TOKENS: StableToken[] = [
       [celoAlfajores.id]: "0x62B8B11039FcfE5aB0C56E502b1C372A3d2a9c7A",
     },
     icon: GDIcon,
+    isStableToken: false,
   },
   {
     name: "Celo Dollar",
@@ -64,6 +68,7 @@ export const TOKENS: StableToken[] = [
       [celoAlfajores.id]: "0x874069fa1eb16d44d622f2e0ca25eea172369bc1",
     },
     icon: cUSDIcon,
+    isStableToken: true,
   },
   {
     name: "Celo Euro",
@@ -74,6 +79,7 @@ export const TOKENS: StableToken[] = [
       [celoAlfajores.id]: "0x10c892a6ec43a53e45d0b916b4b7d383b1b78c0f",
     },
     icon: cEURIcon,
+    isStableToken: true,
   },
   {
     name: "Celo Brazilian Real",
@@ -84,6 +90,7 @@ export const TOKENS: StableToken[] = [
       [celoAlfajores.id]: "0xe4d517785d091d3c54818832db6094bcc2744545",
     },
     icon: cREALIcon,
+    isStableToken: true,
   },
   {
     name: "Celo Kenyan Shilling",
@@ -94,6 +101,7 @@ export const TOKENS: StableToken[] = [
       [celoAlfajores.id]: "0x1E0433C1769271ECcF4CFF9FDdD515eefE6CdF92",
     },
     icon: cKESIcon,
+    isStableToken: true,
   },
   {
     name: "Philippine Peso",
@@ -104,6 +112,7 @@ export const TOKENS: StableToken[] = [
       [celoAlfajores.id]: "0x5E0E3c9419C42a1B04e2525991FB1A2C467AB8bF",
     },
     icon: PUSOIcon,
+    isStableToken: true,
   },
   {
     name: "Colombian Peso",
@@ -114,6 +123,7 @@ export const TOKENS: StableToken[] = [
       [celoAlfajores.id]: "0xe6A57340f0df6E020c1c0a80bC6E13048601f0d4",
     },
     icon: cCOPIcon,
+    isStableToken: true,
   },
   {
     name: "CFA Franc",
@@ -124,6 +134,7 @@ export const TOKENS: StableToken[] = [
       [celoAlfajores.id]: "0xB0FA15e002516d0301884059c0aaC0F0C72b019D",
     },
     icon: eXOFIcon,
+    isStableToken: true,
   },
   {
     name: "Nigerian Naira",
@@ -134,6 +145,7 @@ export const TOKENS: StableToken[] = [
       [celoAlfajores.id]: "0x4a5b03B8b16122D330306c65e4CA4BC5Dd6511d0",
     },
     icon: cNGNIcon,
+    isStableToken: true,
   },
   {
     name: "Japanese Yen",
@@ -144,6 +156,7 @@ export const TOKENS: StableToken[] = [
       [celoAlfajores.id]: "0x2E51F41238cA36a421C9B8b3e189e8Cc7653FE67",
     },
     icon: cJPYIcon,
+    isStableToken: true,
   },
   {
     name: "Swiss Franc",
@@ -154,6 +167,7 @@ export const TOKENS: StableToken[] = [
       [celoAlfajores.id]: "0xADC57C2C34aD021Df4421230a6532F4e2E1dCE4F",
     },
     icon: cCHFIcon,
+    isStableToken: true,
   },
   {
     name: "South African Rand",
@@ -164,6 +178,7 @@ export const TOKENS: StableToken[] = [
       [celoAlfajores.id]: "0x1e5b44015Ff90610b54000DAad31C89b3284df4d",
     },
     icon: cZARIcon,
+    isStableToken: true,
   },
   {
     name: "British Pound",
@@ -174,6 +189,7 @@ export const TOKENS: StableToken[] = [
       [celoAlfajores.id]: "0x47f2Fb88105155a18c390641C8a73f1402B2BB12",
     },
     icon: cGBPIcon,
+    isStableToken: true,
   },
   {
     name: "Australian Dollar",
@@ -184,6 +200,7 @@ export const TOKENS: StableToken[] = [
       [celoAlfajores.id]: "0x84CBD49F5aE07632B6B88094E81Cce8236125Fe0",
     },
     icon: cAUDIcon,
+    isStableToken: true,
   },
   {
     name: "Canadian Dollar",
@@ -194,6 +211,7 @@ export const TOKENS: StableToken[] = [
       [celoAlfajores.id]: "0x02EC9E0D2Fd73e89168C1709e542a48f58d7B133",
     },
     icon: cCADIcon,
+    isStableToken: true,
   },
   {
     name: "Ghanaian Cedi",
@@ -204,6 +222,7 @@ export const TOKENS: StableToken[] = [
       [celoAlfajores.id]: "0x295B66bE7714458Af45E6A6Ea142A5358A6cA375",
     },
     icon: cGHSIcon,
+    isStableToken: true,
   },
 ];
 

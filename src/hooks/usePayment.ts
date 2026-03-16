@@ -96,13 +96,6 @@ export interface PaymentParams {
    * Used to check the user has enough balance to cover both payment and gas.
    */
   gasEstimateInPaymentToken?: number;
-  /**
-   * When a swap is needed and the product token supports fee currency,
-   * this is the gas cost for post-swap steps (approval + buyTrade) in the
-   * product token. Added to the swap target so the transfer amount is intact
-   * after gas deduction.
-   */
-  gasEstimateInProductToken?: number;
 }
 
 const SUPPORTED_CHAIN_IDS = [CHAIN_IDS.CELO, CHAIN_IDS.ALFAJORES] as number[];
@@ -210,7 +203,6 @@ export function usePayment() {
         }
 
         // Determine fee currency — if the payment token is whitelisted by the Celo gas
-        // oracle, gas is deducted from it instead of CELO (better UX, one token needed).
         const feeCurrency = getFeeCurrencyAddress(payTokenSymbol, activeChainId);
 
         const gasBuffer = params.gasEstimateInPaymentToken ?? 0;
@@ -236,16 +228,10 @@ export function usePayment() {
             return;
           }
 
-          // Swap slightly more than the order amount so that post-swap
-          // feeCurrency gas deductions (approval + buyTrade) don't eat into
-          // the product token needed for the escrow transfer.
-          const postSwapGasBuffer = params.gasEstimateInProductToken ?? 0;
-          const swapTargetAmount = params.totalAmount + postSwapGasBuffer;
-
           const quote = await getQuote(
             payTokenSymbol,
             params.productToken,
-            swapTargetAmount
+            params.totalAmount
           );
 
           if (!quote) {
@@ -265,7 +251,7 @@ export function usePayment() {
           const swapResult = await swap(
             payTokenSymbol,
             params.productToken,
-            swapTargetAmount,
+            params.totalAmount,
             0.01,
             feeCurrency
           );
@@ -415,7 +401,7 @@ export function usePayment() {
           if (!trade?.active) {
             dispatch({
               type: "ERROR",
-              error: `This listing is no longer active.`,
+              error: `This listing is no longer active. [${preflightDebug}]`,
             });
             return;
           }
@@ -431,7 +417,7 @@ export function usePayment() {
         } catch (checkErr) {
           // Pre-flight read failed — surface the raw error so it's visible in the UI
           const msg = getErrorMessage(checkErr);
-          dispatch({ type: "ERROR", error: `Pre-flight check failed: ${msg}` });
+          dispatch({ type: "ERROR", error: `Pre-flight check failed: ${msg} [${preflightDebug}]` });
           return;
         }
 
@@ -450,7 +436,7 @@ export function usePayment() {
 
         if (!result.success) {
           // Include pre-flight snapshot so the discrepancy is visible in production
-          dispatch({ type: "ERROR", error: result.message });
+          dispatch({ type: "ERROR", error: `${result.message} [${preflightDebug}]` });
           return;
         }
 

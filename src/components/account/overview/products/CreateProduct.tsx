@@ -245,26 +245,30 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
     setErrors({});
 
     try {
-      const { name, description, category, priceInUSDT, stock, sellerWalletAddress } = form;
+      const { name, description, category, priceInUSDT, priceInToken, stock, sellerWalletAddress } = form;
       const stockQty = parseInt(stock, 10) || 0;
       const tokenSymbol = paymentToken || "USDT";
+
+      const matchedToken = availableTokens.find((t) => t.symbol === tokenSymbol);
+      const isStable = matchedToken?.isStableToken ?? true;
+     
+      const priceToSend = isStable ? priceInUSDT : priceInToken;
 
       const formData = new FormData();
       formData.append("name", name);
       formData.append("description", description);
       formData.append("category", category);
-      formData.append("price", priceInUSDT);
+      formData.append("price", priceToSend);
       formData.append("stock", stock);
       formData.append("sellerWalletAddress", sellerWalletAddress);
-      formData.append("useUSDT", "true");
+      formData.append("useUSDT", isStable ? "true" : "false");
       formData.append("paymentToken", tokenSymbol);
 
-      const matchedToken = availableTokens.find((t) => t.symbol === tokenSymbol);
       if (matchedToken && chainId) {
         const tokenAddress = matchedToken.address[chainId];
         if (tokenAddress) {
           formData.append("tokenAddress", tokenAddress);
-          const tradeParams = buildTradeParams(parseFloat(priceInUSDT), stockQty, tokenSymbol, chainId);
+          const tradeParams = buildTradeParams(parseFloat(priceToSend), stockQty, tokenSymbol, chainId);
           formData.append("tradeParams", JSON.stringify(tradeParams));
         }
       }
