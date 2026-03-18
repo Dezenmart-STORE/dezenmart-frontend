@@ -100,7 +100,7 @@ const TermsModal: React.FC = () => {
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number | null>(null);
-  const sectionRefs = useRef<Partial<Record<SectionId, HTMLDivElement | null>>>(
+  const sectionRefs = useRef<Partial<Record<SectionId, HTMLElement | null>>>(
     {}
   );
 

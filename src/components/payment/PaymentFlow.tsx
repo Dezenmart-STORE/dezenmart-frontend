@@ -150,8 +150,6 @@ export default function PaymentFlow({
       // Only pass gas buffer for balance check when feeCurrency is supported
       // (gas comes from payment token). Otherwise gas comes from CELO separately.
       gasEstimateInPaymentToken: supportsFeeCurrency ? gasInPaymentToken : 0,
-      // Extra product token to swap so post-swap gas doesn't break the transfer.
-      gasEstimateInProductToken: gasInProductToken,
     };
 
     startPayment(params);
