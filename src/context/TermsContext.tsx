@@ -50,11 +50,11 @@ export const TermsProvider = ({ children }: { children: ReactNode }) => {
     try {
       const result = await acceptUserTerms().unwrap();
 
-      if (result) {
-        handleUserUpdate(result);
+      if (result?.data?.user) {
+        handleUserUpdate(result.data.user);
       }
 
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 1800));
     } catch (error) {
       console.error("Failed to accept terms:", error);
       throw error;
