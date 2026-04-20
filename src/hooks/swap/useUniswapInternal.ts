@@ -229,7 +229,7 @@ export function useUniswapInternal() {
       let retries = 0;
       while (retries < MAX_RETRIES) {
         try {
-          const provider = new ethers.providers.Web3Provider(window.ethereum);
+          const provider = new ethers.providers.Web3Provider(window.ethereum as any);
           const network = await provider.getNetwork();
           if (network.chainId !== TARGET_CHAIN.id) {
             throw new Error(`Please switch to ${TARGET_CHAIN.name}`);

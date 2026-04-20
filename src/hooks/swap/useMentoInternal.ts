@@ -196,7 +196,7 @@ export function useMentoInternal() {
       let retries = 0;
       while (retries < MAX_RETRIES) {
         try {
-          const provider = new providers.Web3Provider(window.ethereum);
+          const provider = new providers.Web3Provider(window.ethereum as any);
           const signer = provider.getSigner();
           const network = await provider.getNetwork();
 
