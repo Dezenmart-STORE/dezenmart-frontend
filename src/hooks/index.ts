@@ -1,3 +1,7 @@
+// ── MiniPay ───────────────────────────────────────────────────────
+export { useMiniPay, detectMiniPay } from "./useMiniPay";
+export type { MiniPayHook } from "./useMiniPay";
+
 // ── Web3 / payment hooks ──────────────────────────────────────────
 export { useEscrow } from "./useEscrow";
 export type { EscrowResult } from "./useEscrow";

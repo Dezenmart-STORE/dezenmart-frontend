@@ -9,6 +9,7 @@ import { InstallPrompt } from "../pwa/InstallPrompt.tsx";
 import { registerServiceWorker } from "../../utils/pwa/serviceWorkerRegistration";
 import { setupOfflineSyncListener } from "../../utils/pwa/offlineSync";
 import WrongNetworkBanner from "../wallet/WrongNetworkBanner";
+import MiniPayAutoConnect from "../wallet/MiniPayAutoConnect";
 
 const Layout = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
@@ -57,6 +58,10 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
           {/* WrongNetworkBanner: always mounted (drives auto-switch on connect),
               renders null when wallet is disconnected or already on Celo */}
           {!isAuthPage && <WrongNetworkBanner />}
+          {/* MiniPayAutoConnect: always mounted, silently connects the MiniPay
+              wallet on app load without requiring user interaction. No-op on
+              non-MiniPay devices. */}
+          {!isAuthPage && <MiniPayAutoConnect />}
           {children}
         </main>
       </ErrorBoundary>

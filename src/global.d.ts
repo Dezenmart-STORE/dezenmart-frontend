@@ -8,7 +8,15 @@ declare module "*.svg" {
 
 declare global {
   interface Window {
-    ethereum: any;
+    /** EIP-1193 provider injected by MetaMask, MiniPay, and other wallets. */
+    ethereum:
+      | (import("viem").EIP1193Provider & {
+          /** Set to `true` when running inside the MiniPay browser. */
+          isMiniPay?: boolean;
+          /** Set to `true` when MetaMask is the injected provider. */
+          isMetaMask?: boolean;
+        })
+      | undefined;
     connectMetaMask: () => Promise<string>;
     connectGoogle: () => Promise<string>;
     connectEmail: (

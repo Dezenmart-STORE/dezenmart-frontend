@@ -1,5 +1,7 @@
-import { useState, type ReactNode } from "react";
-import { useConnect, type Connector } from "wagmi";
+import { useState, useEffect, type ReactNode } from "react";
+import { useConnect, useAccount, type Connector } from "wagmi";
+import { detectMiniPay } from "../../hooks/useMiniPay";
+import { injected } from "wagmi/connectors";
 
 interface Props {
   onClose: () => void;
@@ -116,8 +118,20 @@ const EDUCATION_STEPS = [
 
 export default function ConnectModal({ onClose }: Props) {
   const { connect, connectors, isPending, error } = useConnect();
+  const { isConnected } = useAccount();
   const [showEducation, setShowEducation] = useState(false);
   const [connectingId, setConnectingId] = useState<string | null>(null);
+
+  // Inside MiniPay, the wallet is always pre-authorised — connect silently and close.
+  useEffect(() => {
+    if (!detectMiniPay()) return;
+    if (isConnected) { onClose(); return; }
+    connect({ connector: injected({ target: "metaMask" }) }); // per Celo docs
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (detectMiniPay() && isConnected) onClose();
+  }, [isConnected, onClose]);
 
   const handleConnect = async (connector: Connector) => {
     setConnectingId(connector.uid);
@@ -136,6 +150,22 @@ export default function ConnectModal({ onClose }: Props) {
   const otherConnectors = connectors.filter(
     (c: Connector) => classifyConnector(c, connectors) !== "smart_wallet"
   );
+
+  // Inside MiniPay, wallet connection is automatic — show a spinner instead of
+  // the wallet-picker so the user never sees irrelevant options.
+  if (detectMiniPay()) {
+    return (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+        <div className="flex flex-col items-center gap-3 rounded-2xl border border-[#292B30] bg-[#212428] px-8 py-8">
+          <svg className="h-7 w-7 animate-spin text-[#FF3B30]" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+          </svg>
+          <p className="text-sm font-medium text-gray-300">Connecting wallet…</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
