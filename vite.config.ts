@@ -103,6 +103,10 @@ export default defineConfig({
         ]
       : []),
   ],
+  server: {
+    host: true,
+    allowedHosts: ["footer-finer-immobile.ngrok-free.dev"]
+  },
   resolve: {
     alias: {
       "@selfxyz/common/utils/appType": "@selfxyz/core",

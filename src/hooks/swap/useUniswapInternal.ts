@@ -165,42 +165,37 @@ const findMultiHopPath = async (
   secondHopFee: number;
   amountOut: any;
 } | null> => {
+  type RouteResult = { intermediary: string; intermediaryAddress: string; firstHopFee: number; secondHopFee: number; amountOut: any } | null;
+
+  const candidates: Promise<RouteResult>[] = [];
+
   for (const intermediary of COMMON_INTERMEDIARIES) {
     if (intermediary === fromSymbol || intermediary === toSymbol) continue;
-
     const intermediaryAddress = leanGetTokenAddress(intermediary, chainId);
     if (!intermediaryAddress) continue;
 
     for (const firstFee of FEE_TIERS) {
       for (const secondFee of FEE_TIERS) {
-        try {
-          const path = encodePath(
-            [fromAddress, intermediaryAddress, toAddress],
-            [firstFee, secondFee]
-          );
-
-          const quote = await quoter.callStatic.quoteExactInput(
-            path,
-            amountIn.toString()
-          );
-
-          if (quote && ethers.BigNumber.from(quote.amountOut).gt(0)) {
-            return {
-              intermediary,
-              intermediaryAddress,
-              firstHopFee: firstFee,
-              secondHopFee: secondFee,
-              amountOut: quote,
-            };
-          }
-        } catch {
-          continue;
-        }
+        const path = encodePath(
+          [fromAddress, intermediaryAddress, toAddress],
+          [firstFee, secondFee]
+        );
+        candidates.push(
+          quoter.callStatic
+            .quoteExactInput(path, amountIn.toString())
+            .then((quote: any) =>
+              quote && ethers.BigNumber.from(quote.amountOut).gt(0)
+                ? { intermediary, intermediaryAddress, firstHopFee: firstFee, secondHopFee: secondFee, amountOut: quote }
+                : null
+            )
+            .catch((): null => null)
+        );
       }
     }
   }
 
-  return null;
+  const results = await Promise.all(candidates);
+  return results.find((r): r is NonNullable<RouteResult> => r !== null) ?? null;
 };
 
 // ---------------------------------------------------------------------------
@@ -407,13 +402,13 @@ export function useUniswapInternal() {
       const quote = await getSwapQuote(fromSymbol, toSymbol, amount, slippageTolerance);
       const minAmountOut = parseUnits(quote.minAmountOut, toToken.decimals);
 
-      // Approve token spend
-      const maxApproval = BigInt("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+      // Approve exactly amountIn + 10 % buffer — never use unlimited approval.
+      const approvalAmount = (amountIn * 110n) / 100n;
       const allowanceHash = await walletClient.writeContract({
         address: fromAddress as `0x${string}`,
         abi: erc20Abi,
         functionName: "approve",
-        args: [routerAddress as `0x${string}`, maxApproval],
+        args: [routerAddress as `0x${string}`, approvalAmount],
         account: address as `0x${string}`,
         chain: celoChain,
         ...(feeCurrency ? { feeCurrency } : {}),

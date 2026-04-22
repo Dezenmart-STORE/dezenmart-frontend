@@ -21,12 +21,17 @@ interface UseTokenBalancesReturn {
   isLoading: boolean;
   /** True if any RPC call failed — lets UI distinguish empty vs failed */
   isError: boolean;
-  /** Re-fetch all balances */
-  refetch: () => void;
+  /** Re-fetch all balances — returns a Promise that resolves when complete */
+  refetch: () => Promise<void>;
   /** Get a single token balance by symbol */
   getBalance: (symbol: string) => TokenBalanceEntry | undefined;
-  /** Check if user has enough of a token */
-  hasSufficient: (symbol: string, amount: number) => boolean;
+  /**
+   * Check if user has enough of a token.
+   * Returns null when balances are still loading or the token is not in the
+   * cache (e.g. wrong chain, RPC error) — callers must distinguish this from
+   * false (balance known and insufficient).
+   */
+  hasSufficient: (symbol: string, amount: number) => boolean | null;
 }
 
 /**
@@ -107,16 +112,17 @@ export function useTokenBalances(): UseTokenBalancesReturn {
     : "0";
   const celoNumeric = parseFloat(celoBalance);
 
-  const refetch = () => {
-    refetchTokens();
-    refetchCelo();
+  const refetch = async (): Promise<void> => {
+    await Promise.all([refetchTokens(), refetchCelo()]);
   };
 
   const getBalance = (symbol: string) => balances.get(symbol);
 
-  const hasSufficient = (symbol: string, amount: number) => {
+  const hasSufficient = (symbol: string, amount: number): boolean | null => {
+    if (isLoadingTokens || isLoadingCelo) return null;
     const entry = balances.get(symbol);
-    return entry ? entry.numeric >= amount : false;
+    if (!entry) return null; // token not in map (wrong chain or RPC error)
+    return entry.numeric >= amount;
   };
 
   return {

@@ -26,7 +26,8 @@ import TermsModal from "./components/common/TermsModal.tsx";
 import { TermsProvider } from "./context/TermsContext.tsx";
 import { WalkthroughProvider } from "./context/WalkthroughContext.tsx";
 import Walkthrough from "./components/walkthrough/Walkthrough.tsx";
-import { initSentry } from "./utils/sentry.config.ts";
+import { initSentry, captureError } from "./utils/sentry.config.ts";
+import { registerErrorReporter } from "./utils/errors.ts";
 import {
   initPerformanceMonitoring,
   monitorResourceTiming,
@@ -86,6 +87,9 @@ window.addEventListener("unhandledrejection", (event: PromiseRejectionEvent) => 
 
 // Initialize Sentry error tracking
 initSentry();
+registerErrorReporter((error, context, parsed) =>
+  captureError(error, { context, ...parsed })
+);
 
 // Initialize debug tools (available via browser console)
 initDebugTools();
@@ -120,6 +124,10 @@ const Chat = lazy(() => import("./pages/Chat.tsx"));
 const ChatDetail = lazy(() => import("./pages/ChatDetail.tsx"));
 const Offline = lazy(() => import("./pages/Offline.tsx"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
+const BuyCheckout = lazy(() => import("./pages/BuyCheckout.tsx"));
+const SellCheckout = lazy(() => import("./pages/SellCheckout.tsx"));
+const ViewTrade = lazy(() => import("./pages/Trade.tsx"));
+const ViewTradeDetail = lazy(() => import("./pages/ViewTradeDetail.tsx"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -232,10 +240,10 @@ const router = createBrowserRouter([
         children: [
           { path: "/account", element: <Account /> },
           { path: "/notifications", element: <Notifications /> },
-          { path: "/trades/viewtrades", element: <ComingSoon /> },
-          { path: "/trades/buy/:productId", element: <ComingSoon /> },
-          { path: "/trades/sell/:productId", element: <ComingSoon /> },
-          { path: "/trades/viewtrades/:tradeId", element: <ComingSoon /> },
+          { path: "/trades/viewtrades", element: <ViewTrade /> },
+          { path: "/trades/buy/:productId", element: <BuyCheckout /> },
+          { path: "/trades/sell/:productId", element: <SellCheckout /> },
+          { path: "/trades/viewtrades/:tradeId", element: <ViewTradeDetail /> },
           { path: "/orders/:orderId", element: <ViewOrderDetail /> },
           { path: "/chat", element: <Chat /> },
           { path: "/chat/:userId", element: <ChatDetail /> },

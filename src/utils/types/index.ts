@@ -64,6 +64,8 @@ export interface Product {
   logisticsCost: string[];
   paymentToken: string;
   logisticsProviders: string[];
+  /** On-chain numeric trade ID assigned by the escrow contract when the listing was created */
+  tradeId?: string;
 }
 //review
 export interface Review {

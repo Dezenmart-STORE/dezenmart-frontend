@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useReducer, useRef } from "react";
 import { useAccount, useSwitchChain } from "wagmi";
-import { parseUnits } from "viem";
+import { parseUnits, formatUnits } from "viem";
 import { useTokenBalances } from "./useTokenBalances";
 import { useSwap } from "./useSwap";
 import { useEscrow } from "./useEscrow";
@@ -35,12 +35,19 @@ interface PaymentState {
   txHash: string | null;
   /** Extracted purchaseId from event logs */
   purchaseId: string | null;
-  /** Swap hash if a conversion happened */
+  /** Swap hash — set as soon as swap completes, preserved through errors */
   swapHash: string | null;
+  /**
+   * Amount of productToken available for retry (as precise string).
+   * Non-null when a swap completed but the escrow call subsequently failed,
+   * allowing the user to retry just the escrow step.
+   */
+  swappedAmount: string | null;
 }
 
 type Action =
   | { type: "SET_STEP"; step: PaymentStep; message: string }
+  | { type: "SWAP_COMPLETE"; swapHash: string; swappedAmount: string }
   | { type: "SUCCESS"; txHash: string; purchaseId?: string; swapHash?: string }
   | { type: "ERROR"; error: string }
   | { type: "RESET" };
@@ -52,12 +59,17 @@ const initialState: PaymentState = {
   txHash: null,
   purchaseId: null,
   swapHash: null,
+  swappedAmount: null,
 };
 
 function reducer(state: PaymentState, action: Action): PaymentState {
   switch (action.type) {
     case "SET_STEP":
       return { ...state, step: action.step, message: action.message, error: null };
+    case "SWAP_COMPLETE":
+      // Persist swap result before attempting escrow so a subsequent error
+      // still exposes swapHash + swappedAmount for retry.
+      return { ...state, swapHash: action.swapHash, swappedAmount: action.swappedAmount };
     case "SUCCESS":
       return {
         ...state,
@@ -65,10 +77,11 @@ function reducer(state: PaymentState, action: Action): PaymentState {
         message: "Payment complete!",
         txHash: action.txHash,
         purchaseId: action.purchaseId ?? null,
-        swapHash: action.swapHash ?? null,
+        swapHash: action.swapHash ?? state.swapHash,
         error: null,
       };
     case "ERROR":
+      // Spread state so swapHash/swappedAmount survive into the error screen.
       return { ...state, step: "error", error: action.error, message: action.error };
     case "RESET":
       return initialState;
@@ -110,6 +123,10 @@ const SUPPORTED_CHAIN_IDS = [CHAIN_IDS.CELO, CHAIN_IDS.ALFAJORES] as number[];
  *   idle -> switching-network -> checking-balance -> [swapping] -> approving -> executing -> confirming -> success
  *                                                                                                   ↘ error
  *
+ * If a swap succeeds but the escrow call fails, state.swapHash and
+ * state.swappedAmount are preserved in the error state so the caller can
+ * invoke retryEscrow(params) to skip directly to the approval step.
+ *
  * Components simply call `startPayment(params)` and render based on `state.step`.
  */
 export function usePayment() {
@@ -121,12 +138,216 @@ export function usePayment() {
   }, []);
   const { address } = useAccount();
   const { switchChainAsync } = useSwitchChain();
-  const { refetch: refetchBalances, hasSufficient } = useTokenBalances();
+  const { refetch: refetchBalances } = useTokenBalances();
   const { swap, getQuote } = useSwap();
   const escrow = useEscrow();
 
   const reset = useCallback(() => dispatch({ type: "RESET" }), []);
 
+  // ---------------------------------------------------------------------------
+  // Internal: approval + escrow execution (steps 3–5).
+  // Called by both startPayment (after optional swap) and retryEscrow.
+  // ---------------------------------------------------------------------------
+  const _approveAndExecute = useCallback(
+    async (
+      params: PaymentParams,
+      /** Precise string amount of productToken to approve and send */
+      effectiveAmountStr: string,
+      activeChainId: number,
+      priorSwapHash?: string
+    ) => {
+      const { readContract, writeContract, waitForTransactionReceipt } =
+        await import("@wagmi/core");
+      const { erc20Abi } = await import("viem");
+      const { getEscrowAddress } = await import("../config/chains");
+
+      // ── 3. Approve token spending ─────────────────────────────
+      dispatch({
+        type: "SET_STEP",
+        step: "approving",
+        message: `Approving ${params.productToken} for payment...`,
+      });
+
+      // Validate tradeId is a safe integer (contract uses uint256; MongoDB _id is not numeric)
+      const tradeIdNum = Number(params.tradeId);
+      if (!Number.isFinite(tradeIdNum) || tradeIdNum <= 0 || !Number.isInteger(tradeIdNum)) {
+        throw new Error(`Invalid trade ID "${params.tradeId}". Expected a positive integer from the contract.`);
+      }
+
+      const productTokenInfo = getToken(params.productToken);
+      const productTokenAddress = getTokenAddress(params.productToken, activeChainId);
+
+      if (!productTokenInfo || !productTokenAddress) {
+        throw new Error(`${params.productToken} configuration missing.`);
+      }
+
+      const escrowAddr = getEscrowAddress(activeChainId) as `0x${string}`;
+      const requiredRaw = parseUnits(effectiveAmountStr, productTokenInfo.decimals);
+
+      const currentAllowance = await readContract(wagmiConfig, {
+        address: productTokenAddress,
+        abi: erc20Abi,
+        functionName: "allowance",
+        args: [address!, escrowAddr],
+        chainId: activeChainId,
+      });
+
+      if ((currentAllowance as bigint) < requiredRaw) {
+        const approvalAmount = (requiredRaw * 105n) / 100n; // 5 % buffer
+
+        const productFeeCurrency = getFeeCurrencyAddress(params.productToken, activeChainId);
+        const approveHash = await writeContract(wagmiConfig, {
+          address: productTokenAddress,
+          abi: erc20Abi,
+          functionName: "approve",
+          args: [escrowAddr, approvalAmount],
+          gas: 150_000n,
+          chainId: activeChainId,
+          ...(productFeeCurrency ? { feeCurrency: productFeeCurrency } : {}),
+        } as any);
+
+        await waitForTransactionReceipt(wagmiConfig, {
+          hash: approveHash,
+          timeout: 30_000,
+        });
+
+        paymentDebug.log("approval:confirmed", { hash: approveHash });
+      } else {
+        paymentDebug.log("approval:sufficient");
+      }
+
+      // ── 4. Pre-flight + buyTrade ──────────────────────────────
+      dispatch({
+        type: "SET_STEP",
+        step: "executing",
+        message: "Processing your purchase...",
+      });
+
+      const logisticsCostWei = parseUnits(
+        params.logisticsCost || "0",
+        productTokenInfo.decimals
+      );
+
+      const safeQuantity = Math.max(1, params.quantity || 1);
+      let preflightDebug = `chain=${activeChainId},tid=${params.tradeId},qty=${safeQuantity}`;
+
+      try {
+        const { getEscrowAddress: _getEscrow } = await import("../config/chains");
+        const _escrowAddr = _getEscrow(activeChainId);
+
+        const [isProviderRegistered, tradeData] = await Promise.all([
+          readContract(wagmiConfig, {
+            address: _escrowAddr as `0x${string}`,
+            abi: ESCROW_ABI,
+            functionName: "logisticsProviders",
+            args: [params.logisticsProvider],
+            chainId: activeChainId,
+          }),
+          readContract(wagmiConfig, {
+            address: _escrowAddr as `0x${string}`,
+            abi: ESCROW_ABI,
+            functionName: "getTrade",
+            args: [BigInt(params.tradeId)],
+            chainId: activeChainId,
+          }),
+        ]);
+
+        const trade = tradeData as any;
+
+        preflightDebug = `chain=${activeChainId},tid=${params.tradeId},qty=${safeQuantity},prov=${String(isProviderRegistered)},active=${String(trade?.active)},rem=${trade?.remainingQuantity?.toString() ?? "?"},total=${trade?.totalQuantity?.toString() ?? "?"}`;
+
+        console.info("[DezenPay] pre-flight check", {
+          chainId: activeChainId,
+          escrowContract: _escrowAddr,
+          logisticsProvider: params.logisticsProvider,
+          providerRegistered: isProviderRegistered,
+          tradeId: params.tradeId,
+          quantityRequested: safeQuantity,
+          tradeActive: trade?.active,
+          remainingQuantity: trade?.remainingQuantity?.toString(),
+          totalQuantity: trade?.totalQuantity?.toString(),
+          productCost: trade?.productCost?.toString(),
+        });
+
+        if (!isProviderRegistered) {
+          dispatch({
+            type: "ERROR",
+            error: `Delivery provider ${params.logisticsProvider} is not registered on this contract. Contact support.`,
+          });
+          return;
+        }
+
+        if (!trade?.active) {
+          dispatch({
+            type: "ERROR",
+            error: `This listing is no longer active. [${preflightDebug}]`,
+          });
+          return;
+        }
+
+        if (
+          trade?.remainingQuantity !== undefined &&
+          BigInt(safeQuantity) > (trade.remainingQuantity as bigint)
+        ) {
+          dispatch({
+            type: "ERROR",
+            error: `Only ${trade.remainingQuantity.toString()} item(s) are available on-chain. Please contact the seller.`,
+          });
+          return;
+        }
+      } catch (checkErr) {
+        const msg = getErrorMessage(checkErr);
+        dispatch({ type: "ERROR", error: `Pre-flight check failed: ${msg} [${preflightDebug}]` });
+        return;
+      }
+
+      const buyTradeFeeCurrency = priorSwapHash
+        ? getFeeCurrencyAddress(params.productToken, activeChainId)
+        : getFeeCurrencyAddress(params.paymentToken, activeChainId);
+
+      const result = await escrow.buyTrade(
+        BigInt(params.tradeId),
+        BigInt(safeQuantity),
+        params.logisticsProvider,
+        logisticsCostWei,
+        buyTradeFeeCurrency
+      );
+
+      if (!result.success) {
+        dispatch({ type: "ERROR", error: `${result.message} [${preflightDebug}]` });
+        return;
+      }
+
+      // ── 5. Success ────────────────────────────────────────────
+      dispatch({
+        type: "SET_STEP",
+        step: "confirming",
+        message: "Confirming on chain...",
+      });
+
+      await new Promise((r) => setTimeout(r, 500));
+
+      dispatch({
+        type: "SUCCESS",
+        txHash: result.hash!,
+        purchaseId: result.purchaseId,
+        swapHash: priorSwapHash,
+      });
+
+      paymentDebug.log("payment:complete", {
+        txHash: result.hash,
+        purchaseId: result.purchaseId,
+        duration: paymentDebug.getDuration(),
+      });
+
+      setTimeout(() => { if (mountedRef.current) refetchBalances(); }, 2000);
+    },
+    [address, escrow, refetchBalances]
+  );
+
+  // ---------------------------------------------------------------------------
+  // startPayment — full flow
+  // ---------------------------------------------------------------------------
   const startPayment = useCallback(
     async (params: PaymentParams) => {
       paymentDebug.startSession("usePayment");
@@ -137,10 +358,10 @@ export function usePayment() {
       }
 
       try {
-        // ── 0. Ensure wallet is on a Celo network ────────────────
-        const { getChainId } = await import("@wagmi/core");
+        const { getChainId, readContract } = await import("@wagmi/core");
+        const { erc20Abi } = await import("viem");
 
-        // Quick cached check — only used to decide whether to show the UI step
+        // ── 0. Ensure wallet is on a Celo network ────────────────
         const cachedChainId = getChainId(wagmiConfig);
         if (!SUPPORTED_CHAIN_IDS.includes(cachedChainId)) {
           dispatch({
@@ -150,12 +371,9 @@ export function usePayment() {
           });
         }
 
-        // Always call switchChainAsync to guarantee the connector is on Celo.
-        // If already on Celo this resolves in <100ms (no user prompt on MetaMask).
         try {
           await switchChainAsync({ chainId: CHAIN_IDS.CELO });
         } catch {
-       
           const postChainId = getChainId(wagmiConfig);
           if (!SUPPORTED_CHAIN_IDS.includes(postChainId)) {
             dispatch({
@@ -168,7 +386,6 @@ export function usePayment() {
 
         await new Promise((r) => setTimeout(r, 300));
 
-      
         const activeChainId = getChainId(wagmiConfig);
         if (!SUPPORTED_CHAIN_IDS.includes(activeChainId)) {
           dispatch({
@@ -185,10 +402,6 @@ export function usePayment() {
           message: "Checking your balance...",
         });
 
-        refetchBalances();
-        // Small delay for refetch to complete
-        await new Promise((r) => setTimeout(r, 1000));
-
         const needsSwap = params.paymentToken !== params.productToken;
         const payTokenSymbol = params.paymentToken;
         const payTokenInfo = getToken(payTokenSymbol);
@@ -202,16 +415,29 @@ export function usePayment() {
           throw new Error(`${payTokenSymbol} is not available on this network.`);
         }
 
-        // Determine fee currency — if the payment token is whitelisted by the Celo gas
         const feeCurrency = getFeeCurrencyAddress(payTokenSymbol, activeChainId);
-
         const gasBuffer = params.gasEstimateInPaymentToken ?? 0;
         const requiredPaymentBalance = params.totalAmount + gasBuffer;
 
-        let effectiveAmount = params.totalAmount;
-        let swapHash: string | undefined;
+        // Read balance directly from chain — bypasses React state staleness
+        const rawPayBalance = await readContract(wagmiConfig, {
+          address: payTokenAddress,
+          abi: erc20Abi,
+          functionName: "balanceOf",
+          args: [address],
+          chainId: activeChainId,
+        });
+        const payBalance = parseFloat(formatUnits(rawPayBalance as bigint, payTokenInfo.decimals));
+
+        // Fire background refetch for UI display (do not await)
+        refetchBalances();
 
         // ── 2. Swap if paying with different token ────────────────
+        // Track swap hash in a local variable — do NOT read from state after
+        // dispatch because React batches updates and state.swapHash will still
+        // be null within the same async execution frame.
+        let completedSwapHash: string | undefined;
+
         if (needsSwap) {
           paymentDebug.log("swap:needed", {
             from: payTokenSymbol,
@@ -220,7 +446,7 @@ export function usePayment() {
             gasBuffer,
           });
 
-          if (!hasSufficient(payTokenSymbol, requiredPaymentBalance)) {
+          if (payBalance < requiredPaymentBalance) {
             dispatch({
               type: "ERROR",
               error: `You need at least ${requiredPaymentBalance.toFixed(2)} ${payTokenSymbol}${gasBuffer > 0 ? ` (including ~${gasBuffer.toFixed(4)} for network fees)` : ""} to complete this purchase.`,
@@ -261,14 +487,24 @@ export function usePayment() {
             return;
           }
 
-          swapHash = swapResult.hash;
-          effectiveAmount = parseFloat(quote.amountOut);
+          completedSwapHash = swapResult.hash;
 
-          // Wait for swap to settle
+          // Persist swap result immediately — if the escrow call below fails,
+          // the error state will still carry swapHash + swappedAmount so the
+          // user can retry escrow without re-doing the swap.
+          dispatch({
+            type: "SWAP_COMPLETE",
+            swapHash: completedSwapHash!,
+            // Use the original required amount (not the quote estimate) — this is
+            // what the escrow contract expects and avoids float precision issues.
+            swappedAmount: params.totalAmount.toString(),
+          });
+
+          // Wait for swap to settle on-chain before reading balance
           await new Promise((r) => setTimeout(r, 3000));
           if (mountedRef.current) refetchBalances();
         } else {
-          if (!hasSufficient(params.productToken, requiredPaymentBalance)) {
+          if (payBalance < requiredPaymentBalance) {
             dispatch({
               type: "ERROR",
               error: `You need at least ${requiredPaymentBalance.toFixed(2)} ${params.productToken}${gasBuffer > 0 ? ` (including ~${gasBuffer.toFixed(4)} for network fees)` : ""}. Check your balance.`,
@@ -277,203 +513,76 @@ export function usePayment() {
           }
         }
 
-        // ── 3. Approve token spending ─────────────────────────────
-        dispatch({
-          type: "SET_STEP",
-          step: "approving",
-          message: `Approving ${params.productToken} for payment...`,
-        });
+        // effectiveAmountStr: use the raw totalAmount string — never parseFloat
+        // round-trips which lose precision for 18-decimal tokens.
+        const effectiveAmountStr = params.totalAmount.toString();
 
-        const productTokenInfo = getToken(params.productToken);
-        const productTokenAddress = getTokenAddress(params.productToken, activeChainId);
-
-        if (!productTokenInfo || !productTokenAddress) {
-          throw new Error(`${params.productToken} configuration missing.`);
-        }
-
-        const { readContract, writeContract, waitForTransactionReceipt } =
-          await import("@wagmi/core");
-        const { erc20Abi } = await import("viem");
-        const { getEscrowAddress } = await import("../config/chains");
-
-        const escrowAddr = getEscrowAddress(activeChainId) as `0x${string}`;
-        const requiredRaw = parseUnits(
-          String(effectiveAmount),
-          productTokenInfo.decimals
-        );
-
-        const currentAllowance = await readContract(wagmiConfig, {
-          address: productTokenAddress,
-          abi: erc20Abi,
-          functionName: "allowance",
-          args: [address, escrowAddr],
-          chainId: activeChainId,
-        });
-
-        if ((currentAllowance as bigint) < requiredRaw) {
-          const approvalAmount = (requiredRaw * 105n) / 100n; // 5% buffer
-
-          // Use fee currency so gas for approval is paid in the same token
-          const productFeeCurrency = getFeeCurrencyAddress(params.productToken, activeChainId);
-          const approveHash = await writeContract(wagmiConfig, {
-            address: productTokenAddress,
-            abi: erc20Abi,
-            functionName: "approve",
-            args: [escrowAddr, approvalAmount],
-            gas: 150_000n,
-            chainId: activeChainId,
-            ...(productFeeCurrency ? { feeCurrency: productFeeCurrency } : {}),
-          } as any);
-
-          await waitForTransactionReceipt(wagmiConfig, {
-            hash: approveHash,
-            timeout: 30_000,
-          });
-
-          paymentDebug.log("approval:confirmed", { hash: approveHash });
-        } else {
-          paymentDebug.log("approval:sufficient");
-        }
-
-        // ── 4. Execute buyTrade on escrow contract ────────────────
-        dispatch({
-          type: "SET_STEP",
-          step: "executing",
-          message: "Processing your purchase...",
-        });
-
-        const logisticsCostWei = parseUnits(
-          params.logisticsCost || "0",
-          productTokenInfo.decimals
-        );
-
-        // Pre-flight: verify provider and trade state on-chain.
-        const safeQuantity = Math.max(1, params.quantity || 1);
-        // Diagnostic snapshot shown in the UI if buyTrade fails — helps debug production issues.
-        let preflightDebug = `chain=${activeChainId},tid=${params.tradeId},qty=${safeQuantity}`;
-        try {
-          const { getEscrowAddress: _getEscrow } = await import("../config/chains");
-          const _escrowAddr = _getEscrow(activeChainId);
-
-          const [isProviderRegistered, tradeData] = await Promise.all([
-            readContract(wagmiConfig, {
-              address: _escrowAddr as `0x${string}`,
-              abi: ESCROW_ABI,
-              functionName: "logisticsProviders",
-              args: [params.logisticsProvider],
-              chainId: activeChainId,
-            }),
-            readContract(wagmiConfig, {
-              address: _escrowAddr as `0x${string}`,
-              abi: ESCROW_ABI,
-              functionName: "getTrade",
-              args: [BigInt(params.tradeId)],
-              chainId: activeChainId,
-            }),
-          ]);
-
-          const trade = tradeData as any;
-
-          // Capture for UI diagnostic output
-          preflightDebug = `chain=${activeChainId},tid=${params.tradeId},qty=${safeQuantity},prov=${String(isProviderRegistered)},active=${String(trade?.active)},rem=${trade?.remainingQuantity?.toString() ?? "?"},total=${trade?.totalQuantity?.toString() ?? "?"}`;
-
-          console.info("[DezenPay] pre-flight check", {
-            chainId: activeChainId,
-            escrowContract: _escrowAddr,
-            logisticsProvider: params.logisticsProvider,
-            providerRegistered: isProviderRegistered,
-            tradeId: params.tradeId,
-            quantityRequested: safeQuantity,
-            tradeActive: trade?.active,
-            remainingQuantity: trade?.remainingQuantity?.toString(),
-            totalQuantity: trade?.totalQuantity?.toString(),
-            productCost: trade?.productCost?.toString(),
-          });
-
-          if (!isProviderRegistered) {
-            dispatch({
-              type: "ERROR",
-              error: `Delivery provider ${params.logisticsProvider} is not registered on this contract. Contact support.`,
-            });
-            return;
-          }
-
-          if (!trade?.active) {
-            dispatch({
-              type: "ERROR",
-              error: `This listing is no longer active. [${preflightDebug}]`,
-            });
-            return;
-          }
-
-          if (trade?.remainingQuantity !== undefined &&
-              BigInt(safeQuantity) > (trade.remainingQuantity as bigint)) {
-            dispatch({
-              type: "ERROR",
-              error: `Only ${trade.remainingQuantity.toString()} item(s) are available on-chain. Please contact the seller.`,
-            });
-            return;
-          }
-        } catch (checkErr) {
-          // Pre-flight read failed — surface the raw error so it's visible in the UI
-          const msg = getErrorMessage(checkErr);
-          dispatch({ type: "ERROR", error: `Pre-flight check failed: ${msg} [${preflightDebug}]` });
-          return;
-        }
-
-        // After a swap, we're holding productToken — use its fee currency for buyTrade gas
-        const buyTradeFeeCurrency = needsSwap
-          ? getFeeCurrencyAddress(params.productToken, activeChainId)
-          : feeCurrency;
-
-        const result = await escrow.buyTrade(
-          BigInt(params.tradeId),
-          BigInt(safeQuantity),
-          params.logisticsProvider,
-          logisticsCostWei,
-          buyTradeFeeCurrency
-        );
-
-        if (!result.success) {
-          // Include pre-flight snapshot so the discrepancy is visible in production
-          dispatch({ type: "ERROR", error: `${result.message} [${preflightDebug}]` });
-          return;
-        }
-
-        // ── 5. Success ────────────────────────────────────────────
-        dispatch({
-          type: "SET_STEP",
-          step: "confirming",
-          message: "Confirming on chain...",
-        });
-
-        await new Promise((r) => setTimeout(r, 500));
-
-        dispatch({
-          type: "SUCCESS",
-          txHash: result.hash!,
-          purchaseId: result.purchaseId,
-          swapHash,
-        });
-
-        paymentDebug.log("payment:complete", {
-          txHash: result.hash,
-          purchaseId: result.purchaseId,
-          duration: paymentDebug.getDuration(),
-        });
-
-        setTimeout(() => { if (mountedRef.current) refetchBalances(); }, 2000);
+        await _approveAndExecute(params, effectiveAmountStr, activeChainId, completedSwapHash);
       } catch (err) {
         paymentDebug.error("payment:unexpected", err);
         dispatch({ type: "ERROR", error: getErrorMessage(err) });
       }
     },
-    [address, switchChainAsync, hasSufficient, refetchBalances, swap, getQuote, escrow]
+    [address, switchChainAsync, refetchBalances, swap, getQuote, _approveAndExecute]
+  );
+
+  // ---------------------------------------------------------------------------
+  // retryEscrow — skip straight to approval when swap already completed
+  // ---------------------------------------------------------------------------
+  const retryEscrow = useCallback(
+    async (params: PaymentParams) => {
+      if (!state.swapHash || !state.swappedAmount) return;
+
+      const savedSwapHash = state.swapHash;
+      const savedAmount = state.swappedAmount;
+
+      paymentDebug.startSession("usePayment:retryEscrow");
+
+      if (!address) {
+        dispatch({ type: "ERROR", error: "Please connect your wallet first." });
+        return;
+      }
+
+      try {
+        const { getChainId } = await import("@wagmi/core");
+
+        const cachedChainId = getChainId(wagmiConfig);
+        if (!SUPPORTED_CHAIN_IDS.includes(cachedChainId)) {
+          dispatch({
+            type: "SET_STEP",
+            step: "switching-network",
+            message: "Switching to Celo network...",
+          });
+          try {
+            await switchChainAsync({ chainId: CHAIN_IDS.CELO });
+          } catch {
+            /* handled below */
+          }
+          await new Promise((r) => setTimeout(r, 300));
+        }
+
+        const activeChainId = getChainId(wagmiConfig);
+        if (!SUPPORTED_CHAIN_IDS.includes(activeChainId)) {
+          dispatch({
+            type: "ERROR",
+            error: "Please switch your wallet to the Celo network and try again.",
+          });
+          return;
+        }
+
+        await _approveAndExecute(params, savedAmount, activeChainId, savedSwapHash);
+      } catch (err) {
+        paymentDebug.error("retryEscrow:unexpected", err);
+        dispatch({ type: "ERROR", error: getErrorMessage(err) });
+      }
+    },
+    [address, state.swapHash, state.swappedAmount, switchChainAsync, _approveAndExecute]
   );
 
   return {
     state,
     startPayment,
+    retryEscrow,
     reset,
     /** is the payment flow active? */
     isActive: state.step !== "idle" && state.step !== "success" && state.step !== "error",

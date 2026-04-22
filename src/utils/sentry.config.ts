@@ -1,4 +1,4 @@
-import * as Sentry from "@sentry/react";
+import * as _SentryImport from "@sentry/react";
 import {
   createRoutesFromChildren,
   matchRoutes,
@@ -6,6 +6,12 @@ import {
   useNavigationType,
 } from "react-router-dom";
 import { useEffect } from "react";
+
+// @sentry/react v10 re-exports captureException etc. from @sentry/browser v10,
+// but a stale top-level @sentry/browser v5 package confuses TS type resolution.
+// Cast to any here; the runtime calls are correct.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const Sentry = _SentryImport as any;
 
 // Initialize Sentry only in production
 export const initSentry = () => {
@@ -95,40 +101,32 @@ export const setSentryUser = (user: {
   email?: string;
   name?: string;
 }) => {
-  // Commented out until Sentry version is updated
-  // Sentry.setUser({
-  //   id: user.id,
-  //   email: user.email,
-  //   username: user.name,
-  // });
-  console.log('[Sentry] User context set:', user.id);
+  Sentry.setUser({
+    id: user.id,
+    email: user.email,
+    username: user.name,
+  });
 };
 
 // Helper to clear user context on logout
 export const clearSentryUser = () => {
-  // Commented out until Sentry version is updated
-  // Sentry.setUser(null);
-  console.log('[Sentry] User context cleared');
+  Sentry.setUser(null);
 };
 
 // Helper to capture custom errors
 export const captureError = (
-  error: Error,
+  error: unknown,
   context?: Record<string, any>
 ) => {
-  // Commented out until Sentry version is updated
-  // if (context) {
-  //   Sentry.setContext("additional", context);
-  // }
-  // Sentry.captureException(error);
-  console.error('[Sentry] Error captured:', error, context);
+  if (context) {
+    Sentry.setContext("additional", context);
+  }
+  Sentry.captureException(error);
 };
 
 // Helper to capture custom messages
 export const captureMessage = (message: string, level: 'info' | 'warning' | 'error' = "info") => {
-  // Commented out until Sentry version is updated
-  // Sentry.captureMessage(message, level);
-  console.log(`[Sentry] Message captured [${level}]:`, message);
+  Sentry.captureMessage(message, level);
 };
 
 // Helper to add breadcrumb
@@ -137,14 +135,12 @@ export const addBreadcrumb = (
   category: string,
   level: 'info' | 'warning' | 'error' = "info"
 ) => {
-  // Commented out until Sentry version is updated
-  // Sentry.addBreadcrumb({
-  //   message,
-  //   category,
-  //   level,
-  //   timestamp: Date.now() / 1000,
-  // });
-  console.log(`[Sentry] Breadcrumb added [${category}/${level}]:`, message);
+  Sentry.addBreadcrumb({
+    message,
+    category,
+    level,
+    timestamp: Date.now() / 1000,
+  });
 };
 
 export default Sentry;

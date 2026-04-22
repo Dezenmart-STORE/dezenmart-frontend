@@ -7,6 +7,7 @@ import {
 } from "react";
 import { jwtDecode } from "jwt-decode";
 import { UserProfile } from "../utils/types";
+import { setSentryUser, clearSentryUser } from "../utils/sentry.config";
 // import { useWallet } from "../utils/hooks/useWallet";
 
 interface JwtPayload {
@@ -59,10 +60,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             } else {
               const parsedUser = JSON.parse(storedUser);
               setUser(parsedUser);
-              // console.log(
-              //   "User authenticated from local storage:",
-              //   parsedUser.email
-              // );
+              setSentryUser({ id: parsedUser._id, name: parsedUser.name, email: parsedUser.email });
             }
           } catch (error) {
             console.error("Invalid token:", error);
@@ -86,6 +84,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     storage.removeItem(TOKEN_KEY);
     storage.removeItem(USER_KEY);
     setUser(null);
+    clearSentryUser();
   };
 
   const login = (provider: string) => {
@@ -146,6 +145,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       storage.setItem(USER_KEY, JSON.stringify(userData));
 
       setUser(userData);
+      setSentryUser({ id: userData._id, name: userData.name, email: userData.email });
     } catch (error) {
       console.error("Error in handleAuthCallback:", error);
       clearAuthState();

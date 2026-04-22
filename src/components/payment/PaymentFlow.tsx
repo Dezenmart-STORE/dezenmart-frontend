@@ -69,12 +69,13 @@ export default function PaymentFlow({
   // MetaMask re-signs txs as EIP-1559 and strips the feeCurrency field,
   // so CIP-64 gas deduction from ERC-20 tokens silently doesn't work.
   const isMetaMask = connector?.name?.toLowerCase().includes("metamask") ?? false;
-  const { state, startPayment, reset, isActive } = usePayment();
+  const { state, startPayment, retryEscrow, reset, isActive } = usePayment();
   const { getBalance, refetch: refetchBalances, celoNumeric } = useTokenBalances();
   const { selectedToken, setSelectedToken, formatAmount, convertPrice } = useCurrency();
 
   const [paymentToken, setPaymentToken] = useState(selectedToken.symbol);
   const [showConnectModal, setShowConnectModal] = useState(false);
+  const [savedParams, setSavedParams] = useState<PaymentParams | null>(null);
   const successCalledRef = useRef(false);
 
   const balance = getBalance(paymentToken);
@@ -152,6 +153,7 @@ export default function PaymentFlow({
       gasEstimateInPaymentToken: supportsFeeCurrency ? gasInPaymentToken : 0,
     };
 
+    setSavedParams(params);
     startPayment(params);
   };
 
@@ -408,6 +410,8 @@ export default function PaymentFlow({
   }
 
   // ── Error ────────────────────────────────────────────────────────
+  const swapCompletedBeforeFailure = !!state.swapHash && !!state.swappedAmount;
+
   return (
     <div className="flex flex-col items-center py-8">
       <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full border border-red-800/50 bg-red-900/30">
@@ -421,13 +425,32 @@ export default function PaymentFlow({
         {state.error}
       </p>
 
+      {/* When the conversion succeeded but the escrow failed, guide the user
+          to retry just the purchase step — they already hold the tokens. */}
+      {swapCompletedBeforeFailure && (
+        <div className="mt-4 w-full rounded-xl border border-amber-800/40 bg-amber-900/20 p-3 text-sm text-amber-300">
+          Your tokens were successfully converted to {productToken} and are in
+          your wallet. Click <strong>Complete Purchase</strong> to finish — no
+          new conversion needed.
+        </div>
+      )}
+
       <div className="mt-6 flex w-full gap-3">
-        <button
-          onClick={reset}
-          className="flex-1 rounded-xl bg-red-600 py-3 text-sm font-bold text-white transition-colors hover:bg-red-700"
-        >
-          Try Again
-        </button>
+        {swapCompletedBeforeFailure && savedParams ? (
+          <button
+            onClick={() => retryEscrow(savedParams)}
+            className="flex-1 rounded-xl bg-red-600 py-3 text-sm font-bold text-white transition-colors hover:bg-red-700"
+          >
+            Complete Purchase
+          </button>
+        ) : (
+          <button
+            onClick={reset}
+            className="flex-1 rounded-xl bg-red-600 py-3 text-sm font-bold text-white transition-colors hover:bg-red-700"
+          >
+            Try Again
+          </button>
+        )}
         {onClose && (
           <button
             onClick={onClose}

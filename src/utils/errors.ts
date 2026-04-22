@@ -285,19 +285,59 @@ export function getErrorMessage(error: unknown): string {
 }
 
 /**
- * Log error with context (dev only — no-ops in production builds).
+ * Log error with context. In development, logs full details. In production,
+ * logs to console.error (so APM / browser error-tracking tools capture it)
+ * and forwards to any registered reporter (e.g. Sentry).
  */
 export function logError(
   error: unknown,
   context: string,
   extra?: Record<string, unknown>
 ): void {
-  if (import.meta.env.PROD) return;
-
   const parsed = parseError(error);
-  console.error(`[${context}]`, {
-    ...parsed,
-    raw: error,
-    ...extra,
-  });
+
+  if (!import.meta.env.PROD) {
+    console.error(`[${context}]`, { ...parsed, raw: error, ...extra });
+    return;
+  }
+
+  // Production: always surface so APM / RUM tools capture it.
+  console.error(`[Dezenmart/${context}]`, parsed.title, parsed.message, extra ?? "");
+  _forwardToReporter(error, context, parsed, extra);
+}
+
+let _reporter: ((
+  error: unknown,
+  context: string,
+  parsed: ParsedError,
+  extra?: Record<string, unknown>
+) => void) | null = null;
+
+/**
+ * Register a production error reporter (e.g. Sentry).
+ * Call once at app startup before any transactions can occur.
+ *
+ * Example:
+ *   registerErrorReporter((err, ctx, parsed) =>
+ *     Sentry.captureException(err, { extra: { ctx, ...parsed } })
+ *   );
+ */
+export function registerErrorReporter(
+  fn: (error: unknown, context: string, parsed: ParsedError, extra?: Record<string, unknown>) => void
+): void {
+  _reporter = fn;
+}
+
+function _forwardToReporter(
+  error: unknown,
+  context: string,
+  parsed: ParsedError,
+  extra?: Record<string, unknown>
+): void {
+  if (!_reporter) return;
+  try {
+    _reporter(error, context, parsed, extra);
+  } catch {
+    // reporter itself failed — don't crash the app
+  }
 }

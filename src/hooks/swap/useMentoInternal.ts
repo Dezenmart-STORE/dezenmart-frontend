@@ -191,18 +191,25 @@ export function useMentoInternal() {
     if (initPromiseRef.current) return initPromiseRef.current;
 
     const doInit = async (): Promise<boolean> => {
-      if (!window.ethereum || !address || !walletClient || !publicClient) return false;
+      if (!address || !walletClient || !publicClient) return false;
 
       let retries = 0;
       while (retries < MAX_RETRIES) {
         try {
-          const provider = new providers.Web3Provider(window.ethereum as any);
+          // Build an EIP-1193 adapter from wagmi's walletClient so this works
+          // with any connector (MetaMask, WalletConnect, MiniPay) without
+          // depending on window.ethereum being present or well-behaved.
+          const eip1193 = {
+            request: ({ method, params }: { method: string; params?: unknown[] }) =>
+              walletClient.request({ method, params } as Parameters<typeof walletClient.request>[0]),
+            on: (_: string, __: (...args: unknown[]) => void): void => {},
+            removeListener: (_: string, __: (...args: unknown[]) => void): void => {},
+          };
+          const provider = new providers.Web3Provider(eip1193 as any, {
+            chainId: TARGET_CHAIN.id,
+            name: TARGET_CHAIN.name,
+          });
           const signer = provider.getSigner();
-          const network = await provider.getNetwork();
-
-          if (network.chainId !== TARGET_CHAIN.id) {
-            throw new Error(`Please switch to ${TARGET_CHAIN.name}`);
-          }
 
           const mento = await withTimeout(Mento.create(signer), 15_000);
 
@@ -230,7 +237,7 @@ export function useMentoInternal() {
     return initPromiseRef.current;
   }, [address, walletClient, publicClient]);
 
-  // Auto-init
+  // Auto-init — no window.ethereum dependency; walletClient is connector-agnostic
   useEffect(() => {
     if (address && walletClient && !isInitialized) {
       initialize();

@@ -84,14 +84,16 @@ export async function copyToClipboard(text: string): Promise<void> {
 
 /**
  * Calculate order amounts with escrow fee.
+ * Uses integer arithmetic at 6 d.p. precision to avoid IEEE 754 drift.
  */
 export function calculateOrderTotal(
   productPrice: number,
   quantity: number,
   logisticsCost: number
 ) {
-  const subtotal = productPrice * quantity;
-  const escrowFee = subtotal * 0.025; // 2.5%
-  const total = subtotal + escrowFee + logisticsCost;
+  const SCALE = 1_000_000;
+  const subtotal = Math.round(productPrice * quantity * SCALE) / SCALE;
+  const escrowFee = Math.round(subtotal * 0.025 * SCALE) / SCALE;
+  const total = Math.round((subtotal + escrowFee + logisticsCost) * SCALE) / SCALE;
   return { subtotal, escrowFee, logisticsCost, total };
 }

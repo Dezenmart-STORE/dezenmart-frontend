@@ -40,6 +40,7 @@
     "@wagmi/core": "^2.18.1",
     "@walletconnect/ethereum-provider": "^2.21.0",
     "@walletconnect/modal": "^2.7.0",
+    "baseline-browser-mapping": "^2.10.20",
     "buffer": "^6.0.3",
     "ethers": "^5.7.2",
     "framer-motion": "^12.15.0",
