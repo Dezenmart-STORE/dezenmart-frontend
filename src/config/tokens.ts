@@ -257,7 +257,7 @@ export function getTokenDecimals(symbol: string): number {
  * Tokens the Celo gas oracle accepts as fee currencies.
  * When a supported token is used, gas is deducted from that token instead of CELO.
  */
-const FEE_CURRENCY_SYMBOLS = new Set(["cUSD", "cEUR", "cREAL", "USDT"]);
+const FEE_CURRENCY_SYMBOLS = new Set(["cUSD", "cEUR", "cREAL"]);
 
 /**
  * Returns the on-chain address to pass as `feeCurrency` in a Celo transaction,
