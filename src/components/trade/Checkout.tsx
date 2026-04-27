@@ -53,7 +53,7 @@ export default function Checkout({
   const [showPayment, setShowPayment] = useState(false);
 
   // product.price is stored in USD — convert to the payment token denomination
-  // so all math (subtotal, escrow fee, total) and the PaymentFlow amount are correct.
+  // so all math (subtotal, total) and the PaymentFlow amount are correct.
   const priceInToken = convertPrice(product.price, "USD", product.tokenSymbol);
 
   const logisticsCost = selectedLogistics?.cost ?? 0;
@@ -208,12 +208,6 @@ export default function Checkout({
             </span>
             <span className="text-gray-300">
               {orderTotal.subtotal.toFixed(2)} {product.tokenSymbol}
-            </span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-500">Escrow fee (2.5%)</span>
-            <span className="text-gray-300">
-              {orderTotal.escrowFee.toFixed(2)} {product.tokenSymbol}
             </span>
           </div>
           {logisticsCost > 0 && (

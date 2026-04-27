@@ -53,7 +53,6 @@ interface PurchaseSectionProps {
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
-const TRANSACTION_FEE_RATE = 0.025;
 const BALANCE_PRECISION = 6;
 const QUOTE_DEBOUNCE_MS = 800;
 const SWAP_CONFIRMATION_DELAY = 1000;
@@ -102,20 +101,18 @@ const useCalculatedTotals = ({
         totalInSelected: 0,
         totalInPayment: 0,
         subtotal: 0,
-        escrowFee: 0,
         logisticsCost: 0,
       };
     }
 
     const subtotal = product.price * quantity;
-    const escrowFee = subtotal * TRANSACTION_FEE_RATE;
     const logisticsCost = selectedLogistics?.cost || 0;
-    const grandTotalUsd = subtotal + escrowFee + logisticsCost;
+    const grandTotalUsd = subtotal + logisticsCost;
 
     const totalInSelected = convertPrice(grandTotalUsd, "USDT", walletSelectedToken.symbol);
     const totalInPayment = convertPrice(grandTotalUsd, "USDT", product.paymentToken);
 
-    return { grandTotalUsd, totalInSelected, totalInPayment, subtotal, escrowFee, logisticsCost };
+    return { grandTotalUsd, totalInSelected, totalInPayment, subtotal, logisticsCost };
   }, [product, selectedLogistics, quantity, convertPrice, walletSelectedToken]);
 };
 
@@ -307,10 +304,6 @@ const PriceBreakdown = memo(
       <div className="flex justify-between text-gray-400">
         <span>Subtotal:</span>
         <span>{formatPrice(totals.subtotal, "USDT")}</span>
-      </div>
-      <div className="flex justify-between text-gray-400">
-        <span>Escrow fee (2.5%):</span>
-        <span>{formatPrice(totals.escrowFee, "USDT")}</span>
       </div>
       {totals.logisticsCost > 0 && (
         <div className="flex justify-between text-gray-400">

@@ -96,7 +96,7 @@ export interface PaymentParams {
   quantity: number;
   /** Token symbol the product is priced in (from contract) */
   productToken: string;
-  /** Human-readable total amount in productToken (product cost + escrow fee) */
+  /** Human-readable total amount in productToken (product cost + logistics) */
   totalAmount: number;
   /** Token symbol the buyer wants to pay with */
   paymentToken: string;
@@ -211,6 +211,10 @@ export function usePayment() {
           timeout: 30_000,
         });
 
+        // Brief pause so Celo RPC nodes propagate the new allowance before
+        // simulateContract reads it in the next step.
+        await new Promise((r) => setTimeout(r, 2_000));
+
         paymentDebug.log("approval:confirmed", { hash: approveHash });
       } else {
         paymentDebug.log("approval:sufficient");
@@ -254,7 +258,7 @@ export function usePayment() {
 
         const trade = tradeData as any;
 
-        preflightDebug = `chain=${activeChainId},tid=${params.tradeId},qty=${safeQuantity},prov=${String(isProviderRegistered)},active=${String(trade?.active)},rem=${trade?.remainingQuantity?.toString() ?? "?"},total=${trade?.totalQuantity?.toString() ?? "?"}`;
+        preflightDebug = `chain=${activeChainId},tid=${params.tradeId},qty=${safeQuantity},prov=${String(isProviderRegistered)},active=${String(trade?.active)},rem=${trade?.remainingQuantity?.toString() ?? "?"},total=${trade?.totalQuantity?.toString() ?? "?"},cost=${trade?.productCost?.toString() ?? "?"},seller=${trade?.seller ?? "?"}`;
 
         console.info("[DezenPay] pre-flight check", {
           chainId: activeChainId,
@@ -268,6 +272,18 @@ export function usePayment() {
           totalQuantity: trade?.totalQuantity?.toString(),
           productCost: trade?.productCost?.toString(),
         });
+
+        if (
+          trade?.seller &&
+          address &&
+          trade.seller.toLowerCase() === address.toLowerCase()
+        ) {
+          dispatch({
+            type: "ERROR",
+            error: "You can't buy your own listing.",
+          });
+          return;
+        }
 
         if (!isProviderRegistered) {
           dispatch({

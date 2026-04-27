@@ -72,11 +72,17 @@ export function useEscrow() {
             chainId: liveChainId,
           });
           if (request.gas) gas = (request.gas * 120n) / 100n;
-        } catch {
-          // Simulation failed — could be an RPC node with stale state or a network
-          // restriction. usePayment's pre-flight already validated provider
-          // registration, trade activity, and remaining quantity against the chain,
-          // so we proceed with a safe default gas limit rather than blocking the tx.
+        } catch (simErr) {
+          // Distinguish real contract reverts from transient RPC issues.
+          // A revert means the tx WILL fail — don't submit and waste gas.
+          const simMsg = ((simErr as any)?.message ?? "").toLowerCase();
+          const isRevert =
+            simMsg.includes("revert") ||
+            simMsg.includes("execution reverted") ||
+            simMsg.includes("contract function") ||
+            simMsg.includes("reason:");
+          if (isRevert) throw simErr;
+          // Network/RPC issue: proceed with default gas and let the wallet decide.
         }
 
         // Execute — liveChainId (read at call time, not from stale closure)

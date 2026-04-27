@@ -427,7 +427,7 @@ function StatusInfoPanel({
 }: {
   status: TradeState;
   order: any;
-  orderTotal: { subtotal: number; escrowFee: number; total: number };
+  orderTotal: { subtotal: number; total: number };
   tokenSymbol: string;
   logisticsCostNumeric: number;
   chainId: number;
@@ -487,12 +487,6 @@ function StatusInfoPanel({
               <span className="text-sm text-gray-400">Delivery</span>
               <span className="text-sm text-white">
                 {logisticsCostNumeric.toFixed(2)} {tokenSymbol}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-400">Escrow fee (2.5%)</span>
-              <span className="text-sm text-white">
-                {orderTotal.escrowFee.toFixed(2)} {tokenSymbol}
               </span>
             </div>
             <div className="flex items-center justify-between border-t border-[#373A3F] pt-2.5">
