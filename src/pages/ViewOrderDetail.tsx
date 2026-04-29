@@ -274,15 +274,22 @@ const ViewOrderDetail = () => {
                   logisticsCost={logisticsCostRaw}
                   onSuccess={async (txHash, purchaseId) => {
                     if (orderId) {
-                      await updateOrderStatus({
-                        orderId,
-                        details: {
-                          status: "accepted",
-                          purchaseId: purchaseId ?? txHash,
-                        },
-                      }).catch(() => {});
+                      try {
+                        await updateOrderStatus({
+                          orderId,
+                          details: {
+                            status: "accepted",
+                            // Only store the numeric on-chain purchaseId.
+                            // Never fall back to txHash — it is not a valid
+                            // purchaseId and would break confirmDelivery.
+                            ...(purchaseId ? { purchaseId } : {}),
+                            txHash,
+                          },
+                        }).unwrap();
+                      } catch {
+                        await refetch();
+                      }
                     }
-                    await refetch();
                     setShowPayment(false);
                   }}
                   onClose={() => setShowPayment(false)}
@@ -325,36 +332,35 @@ const ViewOrderDetail = () => {
           </div>
         </div>
 
-        {/* Post-payment actions */}
-        {order.purchaseId && (
+        {/* Post-payment actions — only when purchaseId is a valid numeric on-chain ID */}
+        {order.purchaseId && /^\d+$/.test(order.purchaseId) && (
           <TradeActions
             purchaseId={order.purchaseId}
             status={status}
             checklistComplete={checklistComplete}
             onActionComplete={async (action) => {
-              if (action === "confirm" && orderId) {
-                await updateOrderStatus({
-                  orderId,
-                  details: { status: "completed", purchaseId: order.purchaseId },
-                }).catch(() => {});
-              }
-              if (action === "dispute" && orderId) {
-                await updateOrderStatus({
-                  orderId,
-                  details: { status: "disputed" },
-                }).catch(() => {});
-              }
-              if (action === "cancel" && orderId) {
-                await updateOrderStatus({
-                  orderId,
-                  details: { status: "rejected" },
-                }).catch(() => {});
+              if (!orderId) return;
+
+              const statusMap: Record<string, string> = {
+                confirm: "completed",
+                dispute: "disputed",
+                cancel: "rejected",
+              };
+              const newStatus = statusMap[action];
+              if (newStatus) {
+                try {
+                  await updateOrderStatus({
+                    orderId,
+                    details: { status: newStatus },
+                  }).unwrap();
+                } catch {
+                  // Mutation failed — invalidatesTags didn't fire, so manually
+                  // refetch to keep the UI in sync with the server.
+                  refetch();
+                }
               }
 
-              refetch();
-              if (action === "cancel") {
-                navigate("/account");
-              }
+              if (action === "cancel") navigate("/account");
             }}
           />
         )}

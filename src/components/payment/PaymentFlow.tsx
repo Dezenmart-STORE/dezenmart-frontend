@@ -11,6 +11,7 @@ import TokenSelect from "./TokenSelect";
 import type { StableToken } from "../../config/tokens";
 import { getFeeCurrencyAddress } from "../../config/tokens";
 import ConnectModal from "../wallet/ConnectModal";
+import { detectMiniPay } from "../../hooks/useMiniPay";
 
 // ---------------------------------------------------------------------------
 // Step config — maps state machine steps to UI
@@ -68,7 +69,10 @@ export default function PaymentFlow({
 
   // MetaMask re-signs txs as EIP-1559 and strips the feeCurrency field,
   // so CIP-64 gas deduction from ERC-20 tokens silently doesn't work.
-  const isMetaMask = connector?.name?.toLowerCase().includes("metamask") ?? false;
+  // MiniPay also connects via the MetaMask injected target but DOES support
+  // CIP-64, so we must exclude it from the MetaMask restriction.
+  const isMiniPay = detectMiniPay();
+  const isMetaMask = !isMiniPay && (connector?.name?.toLowerCase().includes("metamask") ?? false);
   const { state, startPayment, retryEscrow, reset, isActive } = usePayment();
   const { getBalance, refetch: refetchBalances, celoNumeric } = useTokenBalances();
   const { selectedToken, setSelectedToken, formatAmount, convertPrice } = useCurrency();
