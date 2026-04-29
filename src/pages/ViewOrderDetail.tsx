@@ -12,6 +12,7 @@ import TradeActions from "../components/trade/TradeActions";
 import TransactionResult from "../components/trade/TransactionResult";
 import PaymentFlow from "../components/payment/PaymentFlow";
 import type { TradeState } from "../components/trade/TradeStatus";
+import type { OrderStatus } from "../utils/types";
 import { useCurrency } from "../context/CurrencyContext";
 import { calculateOrderTotal } from "../utils/format";
 import { CHAIN_IDS, DEFAULT_LOGISTICS_PROVIDER, getExplorerUrl } from "../config/chains";
@@ -341,7 +342,7 @@ const ViewOrderDetail = () => {
             onActionComplete={async (action) => {
               if (!orderId) return;
 
-              const statusMap: Record<string, string> = {
+              const statusMap: Record<string, OrderStatus> = {
                 confirm: "completed",
                 dispute: "disputed",
                 cancel: "rejected",
