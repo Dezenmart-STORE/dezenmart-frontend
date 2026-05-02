@@ -106,8 +106,10 @@ const useCalculatedTotals = ({
     }
 
     const subtotal = product.price * quantity;
+    // 2.5% escrow fee is included in the total sent to the contract — not shown as a line item
+    const escrowFee = subtotal * 0.025;
     const logisticsCost = selectedLogistics?.cost || 0;
-    const grandTotalUsd = subtotal + logisticsCost;
+    const grandTotalUsd = subtotal + escrowFee + logisticsCost;
 
     const totalInSelected = convertPrice(grandTotalUsd, "USDT", walletSelectedToken.symbol);
     const totalInPayment = convertPrice(grandTotalUsd, "USDT", product.paymentToken);

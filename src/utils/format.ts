@@ -85,7 +85,8 @@ export async function copyToClipboard(text: string): Promise<void> {
 /**
  * Calculate order amounts.
  * Uses integer arithmetic at 6 d.p. precision to avoid IEEE 754 drift.
- * Escrow fee is already baked into productPrice — not added here.
+ * The 2.5% escrow fee is included in `total` (not shown as a line item) so the
+ * swap and approval amounts cover what the contract will pull.
  */
 export function calculateOrderTotal(
   productPrice: number,
@@ -94,6 +95,7 @@ export function calculateOrderTotal(
 ) {
   const SCALE = 1_000_000;
   const subtotal = Math.round(productPrice * quantity * SCALE) / SCALE;
-  const total = Math.round((subtotal + logisticsCost) * SCALE) / SCALE;
+  const escrowFee = Math.round(subtotal * 0.025 * SCALE) / SCALE;
+  const total = Math.round((subtotal + escrowFee + logisticsCost) * SCALE) / SCALE;
   return { subtotal, logisticsCost, total };
 }
