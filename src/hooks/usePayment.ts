@@ -455,21 +455,10 @@ export function usePayment() {
         let completedSwapHash: string | undefined;
 
         if (needsSwap) {
-          paymentDebug.log("swap:needed", {
-            from: payTokenSymbol,
-            to: params.productToken,
-            amount: params.totalAmount,
-            gasBuffer,
-          });
-
-          if (payBalance < requiredPaymentBalance) {
-            dispatch({
-              type: "ERROR",
-              error: `You need at least ${requiredPaymentBalance.toFixed(2)} ${payTokenSymbol}${gasBuffer > 0 ? ` (including ~${gasBuffer.toFixed(4)} for network fees)` : ""} to complete this purchase.`,
-            });
-            return;
-          }
-
+          // Get quote first so we can calculate how much input is actually needed.
+          // exactInput swaps return slightly less output than input (pool fees ~0.05-0.5%).
+          // If the quoted output < totalAmount we must increase the input so the
+          // contract's transferFrom can pull the full required amount.
           const quote = await getQuote(
             payTokenSymbol,
             params.productToken,
@@ -484,16 +473,41 @@ export function usePayment() {
             return;
           }
 
+          const quotedOut = parseFloat(quote.amountOut);
+          // Scale up input so output covers the required amount, plus a 0.1% buffer.
+          const swapInputAmount =
+            quotedOut > 0 && quotedOut < params.totalAmount
+              ? params.totalAmount * (params.totalAmount / quotedOut) * 1.001
+              : params.totalAmount;
+
+          paymentDebug.log("swap:needed", {
+            from: payTokenSymbol,
+            to: params.productToken,
+            required: params.totalAmount,
+            quotedOut,
+            swapInputAmount,
+            gasBuffer,
+          });
+
+          const requiredSwapBalance = swapInputAmount + gasBuffer;
+          if (payBalance < requiredSwapBalance) {
+            dispatch({
+              type: "ERROR",
+              error: `You need at least ${requiredSwapBalance.toFixed(2)} ${payTokenSymbol}${gasBuffer > 0 ? ` (including ~${gasBuffer.toFixed(4)} for network fees)` : ""} to complete this purchase.`,
+            });
+            return;
+          }
+
           dispatch({
             type: "SET_STEP",
             step: "swapping",
-            message: `Converting ${params.totalAmount.toFixed(2)} ${payTokenSymbol} to ~${parseFloat(quote.amountOut).toFixed(2)} ${params.productToken}...`,
+            message: `Converting ${swapInputAmount.toFixed(2)} ${payTokenSymbol} to ~${quotedOut.toFixed(2)} ${params.productToken}...`,
           });
 
           const swapResult = await swap(
             payTokenSymbol,
             params.productToken,
-            params.totalAmount,
+            swapInputAmount,
             0.01,
             feeCurrency
           );
@@ -511,7 +525,7 @@ export function usePayment() {
           dispatch({
             type: "SWAP_COMPLETE",
             swapHash: completedSwapHash!,
-            // Use the original required amount (not the quote estimate) — this is
+            // Use the original required amount (not the scaled input) — this is
             // what the escrow contract expects and avoids float precision issues.
             swappedAmount: params.totalAmount.toString(),
           });
