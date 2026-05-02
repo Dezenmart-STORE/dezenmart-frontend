@@ -291,7 +291,8 @@ const ViewOrderDetail = () => {
                         await refetch();
                       }
                     }
-                    setShowPayment(false);
+                    // Do NOT close here — let the user read the success screen
+                    // (which shows the txHash and purchaseId) and click Done.
                   }}
                   onClose={() => setShowPayment(false)}
                   productName={order.product?.name}
