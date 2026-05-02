@@ -49,6 +49,9 @@ const ViewOrderDetail = () => {
   const [showPayment, setShowPayment] = useState(false);
   const [isMarkingReceived, setIsMarkingReceived] = useState(false);
   const [checklistComplete, setChecklistComplete] = useState(false);
+  // Set to true the moment buyTrade succeeds so the Pay button never re-appears
+  // even if the backend API update is slow or fails.
+  const [paidOnChain, setPaidOnChain] = useState(false);
 
   const handleMarkReceived = async () => {
     if (!orderId) return;
@@ -99,7 +102,8 @@ const ViewOrderDetail = () => {
   const canPay =
     status === "pending_payment" &&
     !order.purchaseId &&
-    /^\d+$/.test(tradeId);
+    /^\d+$/.test(tradeId) &&
+    !paidOnChain;
 
   const providerAddr = DEFAULT_LOGISTICS_PROVIDER;
 
@@ -274,21 +278,37 @@ const ViewOrderDetail = () => {
                   logisticsProvider={providerAddr}
                   logisticsCost={logisticsCostRaw}
                   onSuccess={async (txHash, purchaseId) => {
+                    // Immediately block the Pay button so the user can't
+                    // double-pay if the API update is slow or fails.
+                    setPaidOnChain(true);
+
                     if (orderId) {
-                      try {
-                        await updateOrderStatus({
-                          orderId,
-                          details: {
-                            status: "accepted",
-                            // Only store the numeric on-chain purchaseId.
-                            // Never fall back to txHash — it is not a valid
-                            // purchaseId and would break confirmDelivery.
-                            ...(purchaseId ? { purchaseId } : {}),
-                            txHash,
-                          },
-                        }).unwrap();
-                      } catch {
-                        await refetch();
+                      // Retry up to 3 times with exponential backoff.
+                      let attempt = 0;
+                      while (attempt < 3) {
+                        try {
+                          await updateOrderStatus({
+                            orderId,
+                            details: {
+                              status: "accepted",
+                              // Only store the numeric on-chain purchaseId.
+                              // Never fall back to txHash — it is not a valid
+                              // purchaseId and would break confirmDelivery.
+                              ...(purchaseId ? { purchaseId } : {}),
+                              txHash,
+                            },
+                          }).unwrap();
+                          break;
+                        } catch {
+                          attempt++;
+                          if (attempt < 3) {
+                            await new Promise((r) => setTimeout(r, 2000 * attempt));
+                          } else {
+                            // All retries exhausted — at least refresh so RTK
+                            // Query picks up any server-side change.
+                            await refetch();
+                          }
+                        }
                       }
                     }
                     // Do NOT close here — let the user read the success screen
