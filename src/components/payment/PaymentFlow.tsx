@@ -9,7 +9,7 @@ import { getExplorerUrl } from "../../config/chains";
 import { useChainId } from "wagmi";
 import TokenSelect from "./TokenSelect";
 import type { StableToken } from "../../config/tokens";
-import { getFeeCurrencyAddress } from "../../config/tokens";
+import { getFeeCurrencyAddress, getFallbackFeeCurrency } from "../../config/tokens";
 import ConnectModal from "../wallet/ConnectModal";
 import { detectMiniPay } from "../../hooks/useMiniPay";
 
@@ -86,30 +86,84 @@ export default function PaymentFlow({
   const needsSwap = paymentToken !== productToken;
   const stepConfig = STEP_CONFIG[state.step];
 
-  // Estimate gas fee and determine how it will be paid
+  // Estimate gas fee
   const { gasCelo } = useGasEstimate(needsSwap);
-  // Separate estimate for post-swap steps only (approval + buyTrade, no swap)
   const { gasCelo: gasCeloPostSwap } = useGasEstimate(false);
-  const gasInPaymentToken = convertPrice(gasCelo, "CELO", paymentToken);
 
-  // Does the payment token support Celo's fee currency mechanism?
-  // MetaMask strips feeCurrency from transactions, so treat it as unsupported.
-  const supportsFeeCurrency =
-    !!getFeeCurrencyAddress(paymentToken, chainId) && !isMetaMask;
-  // Same check for the product token (relevant when a swap is needed)
+  // ── Fee currency resolution ────────────────────────────────────────────────
+  //
+  // Priority:
+  //   1. Payment token's own fee currency (e.g. paying with cUSD → cUSD pays gas)
+  //   2. Fallback fee currency (e.g. MiniPay user paying with USDT, holds cUSD)
+  //   3. CELO (user must hold native CELO for gas — MetaMask always ends up here)
+  //
+  // MetaMask re-signs all txs as EIP-1559 and strips `feeCurrency`, so CIP-64
+  // gas deduction silently fails. MiniPay connects via the same injected target
+  // but DOES support CIP-64 natively, so it must be excluded from the block.
+
+  const directFeeCurrencyAddr = getFeeCurrencyAddress(paymentToken, chainId);
+
+  // Build a balance snapshot for the fallback lookup (only fee-currency tokens)
+  const feeCurrencyBalances: Partial<Record<string, number>> = {
+    cUSD: getBalance("cUSD")?.numeric ?? 0,
+    cEUR: getBalance("cEUR")?.numeric ?? 0,
+    cREAL: getBalance("cREAL")?.numeric ?? 0,
+    cKES: getBalance("cKES")?.numeric ?? 0,
+    eXOF: getBalance("eXOF")?.numeric ?? 0,
+    cCOP: getBalance("cCOP")?.numeric ?? 0,
+    PUSO: getBalance("PUSO")?.numeric ?? 0,
+    cGHS: getBalance("cGHS")?.numeric ?? 0,
+    cNGN: getBalance("cNGN")?.numeric ?? 0,
+  };
+
+  // For MiniPay only: if the selected token can't pay gas, find a fallback.
+  // MetaMask always uses CELO regardless, so we never set a fallback for it.
+  const fallback =
+    isMiniPay && !directFeeCurrencyAddr
+      ? getFallbackFeeCurrency(paymentToken, chainId, feeCurrencyBalances)
+      : undefined;
+
+  // Resolved fee currency for this payment session
+  const resolvedFeeCurrencyAddr = directFeeCurrencyAddr ?? (isMetaMask ? undefined : fallback?.address);
+  // Human-readable token name gas will actually be deducted from
+  const feeTokenSymbol: string = directFeeCurrencyAddr
+    ? paymentToken
+    : (fallback?.symbol ?? "CELO");
+
+  // feeCurrency works when: address resolved AND wallet isn't MetaMask
+  const supportsFeeCurrency = !!resolvedFeeCurrencyAddr && !isMetaMask;
+
+  // Product token fee currency (for post-swap steps)
   const supportsProductFeeCurrency =
     !!getFeeCurrencyAddress(productToken, chainId) && !isMetaMask;
 
+  // Gas expressed in the token that will actually pay it
+  const gasInFeeToken = convertPrice(gasCelo, "CELO", feeTokenSymbol === "CELO" ? "CELO" : feeTokenSymbol);
+  // Used for payment token balance check when gas and payment share the same token
+  const gasInPaymentToken = feeTokenSymbol === paymentToken ? gasInFeeToken : 0;
+
+  // Does the user have enough of the fee token to cover gas?
+  const feeTokenBalance =
+    feeTokenSymbol === paymentToken
+      ? (balance?.numeric ?? 0)
+      : feeTokenSymbol === "CELO"
+        ? celoNumeric
+        : (getBalance(feeTokenSymbol)?.numeric ?? 0);
+  const hasSufficientFeeToken = feeTokenBalance >= gasCelo * 1.1; // 10% buffer
+
   const hasSufficientCelo = celoNumeric >= gasCelo;
-  const gasIsCovered = supportsFeeCurrency || hasSufficientCelo;
+  // Gas is covered when: fee currency resolves to a token the user holds, OR they have CELO
+  const gasIsCovered = (supportsFeeCurrency && hasSufficientFeeToken) || hasSufficientCelo;
 
-  // Total the user needs in their payment token (order + gas if feeCurrency)
-  const totalWithGas = supportsFeeCurrency
-    ? totalAmount + gasInPaymentToken
-    : totalAmount;
+  // Total the user needs in their payment token.
+  // Only add gas to the payment token total when gas comes from the same token.
+  const totalWithGas =
+    supportsFeeCurrency && feeTokenSymbol === paymentToken
+      ? totalAmount + gasInPaymentToken
+      : totalAmount;
 
-  // Extra product token to include in the swap so post-swap gas deductions
-  // (approval + buyTrade feeCurrency) don't eat into the transfer amount.
+  // Extra product token buffer added to the swap output so post-swap gas
+  // (approval + buyTrade feeCurrency) doesn't eat into the escrow amount.
   const gasInProductToken =
     needsSwap && supportsProductFeeCurrency
       ? convertPrice(gasCeloPostSwap, "CELO", productToken)
@@ -152,9 +206,14 @@ export default function PaymentFlow({
       paymentToken,
       logisticsProvider,
       logisticsCost,
-      // Only pass gas buffer for balance check when feeCurrency is supported
-      // (gas comes from payment token). Otherwise gas comes from CELO separately.
-      gasEstimateInPaymentToken: supportsFeeCurrency ? gasInPaymentToken : 0,
+      // Pass gas buffer only when gas is deducted from the payment token itself.
+      // When gas comes from a fallback token (cUSD on MiniPay) or CELO, the
+      // payment token balance check doesn't include gas.
+      gasEstimateInPaymentToken:
+        supportsFeeCurrency && feeTokenSymbol === paymentToken ? gasInPaymentToken : 0,
+      // Propagate the fallback fee currency so _approveAndExecute can use it
+      // for on-chain approval and buyTrade transactions.
+      feeCurrencyFallback: isMetaMask ? undefined : fallback?.address,
     };
 
     setSavedParams(params);
@@ -205,7 +264,10 @@ export default function PaymentFlow({
             <span className="text-xs text-gray-500">Network fee (est.)</span>
             {supportsFeeCurrency ? (
               <span className="text-sm font-semibold text-green-400">
-                ~{gasInPaymentToken.toFixed(4)} {paymentToken}
+                ~{gasInFeeToken.toFixed(4)} {feeTokenSymbol}
+                {feeTokenSymbol !== paymentToken && (
+                  <span className="ml-1 text-xs font-normal text-gray-500">balance</span>
+                )}
               </span>
             ) : (
               <span className="text-sm font-semibold text-gray-200">
@@ -214,12 +276,17 @@ export default function PaymentFlow({
             )}
           </div>
           <div className="border-t border-[#373A3F] pt-2 flex items-center justify-between">
-            <span className="text-xs font-semibold text-gray-400">You need</span>
+            <span className="text-xs font-semibold text-gray-400">You pay</span>
             <span className="text-sm font-bold text-white">
-              ~{totalWithGas.toFixed(4)} {paymentToken}
+              {totalWithGas.toFixed(4)} {paymentToken}
+              {supportsFeeCurrency && feeTokenSymbol !== paymentToken && (
+                <span className="ml-1 text-xs font-normal text-gray-500">
+                  + ~{gasInFeeToken.toFixed(4)} {feeTokenSymbol} gas
+                </span>
+              )}
               {!supportsFeeCurrency && (
                 <span className="ml-1 text-xs font-normal text-gray-500">
-                  + ~{gasCelo.toFixed(4)} CELO
+                  + ~{gasCelo.toFixed(4)} CELO gas
                 </span>
               )}
             </span>
@@ -233,21 +300,21 @@ export default function PaymentFlow({
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
             <span>
-              Network fees are paid in {paymentToken} — you don't need any CELO.
+              {feeTokenSymbol === paymentToken
+                ? `Network fees are paid in ${paymentToken} — no CELO needed.`
+                : `Network fees are covered by your ${feeTokenSymbol} balance — no CELO needed.`}
             </span>
           </div>
-        ) : (
-          !hasSufficientCelo && (
-            <div className="flex items-start gap-2 rounded-xl border border-amber-800/40 bg-amber-900/20 p-3 text-sm text-amber-300">
-              <svg className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <span>
-                {paymentToken} doesn't cover network fees. You need ~{gasCelo.toFixed(4)} CELO in your wallet (you have {celoNumeric.toFixed(4)}).
-              </span>
-            </div>
-          )
-        )}
+        ) : !hasSufficientCelo ? (
+          <div className="flex items-start gap-2 rounded-xl border border-amber-800/40 bg-amber-900/20 p-3 text-sm text-amber-300">
+            <svg className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>
+              {paymentToken} doesn't cover network fees. You need ~{gasCelo.toFixed(4)} CELO in your wallet (you have {celoNumeric.toFixed(4)}).
+            </span>
+          </div>
+        ) : null}
 
         {/* Balance indicator */}
         {balance && (
@@ -270,7 +337,7 @@ export default function PaymentFlow({
           </div>
         )}
 
-        {/* Insufficient token balance warning */}
+        {/* Insufficient payment token balance */}
         {balance && balance.numeric < totalWithGas && (
           <div className="flex items-start gap-2 rounded-xl border border-amber-800/40 bg-amber-900/20 p-3 text-sm text-amber-300">
             <svg className="mt-0.5 h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -278,6 +345,18 @@ export default function PaymentFlow({
             </svg>
             <span>
               You need ~{totalWithGas.toFixed(4)} {paymentToken}. Try a different token.
+            </span>
+          </div>
+        )}
+
+        {/* Insufficient fee token balance (only when fee token ≠ payment token) */}
+        {supportsFeeCurrency && feeTokenSymbol !== paymentToken && !hasSufficientFeeToken && (
+          <div className="flex items-start gap-2 rounded-xl border border-amber-800/40 bg-amber-900/20 p-3 text-sm text-amber-300">
+            <svg className="mt-0.5 h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>
+              You need a small {feeTokenSymbol} balance (~{gasInFeeToken.toFixed(4)}) for network fees.
             </span>
           </div>
         )}

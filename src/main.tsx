@@ -148,30 +148,19 @@ declare global {
   }
 }
 
-const MIN_APP_LOAD_DURATION = 4600;
+const initialStandaloneMode: boolean =
+  typeof window !== "undefined"
+    ? Boolean(window.__APP_IS_STANDALONE__)
+    : false;
 
-const detectStandaloneMode = () => {
-  if (typeof window === "undefined") return false;
-  const mediaQuery = window.matchMedia
-    ? window.matchMedia("(display-mode: standalone)")
-    : null;
-  const iosStandalone = (
-    window.navigator as Navigator & { standalone?: boolean }
-  ).standalone;
-  return Boolean(mediaQuery?.matches || iosStandalone);
+// Fires app-ready once the full provider tree and layout are mounted.
+// The HTML splash screen listens for this event and begins its fade-out.
+const SplashDismisser = () => {
+  useEffect(() => {
+    window.dispatchEvent(new Event("app-ready"));
+  }, []);
+  return null;
 };
-
-const resolveStandaloneMode = () => {
-  if (typeof window === "undefined") return false;
-  if (typeof window.__APP_IS_STANDALONE__ === "boolean") {
-    return window.__APP_IS_STANDALONE__;
-  }
-  const detected = detectStandaloneMode();
-  window.__APP_IS_STANDALONE__ = detected;
-  return detected;
-};
-
-const initialStandaloneMode = resolveStandaloneMode();
 
 // ── Silent update banner ────────────────────────────────────────────────────
 // Shown for 3 seconds when a new SW version is ready, then the page reloads.
@@ -199,6 +188,7 @@ const RouterLayout = () => {
                   <CurrencyProvider>
                     <WalkthroughProvider>
                       <Layout>
+                        <SplashDismisser />
                         <Suspense
                           fallback={
                             initialStandaloneMode ? null : <Loadscreen />
@@ -263,18 +253,8 @@ const router = createBrowserRouter([
 ]);
 
 const App = () => {
-  const [isStandalone] = useState(initialStandaloneMode);
-  const [isInitializing, setIsInitializing] = useState(
-    () => !initialStandaloneMode
-  );
   // true while the 3-second update banner is showing
   const [showUpdateBanner, setShowUpdateBanner] = useState(false);
-
-  useEffect(() => {
-    if (isStandalone) return;
-    const timer = window.setTimeout(() => setIsInitializing(false), MIN_APP_LOAD_DURATION);
-    return () => window.clearTimeout(timer);
-  }, [isStandalone]);
 
   // Listen for the SW update-ready event fired by serviceWorkerRegistration.ts
   useEffect(() => {
@@ -288,10 +268,6 @@ const App = () => {
     window.addEventListener("pwa:update-ready", handler);
     return () => window.removeEventListener("pwa:update-ready", handler);
   }, []);
-
-  if (!isStandalone && isInitializing) {
-    return <Loadscreen />;
-  }
 
   return (
     <>

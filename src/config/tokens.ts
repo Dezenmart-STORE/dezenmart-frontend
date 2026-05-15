@@ -254,10 +254,22 @@ export function getTokenDecimals(symbol: string): number {
 }
 
 /**
- * Tokens the Celo gas oracle accepts as fee currencies.
- * When a supported token is used, gas is deducted from that token instead of CELO.
+ * Tokens accepted by the Celo FeeCurrencyDirectory contract (CIP-64).
+ * When set as `feeCurrency` in a transaction, gas is deducted from that token
+ * instead of CELO. Each entry has passed a Celo governance proposal.
+ *
+ * Sources: CIP-54 (cKES), CGP-0118 (cCOP), CIP-47 (eXOF), CGP-134 (PUSO).
+ * USDT and G$ are NOT in the Celo fee whitelist — those always require CELO.
  */
-const FEE_CURRENCY_SYMBOLS = new Set(["cUSD", "cEUR", "cREAL"]);
+const FEE_CURRENCY_SYMBOLS = new Set([
+  "cUSD", "cEUR", "cREAL", // original Mento stablecoins
+  "cKES",                   // Kenya Shilling   (CIP-54)
+  "eXOF",                   // West African CFA (CIP-47)
+  "cCOP",                   // Colombian Peso   (CGP-0118)
+  "PUSO",                   // Philippine Peso  (CGP-134)
+  "cGHS",                   // Ghanaian Cedi
+  "cNGN",                   // Nigerian Naira
+]);
 
 /**
  * Returns the on-chain address to pass as `feeCurrency` in a Celo transaction,
@@ -269,6 +281,40 @@ export function getFeeCurrencyAddress(
 ): `0x${string}` | undefined {
   if (!FEE_CURRENCY_SYMBOLS.has(tokenSymbol)) return undefined;
   return getTokenAddress(tokenSymbol, chainId);
+}
+
+/**
+ * Priority order for fee currency fallback.
+ * cUSD first because it's the most liquid and universally held on MiniPay.
+ */
+const FEE_CURRENCY_PRIORITY = [
+  "cUSD", "cEUR", "cREAL", "cKES", "eXOF", "cCOP", "PUSO", "cGHS", "cNGN",
+];
+
+/**
+ * For wallets that support CIP-64 but are paying with a non-fee-currency token
+ * (e.g. USDT on MiniPay), returns the address + symbol of the best available
+ * fee currency based on the user's actual balances.
+ *
+ * Returns undefined if the payment token is already a fee currency, or if no
+ * usable fee currency balance was found.
+ */
+export function getFallbackFeeCurrency(
+  paymentToken: string,
+  chainId: number,
+  /** Map of symbol → numeric balance. Only needs fee-currency tokens. */
+  balances: Partial<Record<string, number>>
+): { address: `0x${string}`; symbol: string } | undefined {
+  // Payment token itself is a fee currency — no fallback needed
+  if (FEE_CURRENCY_SYMBOLS.has(paymentToken)) return undefined;
+
+  for (const symbol of FEE_CURRENCY_PRIORITY) {
+    if ((balances[symbol] ?? 0) > 0.0005) {
+      const address = getTokenAddress(symbol, chainId);
+      if (address) return { address, symbol };
+    }
+  }
+  return undefined;
 }
 
 // ---------------------------------------------------------------------------

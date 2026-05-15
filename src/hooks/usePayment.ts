@@ -107,8 +107,18 @@ export interface PaymentParams {
   /**
    * Estimated gas cost expressed in the payment token.
    * Used to check the user has enough balance to cover both payment and gas.
+   * Only set when gas IS deducted from the payment token (feeCurrency supported).
+   * Zero when gas comes from a fallback token or CELO.
    */
   gasEstimateInPaymentToken?: number;
+  /**
+   * Fallback fee currency address for CIP-64 gas payment.
+   * Set by PaymentFlow when the payment token is not a Celo fee currency but
+   * the user has another whitelisted token (e.g. cUSD on MiniPay) for gas.
+   * When set, gas for all on-chain txs (approval + buyTrade) is deducted from
+   * this token instead of requiring the user to hold CELO.
+   */
+  feeCurrencyFallback?: `0x${string}`;
 }
 
 const SUPPORTED_CHAIN_IDS = [CHAIN_IDS.CELO, CHAIN_IDS.ALFAJORES] as number[];
@@ -195,7 +205,12 @@ export function usePayment() {
       if ((currentAllowance as bigint) < requiredRaw) {
         const approvalAmount = (requiredRaw * 105n) / 100n; // 5 % buffer
 
-        const productFeeCurrency = getFeeCurrencyAddress(params.productToken, activeChainId);
+        // Gas for approval: try the product token's own fee currency first,
+        // then fall back to the override (e.g. cUSD on MiniPay paying with USDT).
+        const approvalFeeCurrency =
+          getFeeCurrencyAddress(params.productToken, activeChainId) ??
+          params.feeCurrencyFallback;
+
         const approveHash = await writeContract(wagmiConfig, {
           address: productTokenAddress,
           abi: erc20Abi,
@@ -203,7 +218,7 @@ export function usePayment() {
           args: [escrowAddr, approvalAmount],
           gas: 150_000n,
           chainId: activeChainId,
-          ...(productFeeCurrency ? { feeCurrency: productFeeCurrency } : {}),
+          ...(approvalFeeCurrency ? { feeCurrency: approvalFeeCurrency } : {}),
         } as any);
 
         await waitForTransactionReceipt(wagmiConfig, {
@@ -317,9 +332,13 @@ export function usePayment() {
         return;
       }
 
+      // Gas for buyTrade: after a swap the user holds productToken, so try that
+      // fee currency first. Without a swap, the payment token IS the product
+      // token. Always fall back to the feeCurrencyFallback (e.g. cUSD for
+      // MiniPay users paying with USDT or G$).
       const buyTradeFeeCurrency = priorSwapHash
-        ? getFeeCurrencyAddress(params.productToken, activeChainId)
-        : getFeeCurrencyAddress(params.paymentToken, activeChainId);
+        ? (getFeeCurrencyAddress(params.productToken, activeChainId) ?? params.feeCurrencyFallback)
+        : (getFeeCurrencyAddress(params.paymentToken, activeChainId) ?? params.feeCurrencyFallback);
 
       const result = await escrow.buyTrade(
         BigInt(params.tradeId),
@@ -504,12 +523,16 @@ export function usePayment() {
             message: `Converting ${swapInputAmount.toFixed(2)} ${payTokenSymbol} to ~${quotedOut.toFixed(2)} ${params.productToken}...`,
           });
 
+          // Use direct fee currency if available, otherwise use the fallback
+          // (e.g. cUSD on MiniPay when paying with USDT). Without this, the
+          // swap step would silently require CELO even though the UI promised
+          // gas would come from the fallback token.
           const swapResult = await swap(
             payTokenSymbol,
             params.productToken,
             swapInputAmount,
             0.01,
-            feeCurrency
+            feeCurrency ?? params.feeCurrencyFallback
           );
 
           if (!swapResult.success) {

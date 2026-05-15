@@ -16,10 +16,35 @@ import { paymentDebug } from "../utils/paymentDebug";
 // ---------------------------------------------------------------------------
 export interface EscrowResult {
   success: boolean;
+  /**
+   * True when the tx was submitted (hash known) but the receipt wait timed
+   * out. The payment may still confirm — callers should show a pending state
+   * and poll via pollReceipt(hash) rather than treating this as a failure.
+   */
+  pending?: boolean;
   hash?: `0x${string}`;
   purchaseId?: string;
   error?: string;
   message: string;
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function extractPurchaseId(logs: readonly Log[] | undefined, eventName?: string): string | undefined {
+  if (!eventName || !logs) return undefined;
+  for (const log of logs) {
+    try {
+      const decoded = decodeEventLog({ abi: ESCROW_ABI, data: (log as Log).data, topics: (log as Log).topics });
+      if (decoded.eventName === eventName && decoded.args) {
+        const a = decoded.args as unknown as Record<string, unknown>;
+        const id = (a.purchaseId ?? a.tradeId)?.toString();
+        if (id) return id;
+      }
+    } catch { /* not our event */ }
+  }
+  return undefined;
 }
 
 // ---------------------------------------------------------------------------
@@ -100,12 +125,27 @@ export function useEscrow() {
           return { success: false, message: "Transaction failed to submit." };
         }
 
-        // Wait for receipt — 120s timeout, poll every 4s (Celo blocks ~5s)
-        const receipt = await waitForTransactionReceipt(wagmiConfig, {
-          hash,
-          timeout: 120_000,
-          pollingInterval: 4_000,
-        });
+        // Wait for receipt — 5 min timeout, poll every 4s (Celo blocks ~5s).
+        // Separated from the submission try/catch so a confirmation timeout
+        // (hash known but network slow) returns pending=true instead of error.
+        let receipt;
+        try {
+          receipt = await waitForTransactionReceipt(wagmiConfig, {
+            hash,
+            timeout: 300_000,
+            pollingInterval: 4_000,
+          });
+        } catch {
+          paymentDebug.log(`escrow:${functionName}:confirmation-timeout`, { hash });
+          return {
+            success: false,
+            pending: true,
+            hash,
+            message:
+              "Your payment was submitted but the network is taking longer than usual. " +
+              "It should confirm soon — tap Check Status to update.",
+          };
+        }
 
         if (receipt.status === "reverted") {
           return {
@@ -115,31 +155,7 @@ export function useEscrow() {
           };
         }
 
-        // Extract purchase/trade ID from event logs
-        let purchaseId: string | undefined;
-        if (eventName && receipt.logs) {
-          try {
-            for (const log of receipt.logs) {
-              try {
-                const decoded = decodeEventLog({
-                  abi: ESCROW_ABI,
-                  data: (log as Log).data,
-                  topics: (log as Log).topics,
-                });
-                if (decoded.eventName === eventName && decoded.args) {
-                  const a = decoded.args as unknown as Record<string, unknown>;
-                  purchaseId =
-                    (a.purchaseId ?? a.tradeId)?.toString() ?? undefined;
-                  break;
-                }
-              } catch {
-                // Not our event — skip
-              }
-            }
-          } catch {
-            // Log decoding is best-effort
-          }
-        }
+        const purchaseId = extractPurchaseId(receipt.logs, eventName);
 
         paymentDebug.log(`escrow:${functionName}:success`, { hash, purchaseId });
 
