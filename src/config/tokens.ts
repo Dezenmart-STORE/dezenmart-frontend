@@ -266,14 +266,24 @@ export function getTokenDecimals(symbol: string): number {
  * add "G$" here; no adapter entry needed (18-decimal tokens use their own address).
  */
 const FEE_CURRENCY_SYMBOLS = new Set([
-  "cUSD", "cEUR", "cREAL", // original Mento stablecoins
-  "cKES",                   // Kenya Shilling   (CIP-54)
-  "eXOF",                   // West African CFA (CIP-47)
-  "cCOP",                   // Colombian Peso   (CGP-0118)
-  "PUSO",                   // Philippine Peso  (CGP-134)
-  "cGHS",                   // Ghanaian Cedi
-  "cNGN",                   // Nigerian Naira
-  "USDT",                   // Tether USD       (CGP-0167, via FeeCurrencyAdapter)
+  // Verified on-chain 2026-05-16 via FeeCurrencyDirectory.getCurrencies() on Celo mainnet
+  "cUSD", "cEUR", "cREAL",  // original Mento stablecoins
+  "cKES",                    // Mento Kenyan Shilling
+  "eXOF",                    // Mento West African CFA
+  "cCOP",                    // Mento Colombian Peso
+  "PUSO",                    // Mento Philippine Peso
+  "cGHS",                    // Mento Ghanaian Cedi
+  "cNGN",                    // Mento Nigerian Naira
+  "cGBP",                    // Mento British Pound
+  "cZAR",                    // Mento South African Rand
+  "cCAD",                    // Mento Canadian Dollar
+  "cAUD",                    // Mento Australian Dollar
+  "cCHF",                    // Mento Swiss Franc
+  "cJPY",                    // Mento Japanese Yen
+  "USDT",                    // Tether USD (CGP-0167, via FeeCurrencyAdapter)
+  // G$ (GoodDollar) is NOT in the FeeCurrencyDirectory — confirmed via on-chain query
+  // WETH is whitelisted on-chain but is not a payment token in this app
+  // USDC adapter (0x2F25...) is whitelisted but USDC is not a supported payment token
 ]);
 
 /**
@@ -319,7 +329,9 @@ export function getFeeCurrencyAddress(
  * cUSD first because it's the most liquid and universally held on MiniPay.
  */
 const FEE_CURRENCY_PRIORITY = [
-  "cUSD", "cEUR", "cREAL", "cKES", "eXOF", "cCOP", "PUSO", "cGHS", "cNGN",
+  "cUSD", "cEUR", "cREAL", "cKES", "eXOF", "cCOP", "PUSO",
+  "cGHS", "cNGN", "cGBP", "cZAR", "cCAD", "cAUD", "cCHF", "cJPY",
+  "USDT",
 ];
 
 /**

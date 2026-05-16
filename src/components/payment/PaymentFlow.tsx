@@ -114,6 +114,13 @@ export default function PaymentFlow({
     PUSO: getBalance("PUSO")?.numeric ?? 0,
     cGHS: getBalance("cGHS")?.numeric ?? 0,
     cNGN: getBalance("cNGN")?.numeric ?? 0,
+    cGBP: getBalance("cGBP")?.numeric ?? 0,
+    cZAR: getBalance("cZAR")?.numeric ?? 0,
+    cCAD: getBalance("cCAD")?.numeric ?? 0,
+    cAUD: getBalance("cAUD")?.numeric ?? 0,
+    cCHF: getBalance("cCHF")?.numeric ?? 0,
+    cJPY: getBalance("cJPY")?.numeric ?? 0,
+    USDT: getBalance("USDT")?.numeric ?? 0,
   };
 
   // For MiniPay only: if the selected token can't pay gas, find a fallback.
