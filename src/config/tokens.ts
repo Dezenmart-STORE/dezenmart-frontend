@@ -258,8 +258,12 @@ export function getTokenDecimals(symbol: string): number {
  * When set as `feeCurrency` in a transaction, gas is deducted from that token
  * instead of CELO. Each entry has passed a Celo governance proposal.
  *
- * Sources: CIP-54 (cKES), CGP-0118 (cCOP), CIP-47 (eXOF), CGP-134 (PUSO).
- * USDT and G$ are NOT in the Celo fee whitelist — those always require CELO.
+ * Sources: CIP-54 (cKES), CGP-0118 (cCOP), CIP-47 (eXOF), CGP-134 (PUSO),
+ *          CGP-0167 (USDT adapter, executed 2025-03-21).
+ *
+ * NOTE on G$ (GoodDollar, 18 decimals): registration evidence is strong but
+ * unconfirmed on-chain. Verify with `celocli network:whitelist` — if confirmed,
+ * add "G$" here; no adapter entry needed (18-decimal tokens use their own address).
  */
 const FEE_CURRENCY_SYMBOLS = new Set([
   "cUSD", "cEUR", "cREAL", // original Mento stablecoins
@@ -269,17 +273,44 @@ const FEE_CURRENCY_SYMBOLS = new Set([
   "PUSO",                   // Philippine Peso  (CGP-134)
   "cGHS",                   // Ghanaian Cedi
   "cNGN",                   // Nigerian Naira
+  "USDT",                   // Tether USD       (CGP-0167, via FeeCurrencyAdapter)
 ]);
 
 /**
+ * Tokens with non-18 decimals cannot be registered directly in the
+ * FeeCurrencyDirectory — a FeeCurrencyAdapter normalises decimals for the Celo
+ * gas engine. The `feeCurrency` field must point to the adapter address, NOT
+ * the token address, for these tokens to function as fee currencies.
+ *
+ * Only mainnet entries are listed; Alfajores adapters are not yet deployed for
+ * these tokens (on testnet, fee currency resolves to undefined → CELO fallback).
+ */
+const FEE_CURRENCY_ADAPTERS: Partial<Record<string, Partial<Record<number, `0x${string}`>>>> = {
+  USDT: {
+    [celo.id]: "0x0E2A3e05bc9A16F5292A6170456A710cb89C6f72", // CGP-0167
+  },
+};
+
+/**
  * Returns the on-chain address to pass as `feeCurrency` in a Celo transaction,
- * or `undefined` if the token is not whitelisted by the Celo gas oracle.
+ * or `undefined` if the token is not whitelisted or has no adapter on this chain.
+ *
+ * For adapter tokens (e.g. USDT): returns the adapter address.
+ * For 18-decimal Mento stablecoins: returns the token's own address.
+ * For adapter tokens with no entry on this chainId: returns undefined
+ * (fee currency unavailable on this network — caller falls back to CELO).
  */
 export function getFeeCurrencyAddress(
   tokenSymbol: string,
   chainId: number
 ): `0x${string}` | undefined {
   if (!FEE_CURRENCY_SYMBOLS.has(tokenSymbol)) return undefined;
+  // Tokens with adapters must have an entry for this chainId or the fee
+  // currency is not available on this network.
+  if (FEE_CURRENCY_ADAPTERS[tokenSymbol]) {
+    return FEE_CURRENCY_ADAPTERS[tokenSymbol]?.[chainId];
+  }
+  // 18-decimal Mento stablecoins: token address = fee currency address
   return getTokenAddress(tokenSymbol, chainId);
 }
 
