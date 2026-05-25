@@ -47,10 +47,11 @@ const AuthCallback = () => {
       if (token) {
         handleAuthCallback(token, userProfile);
 
-        // window.name persists through cross-origin redirects (Google OAuth);
-        // window.opener is cleared by browsers for security when the popup
-        // navigates cross-origin, so we cannot rely on it here.
-        const isPopup = window.name === "google-auth";
+        // localStorage is origin-keyed and survives cross-origin navigation,
+        // unlike window.opener and window.name which are cleared by Chrome 88+
+        // when the popup travels through Google's servers.
+        const isPopup = localStorage.getItem("dezen-auth-popup") === "1";
+        localStorage.removeItem("dezen-auth-popup");
 
         if (isPopup) {
           // BroadcastChannel works same-origin without needing window.opener.

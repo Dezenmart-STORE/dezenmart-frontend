@@ -177,6 +177,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const left = Math.round(window.screenX + (window.outerWidth - w) / 2);
       const top = Math.round(window.screenY + (window.outerHeight - h) / 2);
 
+      // localStorage is keyed by origin and survives the popup's cross-origin
+      // OAuth journey (Google servers). window.opener and window.name are both
+      // cleared by Chrome 88+/Edge/FF on cross-origin navigation so we can't
+      // use either. This flag is the only reliable way AuthCallback can know
+      // it is running inside a popup rather than a full-page navigation.
+      localStorage.setItem("dezen-auth-popup", "1");
+
       const popup = window.open(
         url,
         "google-auth",
@@ -184,6 +191,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       );
 
       if (!popup) {
+        localStorage.removeItem("dezen-auth-popup");
         window.location.href = url;
         resolve();
         return;
@@ -198,8 +206,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         resolve();
       };
 
-      // BroadcastChannel is the primary signal — it works even when the popup's
-      // window.opener is cleared by cross-origin OAuth redirects (Chrome/Edge/FF).
+      // BroadcastChannel is the primary signal — works across same-origin
+      // windows without needing window.opener.
       let bc: BroadcastChannel | null = null;
       try {
         bc = new BroadcastChannel("dezen-auth");
@@ -227,6 +235,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const cleanup = () => {
         clearInterval(poll);
         window.removeEventListener("message", onMessage);
+        localStorage.removeItem("dezen-auth-popup");
         bc?.close();
         bc = null;
       };
