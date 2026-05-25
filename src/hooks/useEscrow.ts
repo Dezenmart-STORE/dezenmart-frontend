@@ -150,7 +150,7 @@ export function useEscrow() {
             hash,
             timeout: 90_000,
             pollingInterval: 2_000,
-            onReplaced: (replacement) => {
+            onReplaced: (replacement: { reason: string; transaction: { hash: `0x${string}` } }) => {
               paymentDebug.log(`escrow:${functionName}:tx-replaced`, {
                 reason: replacement.reason,
                 newHash: replacement.transaction.hash,

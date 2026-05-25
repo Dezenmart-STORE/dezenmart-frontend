@@ -20,7 +20,7 @@ export default function TradeActions({
   onActionComplete,
   checklistComplete,
 }: Props) {
-  const { confirmDelivery, raiseDispute, cancelPurchase, isPending } = useEscrow();
+  const { confirmDelivery, raiseDispute, cancelPurchase } = useEscrow();
   const [confirming, setConfirming] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<{
     type: "success" | "error";
@@ -32,6 +32,7 @@ export default function TradeActions({
     fn: (id: bigint) => ReturnType<typeof confirmDelivery>
   ) => {
     setFeedback(null);
+    setConfirming(action);
     const result = await fn(BigInt(purchaseId));
 
     if (result.success) {
@@ -92,10 +93,10 @@ export default function TradeActions({
                 <div className="mt-3 flex gap-2">
                   <button
                     onClick={() => handleAction("confirm", confirmDelivery)}
-                    disabled={isPending}
+                    disabled={confirming !== null}
                     className="flex-1 rounded-lg bg-green-700 py-2.5 text-sm font-bold text-white transition-colors hover:bg-green-600 disabled:opacity-50"
                   >
-                    {isPending ? "Processing…" : "Yes, I Received It"}
+                    {confirming !== null ? "Processing…" : "Yes, I Received It"}
                   </button>
                   <button
                     onClick={() => setConfirming(null)}
@@ -134,10 +135,10 @@ export default function TradeActions({
               <div className="mt-3 flex gap-2">
                 <button
                   onClick={() => handleAction("dispute", raiseDispute)}
-                  disabled={isPending}
+                  disabled={confirming !== null}
                   className="flex-1 rounded-lg bg-amber-700 py-2.5 text-sm font-bold text-white transition-colors hover:bg-amber-600 disabled:opacity-50"
                 >
-                  {isPending ? "Processing…" : "Yes, Raise Dispute"}
+                  {confirming !== null ? "Processing…" : "Yes, Raise Dispute"}
                 </button>
                 <button
                   onClick={() => setConfirming(null)}
@@ -175,10 +176,10 @@ export default function TradeActions({
               <div className="mt-3 flex gap-2">
                 <button
                   onClick={() => handleAction("cancel", cancelPurchase)}
-                  disabled={isPending}
+                  disabled={confirming !== null}
                   className="flex-1 rounded-lg bg-red-700 py-2.5 text-sm font-bold text-white transition-colors hover:bg-red-600 disabled:opacity-50"
                 >
-                  {isPending ? "Processing…" : "Yes, Cancel Order"}
+                  {confirming !== null ? "Processing…" : "Yes, Cancel Order"}
                 </button>
                 <button
                   onClick={() => setConfirming(null)}

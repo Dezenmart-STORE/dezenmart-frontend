@@ -15,7 +15,7 @@ interface ConfirmDeliveryProps {
 }
 
 const ConfirmDelivery: FC<ConfirmDeliveryProps> = ({ tradeId, onComplete }) => {
-  const { confirmDelivery, isPending: deliveryConfirmLoading } = useEscrow();
+  const { confirmDelivery } = useEscrow();
   const [updateOrderStatus] = useUpdateOrderStatusMutation();
   const [status, setStatus] = useState<
     "pending" | "confirming" | "success" | "error"
@@ -97,10 +97,10 @@ const ConfirmDelivery: FC<ConfirmDeliveryProps> = ({ tradeId, onComplete }) => {
         <div className="space-y-3">
           <button
             onClick={handleConfirm}
-            disabled={deliveryConfirmLoading}
+            disabled={status === "confirming"}
             className="w-full py-3 bg-Red hover:bg-[#e02d37] text-white rounded transition-colors flex items-center justify-center"
           >
-            {deliveryConfirmLoading ? (
+            {status === "confirming" ? (
               <FaSpinner className="animate-spin mr-2" />
             ) : null}
             Confirm Delivery
