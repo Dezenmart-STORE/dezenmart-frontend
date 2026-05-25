@@ -24,6 +24,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (provider: string) => void;
+  loginInPopup: () => Promise<void>;
   // loginWithWallet: (walletAddress: string) => Promise<void>;
   handleUserUpdate: (userData: any) => void;
   handleAuthCallback: (token: string, userData: any) => void;
@@ -138,14 +139,89 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   //   attemptWalletLogin();
   // }, [account, user, isLoading]);
 
+  const NUDGE_ACCOUNT_KEY = "nudge_last_account";
+
+  const saveLastAccount = (userData: UserProfile) => {
+    try {
+      localStorage.setItem(NUDGE_ACCOUNT_KEY, JSON.stringify({
+        name: userData.name,
+        email: userData.email,
+        picture: typeof userData.profileImage === "string" ? userData.profileImage : null,
+      }));
+    } catch {}
+  };
+
+  const refreshAuthFromStorage = () => {
+    try {
+      const token = storage.getItem(TOKEN_KEY);
+      const storedUser = storage.getItem(USER_KEY);
+      if (!token || !storedUser) return;
+      const decoded = jwtDecode<JwtPayload>(token);
+      if (decoded.exp < Date.now() / 1000) return;
+      const parsedUser = JSON.parse(storedUser);
+      setUser(parsedUser);
+      setSentryUser({ id: parsedUser._id, name: parsedUser.name, email: parsedUser.email });
+      saveLastAccount(parsedUser);
+    } catch {}
+  };
+
+  const loginInPopup = (): Promise<void> => {
+    return new Promise((resolve) => {
+      const API_URL = import.meta.env.VITE_API_URL;
+      const origin = import.meta.env.MODE === "development"
+        ? window.location.origin
+        : "https://dezenmart.netlify.app";
+
+      const url = `${API_URL}/auth/google?origin=${encodeURIComponent(origin)}`;
+      const w = 500, h = 620;
+      const left = Math.round(window.screenX + (window.outerWidth - w) / 2);
+      const top = Math.round(window.screenY + (window.outerHeight - h) / 2);
+
+      const popup = window.open(
+        url,
+        "google-auth",
+        `width=${w},height=${h},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=yes`
+      );
+
+      if (!popup) {
+        // Popup blocked — fall back to full redirect
+        window.location.href = url;
+        resolve();
+        return;
+      }
+
+      const onMessage = (e: MessageEvent) => {
+        if (e.origin !== window.location.origin) return;
+        if (e.data?.type !== "DEZEN_AUTH_SUCCESS") return;
+        cleanup();
+        refreshAuthFromStorage();
+        resolve();
+      };
+
+      window.addEventListener("message", onMessage);
+
+      // Poll for popup close without completing auth
+      const poll = setInterval(() => {
+        if (popup.closed) {
+          cleanup();
+          resolve();
+        }
+      }, 500);
+
+      const cleanup = () => {
+        clearInterval(poll);
+        window.removeEventListener("message", onMessage);
+      };
+    });
+  };
+
   const handleAuthCallback = (token: string, userData: UserProfile) => {
     try {
-      // Store authentication data
       storage.setItem(TOKEN_KEY, token);
       storage.setItem(USER_KEY, JSON.stringify(userData));
-
       setUser(userData);
       setSentryUser({ id: userData._id, name: userData.name, email: userData.email });
+      saveLastAccount(userData);
     } catch (error) {
       console.error("Error in handleAuthCallback:", error);
       clearAuthState();
@@ -184,6 +260,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     isAuthenticated: !!user,
     isLoading,
     login,
+    loginInPopup,
     // loginWithWallet,
     handleAuthCallback,
     handleUserUpdate,

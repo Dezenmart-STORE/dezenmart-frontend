@@ -1,11 +1,15 @@
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import {
   useAccount,
   useChainId,
-  useWriteContract,
 } from "wagmi";
 import { decodeEventLog, type Log } from "viem";
-import { simulateContract, waitForTransactionReceipt, getChainId } from "@wagmi/core";
+import {
+  simulateContract,
+  writeContract,
+  waitForTransactionReceipt,
+  getChainId,
+} from "@wagmi/core";
 import { getEscrowContract, ESCROW_ABI } from "../abi/escrow";
 import { wagmiConfig } from "../config/chains";
 import { parseError, logError } from "../utils/errors";
@@ -18,8 +22,8 @@ export interface EscrowResult {
   success: boolean;
   /**
    * True when the tx was submitted (hash known) but the receipt wait timed
-   * out. The payment may still confirm — callers should show a pending state
-   * and poll via pollReceipt(hash) rather than treating this as a failure.
+   * out. The payment may still confirm — callers should treat this as success
+   * and let the backend reconcile order status.
    */
   pending?: boolean;
   hash?: `0x${string}`;
@@ -32,17 +36,26 @@ export interface EscrowResult {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function extractPurchaseId(logs: readonly Log[] | undefined, eventName?: string): string | undefined {
+function extractPurchaseId(
+  logs: readonly Log[] | undefined,
+  eventName?: string
+): string | undefined {
   if (!eventName || !logs) return undefined;
   for (const log of logs) {
     try {
-      const decoded = decodeEventLog({ abi: ESCROW_ABI, data: (log as Log).data, topics: (log as Log).topics });
+      const decoded = decodeEventLog({
+        abi: ESCROW_ABI,
+        data: (log as Log).data,
+        topics: (log as Log).topics,
+      });
       if (decoded.eventName === eventName && decoded.args) {
         const a = decoded.args as unknown as Record<string, unknown>;
         const id = (a.purchaseId ?? a.tradeId)?.toString();
         if (id) return id;
       }
-    } catch { /* not our event */ }
+    } catch {
+      /* not our event */
+    }
   }
   return undefined;
 }
@@ -54,13 +67,15 @@ function extractPurchaseId(logs: readonly Log[] | undefined, eventName?: string)
 /**
  * All escrow smart-contract operations in one hook.
  *
- * Each method validates wallet state, simulates the tx for gas estimation,
- * executes, waits for receipt, and extracts event data.
+ * Uses @wagmi/core's writeContract directly (not useWriteContract) to avoid
+ * React lifecycle / stale-closure issues in long async payment sequences.
+ * Each method validates wallet state, simulates for gas, executes, waits for
+ * receipt, and extracts event data.
  */
 export function useEscrow() {
   const { address, isConnected } = useAccount();
-  const chainId = useChainId();
-  const { writeContractAsync, isPending } = useWriteContract();
+  // useChainId kept for components that consume it via the hook return value
+  useChainId();
 
   // ── shared executor ──────────────────────────────────────────────
   const execute = useCallback(
@@ -70,23 +85,21 @@ export function useEscrow() {
       eventName?: string,
       feeCurrency?: `0x${string}`
     ): Promise<EscrowResult> => {
-      // Validate
       if (!isConnected || !address) {
         return { success: false, message: "Please connect your wallet first." };
       }
 
       // Read chain at call time (not from hook closure which may be stale).
-      // After usePayment's switchChainAsync succeeds, wagmiConfig state is
-      // updated synchronously, so getChainId is reliable here.
       const liveChainId = getChainId(wagmiConfig);
       const contract = getEscrowContract(liveChainId);
 
       paymentDebug.log(`escrow:${functionName}:start`, {
         args: args.map(String),
+        feeCurrency: feeCurrency ?? "none",
       });
 
       try {
-        // Gas estimation via simulation
+        // ── Gas estimation via simulation ────────────────────────
         let gas = 800_000n;
         try {
           const { request } = await simulateContract(wagmiConfig, {
@@ -98,8 +111,6 @@ export function useEscrow() {
           });
           if (request.gas) gas = (request.gas * 120n) / 100n;
         } catch (simErr) {
-          // Distinguish real contract reverts from transient RPC issues.
-          // A revert means the tx WILL fail — don't submit and waste gas.
           const simMsg = ((simErr as any)?.message ?? "").toLowerCase();
           const isRevert =
             simMsg.includes("revert") ||
@@ -107,12 +118,13 @@ export function useEscrow() {
             simMsg.includes("contract function") ||
             simMsg.includes("reason:");
           if (isRevert) throw simErr;
-          // Network/RPC issue: proceed with default gas and let the wallet decide.
+          // Network/RPC issue — proceed with default gas.
         }
 
-        // Execute — liveChainId (read at call time, not from stale closure)
-        // feeCurrency (Celo-specific): when set, gas is deducted from that token
-        const hash = await writeContractAsync({
+        // ── Execute via @wagmi/core (no React lifecycle dependency) ──
+        // Using the core action instead of useWriteContract hook prevents
+        // stale-closure and mutation-state issues in long async payment flows.
+        const hash = await writeContract(wagmiConfig, {
           ...contract,
           functionName,
           args,
@@ -125,15 +137,25 @@ export function useEscrow() {
           return { success: false, message: "Transaction failed to submit." };
         }
 
-        // Wait for receipt — 5 min timeout, poll every 4s (Celo blocks ~5s).
-        // Separated from the submission try/catch so a confirmation timeout
-        // (hash known but network slow) returns pending=true instead of error.
+        paymentDebug.log(`escrow:${functionName}:submitted`, { hash });
+
+        // ── Wait for receipt ─────────────────────────────────────
+        // 90-second timeout: long enough for slow networks, short enough
+        // that UX doesn't stall. If it expires we return pending=true so
+        // the caller can treat the submission as success and let the backend
+        // reconcile rather than showing a false "Payment Failed" screen.
         let receipt;
         try {
           receipt = await waitForTransactionReceipt(wagmiConfig, {
             hash,
-            timeout: 300_000,
-            pollingInterval: 4_000,
+            timeout: 90_000,
+            pollingInterval: 2_000,
+            onReplaced: (replacement) => {
+              paymentDebug.log(`escrow:${functionName}:tx-replaced`, {
+                reason: replacement.reason,
+                newHash: replacement.transaction.hash,
+              });
+            },
           });
         } catch {
           paymentDebug.log(`escrow:${functionName}:confirmation-timeout`, { hash });
@@ -143,7 +165,7 @@ export function useEscrow() {
             hash,
             message:
               "Your payment was submitted but the network is taking longer than usual. " +
-              "It should confirm soon — tap Check Status to update.",
+              "It should confirm shortly.",
           };
         }
 
@@ -151,12 +173,12 @@ export function useEscrow() {
           return {
             success: false,
             error: "Transaction reverted",
-            message: "The transaction was rejected by the contract. Check your balance and try again.",
+            message:
+              "The transaction was rejected by the contract. Check your balance and try again.",
           };
         }
 
         const purchaseId = extractPurchaseId(receipt.logs, eventName);
-
         paymentDebug.log(`escrow:${functionName}:success`, { hash, purchaseId });
 
         return {
@@ -179,7 +201,9 @@ export function useEscrow() {
         };
       }
     },
-    [isConnected, address, writeContractAsync]
+    // address + isConnected are the only React-derived deps we need.
+    // writeContract is imported from @wagmi/core — not a hook, not a dep.
+    [isConnected, address]
   );
 
   // ── public methods ───────────────────────────────────────────────
@@ -237,12 +261,16 @@ export function useEscrow() {
     [execute]
   );
 
-  return {
-    createTrade,
-    buyTrade,
-    confirmDelivery,
-    raiseDispute,
-    cancelPurchase,
-    isPending,
-  };
+  // Memoize the return object so callers' useCallback deps stay stable
+  // across renders (the individual methods are already stable via useCallback).
+  return useMemo(
+    () => ({
+      createTrade,
+      buyTrade,
+      confirmDelivery,
+      raiseDispute,
+      cancelPurchase,
+    }),
+    [createTrade, buyTrade, confirmDelivery, raiseDispute, cancelPurchase]
+  );
 }

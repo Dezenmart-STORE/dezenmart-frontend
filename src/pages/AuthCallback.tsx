@@ -46,9 +46,19 @@ const AuthCallback = () => {
       const token = searchParams.get("token");
       if (token) {
         handleAuthCallback(token, userProfile);
-        startTransition(() => {
-          navigate("/", { replace: true });
-        });
+
+        const isPopup = !!(window.opener && window.opener !== window);
+        if (isPopup) {
+          window.opener.postMessage(
+            { type: "DEZEN_AUTH_SUCCESS" },
+            window.location.origin
+          );
+          window.close();
+        } else {
+          startTransition(() => {
+            navigate("/", { replace: true });
+          });
+        }
       }
     }
   }, [userProfile, shouldFetch, searchParams, handleAuthCallback, navigate]);

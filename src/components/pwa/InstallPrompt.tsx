@@ -14,7 +14,7 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 }
 
-export const InstallPrompt: React.FC = () => {
+export const InstallPrompt: React.FC<{ suppressWhile?: boolean }> = ({ suppressWhile = false }) => {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showPrompt, setShowPrompt] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
@@ -100,24 +100,13 @@ export const InstallPrompt: React.FC = () => {
 
   return (
     <AnimatePresence>
-      {showPrompt && (
-        <>
-          {/* Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-50 z-40"
-            onClick={handleDismiss}
-          />
-
-          {/* Install Prompt Card */}
+      {showPrompt && !suppressWhile && (
           <motion.div
             initial={{ y: 100, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 100, opacity: 0 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="fixed bottom-4 left-4 right-4 md:left-auto md:right-8 md:w-96 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl z-50 overflow-hidden"
+            className="fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-96 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl z-50 overflow-hidden"
           >
             {/* Header */}
             <div className="bg-gradient-to-r from-Red to-red-600 p-4 text-white">
@@ -184,7 +173,6 @@ export const InstallPrompt: React.FC = () => {
               </p>
             </div>
           </motion.div>
-        </>
       )}
     </AnimatePresence>
   );

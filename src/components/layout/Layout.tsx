@@ -2,7 +2,7 @@ import Header from "./Header.tsx";
 import Footer from "./Footer.tsx";
 import MobileNavigation from "./MobileNavigation.tsx";
 import { useLocation } from "react-router-dom";
-import { useEffect } from "react";
+import { useEffect, useState, useCallback } from "react";
 import ErrorBoundary from "../error/ErrorBoundary.tsx";
 import { OfflineIndicator } from "../pwa/OfflineIndicator.tsx";
 import { InstallPrompt } from "../pwa/InstallPrompt.tsx";
@@ -10,9 +10,12 @@ import { registerServiceWorker } from "../../utils/pwa/serviceWorkerRegistration
 import { setupOfflineSyncListener } from "../../utils/pwa/offlineSync";
 import WrongNetworkBanner from "../wallet/WrongNetworkBanner";
 import MiniPayAutoConnect from "../wallet/MiniPayAutoConnect";
+import LoginNudge from "../auth/LoginNudge";
 
 const Layout = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
+  const [loginNudgeVisible, setLoginNudgeVisible] = useState(false);
+  const handleNudgeVisibility = useCallback((v: boolean) => setLoginNudgeVisible(v), []);
 
   // Pages that should not display header/footer
   const isAuthPage = ["/login", "/auth/google"].includes(location.pathname);
@@ -48,8 +51,11 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
       {/* Offline Status Indicator */}
       <OfflineIndicator showOnlineStatus={true} />
 
-      {/* PWA Install Prompt */}
-      <InstallPrompt />
+      {/* PWA Install Prompt — suppressed while login nudge is visible */}
+      <InstallPrompt suppressWhile={loginNudgeVisible} />
+
+      {/* Login nudge — shown only outside auth pages */}
+      {!isAuthPage && <LoginNudge onVisibilityChange={handleNudgeVisibility} />}
 
       {!isAuthPage && <Header />}
       <ErrorBoundary>

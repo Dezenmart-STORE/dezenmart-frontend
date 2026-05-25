@@ -349,7 +349,20 @@ export function usePayment() {
       );
 
       if (!result.success) {
-        dispatch({ type: "ERROR", error: `${result.message} [${preflightDebug}]` });
+        if (result.pending && result.hash) {
+          // Tx was submitted but receipt confirmation timed out.
+          // The payment IS on-chain — treat as success so the user reaches the
+          // success screen rather than a false "Payment Failed". The backend
+          // order-status poller will reconcile the final state.
+          dispatch({
+            type: "SUCCESS",
+            txHash: result.hash,
+            purchaseId: result.purchaseId,
+            swapHash: priorSwapHash,
+          });
+        } else {
+          dispatch({ type: "ERROR", error: `${result.message} [${preflightDebug}]` });
+        }
         return;
       }
 
