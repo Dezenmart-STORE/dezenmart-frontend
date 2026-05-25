@@ -47,12 +47,30 @@ const AuthCallback = () => {
       if (token) {
         handleAuthCallback(token, userProfile);
 
-        const isPopup = !!(window.opener && window.opener !== window);
+        // window.name persists through cross-origin redirects (Google OAuth);
+        // window.opener is cleared by browsers for security when the popup
+        // navigates cross-origin, so we cannot rely on it here.
+        const isPopup = window.name === "google-auth";
+
         if (isPopup) {
-          window.opener.postMessage(
-            { type: "DEZEN_AUTH_SUCCESS" },
-            window.location.origin
-          );
+          // BroadcastChannel works same-origin without needing window.opener.
+          try {
+            const bc = new BroadcastChannel("dezen-auth");
+            bc.postMessage({ type: "DEZEN_AUTH_SUCCESS" });
+            bc.close();
+          } catch {}
+
+          // Keep postMessage as a belt-and-suspenders fallback for any
+          // browser that still has window.opener intact.
+          if (window.opener && window.opener !== window) {
+            try {
+              window.opener.postMessage(
+                { type: "DEZEN_AUTH_SUCCESS" },
+                window.location.origin
+              );
+            } catch {}
+          }
+
           window.close();
         } else {
           startTransition(() => {

@@ -184,23 +184,39 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       );
 
       if (!popup) {
-        // Popup blocked — fall back to full redirect
         window.location.href = url;
         resolve();
         return;
       }
 
-      const onMessage = (e: MessageEvent) => {
-        if (e.origin !== window.location.origin) return;
-        if (e.data?.type !== "DEZEN_AUTH_SUCCESS") return;
+      let settled = false;
+      const handleSuccess = () => {
+        if (settled) return;
+        settled = true;
         cleanup();
         refreshAuthFromStorage();
         resolve();
       };
 
+      // BroadcastChannel is the primary signal — it works even when the popup's
+      // window.opener is cleared by cross-origin OAuth redirects (Chrome/Edge/FF).
+      let bc: BroadcastChannel | null = null;
+      try {
+        bc = new BroadcastChannel("dezen-auth");
+        bc.onmessage = (e) => {
+          if (e.data?.type === "DEZEN_AUTH_SUCCESS") handleSuccess();
+        };
+      } catch {}
+
+      // Keep postMessage as a fallback for browsers where opener survives.
+      const onMessage = (e: MessageEvent) => {
+        if (e.origin !== window.location.origin) return;
+        if (e.data?.type !== "DEZEN_AUTH_SUCCESS") return;
+        handleSuccess();
+      };
       window.addEventListener("message", onMessage);
 
-      // Poll for popup close without completing auth
+      // Poll for the popup being closed without completing auth (user dismissed).
       const poll = setInterval(() => {
         if (popup.closed) {
           cleanup();
@@ -211,6 +227,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const cleanup = () => {
         clearInterval(poll);
         window.removeEventListener("message", onMessage);
+        bc?.close();
+        bc = null;
       };
     });
   };

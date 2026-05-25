@@ -98,7 +98,7 @@ const LoginNudge: React.FC<LoginNudgeProps> = ({ onVisibilityChange }) => {
           exit={{ y: 80, opacity: 0 }}
           transition={{ type: "spring", damping: 26, stiffness: 300 }}
           // Mobile: full-width bottom sheet. Desktop: compact corner card.
-          className="fixed bottom-0 inset-x-0 md:bottom-4 md:inset-x-auto md:right-4 md:w-80 bg-[#1C1D22] border border-white/10 rounded-t-2xl md:rounded-2xl shadow-2xl z-50 overflow-hidden"
+          className="fixed bottom-16 left-2 right-2 md:bottom-4 md:left-auto md:right-4 md:w-80 bg-[#1C1D22] border border-white/10 rounded-2xl shadow-2xl z-[60] overflow-hidden"
           role="dialog"
           aria-label="Sign in prompt"
         >
