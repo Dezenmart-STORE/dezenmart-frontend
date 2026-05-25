@@ -1,6 +1,5 @@
 import { FC, useState } from "react";
 import {
-  FaSpinner,
   FaCheckCircle,
   FaTimesCircle,
   FaExclamationTriangle,
@@ -97,12 +96,8 @@ const ConfirmDelivery: FC<ConfirmDeliveryProps> = ({ tradeId, onComplete }) => {
         <div className="space-y-3">
           <button
             onClick={handleConfirm}
-            disabled={status === "confirming"}
             className="w-full py-3 bg-Red hover:bg-[#e02d37] text-white rounded transition-colors flex items-center justify-center"
           >
-            {status === "confirming" ? (
-              <FaSpinner className="animate-spin mr-2" />
-            ) : null}
             Confirm Delivery
           </button>
           <p className="text-xs text-gray-500 text-center">
