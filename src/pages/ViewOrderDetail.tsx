@@ -595,9 +595,92 @@ function StatusInfoPanel({
     );
   }
 
-  // Shipped panel — commented out until logistics provider management system is ready.
-  // To restore: uncomment this block and revert STATE_TO_STEP["shipped"] in TradeStatus.tsx.
-  // if (status === "shipped") { ... }
+  if (status === "shipped") {
+    const shippedDate = order.shippedAt
+      ? new Date(order.shippedAt).toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        })
+      : null;
+
+    return (
+      <div className="rounded-2xl border border-blue-800/40 bg-blue-900/10 p-5">
+        <div className="mb-4 flex items-center gap-3">
+          <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border border-blue-800/50 bg-blue-900/40">
+            <svg className="h-4 w-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8l1.707 10.293A1 1 0 007.7 19h8.6a1 1 0 00.993-.868L18 8M10 12h4" />
+            </svg>
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-white">Your Item Is On the Way</h3>
+            <p className="text-xs text-blue-400">
+              {shippedDate ? `Shipped on ${shippedDate}` : "Your order has been dispatched"}
+            </p>
+          </div>
+        </div>
+
+        <div className="space-y-3 rounded-xl bg-[#292B30] p-4">
+          {order.trackingNumber ? (
+            <>
+              {order.logisticsProviderName && (
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-500">Carrier</span>
+                  <span className="text-sm font-medium text-white">{order.logisticsProviderName}</span>
+                </div>
+              )}
+              <div className="flex items-start justify-between gap-4">
+                <span className="flex-shrink-0 text-xs text-gray-500">Tracking No.</span>
+                <span className="break-all text-right font-mono text-xs text-white">
+                  {order.trackingNumber}
+                </span>
+              </div>
+            </>
+          ) : (
+            <p className="text-sm text-gray-400">
+              Tracking information is not yet available. Contact the seller for an update.
+            </p>
+          )}
+
+          {order.estimatedDeliveryDate && (
+            <div className="flex items-center justify-between border-t border-[#373A3F] pt-3">
+              <span className="text-xs text-gray-500">Est. Delivery</span>
+              <span className="text-sm font-medium text-white">{order.estimatedDeliveryDate}</span>
+            </div>
+          )}
+        </div>
+
+        <div className="mt-3 flex items-start gap-2.5 rounded-xl border border-blue-900/40 bg-blue-900/20 p-3">
+          <svg className="mt-0.5 h-4 w-4 flex-shrink-0 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <p className="text-xs text-blue-300">
+            Only tap "Received" once your package arrives. Payment stays safely in escrow until you confirm.
+          </p>
+        </div>
+
+        {onMarkReceived && (
+          <button
+            onClick={onMarkReceived}
+            disabled={isMarkingReceived}
+            className="mt-4 w-full rounded-xl bg-[#292B30] py-3 text-sm font-semibold text-white transition-colors hover:bg-[#373A3F] active:scale-[0.98] disabled:opacity-60"
+          >
+            {isMarkingReceived ? (
+              <span className="flex items-center justify-center gap-2">
+                <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                Updating…
+              </span>
+            ) : (
+              "I've Received My Package"
+            )}
+          </button>
+        )}
+      </div>
+    );
+  }
 
   if (status === "delivered") {
     return (
@@ -941,7 +1024,7 @@ function mapStatus(status: string): TradeState {
     pending: "pending_payment",
     accepted: "paid",
     paid: "paid",
-    shipped: "paid", // logistics system not ready — show as paid until delivered
+    shipped: "shipped",
     delivered: "delivered",
     completed: "completed",
     disputed: "disputed",

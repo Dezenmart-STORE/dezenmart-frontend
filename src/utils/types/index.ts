@@ -141,6 +141,11 @@ export interface Order {
   updatedAt: string;
   logisticsProviderWalletAddress: string[];
   purchaseId: string;
+  // Shipping fields — populated by the backend when seller marks order as shipped
+  shippedAt?: string;
+  trackingNumber?: string;
+  logisticsProviderName?: string;
+  estimatedDeliveryDate?: string;
 }
 
 export interface OrderStatusUpdate {
