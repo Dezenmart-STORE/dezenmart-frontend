@@ -24,6 +24,9 @@ import TermsModal from "./components/common/TermsModal.tsx";
 import { TermsProvider } from "./context/TermsContext.tsx";
 import SolanaProvider from "./context/SolanaContext.tsx";
 import { GeneralStore } from "./context/GeneralContext.tsx";
+import { RampModal } from "./ramp/RampModal.tsx";
+import { FloatingRampButton } from "./ramp/FloatingRampButton.tsx";
+import { RampProvider } from "./ramp/RampContext.tsx";
 
 // import GoogleCallback from "./pages/GoogleCallback.tsx";
 
@@ -67,8 +70,22 @@ const RouterLayout = () => {
             <QueryClientProvider client={queryClient}>
               <Web3Provider>
                 <SolanaProvider>
+    <RampProvider
+      defaultCustomer={{
+        email: "user@dezenmart.io",
+        first_name: "John",
+        last_name: "Doe",
+      }}
+    >
 
+ 
                 <AuthProvider>
+                      <RampModal />
+                <FloatingRampButton
+                      defaultMode="onramp"
+                      position="bottom-right"
+                      label="Buy / Sell Crypto"
+                    />
                   <TermsProvider>
                     <CurrencyProvider>
                       <Layout>
@@ -81,6 +98,7 @@ const RouterLayout = () => {
                     </CurrencyProvider>
                   </TermsProvider>
                 </AuthProvider>
+                   </RampProvider>
                 </SolanaProvider>
               </Web3Provider>
             </QueryClientProvider>

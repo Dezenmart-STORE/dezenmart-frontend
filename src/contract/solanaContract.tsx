@@ -15,6 +15,8 @@ import {
   WalletMultiButton,
 } from "@solana/wallet-adapter-react-ui";
 import { PhantomWalletAdapter } from "@solana/wallet-adapter-wallets";
+// spl-token transfer Do1mZe9KZxnn4XdEQm53srKvbpSo8ae7BitH4L9UEXv9 100 4NR4EoDXGiYv8e2meFNB73ihUqjfDSGi2GWtVNecbfZA --fund-recipient --url https://api.devnet.solana.com
+// spl-token transfer 5EHhG8Pd4HA4myMgQ4wFTqhRvvrMSAsTCqNFJfhh32mk 100 4NR4EoDXGiYv8e2meFNB73ihUqjfDSGi2GWtVNecbfZA --fund-recipient --url https://api.devnet.solana.com
 
 // import idl from "../../../dezenmart_rust_smart_contract/target/idl/dezenmart_logistics.json"; // drop idl into your src
 import idl from "../idl/dezenmart_logistics.json"; // drop idl into your src
