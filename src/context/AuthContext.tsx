@@ -96,7 +96,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // Use current origin in development, production URL in production
       const origin = import.meta.env.MODE === 'development'
         ? FRONTEND_URL  // localhost:5173 (or whatever port is running)
-        : 'https://dezenmart.netlify.app';
+        : 'https://dezenmart.com'
+        // 'https://dezenmart.netlify.app';
 
       const redirectUrl = `${API_URL}/auth/google?origin=${encodeURIComponent(origin)}`;
 
