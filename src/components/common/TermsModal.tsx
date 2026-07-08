@@ -587,7 +587,7 @@ const TermsModal: React.FC = () => {
                         support@dezenmart.com
                       </a>
                       <a
-                        href="https://dezenmart.netlify.app"
+                        href="https://dezenmart.com"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center gap-3 text-gray-300 hover:text-white transition-colors group w-fit"
@@ -607,7 +607,7 @@ const TermsModal: React.FC = () => {
                             />
                           </svg>
                         </div>
-                        dezenmart.netlify.app
+                        dezenmart.com
                       </a>
                     </div>
                   </SubSection>

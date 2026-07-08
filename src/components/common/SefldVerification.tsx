@@ -51,7 +51,7 @@ function SefldVerification({ isOpen, onClose }: props) {
         scope: "dezenmart",
         endpoint: `${API_URL}/users/verify-self`,
         endpointType: "https",
-        logoBase64: "https://dezenmart.netlify.app/images/logo.svg",
+        logoBase64: "https://dezenmart.com/images/logo.svg",
         userId: id,
         disclosures: {
           name: true,

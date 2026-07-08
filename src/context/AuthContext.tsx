@@ -171,7 +171,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const API_URL = import.meta.env.VITE_API_URL;
       const origin = import.meta.env.MODE === "development"
         ? window.location.origin
-        : "https://dezenmart.netlify.app";
+        : "https://dezenmart.com";
 
       const url = `${API_URL}/auth/google?origin=${encodeURIComponent(origin)}`;
       const w = 500, h = 620;
