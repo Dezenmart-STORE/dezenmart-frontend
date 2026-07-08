@@ -1,6 +1,17 @@
 [build]
   publish = "dist"
-  command = "npm run build"
+  # Regenerate the product sitemap from live data on every deploy (SEO-02).
+  # generate-sitemap exits 0 even if the API is unreachable, so it can't fail a build.
+  command = "npm run generate-sitemap && npm run build"
+
+# Dynamic rendering for crawlers on product routes (SEO-01).
+[[edge_functions]]
+  function = "seo"
+  path = "/product"
+
+[[edge_functions]]
+  function = "seo"
+  path = "/product/*"
 
 [[redirects]]
   from = "/*"

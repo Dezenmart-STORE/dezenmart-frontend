@@ -133,8 +133,11 @@ async function main() {
 
     process.exit(0);
   } catch (error) {
+    // Never fail the build over a sitemap: a transient API outage shouldn't
+    // block a deploy. Warn and keep the last-good committed sitemap.
     console.error('\n💥 Sitemap generation failed:', error.message);
-    process.exit(1);
+    console.warn('⚠️  Keeping existing sitemap-products.xml and continuing.');
+    process.exit(0);
   }
 }
 
