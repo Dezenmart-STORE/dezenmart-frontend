@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+
+# Cancel superseded runs on the same ref to save minutes.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Typecheck · Test · Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      # ── Blocking gates ────────────────────────────────────────────────
+      - name: Type-check
+        run: npm run type-check
+
+      - name: Test
+        run: npm run test:run
+
+      - name: Build
+        run: npm run build
+
+      - name: Bundle size report
+        run: |
+          echo "### Largest JS chunks" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          find dist/assets -name '*.js' -printf '%s\t%p\n' 2>/dev/null \
+            | sort -rn | head -10 \
+            | awk '{ printf "%8.1f kB  %s\n", $1/1024, $2 }' >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      # ── Advisory (non-blocking until the lint backlog is cleared) ──────
+      - name: Lint (advisory)
+        run: npm run lint
+        continue-on-error: true
+
+  security-audit:
+    name: Dependency audit (advisory)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: npm audit (high+)
+        run: npm audit --audit-level=high
+        continue-on-error: true

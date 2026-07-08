@@ -133,8 +133,10 @@ export default defineConfig({
     // Target modern browsers for smaller bundles
     target: "es2020",
 
-    // Enable source maps for production debugging (Sentry)
-    sourcemap: true,
+    // "hidden" generates source maps for Sentry but omits the sourceMappingURL
+    // comment, so browsers don't auto-load app source in prod devtools.
+    // Full fix (REL-01): upload maps to Sentry, then strip *.map from the deploy.
+    sourcemap: "hidden",
 
     // Increase chunk size warning limit (Web3 libraries are large)
     chunkSizeWarningLimit: 1000,

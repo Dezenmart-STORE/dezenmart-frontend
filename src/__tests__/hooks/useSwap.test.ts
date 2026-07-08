@@ -77,7 +77,12 @@ describe('Swap Logic - Unit Tests', () => {
         if (message.includes('liquidity')) {
           return 'LIQUIDITY_ERROR';
         }
-        if (message.includes('user rejected')) {
+        if (
+          message.includes('user rejected') ||
+          message.includes('user denied') ||
+          message.includes('cancelled') ||
+          message.includes('canceled')
+        ) {
           return 'USER_REJECTED';
         }
         return 'UNKNOWN_ERROR';

@@ -1,11 +1,4 @@
 import * as _SentryImport from "@sentry/react";
-import {
-  createRoutesFromChildren,
-  matchRoutes,
-  useLocation,
-  useNavigationType,
-} from "react-router-dom";
-import { useEffect } from "react";
 
 // @sentry/react v10 re-exports captureException etc. from @sentry/browser v10,
 // but a stale top-level @sentry/browser v5 package confuses TS type resolution.
