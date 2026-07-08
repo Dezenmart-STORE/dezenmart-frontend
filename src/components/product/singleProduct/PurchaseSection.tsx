@@ -32,9 +32,8 @@ import { debounce } from "lodash-es";
 
 import QuantitySelector from "./QuantitySelector";
 import DeliveryAddressSelector from "./DeliveryAddressSelector";
-import FilteredLogisticsSelector from "./FilteredLogisticsSelector";
-import type { FilteredLogisticsProvider } from "./FilteredLogisticsSelector";
-import type { DeliveryAddress } from "../../../utils/types";
+import LogisticsProviderSelector from "./LogisticsProviderSelector";
+import type { DeliveryAddress, AvailableProvider } from "../../../utils/types";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface FormattedProduct extends Product {
@@ -63,7 +62,7 @@ const usePurchaseState = () => {
   const [state, setState] = useState({
     quantity: 1,
     selectedAddress: null as DeliveryAddress | null,
-    selectedLogistics: null as FilteredLogisticsProvider | null,
+    selectedLogistics: null as AvailableProvider | null,
     isProcessing: false,
     purchaseError: null as string | null,
     showWalletModal: false,
@@ -89,7 +88,7 @@ const useCalculatedTotals = ({
   walletSelectedToken,
 }: {
   product?: FormattedProduct;
-  selectedLogistics: FilteredLogisticsProvider | null;
+  selectedLogistics: AvailableProvider | null;
   quantity: number;
   convertPrice: (amount: number, from: string, to: string) => number;
   walletSelectedToken: StableToken;
@@ -459,7 +458,7 @@ export const PurchaseSectionProvider: React.FC<
     try {
       const orderData: any = { product: product._id as any, quantity: state.quantity };
       if (state.selectedLogistics) {
-        orderData.logisticsProviderWalletAddress = [state.selectedLogistics.provider.walletAddress];
+        orderData.logisticsProviderWalletAddress = [state.selectedLogistics.walletAddress];
       }
       const order = await createOrder(orderData).unwrap();
       if (!order?._id) throw new Error("Order creation failed");
@@ -612,12 +611,13 @@ export const PurchaseSectionBody: React.FC = () => {
       />
 
       {/* Logistics */}
-      {state.selectedAddress && (
-        <FilteredLogisticsSelector
+      {state.selectedAddress && product && (
+        <LogisticsProviderSelector
+          product={product}
           deliveryAddress={state.selectedAddress}
+          quantity={state.quantity}
           selectedProvider={state.selectedLogistics}
           onProviderSelect={(p) => updateState({ selectedLogistics: p })}
-          productPrice={product?.price || 0}
         />
       )}
 

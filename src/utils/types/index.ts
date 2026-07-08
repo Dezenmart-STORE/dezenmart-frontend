@@ -64,6 +64,13 @@ export interface Product {
   logisticsCost: string[];
   paymentToken: string;
   logisticsProviders: string[];
+  /** Weight of a single unit in kg. Used to price logistics (weight = weightPerUnit × quantity).
+   *  Optional: older products predate this field — see LEGACY defaults in config/logistics. */
+  weightPerUnit?: number;
+  /** Origin state the item ships from — used as `fromState` for logistics routing. Optional (legacy). */
+  fromState?: string;
+  /** Origin LGA the item ships from — used as `fromLga` for logistics routing. Optional (legacy). */
+  fromLga?: string;
   /** On-chain numeric trade ID assigned by the escrow contract when the listing was created */
   tradeId?: string;
 }
@@ -194,6 +201,99 @@ export interface Logistics {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+// ── Logistics: locations, providers & route pricing ────────────────────
+export interface CoverageArea {
+  state: string;
+  lgas: string[];
+  isStatewide: boolean;
+}
+
+/** Full provider profile from GET /logistics/providers */
+export interface ProviderProfile {
+  _id: string;
+  userId?: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  walletAddress: string;
+  coverageAreas: CoverageArea[];
+  rating: number;
+  totalDeliveries: number;
+  verificationStatus: "pending" | "verified" | "rejected" | string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * A provider returned by GET /logistics/available for a specific route + weight.
+ * `cost` and `estimatedDays` are normalised client-side from the raw pricing
+ * fields (see normalizeAvailable in logisticsApi) so the UI has a stable shape.
+ */
+export interface AvailableProvider extends Partial<ProviderProfile> {
+  _id: string;
+  name: string;
+  walletAddress: string;
+  rating: number;
+  /** Total delivery cost for this route + weight. Undefined when the provider
+   *  has no pricing rule for the route (the response omits pricing fields). */
+  cost?: number;
+  estimatedDays?: string; // human label e.g. "2-3 days"
+  currency?: string;
+}
+
+export type LogisticsSort = "price" | "days" | "rating";
+
+export interface AvailableProvidersQuery {
+  fromState: string;
+  fromLga: string;
+  toState: string;
+  toLga: string;
+  weight: number;
+  sort?: LogisticsSort;
+}
+
+// ── Logistics: provider pricing rules & computed quote ─────────────────
+export type DeliveryType = "intra_lga" | "intra_state" | "inter_state";
+
+export interface PricingWeightTier {
+  minWeight: number;
+  maxWeight: number; // 0 or omitted = unbounded (highest tier)
+  price: number;
+}
+
+/** A provider's pricing rule from GET /logistics/providers/{id}/pricing-rules */
+export interface PricingRule {
+  _id?: string;
+  deliveryType: DeliveryType | string;
+  fromState?: string;
+  fromLga?: string;
+  toState?: string;
+  toLga?: string;
+  weightTiers: PricingWeightTier[];
+  insuranceFee?: number;
+  packagingFee?: number;
+  estimatedDaysMin?: number;
+  estimatedDaysMax?: number;
+  isActive?: boolean;
+}
+
+/** Cost computed client-side from a matching PricingRule for a route + weight. */
+export interface DeliveryQuote {
+  cost: number;
+  estimatedDays?: string; // "2-4 days"
+  daysMin?: number; // for sorting by speed
+  deliveryType: DeliveryType;
+  breakdown: { base: number; insuranceFee: number; packagingFee: number };
+}
+
+export interface RouteInput {
+  fromState: string;
+  fromLga: string;
+  toState: string;
+  toLga: string;
 }
 
 // export type NotificationType = "update" | "funds" | "buyer" | "system";
@@ -416,14 +516,17 @@ export interface MarkReadParams {
 }
 
 // Delivery Address
+// Field names mirror the backend schema exactly:
+//   fullName (not recipientName), phone (not phoneNumber),
+//   street (not address), lga (not city).
 export interface DeliveryAddress {
   _id: string;
   user: string;
   label: string; // e.g., "Home", "Office", "Mom's place"
-  recipientName: string;
-  phoneNumber: string;
-  address: string;
-  city: string;
+  fullName: string;
+  phone: string;
+  street: string;
+  lga: string; // Local Government Area / city
   state: string;
   country: string;
   zipCode: string;
@@ -434,10 +537,10 @@ export interface DeliveryAddress {
 
 export interface CreateDeliveryAddressParams {
   label: string;
-  recipientName: string;
-  phoneNumber: string;
-  address: string;
-  city: string;
+  fullName: string;
+  phone: string;
+  street: string;
+  lga: string;
   state: string;
   country: string;
   zipCode: string;

@@ -2,14 +2,32 @@ import { baseApi } from './baseApi';
 import type {
   DeliveryAddress,
   CreateDeliveryAddressParams,
-  UpdateDeliveryAddressParams
+  UpdateDeliveryAddressParams,
 } from '../../utils/types';
+
+// The backend wraps responses in an envelope:
+//   list      -> { status, results, total, data: { addresses: [] } }
+//   single    -> { status, data: { address: {} } }
+//   delete    -> { status, message }
+// These helpers unwrap the envelope so components receive plain objects.
+interface AddressListEnvelope {
+  data?: { addresses?: DeliveryAddress[] };
+}
+interface AddressEnvelope {
+  data?: { address: DeliveryAddress };
+}
+
+const unwrapList = (res: AddressListEnvelope): DeliveryAddress[] =>
+  res?.data?.addresses ?? [];
+const unwrapOne = (res: AddressEnvelope): DeliveryAddress =>
+  res.data!.address;
 
 export const deliveryAddressApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     // Get all delivery addresses for current user
     getDeliveryAddresses: builder.query<DeliveryAddress[], void>({
       query: () => '/delivery-addresses',
+      transformResponse: unwrapList,
       providesTags: (result) =>
         result
           ? [
@@ -22,13 +40,8 @@ export const deliveryAddressApi = baseApi.injectEndpoints({
     // Get single delivery address by ID
     getDeliveryAddressById: builder.query<DeliveryAddress, string>({
       query: (addressId) => `/delivery-addresses/${addressId}`,
+      transformResponse: unwrapOne,
       providesTags: (result, error, addressId) => [{ type: 'DeliveryAddress', id: addressId }],
-    }),
-
-    // Get default delivery address
-    getDefaultDeliveryAddress: builder.query<DeliveryAddress | null, void>({
-      query: () => '/delivery-addresses/default',
-      providesTags: [{ type: 'DeliveryAddress', id: 'DEFAULT' }],
     }),
 
     // Create new delivery address
@@ -39,6 +52,7 @@ export const deliveryAddressApi = baseApi.injectEndpoints({
         headers: { 'Content-Type': 'application/json' },
         body: addressData,
       }),
+      transformResponse: unwrapOne,
       invalidatesTags: [{ type: 'DeliveryAddress', id: 'LIST' }],
     }),
 
@@ -50,11 +64,10 @@ export const deliveryAddressApi = baseApi.injectEndpoints({
         headers: { 'Content-Type': 'application/json' },
         body: addressData,
       }),
-      invalidatesTags: (result, error, { _id }) => [
-        { type: 'DeliveryAddress', id: _id },
-        { type: 'DeliveryAddress', id: 'LIST' },
-        { type: 'DeliveryAddress', id: 'DEFAULT' },
-      ],
+      transformResponse: unwrapOne,
+      // Setting one address default flips isDefault on the previous default too,
+      // so invalidate the whole list rather than a single id.
+      invalidatesTags: [{ type: 'DeliveryAddress', id: 'LIST' }],
     }),
 
     // Delete delivery address
@@ -66,20 +79,20 @@ export const deliveryAddressApi = baseApi.injectEndpoints({
       invalidatesTags: (result, error, addressId) => [
         { type: 'DeliveryAddress', id: addressId },
         { type: 'DeliveryAddress', id: 'LIST' },
-        { type: 'DeliveryAddress', id: 'DEFAULT' },
       ],
     }),
 
-    // Set address as default
+    // Set an address as default.
+    // The backend has no dedicated route — this is sugar over PUT /:id { isDefault: true }.
     setDefaultDeliveryAddress: builder.mutation<DeliveryAddress, string>({
       query: (addressId) => ({
-        url: `/delivery-addresses/${addressId}/set-default`,
+        url: `/delivery-addresses/${addressId}`,
         method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: { isDefault: true },
       }),
-      invalidatesTags: [
-        { type: 'DeliveryAddress', id: 'LIST' },
-        { type: 'DeliveryAddress', id: 'DEFAULT' },
-      ],
+      transformResponse: unwrapOne,
+      invalidatesTags: [{ type: 'DeliveryAddress', id: 'LIST' }],
     }),
   }),
 });
@@ -87,7 +100,6 @@ export const deliveryAddressApi = baseApi.injectEndpoints({
 export const {
   useGetDeliveryAddressesQuery,
   useGetDeliveryAddressByIdQuery,
-  useGetDefaultDeliveryAddressQuery,
   useCreateDeliveryAddressMutation,
   useUpdateDeliveryAddressMutation,
   useDeleteDeliveryAddressMutation,

@@ -1,14 +1,14 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaPlus, FaMapMarkerAlt, FaStar, FaCheck } from 'react-icons/fa';
-import { HiCheckCircle } from 'react-icons/hi2';
+import { FaPlus, FaMapMarkerAlt } from 'react-icons/fa';
 import {
   useGetDeliveryAddressesQuery,
-  useGetDefaultDeliveryAddressQuery,
   useCreateDeliveryAddressMutation,
 } from '../../../store/api';
 import type { DeliveryAddress, CreateDeliveryAddressParams } from '../../../utils/types';
 import LoadingSpinner from '../../common/LoadingSpinner';
+import AddressCard from '../../account/address/AddressCard';
+import AddressForm from '../../account/address/AddressForm';
 
 interface DeliveryAddressSelectorProps {
   selectedAddress: DeliveryAddress | null;
@@ -19,52 +19,30 @@ const DeliveryAddressSelector: React.FC<DeliveryAddressSelectorProps> = ({
   selectedAddress,
   onAddressSelect,
 }) => {
-  const { data: addresses = [], isLoading, error: fetchError } = useGetDeliveryAddressesQuery(undefined, {
-    // Temporarily skip this query until delivery address API goes live
-    skip: true,
-  });
-  const { data: defaultAddress } = useGetDefaultDeliveryAddressQuery(undefined, {
-    skip: true,
-  });
+  const { data: addresses = [], isLoading, isError, refetch } =
+    useGetDeliveryAddressesQuery();
   const [createAddress, { isLoading: isCreating }] = useCreateDeliveryAddressMutation();
 
   const [showAddForm, setShowAddForm] = useState(false);
-  const [formData, setFormData] = useState<CreateDeliveryAddressParams>({
-    label: '',
-    recipientName: '',
-    phoneNumber: '',
-    address: '',
-    city: '',
-    state: '',
-    country: '',
-    zipCode: '',
-    isDefault: false,
-  });
 
-  // Auto-select default address if no address is selected
-  React.useEffect(() => {
+  // No dedicated "default" endpoint — derive it from the list.
+  const defaultAddress = useMemo(
+    () => addresses.find((a) => a.isDefault) ?? addresses[0] ?? null,
+    [addresses]
+  );
+
+  // Auto-select the default (or first) address once, when nothing is chosen yet.
+  useEffect(() => {
     if (!selectedAddress && defaultAddress) {
       onAddressSelect(defaultAddress);
     }
   }, [defaultAddress, selectedAddress, onAddressSelect]);
 
-  const handleCreateAddress = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleCreateAddress = async (values: CreateDeliveryAddressParams) => {
     try {
-      const newAddress = await createAddress(formData).unwrap();
+      const newAddress = await createAddress(values).unwrap();
       onAddressSelect(newAddress);
       setShowAddForm(false);
-      setFormData({
-        label: '',
-        recipientName: '',
-        phoneNumber: '',
-        address: '',
-        city: '',
-        state: '',
-        country: '',
-        zipCode: '',
-        isDefault: false,
-      });
     } catch (error) {
       console.error('Failed to create address:', error);
     }
@@ -96,109 +74,39 @@ const DeliveryAddressSelector: React.FC<DeliveryAddressSelectorProps> = ({
         )}
       </div>
 
-      {/* Quick Add Form */}
+      {/* Add Form */}
       <AnimatePresence>
         {showAddForm && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="bg-[#1a1c20] rounded-lg p-4 border border-gray-700"
+            className="bg-[#1a1c20] rounded-xl p-4 border border-[#3A3A3C] overflow-hidden"
           >
-            <h4 className="text-sm font-semibold text-white mb-3">Quick Add Address</h4>
-            <form onSubmit={handleCreateAddress} className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <input
-                  type="text"
-                  required
-                  value={formData.label}
-                  onChange={(e) => setFormData({ ...formData, label: e.target.value })}
-                  className="col-span-2 bg-[#212428] text-white px-3 py-2 rounded text-sm border border-gray-700 focus:border-red-500 focus:outline-none"
-                  placeholder="Label (e.g., Home)"
-                />
-                <input
-                  type="text"
-                  required
-                  value={formData.recipientName}
-                  onChange={(e) => setFormData({ ...formData, recipientName: e.target.value })}
-                  className="bg-[#212428] text-white px-3 py-2 rounded text-sm border border-gray-700 focus:border-red-500 focus:outline-none"
-                  placeholder="Recipient Name"
-                />
-                <input
-                  type="tel"
-                  required
-                  value={formData.phoneNumber}
-                  onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
-                  className="bg-[#212428] text-white px-3 py-2 rounded text-sm border border-gray-700 focus:border-red-500 focus:outline-none"
-                  placeholder="Phone Number"
-                />
-                <input
-                  type="text"
-                  required
-                  value={formData.address}
-                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  className="col-span-2 bg-[#212428] text-white px-3 py-2 rounded text-sm border border-gray-700 focus:border-red-500 focus:outline-none"
-                  placeholder="Street Address"
-                />
-                <input
-                  type="text"
-                  required
-                  value={formData.city}
-                  onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                  className="bg-[#212428] text-white px-3 py-2 rounded text-sm border border-gray-700 focus:border-red-500 focus:outline-none"
-                  placeholder="City"
-                />
-                <input
-                  type="text"
-                  required
-                  value={formData.state}
-                  onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-                  className="bg-[#212428] text-white px-3 py-2 rounded text-sm border border-gray-700 focus:border-red-500 focus:outline-none"
-                  placeholder="State"
-                />
-                <input
-                  type="text"
-                  required
-                  value={formData.country}
-                  onChange={(e) => setFormData({ ...formData, country: e.target.value })}
-                  className="bg-[#212428] text-white px-3 py-2 rounded text-sm border border-gray-700 focus:border-red-500 focus:outline-none"
-                  placeholder="Country"
-                />
-                <input
-                  type="text"
-                  required
-                  value={formData.zipCode}
-                  onChange={(e) => setFormData({ ...formData, zipCode: e.target.value })}
-                  className="bg-[#212428] text-white px-3 py-2 rounded text-sm border border-gray-700 focus:border-red-500 focus:outline-none"
-                  placeholder="ZIP Code"
-                />
-              </div>
-
-              <div className="flex gap-2">
-                <button
-                  type="submit"
-                  disabled={isCreating}
-                  className="flex-1 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white px-4 py-2 rounded text-sm transition-colors flex items-center justify-center gap-2"
-                >
-                  {isCreating ? <LoadingSpinner /> : <HiCheckCircle className="w-4 h-4" />}
-                  Save & Use
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowAddForm(false)}
-                  className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm transition-colors"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
+            <h4 className="text-sm font-semibold text-white mb-3">New Address</h4>
+            <AddressForm
+              onSubmit={handleCreateAddress}
+              onCancel={() => setShowAddForm(false)}
+              isSaving={isCreating}
+              submitLabel="Save & Use"
+            />
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Address List */}
-      {addresses.length === 0 ? (
-        <div className="text-center py-8 bg-[#1a1c20] rounded-lg border border-gray-700">
+      {/* Error */}
+      {isError ? (
+        <div className="text-center py-8 bg-[#1a1c20] rounded-xl border border-[#3A3A3C]">
+          <p className="text-gray-400 mb-3">Couldn't load your addresses</p>
+          <button
+            onClick={() => refetch()}
+            className="text-red-500 hover:text-red-400 text-sm transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      ) : addresses.length === 0 && !showAddForm ? (
+        <div className="text-center py-8 bg-[#1a1c20] rounded-xl border border-[#3A3A3C]">
           <FaMapMarkerAlt className="w-12 h-12 mx-auto text-gray-600 mb-3" />
           <p className="text-gray-400 mb-2">No saved addresses</p>
           <button
@@ -210,41 +118,15 @@ const DeliveryAddressSelector: React.FC<DeliveryAddressSelectorProps> = ({
           </button>
         </div>
       ) : (
-        <div className="space-y-2 max-h-64 overflow-y-auto">
+        <div className="space-y-2 max-h-72 overflow-y-auto pr-0.5">
           {addresses.map((address) => (
-            <motion.button
+            <AddressCard
               key={address._id}
-              onClick={() => onAddressSelect(address)}
-              className={`w-full text-left p-3 rounded-lg border-2 transition-all ${
-                selectedAddress?._id === address._id
-                  ? 'border-red-600 bg-red-600/10'
-                  : 'border-gray-700 bg-[#1a1c20] hover:border-gray-600'
-              }`}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="font-semibold text-white text-sm">{address.label}</span>
-                    {address.isDefault && (
-                      <span className="bg-red-600 text-white px-2 py-0.5 rounded text-xs font-semibold flex items-center gap-1">
-                        <FaStar className="w-2 h-2" />
-                        Default
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-gray-300 text-sm mb-1">{address.recipientName}</p>
-                  <p className="text-gray-400 text-xs">{address.phoneNumber}</p>
-                  <p className="text-gray-400 text-xs mt-1">
-                    {address.address}, {address.city}, {address.state}
-                  </p>
-                </div>
-                {selectedAddress?._id === address._id && (
-                  <FaCheck className="text-red-500 w-5 h-5 flex-shrink-0" />
-                )}
-              </div>
-            </motion.button>
+              address={address}
+              selectable
+              selected={selectedAddress?._id === address._id}
+              onSelect={() => onAddressSelect(address)}
+            />
           ))}
         </div>
       )}

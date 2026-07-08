@@ -10,4 +10,5 @@ export * from './referralsApi';
 export * from './rewardsApi';
 export * from './tradesApi';
 export * from './deliveryAddressApi';
+export * from './logisticsApi';
 export { baseApi } from './baseApi';
