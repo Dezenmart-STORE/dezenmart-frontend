@@ -239,7 +239,7 @@ export interface AvailableProvider extends Partial<ProviderProfile> {
   /** Total delivery cost for this route + weight. Undefined when the provider
    *  has no pricing rule for the route (the response omits pricing fields). */
   cost?: number;
-  estimatedDays?: string; // human label e.g. "2-3 days"
+estimatedDays?: string; // human label e.g. "2-3 days"
   currency?: string;
 }
 

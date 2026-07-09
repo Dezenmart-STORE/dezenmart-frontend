@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { FaTruck, FaCheck, FaStar, FaSearch } from "react-icons/fa";
 import { HiExclamationTriangle, HiCheckBadge } from "react-icons/hi2";
 import {
+  useGetAllProvidersQuery,
   useGetAvailableProvidersQuery,
   useGetProviderPricingRulesQuery,
 } from "../../../store/api";
@@ -54,7 +55,8 @@ const LogisticsProviderSelector: React.FC<Props> = ({
   );
 
   const { data: providers = [], isLoading, isFetching, isError, refetch } =
-    useGetAvailableProvidersQuery({
+    // useGetAvailableProvidersQuery
+    useGetAllProvidersQuery({
       fromState,
       fromLga,
       toState: deliveryAddress.state,
