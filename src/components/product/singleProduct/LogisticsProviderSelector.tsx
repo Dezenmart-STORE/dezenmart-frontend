@@ -44,9 +44,9 @@ const LogisticsProviderSelector: React.FC<Props> = ({
   const [quotes, setQuotes] = useState<Record<string, DeliveryQuote | null>>({});
 
   // Origin + weight (fall back to legacy defaults for older products).
-  const fromState = product.fromState || LEGACY_ORIGIN.state;
-  const fromLga = product.fromLga || LEGACY_ORIGIN.lga;
-  const weight = (product.weightPerUnit || DEFAULT_WEIGHT_PER_UNIT) * Math.max(1, quantity);
+  const fromState = product.state || LEGACY_ORIGIN.state;
+  const fromLga = product.lga || LEGACY_ORIGIN.lga;
+  const weight = (product.weight || DEFAULT_WEIGHT_PER_UNIT) * Math.max(1, quantity);
 
   const route = useMemo<RouteInput>(
     () => ({ fromState, fromLga, toState: deliveryAddress.state, toLga: deliveryAddress.lga }),

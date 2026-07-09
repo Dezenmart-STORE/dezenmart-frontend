@@ -69,16 +69,20 @@ const normalizeAvailable = (raw: RawProvider): AvailableProvider => {
 
 export const logisticsApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
-    // Nigerian states (for address forms)
+    // Nigerian states (for address + product forms).
+    // Effectively static, so keep the cache for a day to avoid refetching.
     getNigerianStates: builder.query<string[], void>({
       query: () => '/logistics/locations/states',
       transformResponse: (res: StatesEnvelope) => res?.data?.states ?? [],
+      keepUnusedDataFor: 86400,
     }),
 
-    // LGAs for a given state (dependent on selected state)
+    // LGAs for a given state (dependent on selected state). Also static; cached
+    // per-state for a day so switching back to a state doesn't refetch.
     getStateLgas: builder.query<string[], string>({
       query: (state) => `/logistics/locations/states/${encodeURIComponent(state)}/lgas`,
       transformResponse: (res: LgasEnvelope) => res?.data?.lgas ?? [],
+      keepUnusedDataFor: 86400,
     }),
 
     // Available providers for a specific route + weight, with pricing.

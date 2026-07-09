@@ -47,6 +47,9 @@ const SAMPLE_PRODUCTS: Product[] = [
     logisticsCost: [],
     logisticsProviders: [],
     paymentToken: "cUSD",
+    weight: 1,
+    state: "Lagos",
+    lga: "Ikeja",
   },
   {
     _id: "68082f7a7d3f057ab0fafd5c",
@@ -69,6 +72,9 @@ const SAMPLE_PRODUCTS: Product[] = [
     logisticsCost: [],
     logisticsProviders: [],
     paymentToken: "cUSD",
+    weight: 1,
+    state: "Lagos",
+    lga: "Ikeja",
   },
 ];
 
@@ -93,6 +99,9 @@ const SAMPLE_INCOMING_ORDERS: Product[] = [
     logisticsCost: [],
     logisticsProviders: [],
     paymentToken: "cUSD",
+    weight: 1,
+    state: "Lagos",
+    lga: "Ikeja",
   },
 ];
 

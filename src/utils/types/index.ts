@@ -64,13 +64,12 @@ export interface Product {
   logisticsCost: string[];
   paymentToken: string;
   logisticsProviders: string[];
-  /** Weight of a single unit in kg. Used to price logistics (weight = weightPerUnit × quantity).
-   *  Optional: older products predate this field — see LEGACY defaults in config/logistics. */
-  weightPerUnit?: number;
-  /** Origin state the item ships from — used as `fromState` for logistics routing. Optional (legacy). */
-  fromState?: string;
-  /** Origin LGA the item ships from — used as `fromLga` for logistics routing. Optional (legacy). */
-  fromLga?: string;
+  /** Unit weight in kg. Priced as weight × quantity for logistics. */
+  weight: number;
+  /** Origin state the item ships from — the `fromState` for logistics routing. */
+  state: string;
+  /** Origin city/LGA the item ships from — the `fromLga` for logistics routing. */
+  lga: string;
   /** On-chain numeric trade ID assigned by the escrow contract when the listing was created */
   tradeId?: string;
 }

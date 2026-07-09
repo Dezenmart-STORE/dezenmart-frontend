@@ -9,7 +9,10 @@ import {
 import { FiInfo, FiCheck } from "react-icons/fi";
 import {
   useCreateProductMutation,
+  useGetNigerianStatesQuery,
+  useGetStateLgasQuery,
 } from "../../../../store/api";
+import { FALLBACK_STATES } from "../../../account/address/constants";
 import { useSnackbar } from "../../../../context/SnackbarContext";
 import { useAccount, useChainId } from "wagmi";
 import { useCurrency } from "../../../../context/CurrencyContext";
@@ -29,6 +32,9 @@ interface FormErrors {
   price?: string;
   media?: string;
   stock?: string;
+  weight?: string;
+  state?: string;
+  lga?: string;
   sellerWalletAddress?: string;
   variants?: string;
   submit?: string;
@@ -76,6 +82,17 @@ const inputCls = (hasError?: boolean) =>
     hasError ? "ring-1 ring-red-500" : ""
   }`;
 
+// ── Select chevron ─────────────────────────────────────────────────────
+function Chevron() {
+  return (
+    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+      <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+        <path fillRule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z" />
+      </svg>
+    </div>
+  );
+}
+
 // ── Section card ───────────────────────────────────────────────────────
 function Section({
   title,
@@ -106,10 +123,21 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
     description: "",
     category: "",
     stock: "",
+    weight: "",
+    state: "",
+    lga: "",
     sellerWalletAddress: "",
     priceInUSDT: "",
     priceInToken: "",
   });
+
+  // Origin state/LGA come from the backend; LGAs depend on the selected state.
+  const { data: fetchedStates = [] } = useGetNigerianStatesQuery();
+  const originStates = fetchedStates.length ? fetchedStates : FALLBACK_STATES;
+  const { data: originLgas = [], isFetching: lgasFetching } = useGetStateLgasQuery(
+    form.state,
+    { skip: !form.state }
+  );
   const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
   const [paymentToken, setPaymentToken] = useState(selectedToken?.symbol ?? "USDT");
   const [variants, setVariants] = useState<ProductVariant[]>([
@@ -217,6 +245,13 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
     if (!stock.trim()) e.stock = "Stock quantity is required";
     else if (isNaN(stockNum) || stockNum <= 0) e.stock = "Enter a valid whole number";
 
+    const weightNum = parseFloat(form.weight);
+    if (!form.weight.trim()) e.weight = "Weight is required";
+    else if (isNaN(weightNum) || weightNum <= 0) e.weight = "Enter a valid weight in kg";
+
+    if (!form.state) e.state = "Origin state is required";
+    if (!form.lga) e.lga = "Origin city / LGA is required";
+
     if (!sellerWalletAddress.trim()) {
       e.sellerWalletAddress = "Wallet address is required";
     } else if (!/^0x[a-fA-F0-9]{40}$/.test(sellerWalletAddress)) {
@@ -260,6 +295,9 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
       formData.append("category", category);
       formData.append("price", priceToSend);
       formData.append("stock", stock);
+      formData.append("weight", form.weight);
+      formData.append("state", form.state);
+      formData.append("lga", form.lga);
       formData.append("sellerWalletAddress", sellerWalletAddress);
       formData.append("useUSDT", isStable ? "true" : "false");
       formData.append("paymentToken", tokenSymbol);
@@ -273,22 +311,20 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
         }
       }
 
-      // Default logistics (handled at checkout)
-      formData.append("logisticsProviders", "0x0c9db90a95a78bf6d9b2448fde00210f36ba61e4");
-      formData.append("logisticsCosts", "1");
+      // Logistics providers are chosen by the buyer at checkout via /logistics/available,
+      // so nothing product-specific is sent here anymore.
 
+      // `type` is required by the API — always send it (empty array when no variants).
       const validVariants = variants.filter((v) => v.properties.length > 0);
-      if (validVariants.length > 0) {
-        const formatted = validVariants.map((v) => {
-          const obj: Record<string, string | number> = { quantity: v.quantity || 0 };
-          v.properties.forEach((p) => {
-            const n = Number(p.value);
-            obj[p.name.toLowerCase()] = !isNaN(n) && p.value.trim() !== "" ? n : p.value;
-          });
-          return obj;
+      const formattedVariants = validVariants.map((v) => {
+        const obj: Record<string, string | number> = { quantity: v.quantity || 0 };
+        v.properties.forEach((p) => {
+          const n = Number(p.value);
+          obj[p.name.toLowerCase()] = !isNaN(n) && p.value.trim() !== "" ? n : p.value;
         });
-        formData.append("type", JSON.stringify(formatted));
-      }
+        return obj;
+      });
+      formData.append("type", JSON.stringify(formattedVariants));
 
       mediaFiles.forEach((m) => formData.append("images", m.file));
 
@@ -298,7 +334,7 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
       onProductCreated?.();
 
       setTimeout(() => {
-        setForm({ name: "", description: "", category: "", stock: "", sellerWalletAddress: address ?? "", priceInUSDT: "", priceInToken: "" });
+        setForm({ name: "", description: "", category: "", stock: "", weight: "", state: "", lga: "", sellerWalletAddress: address ?? "", priceInUSDT: "", priceInToken: "" });
         setMediaFiles([]);
         setVariants([{ id: `v-${Date.now()}`, properties: [], quantity: 0 }]);
         setSuccess(false);
@@ -358,11 +394,7 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
                 <option key={c} value={c}>{c}</option>
               ))}
             </select>
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-              <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
-                <path fillRule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z" />
-              </svg>
-            </div>
+            <Chevron />
           </div>
         </Field>
       </Section>
@@ -402,6 +434,74 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
             onChange={setVariants}
             error={errors.variants}
           />
+        </div>
+      </Section>
+
+      {/* Delivery — origin + weight drive the buyer's shipping options & cost */}
+      <Section title="Delivery">
+        <p className="text-xs text-gray-500 -mt-1">
+          Buyers see delivery providers and cost at checkout based on where this
+          ships from and how much it weighs.
+        </p>
+
+        <Field label="Item weight (kg)" error={errors.weight}>
+          <input
+            type="number"
+            min="0"
+            step="0.1"
+            inputMode="decimal"
+            value={form.weight}
+            onChange={(e) => setField("weight", e.target.value)}
+            placeholder="Weight of one item, e.g. 1.5"
+            className={inputCls(!!errors.weight)}
+          />
+        </Field>
+
+        <div className="border-t border-[#3A3C41] pt-3">
+          <p className="text-sm font-medium text-gray-300 mb-2">Ships from</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Field label="State" error={errors.state}>
+              <div className="relative">
+                <select
+                  value={form.state}
+                  onChange={(e) => {
+                    setForm((prev) => ({ ...prev, state: e.target.value, lga: "" }));
+                    setErrors((prev) => ({ ...prev, state: undefined, lga: undefined }));
+                  }}
+                  className={`${inputCls(!!errors.state)} appearance-none pr-8 ${
+                    form.state ? "text-white" : "text-gray-600"
+                  }`}
+                >
+                  <option value="" disabled>Select state</option>
+                  {originStates.map((s) => (
+                    <option key={s} value={s} className="text-white bg-[#3A3C41]">{s}</option>
+                  ))}
+                </select>
+                <Chevron />
+              </div>
+            </Field>
+
+            <Field label="City / LGA" error={errors.lga}>
+              <div className="relative">
+                <select
+                  value={form.lga}
+                  onChange={(e) => setField("lga", e.target.value)}
+                  disabled={!form.state}
+                  className={`${inputCls(!!errors.lga)} appearance-none pr-8 disabled:opacity-50 ${
+                    form.lga ? "text-white" : "text-gray-600"
+                  }`}
+                >
+                  <option value="" disabled>
+                    {!form.state ? "Select a state first" : lgasFetching ? "Loading…" : "Select city / LGA"}
+                  </option>
+                  {originLgas.map((l) => (
+                    <option key={l} value={l} className="text-white bg-[#3A3C41]">{l}</option>
+                  ))}
+                </select>
+                <Chevron />
+              </div>
+            </Field>
+          </div>
         </div>
       </Section>
 
