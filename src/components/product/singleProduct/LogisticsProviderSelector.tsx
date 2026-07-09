@@ -54,15 +54,14 @@ const LogisticsProviderSelector: React.FC<Props> = ({
     [fromState, fromLga, deliveryAddress.state, deliveryAddress.lga]
   );
 
-  const { data: providers = [], isLoading, isFetching, isError, refetch } =
-    // useGetAvailableProvidersQuery
-    useGetAllProvidersQuery({
-      fromState,
-      fromLga,
-      toState: deliveryAddress.state,
-      toLga: deliveryAddress.lga,
-      weight,
-    });
+  const { data: providers = [], isLoading, isFetching, isError, refetch } = useGetAllProvidersQuery()
+    // useGetAvailableProvidersQuery({
+    //   fromState,
+    //   fromLga,
+    //   toState: deliveryAddress.state,
+    //   toLga: deliveryAddress.lga,
+    //   weight,
+    // });
 
   const tokenSymbol = product.paymentToken || "USDT";
 
