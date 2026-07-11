@@ -35,6 +35,10 @@ import {
 import { registerServiceWorker, triggerSWUpdate } from "./utils/pwa/index.ts";
 import { initDebugTools } from "./utils/debug/index.ts";
 import "./utils/dev/injectAuth.ts";
+import { RampProvider } from "./components/rampp/RampContext.tsx";
+import { FloatingRampButton } from "./components/rampp/FloatingRampButton.tsx";
+import { RampModal } from "./components/rampp/RampModal.tsx";
+import { RampMinimalProvider } from "./components/ramp/USAGE_EXAMPLE.tsx";
 
 // ── Startup: version-based stale cache cleanup ──────────────────────────────
 // When a new version is deployed, clear data that may be stale or reference
@@ -184,6 +188,19 @@ const RouterLayout = () => {
           <WagmiProvider config={wagmiConfig}>
             <QueryClientProvider client={queryClient}>
               <AuthProvider>
+                    <RampMinimalProvider
+                      // defaultCustomer={{
+                      //   email: "user@dezenmart.io",
+                      //   first_name: "John",
+                      //   last_name: "Doe",
+                      // }}
+                    >
+                            {/* <FloatingRampButton
+                              defaultMode="onramp"
+                              position="bottom-right"
+                              label="Buy / Sell Crypto"
+                            /> */}
+                                {/* <RampModal /> */}
                 <TermsProvider>
                   <CurrencyProvider>
                     <WalkthroughProvider>
@@ -203,6 +220,7 @@ const RouterLayout = () => {
                     </WalkthroughProvider>
                   </CurrencyProvider>
                 </TermsProvider>
+                     </RampMinimalProvider>
               </AuthProvider>
             </QueryClientProvider>
           </WagmiProvider>
