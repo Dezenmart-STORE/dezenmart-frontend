@@ -33,7 +33,7 @@ import { debounce } from "lodash-es";
 import QuantitySelector from "./QuantitySelector";
 import DeliveryAddressSelector from "./DeliveryAddressSelector";
 import LogisticsProviderSelector from "./LogisticsProviderSelector";
-import type { DeliveryAddress, AvailableProvider } from "../../../utils/types";
+import type { DeliveryAddress, AvailableProvider, CreateOrderParams } from "../../../utils/types";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface FormattedProduct extends Product {
@@ -454,12 +454,25 @@ export const PurchaseSectionProvider: React.FC<
 
   const executeOrder = useCallback(async () => {
     if (!product) return;
+    if (!state.selectedAddress) {
+      updateState({ purchaseError: "Please select a delivery address." });
+      return;
+    }
+    if (!state.selectedLogistics) {
+      updateState({ purchaseError: "Please select a delivery provider." });
+      return;
+    }
     updateState({ isProcessing: true, purchaseError: null });
     try {
-      const orderData: any = { product: product._id as any, quantity: state.quantity };
-      if (state.selectedLogistics) {
-        orderData.logisticsProviderWalletAddress = [state.selectedLogistics.walletAddress];
-      }
+      const orderData: CreateOrderParams = {
+        product: product._id,
+        quantity: state.quantity,
+        logisticsProvider: state.selectedLogistics.walletAddress,
+        deliveryAddress: state.selectedAddress._id,
+        // TEMP: backend added these by mistake and will remove them. Static for now.
+        deliveryFee: state.selectedLogistics.cost ?? 0,
+        expectedDeliveryDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
+      };
       const order = await createOrder(orderData).unwrap();
       if (!order?._id) throw new Error("Order creation failed");
       refreshTokenBalance();
@@ -469,7 +482,7 @@ export const PurchaseSectionProvider: React.FC<
     } finally {
       updateState({ isProcessing: false });
     }
-  }, [product, state.selectedLogistics, state.quantity, createOrder, refreshTokenBalance, navigate, updateState]);
+  }, [product, state.selectedAddress, state.selectedLogistics, state.quantity, createOrder, refreshTokenBalance, navigate, updateState]);
 
   const handleButtonClick = useCallback(async () => {
     updateState({ purchaseError: null });

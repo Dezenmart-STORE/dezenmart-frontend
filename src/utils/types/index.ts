@@ -514,6 +514,20 @@ export interface MarkReadParams {
   messageIds: string[];
 }
 
+// POST /orders body.
+export interface CreateOrderParams {
+  product: string;
+  quantity: number;
+  /** Provider wallet address — a single string, not an array. */
+  logisticsProvider: string;
+  /** Delivery address id. */
+  deliveryAddress: string;
+  // TEMP: the backend added these two by mistake and will remove them.
+  // We send static/derived values for now so the demo works. Remove once the API drops them.
+  deliveryFee: number;
+  expectedDeliveryDate: string;
+}
+
 // Delivery Address
 // Field names mirror the backend schema exactly:
 //   fullName (not recipientName), phone (not phoneNumber),

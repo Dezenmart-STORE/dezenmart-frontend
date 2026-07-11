@@ -1,5 +1,5 @@
 import { baseApi } from './baseApi';
-import type { Order, OrderStatus } from '../../utils/types';
+import type { Order, OrderStatus, CreateOrderParams } from '../../utils/types';
 
 export const ordersApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
@@ -42,7 +42,7 @@ export const ordersApi = baseApi.injectEndpoints({
     }),
 
     // Create order
-    createOrder: builder.mutation<Order, Partial<Order>>({
+    createOrder: builder.mutation<Order, CreateOrderParams>({
       query: (orderData) => ({
         url: '/orders',
         method: 'POST',
