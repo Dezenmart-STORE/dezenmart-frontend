@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { LiaAngleLeftSolid } from 'react-icons/lia';
-import { RiTelegramLine, RiTwitterXLine, RiExternalLinkLine } from 'react-icons/ri';
+import { RiTwitterXLine, RiLinkedinBoxLine, RiExternalLinkLine } from 'react-icons/ri';
 import { HiOutlineGlobe, HiOutlineMail } from 'react-icons/hi';
 const logo = '/images/logo.svg';
 
@@ -10,28 +10,34 @@ const LINKS = [
   {
     icon: <HiOutlineGlobe className="text-white text-base" />,
     label: 'Website',
-    href: 'https://dezenmart.io',
+    href: 'https://dezenmart.com',
   },
-  {
-    icon: <RiTelegramLine className="text-blue-400 text-base" />,
-    label: 'Telegram community',
-    href: 'https://t.me/dezenmart_commuinity',
-  },
+  // Telegram removed — we only use X and LinkedIn.
+  // {
+  //   icon: <RiTelegramLine className="text-blue-400 text-base" />,
+  //   label: 'Telegram community',
+  //   href: 'https://t.me/dezenmart_commuinity',
+  // },
   {
     icon: <RiTwitterXLine className="text-white text-base" />,
-    label: 'Twitter / X',
-    href: 'https://x.com/dezenmart',
+    label: 'X (Twitter)',
+    href: 'https://x.com/Dezenmart?s=20',
+  },
+  {
+    icon: <RiLinkedinBoxLine className="text-white text-base" />,
+    label: 'LinkedIn',
+    href: 'https://linkedin.com/company/dezenmart',
   },
   {
     icon: <HiOutlineMail className="text-white text-base" />,
     label: 'Contact us',
-    href: 'mailto:hello@dezenmart.io',
+    href: 'mailto:info@dezenmart.com',
   },
 ];
 
 const LEGAL = [
-  { label: 'Privacy Policy', href: 'https://dezenmart.io/privacy' },
-  { label: 'Terms of Service', href: 'https://dezenmart.io/terms' },
+  { label: 'Privacy Policy', href: 'https://dezenmart.com/privacy' },
+  { label: 'Terms of Service', href: 'https://dezenmart.com/terms' },
 ];
 
 const About = ({ onBack }: { onBack: () => void }) => (

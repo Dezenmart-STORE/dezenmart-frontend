@@ -43,6 +43,7 @@ const LogisticsProviderSelector: React.FC<Props> = ({
   const [sort, setSort] = useState<LogisticsSort>("price");
   const [search, setSearch] = useState("");
   const [quotes, setQuotes] = useState<Record<string, DeliveryQuote | null>>({});
+  const [expanded, setExpanded] = useState(false);
 
   // Origin + weight (fall back to legacy defaults for older products).
   const fromState = product.state || LEGACY_ORIGIN.state;
@@ -108,20 +109,51 @@ const LogisticsProviderSelector: React.FC<Props> = ({
     }
   }, [quotes, selectedProvider, onProviderSelect]);
 
+  const handleSelect = useCallback(
+    (p: AvailableProvider) => {
+      onProviderSelect(p);
+      setExpanded(false);
+    },
+    [onProviderSelect]
+  );
+
+  // Collapse to the chosen provider once picked, so a long list isn't always open.
+  const collapsed =
+    !!selectedProvider && !expanded && !isLoading && !isError && providers.length > 0;
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-semibold text-white flex items-center gap-2">
           <FaTruck className="text-red-500" />
-          Select Delivery Service
+          Delivery Service
         </h3>
-        {!isLoading && !isError && providers.length > 0 && (
+        {collapsed ? (
+          <button
+            onClick={() => setExpanded(true)}
+            className="text-red-500 hover:text-red-400 text-sm transition-colors"
+          >
+            Change
+          </button>
+        ) : !isLoading && !isError && providers.length > 0 ? (
           <span className="text-xs text-gray-400">
             {providers.length} option{providers.length !== 1 ? "s" : ""}
           </span>
-        )}
+        ) : null}
       </div>
 
+      {collapsed && selectedProvider ? (
+        <ProviderRow
+          provider={selectedProvider}
+          route={route}
+          weight={weight}
+          tokenSymbol={tokenSymbol}
+          selected
+          onSelect={() => setExpanded(true)}
+          onQuote={reportQuote}
+        />
+      ) : (
+      <>
       {/* Route + weight transparency */}
       <p className="text-xs text-gray-500">
         Pricing for <span className="text-gray-300">{weight}kg</span> to{" "}
@@ -200,7 +232,7 @@ const LogisticsProviderSelector: React.FC<Props> = ({
           No providers match "{search}".
         </p>
       ) : (
-        <div className={`space-y-2 ${isFetching ? "opacity-60" : ""}`}>
+        <div className={`space-y-2 max-h-[20rem] overflow-y-auto pr-0.5 ${isFetching ? "opacity-60" : ""}`}>
           {visible.map((provider) => (
             <ProviderRow
               key={provider.walletAddress}
@@ -209,11 +241,13 @@ const LogisticsProviderSelector: React.FC<Props> = ({
               weight={weight}
               tokenSymbol={tokenSymbol}
               selected={selectedProvider?.walletAddress === provider.walletAddress}
-              onSelect={onProviderSelect}
+              onSelect={handleSelect}
               onQuote={reportQuote}
             />
           ))}
         </div>
+      )}
+      </>
       )}
     </div>
   );

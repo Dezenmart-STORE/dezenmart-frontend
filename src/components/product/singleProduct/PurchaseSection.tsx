@@ -600,9 +600,6 @@ export const PurchaseSectionBody: React.FC = () => {
 
   return (
     <div className="bg-[#212428] px-4 py-4 md:px-6 space-y-4 border-t border-gray-700/30">
-      {/* Error */}
-      <ErrorDisplay error={state.purchaseError} />
-
       {/* Quantity + stock */}
       <div className="flex justify-between items-center">
         <QuantitySelector
@@ -702,6 +699,12 @@ export const PurchaseSectionFooter: React.FC = () => {
   return (
     <>
       <div className="bg-[#212428] px-4 pb-4 pt-3 md:px-6 md:pb-6 xl:flex-shrink-0 border-t border-gray-700/40">
+        {/* Error shown right by the button so it's visible on tap */}
+        {state.purchaseError && (
+          <div className="mb-3">
+            <ErrorDisplay error={state.purchaseError} />
+          </div>
+        )}
         <button
           onClick={handleButtonClick}
           disabled={isLoading || stockStatus.isOutOfStock}

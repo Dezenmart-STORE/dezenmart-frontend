@@ -4,13 +4,11 @@ import Button from "../components/common/Button";
 import { FormEvent, useState } from "react";
 import {
   FaFacebookF,
-  FaTwitter,
-  // FaSnapchatGhost,
   FaInstagram,
   FaLinkedinIn,
-  // FaGithub,
   FaTelegram,
 } from "react-icons/fa";
+import { FaXTwitter } from "react-icons/fa6";
 import { BsPeople } from "react-icons/bs";
 import { AiOutlineCalendar, AiOutlineMail } from "react-icons/ai";
 import { Rocket } from ".";
@@ -65,9 +63,10 @@ const Community = () => {
     }
   };
 
-  const handleTelegramJoin = () => {
-    window.open("https://t.me/dezenmart_commuinity", "_blank");
-  };
+  // Telegram community removed — we only use X and LinkedIn.
+  // const handleTelegramJoin = () => {
+  //   window.open("https://t.me/dezenmart_commuinity", "_blank");
+  // };
 
   // Features kept from original code
   const features = [
@@ -180,6 +179,7 @@ const Community = () => {
                 </div>
               </form>
 
+              {/* Telegram community removed — we only use X and LinkedIn.
               <motion.div
                 variants={itemVariants}
                 whileHover={{ scale: 1.05 }}
@@ -194,6 +194,7 @@ const Community = () => {
                   <span>Join Our Telegram Community</span>
                 </button>
               </motion.div>
+              */}
             </motion.div>
           </motion.div>
 
@@ -243,12 +244,11 @@ const Community = () => {
           {/* Footer */}
           <motion.div variants={itemVariants} className="mt-auto w-full">
             <div className="flex justify-center space-x-6 mb-6">
-              <SocialIcon icon={<FaFacebookF />} />
-              <SocialIcon icon={<FaTwitter />} />
-              {/* <SocialIcon icon={<FaSnapchatGhost />} /> */}
-              <SocialIcon icon={<FaInstagram />} />
-              <SocialIcon icon={<FaLinkedinIn />} />
-              {/* <SocialIcon icon={<FaGithub />} /> */}
+              {/* Facebook & Instagram removed — we only use X and LinkedIn. */}
+              {/* <SocialIcon icon={<FaFacebookF />} /> */}
+              <SocialIcon icon={<FaXTwitter />} href="https://x.com/Dezenmart?s=20" />
+              {/* <SocialIcon icon={<FaInstagram />} /> */}
+              <SocialIcon icon={<FaLinkedinIn />} href="https://linkedin.com/company/dezenmart" />
             </div>
             <p className="text-[#C6C6C8] text-sm text-center">
               © Copyrights Dezenmart| All Rights Reserved
@@ -260,13 +260,15 @@ const Community = () => {
   );
 };
 
-const SocialIcon = ({ icon }: { icon: React.ReactNode }) => {
+const SocialIcon = ({ icon, href = "#" }: { icon: React.ReactNode; href?: string }) => {
   return (
     <motion.a
       whileHover={{ scale: 1.1 }}
       whileTap={{ scale: 0.95 }}
       className="w-8 h-8 flex items-center justify-center text-white hover:text-Red transition-colors"
-      href="#"
+      href={href}
+      target={href === "#" ? undefined : "_blank"}
+      rel={href === "#" ? undefined : "noopener noreferrer"}
     >
       {icon}
     </motion.a>

@@ -85,7 +85,7 @@ const Safety = ({ onBack }: { onBack: () => void }) => (
 
     {/* Report link */}
     <a
-      href="mailto:safety@dezenmart.io"
+      href="mailto:support@dezenmart.com"
       className="mt-5 flex items-center justify-center gap-2 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3.5 hover:bg-red-500/20 transition-colors"
     >
       <HiOutlineFlag className="text-red-400 w-4 h-4" />

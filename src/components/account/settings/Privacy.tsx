@@ -95,7 +95,7 @@ const Privacy = ({ onBack }: { onBack: () => void }) => (
 
     {/* Contact */}
     <a
-      href="mailto:privacy@dezenmart.io"
+      href="mailto:support@dezenmart.com"
       className="flex items-center gap-3 bg-[#292B30] rounded-xl px-4 py-4 hover:bg-[#333940] transition-colors"
     >
       <div className="p-2 rounded-full bg-[#3A3A3C]">
@@ -103,7 +103,7 @@ const Privacy = ({ onBack }: { onBack: () => void }) => (
       </div>
       <div>
         <p className="text-sm font-medium text-white">Privacy questions?</p>
-        <p className="text-xs text-gray-400">privacy@dezenmart.io</p>
+        <p className="text-xs text-gray-400">support@dezenmart.com</p>
       </div>
     </a>
   </motion.div>

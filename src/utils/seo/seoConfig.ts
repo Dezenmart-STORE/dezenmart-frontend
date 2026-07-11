@@ -31,10 +31,11 @@ export const SEO_CONFIG = {
 
   // Social Media
   social: {
-    twitter: "@dezenmart",
-    twitterCreator: "@dezenmart",
-    facebook: "dezenmart",
-    instagram: "dezenmart",
+    twitter: "@Dezenmart",
+    twitterCreator: "@Dezenmart",
+    // We only use X and LinkedIn.
+    // facebook: "dezenmart",
+    // instagram: "dezenmart",
     linkedin: "company/dezenmart",
   },
 
@@ -77,9 +78,10 @@ export const SEO_CONFIG = {
       availableLanguage: ["English"],
     },
     sameAs: [
-      "https://twitter.com/dezenmart",
-      "https://facebook.com/dezenmart",
-      "https://instagram.com/dezenmart",
+      "https://x.com/Dezenmart",
+      // We only use X and LinkedIn.
+      // "https://facebook.com/dezenmart",
+      // "https://instagram.com/dezenmart",
       "https://linkedin.com/company/dezenmart",
     ],
   },

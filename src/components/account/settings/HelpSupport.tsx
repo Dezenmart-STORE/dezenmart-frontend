@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LiaAngleLeftSolid } from 'react-icons/lia';
 import { HiChevronDown, HiOutlineMail } from 'react-icons/hi';
-import { RiTelegramLine } from 'react-icons/ri';
+// import { RiTelegramLine } from 'react-icons/ri'; // Telegram community disabled
 
 interface FAQ {
   q: string;
@@ -66,7 +66,7 @@ const FAQS: { category: string; items: FAQ[] }[] = [
       },
       {
         q: 'What if my account is compromised?',
-        a: "Log out immediately from Account > Settings > Log Out. Contact us at safety@dezenmart.io and we'll lock the account while you regain access.",
+        a: "Log out immediately from Account > Settings > Log Out. Contact us at support@dezenmart.com and we'll lock the account while you regain access.",
       },
     ],
   },
@@ -139,7 +139,7 @@ const HelpSupport = ({ onBack }: { onBack: () => void }) => (
     </p>
     <div className="space-y-2">
       <a
-        href="mailto:support@dezenmart.io"
+        href="mailto:support@dezenmart.com"
         className="flex items-center gap-3 bg-[#292B30] rounded-xl px-4 py-4 hover:bg-[#333940] transition-colors"
       >
         <div className="p-2 rounded-full bg-[#3A3A3C]">
@@ -147,10 +147,11 @@ const HelpSupport = ({ onBack }: { onBack: () => void }) => (
         </div>
         <div>
           <p className="text-sm font-medium text-white">Email support</p>
-          <p className="text-xs text-gray-400">support@dezenmart.io</p>
+          <p className="text-xs text-gray-400">support@dezenmart.com</p>
         </div>
       </a>
 
+      {/* Telegram community removed — we only use X and LinkedIn.
       <a
         href="https://t.me/dezenmart_commuinity"
         target="_blank"
@@ -165,6 +166,7 @@ const HelpSupport = ({ onBack }: { onBack: () => void }) => (
           <p className="text-xs text-gray-400">Ask the community for quick help</p>
         </div>
       </a>
+      */}
     </div>
   </motion.div>
 );

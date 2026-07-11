@@ -88,11 +88,12 @@ const Settings = ({
           label: "Delivery Addresses",
           onClick: () => setViewState("delivery-addresses"),
         },
-        {
-          icon: <RiContactsBook2Fill className="text-white text-base" />,
-          label: "Join Our Community",
-          onClick: () => window.open("https://t.me/dezenmart_commuinity", "_blank"),
-        },
+        // Telegram community removed — we only use X and LinkedIn.
+        // {
+        //   icon: <RiContactsBook2Fill className="text-white text-base" />,
+        //   label: "Join Our Community",
+        //   onClick: () => window.open("https://t.me/dezenmart_commuinity", "_blank"),
+        // },
       ],
     },
     {
