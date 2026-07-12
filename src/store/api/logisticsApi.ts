@@ -4,6 +4,8 @@ import type {
   ProviderProfile,
   AvailableProvidersQuery,
   PricingRule,
+  CreateQuoteParams,
+  LogisticsQuote,
 } from '../../utils/types';
 
 interface StatesEnvelope {
@@ -125,6 +127,36 @@ export const logisticsApi = baseApi.injectEndpoints({
         { type: 'Logistics', id: `PRICING-${providerId}` },
       ],
     }),
+
+    // Create a logistics quote for one provider on a route + weight.
+    // Modelled as a query so each provider row's quote is deduped and cached
+    // (keyed by args); selecting a provider then already holds its quoteId.
+    // The exact response field names aren't locked, so normalise defensively.
+    getLogisticsQuote: builder.query<LogisticsQuote, CreateQuoteParams>({
+      query: (body) => ({
+        url: '/logistics/quotes',
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body,
+      }),
+      transformResponse: (res: unknown): LogisticsQuote => {
+        const r = res as Record<string, any>;
+        const q = r?.data?.quote ?? r?.data ?? r?.quote ?? r ?? {};
+        const days =
+          q.estimatedDays ??
+          q.deliveryDays ??
+          (q.estimatedDaysMin != null && q.estimatedDaysMax != null
+            ? `${q.estimatedDaysMin}-${q.estimatedDaysMax} days`
+            : undefined);
+        return {
+          quoteId: String(q.quoteId ?? q._id ?? q.id ?? ''),
+          deliveryFee: num(q.deliveryFee ?? q.fee ?? q.totalFee ?? q.total ?? q.amount ?? q.price),
+          estimatedDays: days != null ? String(days) : undefined,
+          currency: typeof q.currency === 'string' ? q.currency : undefined,
+          expiresAt: q.expiresAt ?? q.expiry ?? q.expiresIn,
+        };
+      },
+    }),
   }),
 });
 
@@ -134,4 +166,5 @@ export const {
   useGetAvailableProvidersQuery,
   useGetAllProvidersQuery,
   useGetProviderPricingRulesQuery,
+  useGetLogisticsQuoteQuery,
 } = logisticsApi;

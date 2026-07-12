@@ -239,8 +239,27 @@ export interface AvailableProvider extends Partial<ProviderProfile> {
   /** Total delivery cost for this route + weight. Undefined when the provider
    *  has no pricing rule for the route (the response omits pricing fields). */
   cost?: number;
-estimatedDays?: string; // human label e.g. "2-3 days"
+  estimatedDays?: string; // human label e.g. "2-3 days"
   currency?: string;
+  /** Id of the quote created for this provider (POST /logistics/quotes). */
+  quoteId?: string;
+}
+
+// A logistics quote for one provider on a route + weight.
+export interface CreateQuoteParams {
+  deliveryAddressId: string;
+  providerId: string;
+  fromState: string;
+  fromLga: string;
+  weight: number;
+}
+
+export interface LogisticsQuote {
+  quoteId: string;
+  deliveryFee?: number;
+  estimatedDays?: string;
+  currency?: string;
+  expiresAt?: string;
 }
 
 export type LogisticsSort = "price" | "days" | "rating";
@@ -514,18 +533,27 @@ export interface MarkReadParams {
   messageIds: string[];
 }
 
+// Address object embedded in the POST /orders body. Lets a buyer order to a
+// saved OR a one-time address (the full address travels with the order).
+export interface OrderAddressInput {
+  label?: string;
+  fullName: string;
+  phone: string;
+  country: string;
+  state: string;
+  lga: string;
+  street: string;
+  zipCode?: string;
+  isDefault?: boolean;
+}
+
 // POST /orders body.
 export interface CreateOrderParams {
   product: string;
   quantity: number;
-  /** Provider wallet address - a single string, not an array. */
-  logisticsProvider: string;
-  /** Delivery address id. */
-  deliveryAddress: string;
-  // TEMP: the backend added these two by mistake and will remove them.
-  // We send static/derived values for now so the demo works. Remove once the API drops them.
-  deliveryFee: number;
-  expectedDeliveryDate: string;
+  /** Id of the logistics quote the buyer selected (from POST /logistics/quotes). */
+  quoteId: string;
+  deliveryAddress: OrderAddressInput;
 }
 
 // Delivery Address

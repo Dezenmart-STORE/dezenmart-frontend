@@ -6,6 +6,7 @@ import {
   useGetAllProvidersQuery,
   useGetAvailableProvidersQuery,
   useGetProviderPricingRulesQuery,
+  useGetLogisticsQuoteQuery,
 } from "../../../store/api";
 import type {
   AvailableProvider,
@@ -148,6 +149,7 @@ const LogisticsProviderSelector: React.FC<Props> = ({
           route={route}
           weight={weight}
           tokenSymbol={tokenSymbol}
+          deliveryAddressId={deliveryAddress._id}
           selected
           onSelect={() => setExpanded(true)}
           onQuote={reportQuote}
@@ -240,6 +242,7 @@ const LogisticsProviderSelector: React.FC<Props> = ({
               route={route}
               weight={weight}
               tokenSymbol={tokenSymbol}
+              deliveryAddressId={deliveryAddress._id}
               selected={selectedProvider?.walletAddress === provider.walletAddress}
               onSelect={handleSelect}
               onQuote={reportQuote}
@@ -259,6 +262,8 @@ interface RowProps {
   route: RouteInput;
   weight: number;
   tokenSymbol: string;
+  /** Saved address id (enables the real quote). Empty for a one-time address. */
+  deliveryAddressId?: string;
   selected: boolean;
   onSelect: (provider: AvailableProvider) => void;
   onQuote: (id: string, quote: DeliveryQuote | null) => void;
@@ -269,28 +274,58 @@ const ProviderRow: React.FC<RowProps> = ({
   route,
   weight,
   tokenSymbol,
+  deliveryAddressId,
   selected,
   onSelect,
   onQuote,
 }) => {
-  const { data: rules, isLoading } = useGetProviderPricingRulesQuery(provider._id, {
-    skip: !provider._id,
-  });
+  const hasAddressId = !!deliveryAddressId;
 
-  const quote = useMemo(
-    () => computeDeliveryQuote(rules, route, weight),
-    [rules, route, weight]
+  // Preferred path: a real quote from the backend (gives the quoteId + fee).
+  const { data: liveQuote, isFetching: quoteLoading } = useGetLogisticsQuoteQuery(
+    {
+      deliveryAddressId: deliveryAddressId ?? "",
+      providerId: provider._id,
+      fromState: route.fromState,
+      fromLga: route.fromLga,
+      weight,
+    },
+    { skip: !hasAddressId || !provider._id }
   );
 
-  // Report the computed quote up for sorting.
+  // Fallback for a one-time address (no id): compute a price from pricing rules.
+  const { data: rules, isFetching: rulesLoading } = useGetProviderPricingRulesQuery(
+    provider._id,
+    { skip: hasAddressId || !provider._id }
+  );
+  const ruleQuote = useMemo(
+    () => (hasAddressId ? null : computeDeliveryQuote(rules, route, weight)),
+    [hasAddressId, rules, route, weight]
+  );
+
+  const isLoading = hasAddressId ? quoteLoading : rulesLoading;
+  const cost = liveQuote?.deliveryFee ?? ruleQuote?.cost ?? provider.cost;
+  const estimatedDays =
+    liveQuote?.estimatedDays ?? ruleQuote?.estimatedDays ?? provider.estimatedDays;
+  const quoteId = liveQuote?.quoteId;
+
+  // Report a quote up for sorting.
+  const sortQuote = useMemo<DeliveryQuote | null>(() => {
+    if (cost == null) return ruleQuote;
+    return {
+      cost,
+      estimatedDays,
+      daysMin: ruleQuote?.daysMin,
+      deliveryType: ruleQuote?.deliveryType ?? "inter_state",
+      breakdown: ruleQuote?.breakdown ?? { base: cost, insuranceFee: 0, packagingFee: 0 },
+    };
+  }, [cost, estimatedDays, ruleQuote]);
+
   useEffect(() => {
-    onQuote(provider._id, quote);
-  }, [provider._id, quote, onQuote]);
+    onQuote(provider._id, sortQuote);
+  }, [provider._id, sortQuote, onQuote]);
 
-  const cost = quote?.cost ?? provider.cost;
-  const estimatedDays = quote?.estimatedDays ?? provider.estimatedDays;
-
-  const handleSelect = () => onSelect({ ...provider, cost, estimatedDays });
+  const handleSelect = () => onSelect({ ...provider, cost, estimatedDays, quoteId });
 
   return (
     <motion.button

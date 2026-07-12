@@ -462,16 +462,28 @@ export const PurchaseSectionProvider: React.FC<
       updateState({ purchaseError: "Please select a delivery provider." });
       return;
     }
+    if (!state.selectedLogistics.quoteId) {
+      updateState({ purchaseError: "Still fetching the delivery quote. Please wait a moment." });
+      return;
+    }
     updateState({ isProcessing: true, purchaseError: null });
     try {
+      const addr = state.selectedAddress;
       const orderData: CreateOrderParams = {
         product: product._id,
         quantity: state.quantity,
-        logisticsProvider: state.selectedLogistics.walletAddress,
-        deliveryAddress: state.selectedAddress._id,
-        // TEMP: backend added these by mistake and will remove them. Static for now.
-        deliveryFee: state.selectedLogistics.cost ?? 0,
-        expectedDeliveryDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
+        quoteId: state.selectedLogistics.quoteId,
+        deliveryAddress: {
+          label: addr.label,
+          fullName: addr.fullName,
+          phone: addr.phone,
+          country: addr.country,
+          state: addr.state,
+          lga: addr.lga,
+          street: addr.street,
+          zipCode: addr.zipCode,
+          isDefault: addr.isDefault,
+        },
       };
       const order = await createOrder(orderData).unwrap();
       if (!order?._id) throw new Error("Order creation failed");
