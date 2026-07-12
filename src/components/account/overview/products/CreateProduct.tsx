@@ -113,7 +113,7 @@ function Section({
 const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
   const { isConnected, address } = useAccount();
   const chainId = useChainId();
-  const { selectedToken, convertPrice, tokens: availableTokens } = useCurrency();
+  const { selectedToken, convertPrice, tokens: availableTokens, userLocalCurrency } = useCurrency();
   const [createProduct, { isLoading }] = useCreateProductMutation();
   const { showSnackbar } = useSnackbar();
   const nameRef = useRef<HTMLInputElement>(null);
@@ -127,8 +127,7 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
     state: "",
     lga: "",
     sellerWalletAddress: "",
-    priceInUSDT: "",
-    priceInToken: "",
+    listPrice: "",
   });
 
   // Origin state/LGA come from the backend; LGAs depend on the selected state.
@@ -140,6 +139,8 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
   );
   const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
   const [paymentToken, setPaymentToken] = useState(selectedToken?.symbol ?? "USDT");
+  // Seller enters the list price in USD or their local fiat; backend always gets USD.
+  const [priceCurrency, setPriceCurrency] = useState<"USD" | "FIAT">("USD");
   const [variants, setVariants] = useState<ProductVariant[]>([
     { id: `v-${Date.now()}`, properties: [], quantity: 0 },
   ]);
@@ -166,45 +167,29 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
     }
   };
 
-  // Format payment token amounts: up to 4 decimals, trailing zeros trimmed
-  // but always at least 2 decimal places (e.g. 100.0000 → 100.00, 0.0013 → 0.0013)
-  const formatTokenAmount = (amount: number): string =>
-    amount.toFixed(4).replace(/(\.\d\d)0+$/, "$1");
+  // Price is entered in USD or local fiat; derive USD (for the backend) and the
+  // payment-token amount (for the on-chain trade).
+  const priceUSD = useMemo(() => {
+    const n = parseFloat(form.listPrice);
+    if (isNaN(n) || n <= 0) return 0;
+    return priceCurrency === "USD" ? n : convertPrice(n, "FIAT", "USD");
+  }, [form.listPrice, priceCurrency, convertPrice]);
 
-  // USDT → payment token (Box 1 drives Box 2)
-  const handleUSDTChange = useCallback(
-    (value: string) => {
-      setField("priceInUSDT", value);
-      const n = parseFloat(value);
-      const converted = isNaN(n) ? "" : formatTokenAmount(convertPrice(n, "USD", paymentToken));
-      setField("priceInToken", converted);
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [convertPrice, paymentToken]
+  const tokenEquivalent = useMemo(
+    () => (priceUSD > 0 ? convertPrice(priceUSD, "USD", paymentToken) : 0),
+    [priceUSD, paymentToken, convertPrice]
+  );
+  const fiatEquivalent = useMemo(
+    () => (priceUSD > 0 ? convertPrice(priceUSD, "USD", "FIAT") : 0),
+    [priceUSD, convertPrice]
   );
 
-  // Payment token → USDT (Box 2 drives Box 1)
-  const handleTokenPriceChange = useCallback(
-    (value: string) => {
-      setField("priceInToken", value);
-      const n = parseFloat(value);
-      setField("priceInUSDT", isNaN(n) ? "" : convertPrice(n, paymentToken, "USD").toFixed(2));
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [convertPrice, paymentToken]
-  );
-
-  // Token selector change: switch token and instantly recalculate Box 2 from Box 1
-  const handleTokenChange = (symbol: string) => {
-    setPaymentToken(symbol);
-    const usdtVal = parseFloat(form.priceInUSDT);
-    if (!isNaN(usdtVal) && usdtVal > 0) {
-      setForm((prev) => ({
-        ...prev,
-        priceInToken: formatTokenAmount(convertPrice(usdtVal, "USD", symbol)),
-      }));
-    }
+  const handlePriceChange = (value: string) => {
+    setForm((prev) => ({ ...prev, listPrice: value }));
+    if (errors.price) setErrors((prev) => ({ ...prev, price: undefined }));
   };
+
+  const handleTokenChange = (symbol: string) => setPaymentToken(symbol);
 
   const handleAddMedia = useCallback((incoming: MediaFile[]) => {
     setMediaFiles((prev) => [...prev, ...incoming].slice(0, 5));
@@ -231,15 +216,14 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
 
   const validate = useCallback((): boolean => {
     const e: FormErrors = {};
-    const { name, description, category, priceInUSDT, stock, sellerWalletAddress } = form;
+    const { name, description, category, stock, sellerWalletAddress } = form;
 
     if (!name.trim())        e.name        = "Product name is required";
     if (!description.trim()) e.description = "Description is required";
     if (!category)           e.category    = "Category is required";
 
-    const price = parseFloat(priceInUSDT);
-    if (!priceInUSDT.trim())  e.price = "Price is required";
-    else if (isNaN(price) || price <= 0) e.price = "Enter a valid price greater than zero";
+    if (!form.listPrice.trim())  e.price = "Price is required";
+    else if (priceUSD <= 0) e.price = "Enter a valid price greater than zero";
 
     const stockNum = parseInt(stock, 10);
     if (!stock.trim()) e.stock = "Stock quantity is required";
@@ -270,7 +254,7 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
 
     setErrors(e);
     return Object.keys(e).length === 0;
-  }, [form, mediaFiles, variants, totalVariantQty]);
+  }, [form, priceUSD, mediaFiles, variants, totalVariantQty]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -280,20 +264,21 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
     setErrors({});
 
     try {
-      const { name, description, category, priceInUSDT, priceInToken, stock, sellerWalletAddress } = form;
+      const { name, description, category, stock, sellerWalletAddress } = form;
       const stockQty = parseInt(stock, 10) || 0;
       const tokenSymbol = paymentToken || "USDT";
 
       const matchedToken = availableTokens.find((t) => t.symbol === tokenSymbol);
       const isStable = matchedToken?.isStableToken ?? true;
-     
-      const priceToSend = isStable ? priceInUSDT : priceInToken;
+
+      // Backend always stores the price in USD, regardless of the entry currency.
+      const priceUsdStr = priceUSD.toFixed(2);
 
       const formData = new FormData();
       formData.append("name", name);
       formData.append("description", description);
       formData.append("category", category);
-      formData.append("price", priceToSend);
+      formData.append("price", priceUsdStr);
       formData.append("stock", stock);
       formData.append("weight", form.weight);
       formData.append("state", form.state);
@@ -306,7 +291,7 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
         const tokenAddress = matchedToken.address[chainId];
         if (tokenAddress) {
           formData.append("tokenAddress", tokenAddress);
-          const tradeParams = buildTradeParams(parseFloat(priceToSend), stockQty, tokenSymbol, chainId);
+          const tradeParams = buildTradeParams(tokenEquivalent || priceUSD, stockQty, tokenSymbol, chainId);
           formData.append("tradeParams", JSON.stringify(tradeParams));
         }
       }
@@ -314,7 +299,7 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
       // Logistics providers are chosen by the buyer at checkout via /logistics/available,
       // so nothing product-specific is sent here anymore.
 
-      // `type` is required by the API — always send it (empty array when no variants).
+      // `type` is required by the API - always send it (empty array when no variants).
       const validVariants = variants.filter((v) => v.properties.length > 0);
       const formattedVariants = validVariants.map((v) => {
         const obj: Record<string, string | number> = { quantity: v.quantity || 0 };
@@ -334,7 +319,7 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
       onProductCreated?.();
 
       setTimeout(() => {
-        setForm({ name: "", description: "", category: "", stock: "", weight: "", state: "", lga: "", sellerWalletAddress: address ?? "", priceInUSDT: "", priceInToken: "" });
+        setForm({ name: "", description: "", category: "", stock: "", weight: "", state: "", lga: "", sellerWalletAddress: address ?? "", listPrice: "" });
         setMediaFiles([]);
         setVariants([{ id: `v-${Date.now()}`, properties: [], quantity: 0 }]);
         setSuccess(false);
@@ -377,7 +362,7 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
             value={form.description}
             onChange={(e) => setField("description", e.target.value)}
             rows={3}
-            placeholder="Describe your product — condition, features, size..."
+            placeholder="Describe your product - condition, features, size..."
             className={inputCls(!!errors.description)}
           />
         </Field>
@@ -402,12 +387,16 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
       {/* Pricing */}
       <Section title="Price">
         <PriceField
-          priceUSDT={form.priceInUSDT}
-          priceToken={form.priceInToken}
+          listPrice={form.listPrice}
+          priceCurrency={priceCurrency}
+          fiatCode={userLocalCurrency}
+          priceUSD={priceUSD}
+          fiatEquivalent={fiatEquivalent}
+          tokenEquivalent={tokenEquivalent}
           paymentToken={paymentToken}
           tokens={availableTokens as typeof TOKENS}
-          onUSDTChange={handleUSDTChange}
-          onTokenPriceChange={handleTokenPriceChange}
+          onPriceChange={handlePriceChange}
+          onCurrencyToggle={setPriceCurrency}
           onTokenChange={handleTokenChange}
           error={errors.price}
         />
@@ -437,7 +426,7 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
         </div>
       </Section>
 
-      {/* Delivery — origin + weight drive the buyer's shipping options & cost */}
+      {/* Delivery - origin + weight drive the buyer's shipping options & cost */}
       <Section title="Delivery">
         <p className="text-xs text-gray-500 -mt-1">
           Buyers see delivery providers and cost at checkout based on where this

@@ -4,90 +4,111 @@ import { FiChevronDown, FiCheck } from "react-icons/fi";
 import { StableToken } from "../../../../config/tokens";
 
 interface Props {
-  priceUSDT: string;
-  priceToken: string;
+  listPrice: string;
+  priceCurrency: "USD" | "FIAT";
+  /** User's local fiat code from geolocation, e.g. "NGN". */
+  fiatCode: string;
+  priceUSD: number;
+  fiatEquivalent: number;
+  tokenEquivalent: number;
   paymentToken: string | undefined;
   tokens: StableToken[];
-  onUSDTChange: (v: string) => void;
-  onTokenPriceChange: (v: string) => void;
+  onPriceChange: (v: string) => void;
+  onCurrencyToggle: (c: "USD" | "FIAT") => void;
   onTokenChange: (symbol: string) => void;
   error?: string;
 }
 
+const fmt = (n: number, d = 2) =>
+  n.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
+
+const fmtToken = (n: number) =>
+  n.toLocaleString("en-US", { maximumFractionDigits: 4 });
+
 const PriceField: React.FC<Props> = ({
-  priceUSDT,
-  priceToken,
+  listPrice,
+  priceCurrency,
+  fiatCode,
+  priceUSD,
+  fiatEquivalent,
+  tokenEquivalent,
   paymentToken,
   tokens,
-  onUSDTChange,
-  onTokenPriceChange,
+  onPriceChange,
+  onCurrencyToggle,
   onTokenChange,
   error,
 }) => {
   const [tokenOpen, setTokenOpen] = useState(false);
   const selectedToken = tokens.find((t) => t.symbol === paymentToken);
 
+  // Only offer the fiat option when we know a non-USD local currency.
+  const hasFiat = !!fiatCode && fiatCode.toUpperCase() !== "USD";
+  const activeCode = priceCurrency === "USD" ? "USD" : fiatCode;
+
+  const toggleBtn = (mode: "USD" | "FIAT", label: string) => (
+    <button
+      type="button"
+      onClick={() => onCurrencyToggle(mode)}
+      className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${
+        priceCurrency === mode ? "bg-red-600 text-white" : "text-gray-400 hover:text-white"
+      }`}
+    >
+      {label}
+    </button>
+  );
+
   return (
     <div className="space-y-3">
-      {/* Dual price inputs */}
-      <div className="grid grid-cols-2 gap-2">
-        {/* Box 1 — canonical USDT price (stored by backend) */}
-        <div>
-          <p className="text-[10px] font-medium text-gray-500 uppercase tracking-wide mb-1">
+      {/* List price + currency toggle */}
+      <div>
+        <div className="flex items-center justify-between mb-1.5">
+          <p className="text-[10px] font-medium text-gray-500 uppercase tracking-wide">
             List price
           </p>
-          <div className="relative">
-            <input
-              type="text"
-              inputMode="decimal"
-              value={priceUSDT}
-              onChange={(e) => onUSDTChange(e.target.value)}
-              placeholder="0.00"
-              aria-label="Price in USDT"
-              className={`w-full bg-[#3A3C41] text-white pl-3 pr-14 py-3 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-600 transition-all ${
-                error ? "ring-1 ring-red-500" : ""
-              }`}
-            />
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-gray-400 pointer-events-none">
-              USDT
-            </span>
-          </div>
+          {hasFiat && (
+            <div className="flex gap-0.5 bg-[#212428] rounded-lg p-0.5">
+              {toggleBtn("USD", "USD")}
+              {toggleBtn("FIAT", fiatCode)}
+            </div>
+          )}
         </div>
 
-        {/* Box 2 — equivalent in the buyer's selected payment token */}
-        <div>
-          <p className="text-[10px] font-medium text-gray-500 uppercase tracking-wide mb-1">
-            Buyer pays
-          </p>
-          <div className="relative">
-            <input
-              type="text"
-              inputMode="decimal"
-              value={priceToken}
-              onChange={(e) => onTokenPriceChange(e.target.value)}
-              placeholder="0.00"
-              aria-label={`Price in ${paymentToken ?? "selected token"}`}
-              className="w-full bg-[#3A3C41] text-white pl-3 pr-16 py-3 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-600 transition-all"
-            />
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 pointer-events-none">
-              {selectedToken?.icon && (
-                <img
-                  src={selectedToken.icon}
-                  alt=""
-                  className="w-3.5 h-3.5 rounded-full flex-shrink-0"
-                />
-              )}
-              <span className="text-xs font-medium text-gray-400 truncate max-w-[2.5rem]">
-                {paymentToken ?? "—"}
-              </span>
-            </span>
-          </div>
+        <div className="relative">
+          <input
+            type="text"
+            inputMode="decimal"
+            value={listPrice}
+            onChange={(e) => onPriceChange(e.target.value)}
+            placeholder="0.00"
+            aria-label={`Price in ${activeCode}`}
+            className={`w-full bg-[#3A3C41] text-white pl-3 pr-16 py-3 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-600 transition-all ${
+              error ? "ring-1 ring-red-500" : ""
+            }`}
+          />
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-gray-400 pointer-events-none">
+            {activeCode}
+          </span>
         </div>
+
+        {/* Equivalents */}
+        {priceUSD > 0 && (
+          <div className="mt-1.5 text-xs text-gray-500 space-y-0.5">
+            {priceCurrency === "FIAT" ? (
+              <p>≈ ${fmt(priceUSD)} USD</p>
+            ) : hasFiat ? (
+              <p>
+                ≈ {fmt(fiatEquivalent, 0)} {fiatCode}
+              </p>
+            ) : null}
+            {tokenEquivalent > 0 && paymentToken && (
+              <p>
+                Buyers pay ≈ {fmtToken(tokenEquivalent)} {paymentToken}
+              </p>
+            )}
+          </div>
+        )}
       </div>
-
-      <p className="text-gray-500 text-xs">
-        Type in either field — the other updates instantly.
-      </p>
 
       {error && (
         <p className="text-red-400 text-xs" role="alert">
