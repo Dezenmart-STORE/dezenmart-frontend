@@ -1,5 +1,3 @@
-import type { LogisticsSort } from "../utils/types";
-
 /**
  * Fallbacks for products created before origin/weight were captured.
  * `/logistics/available` requires fromState, fromLga and weight. New products
@@ -12,8 +10,10 @@ import type { LogisticsSort } from "../utils/types";
 export const LEGACY_ORIGIN = { state: "Lagos", lga: "Ikeja" } as const;
 export const DEFAULT_WEIGHT_PER_UNIT = 1; // kg
 
-export const LOGISTICS_SORTS: { value: LogisticsSort; label: string }[] = [
-  { value: "price", label: "Cheapest" },
-  { value: "days", label: "Fastest" },
-  { value: "rating", label: "Top rated" },
-];
+/**
+ * TEMP (demo): when no provider can be quoted for the route, the order is still
+ * sent with this real, active logistics provider id so a purchase can complete
+ * in front of an audience. Replace with a provider id of your choice, and remove
+ * once quoting reliably returns a provider for every route.
+ */
+export const DEMO_FALLBACK_PROVIDER_ID = "68de34e03f8224ade098a2eb"; // Dezenmart Logistics

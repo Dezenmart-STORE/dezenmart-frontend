@@ -12,15 +12,10 @@ import type {
   AvailableProvider,
   DeliveryAddress,
   DeliveryQuote,
-  LogisticsSort,
   Product,
   RouteInput,
 } from "../../../utils/types";
-import {
-  LEGACY_ORIGIN,
-  DEFAULT_WEIGHT_PER_UNIT,
-  LOGISTICS_SORTS,
-} from "../../../config/logistics";
+import { LEGACY_ORIGIN, DEFAULT_WEIGHT_PER_UNIT } from "../../../config/logistics";
 import { computeDeliveryQuote } from "../../../utils/logistics/pricing";
 import LoadingSpinner from "../../common/LoadingSpinner";
 
@@ -49,7 +44,6 @@ const LogisticsProviderSelector: React.FC<Props> = ({
   selectedProvider,
   onProviderSelect,
 }) => {
-  const [sort, setSort] = useState<LogisticsSort>("price");
   const [search, setSearch] = useState("");
   const [rowInfo, setRowInfo] = useState<Record<string, RowInfo>>({});
   const [expanded, setExpanded] = useState(false);
@@ -108,46 +102,22 @@ const LogisticsProviderSelector: React.FC<Props> = ({
     });
   }, []);
 
+  // Alphabetical, with successfully-quoted providers first, then the rest.
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase();
     const filtered = q ? providers.filter((p) => p.name.toLowerCase().includes(q)) : providers;
-    // Quotable providers first, then unavailable ones.
-    const rank = (id: string) => (rowInfo[id]?.status === "unavailable" ? 1 : 0);
-    const withIndex = filtered.map((p, i) => ({ p, i }));
-    withIndex.sort((a, b) => {
-      const ra = rank(a.p._id);
-      const rb = rank(b.p._id);
-      if (ra !== rb) return ra - rb;
-      if (sort === "rating") return (b.p.rating || 0) - (a.p.rating || 0) || a.i - b.i;
-      const qa = rowInfo[a.p._id]?.quote;
-      const qb = rowInfo[b.p._id]?.quote;
-      if (sort === "days") {
-        return (qa?.daysMin ?? Infinity) - (qb?.daysMin ?? Infinity) || a.i - b.i;
-      }
-      return (qa?.cost ?? Infinity) - (qb?.cost ?? Infinity) || a.i - b.i;
+    const rank = (id: string) => (rowInfo[id]?.status === "ok" ? 0 : 1);
+    return [...filtered].sort((a, b) => {
+      const r = rank(a._id) - rank(b._id);
+      if (r !== 0) return r;
+      return a.name.localeCompare(b.name);
     });
-    return withIndex.map((x) => x.p);
-  }, [providers, search, sort, rowInfo]);
+  }, [providers, search, rowInfo]);
 
   // True once every candidate has resolved and none can be quoted.
   const noneQuotable =
     providers.length > 0 &&
     providers.every((p) => rowInfo[p._id]?.status === "unavailable");
-
-  // Auto-select the first provider that quoted successfully.
-  useEffect(() => {
-    if (selectedProvider) return;
-    const firstOk = visible.find((p) => rowInfo[p._id]?.status === "ok");
-    if (firstOk) {
-      const info = rowInfo[firstOk._id];
-      onProviderSelect({
-        ...firstOk,
-        cost: info?.quote?.cost,
-        estimatedDays: info?.quote?.estimatedDays,
-        quoteId: info?.quoteId,
-      });
-    }
-  }, [visible, rowInfo, selectedProvider, onProviderSelect]);
 
   // Keep the selected provider's cost + quoteId in sync as its quote resolves.
   useEffect(() => {
@@ -222,34 +192,15 @@ const LogisticsProviderSelector: React.FC<Props> = ({
       </p>
 
       {/* Sort + search controls */}
-      {!isLoading && !isError && providers.length > 1 && (
-        <div className="space-y-2">
-          <div className="flex gap-2">
-            {LOGISTICS_SORTS.map((option) => (
-              <button
-                key={option.value}
-                onClick={() => setSort(option.value)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                  sort === option.value
-                    ? "bg-red-600 text-white"
-                    : "bg-[#292B30] text-gray-400 hover:text-white"
-                }`}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-          {providers.length > SEARCH_THRESHOLD && (
-            <div className="relative">
-              <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-500" />
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search providers"
-                className="w-full bg-[#1a1c20] text-white pl-9 pr-3 py-2 rounded-xl border border-[#3A3A3C] focus:border-red-500 focus:outline-none text-sm placeholder-gray-600 transition-colors"
-              />
-            </div>
-          )}
+      {!isLoading && !isError && providers.length > SEARCH_THRESHOLD && (
+        <div className="relative">
+          <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-500" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search providers"
+            className="w-full bg-[#1a1c20] text-white pl-9 pr-3 py-2 rounded-xl border border-[#3A3A3C] focus:border-red-500 focus:outline-none text-sm placeholder-gray-600 transition-colors"
+          />
         </div>
       )}
 
