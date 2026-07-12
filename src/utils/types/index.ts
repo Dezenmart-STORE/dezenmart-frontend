@@ -551,6 +551,8 @@ export interface OrderAddressInput {
 export interface CreateOrderParams {
   product: string;
   quantity: number;
+  /** Logistics provider id (NOT the wallet address). */
+  logisticsProvider: string;
   /** Id of the logistics quote the buyer selected (from POST /logistics/quotes). */
   quoteId: string;
   deliveryAddress: OrderAddressInput;

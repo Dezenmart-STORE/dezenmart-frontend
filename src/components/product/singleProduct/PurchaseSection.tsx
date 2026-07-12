@@ -472,6 +472,7 @@ export const PurchaseSectionProvider: React.FC<
       const orderData: CreateOrderParams = {
         product: product._id,
         quantity: state.quantity,
+        logisticsProvider: state.selectedLogistics._id,
         quoteId: state.selectedLogistics.quoteId,
         deliveryAddress: {
           label: addr.label,
