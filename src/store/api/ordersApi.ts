@@ -1,15 +1,16 @@
 import { baseApi } from './baseApi';
+import { unwrapList } from './unwrap';
 import type { Order, OrderStatus, CreateOrderParams } from '../../utils/types';
+
+const toOrders = (response: unknown): Order[] =>
+  unwrapList<Order>(response).filter((order) => order && order.product !== null);
 
 export const ordersApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     // Get user orders (buyer or seller)
     getUserOrders: builder.query<Order[], { type: 'buyer' | 'seller' }>({
       query: ({ type }) => `/orders?type=${type}`,
-      transformResponse: (response: Order[]) => {
-        // Filter out orders where product is null
-        return response.filter((order) => order.product !== null);
-      },
+      transformResponse: toOrders,
       providesTags: (result, error, { type }) =>
         result
           ? [
@@ -22,10 +23,7 @@ export const ordersApi = baseApi.injectEndpoints({
     // Get all orders
     getOrders: builder.query<Order[], void>({
       query: () => '/orders',
-      transformResponse: (response: Order[]) => {
-        // Filter out orders where product is null
-        return response.filter((order) => order.product !== null);
-      },
+      transformResponse: toOrders,
       providesTags: (result) =>
         result
           ? [

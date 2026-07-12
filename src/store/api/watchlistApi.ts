@@ -1,4 +1,5 @@
 import { baseApi } from './baseApi';
+import { unwrapList } from './unwrap';
 import type { WatchlistItem, WatchlistCheck } from '../../utils/types';
 
 export const watchlistApi = baseApi.injectEndpoints({
@@ -6,6 +7,7 @@ export const watchlistApi = baseApi.injectEndpoints({
     // Get user's watchlist
     getWatchlist: builder.query<WatchlistItem[], void>({
       query: () => '/watchlist',
+      transformResponse: (r: unknown) => unwrapList<WatchlistItem>(r),
       providesTags: (result) =>
         result
           ? [
