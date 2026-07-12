@@ -20,7 +20,7 @@ self.addEventListener('activate', (event) => {
 
 // ---------- Runtime caching ----------
 
-// API calls — Network First (try network, fallback to cache)
+// API calls - Network First (try network, fallback to cache)
 registerRoute(
   ({ url }) => url.pathname.startsWith('/api/'),
   new NetworkFirst({
@@ -33,7 +33,7 @@ registerRoute(
   })
 );
 
-// Local images — Cache First
+// Local images - Cache First
 registerRoute(
   ({ request }) => request.destination === 'image',
   new CacheFirst({
@@ -44,7 +44,7 @@ registerRoute(
   })
 );
 
-// External images — Cache First
+// External images - Cache First
 registerRoute(
   /^https:\/\/.*\.(png|jpg|jpeg|svg|gif|webp)$/,
   new CacheFirst({
@@ -55,7 +55,7 @@ registerRoute(
   })
 );
 
-// Google Fonts — Cache First
+// Google Fonts - Cache First
 registerRoute(
   /^https:\/\/fonts\.googleapis\.com\/.*/i,
   new CacheFirst({
@@ -66,7 +66,7 @@ registerRoute(
   })
 );
 
-// Static assets — Stale While Revalidate
+// Static assets - Stale While Revalidate
 registerRoute(
   ({ request }) =>
     request.destination === 'style' ||
@@ -80,13 +80,13 @@ registerRoute(
   })
 );
 
-// Auth and API routes — never intercept
+// Auth and API routes - never intercept
 registerRoute(
   ({ url }) => url.pathname.startsWith('/auth/'),
   new NetworkOnly()
 );
 
-// Navigation fallback — serve index.html for all app routes
+// Navigation fallback - serve index.html for all app routes
 registerRoute(
   new NavigationRoute(
     new NetworkFirst({ cacheName: 'navigation-cache' }),

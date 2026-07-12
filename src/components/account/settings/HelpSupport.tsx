@@ -32,7 +32,7 @@ const FAQS: { category: string; items: FAQ[] }[] = [
     items: [
       {
         q: 'How does escrow work?',
-        a: 'When you buy, your payment is locked in a tamper-proof smart contract on the Celo blockchain. Funds only release to the seller after you confirm delivery — no one (including Dezenmart) can access them in the meantime.',
+        a: 'When you buy, your payment is locked in a tamper-proof smart contract on the Celo blockchain. Funds only release to the seller after you confirm delivery - no one (including Dezenmart) can access them in the meantime.',
       },
       {
         q: 'Which tokens can I pay with?',
@@ -40,7 +40,7 @@ const FAQS: { category: string; items: FAQ[] }[] = [
       },
       {
         q: 'What happens if my payment fails?',
-        a: 'If a transaction fails, your funds are never deducted — the blockchain reverts the transaction automatically. Check your wallet balance and gas, then try again.',
+        a: 'If a transaction fails, your funds are never deducted - the blockchain reverts the transaction automatically. Check your wallet balance and gas, then try again.',
       },
     ],
   },
@@ -62,7 +62,7 @@ const FAQS: { category: string; items: FAQ[] }[] = [
     items: [
       {
         q: 'How do I verify my identity?',
-        a: 'Go to your profile and tap the verification badge. We use Self ID — a privacy-preserving zkSNARK proof — so your real identity stays private while you gain a verified badge.',
+        a: 'Go to your profile and tap the verification badge. We use Self ID - a privacy-preserving zkSNARK proof - so your real identity stays private while you gain a verified badge.',
       },
       {
         q: 'What if my account is compromised?',
@@ -151,7 +151,7 @@ const HelpSupport = ({ onBack }: { onBack: () => void }) => (
         </div>
       </a>
 
-      {/* Telegram community removed — we only use X and LinkedIn.
+      {/* Telegram community removed - we only use X and LinkedIn.
       <a
         href="https://t.me/dezenmart_commuinity"
         target="_blank"

@@ -202,7 +202,7 @@ const SingleProduct = () => {
         await addToWatchlist(productId).unwrap();
       }
     } catch {
-      // silent — non-critical
+      // silent - non-critical
     }
   };
 
@@ -274,7 +274,7 @@ const SingleProduct = () => {
         */}
         <div className="flex flex-col xl:flex-row gap-6 xl:h-[calc(100vh-6rem)]">
 
-          {/* ── Left column — image panel ── */}
+          {/* ── Left column - image panel ── */}
           <div
             className="w-full xl:w-5/12 xl:h-full xl:overflow-hidden rounded-xl shadow-lg flex-shrink-0"
             style={{
@@ -283,7 +283,7 @@ const SingleProduct = () => {
             }}
           >
             <div className="relative flex flex-col items-center justify-center p-4 sm:p-6 xl:h-full">
-              {/* Nav controls — absolute overlay */}
+              {/* Nav controls - absolute overlay */}
               <div className="flex items-center justify-between w-full absolute top-4 px-2 sm:px-4 z-10">
                 <button
                   onClick={handleGoBack}
@@ -326,7 +326,7 @@ const SingleProduct = () => {
             </div>
           </div>
 
-          {/* ── Right column — product info panel ── */}
+          {/* ── Right column - product info panel ── */}
           <div className="w-full xl:w-7/12 xl:h-full xl:flex xl:flex-col xl:min-h-0">
             {showPurchase ? (
               <PurchaseSectionProvider
@@ -379,7 +379,7 @@ const SingleProduct = () => {
                 </div>
               </PurchaseSectionProvider>
             ) : (
-              // Viewer IS the seller — no purchase section
+              // Viewer IS the seller - no purchase section
               <div className="xl:flex-1 xl:min-h-0 xl:flex xl:flex-col bg-[#292B30] shadow-xl text-white w-full rounded-xl overflow-hidden">
                 {/* Always visible: name + price */}
                 <div className="xl:flex-shrink-0 px-4 sm:px-6 py-5 border-b border-gray-700/30">
@@ -421,7 +421,7 @@ const SingleProduct = () => {
           </div>
         </div>
 
-        {/* Related products — below the fixed-height two-column area, scrolls naturally */}
+        {/* Related products - below the fixed-height two-column area, scrolls naturally */}
         {relatedProducts.length > 0 && (
           <div className="mt-8">
             <h2 className="text-lg font-semibold text-white mb-4">

@@ -102,7 +102,7 @@ const ProductList = ({
 
   const [isLoadingMore, startLoadMore] = useTransition();
 
-  // Sentinel ref — always rendered so the observer is always attached
+  // Sentinel ref - always rendered so the observer is always attached
   const sentinelRef = useRef<HTMLDivElement>(null);
 
   // Mirror reactive values into refs so the observer callback (set up once)
@@ -303,7 +303,7 @@ const ProductList = ({
   const totalProducts = processedProducts.length;
   const hasMore = displayedCount < totalProducts;
 
-  // Keep the ref mirror in sync every render (synchronous assignment — safe for refs)
+  // Keep the ref mirror in sync every render (synchronous assignment - safe for refs)
   stateRef.current = { hasMore, isLoading: isInitialLoading, totalProducts };
 
   // Reset displayed count when the view changes
@@ -480,7 +480,7 @@ const ProductList = ({
 
       {/*
         Sentinel lives outside the conditional so it is in the DOM from the very
-        first render — even while products are still loading. This guarantees the
+        first render - even while products are still loading. This guarantees the
         IntersectionObserver (set up once in useEffect([])) always has a real node
         to observe and will fire as soon as the user scrolls near the bottom.
       */}

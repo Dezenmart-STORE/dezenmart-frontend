@@ -1,5 +1,5 @@
 /**
- * ProductShelf — a horizontally-scrollable product row (Amazon/Shopee-style shelf).
+ * ProductShelf - a horizontally-scrollable product row (Amazon/Shopee-style shelf).
  *
  * All shelves on the same page share a single RTK Query cache entry for /products,
  * so no matter how many shelves are rendered, only one network request is made.
@@ -186,7 +186,7 @@ const ProductShelf = ({
 
       {/* Scroll area with nav arrows */}
       <div className="relative group">
-        {/* Left arrow — desktop hover only */}
+        {/* Left arrow - desktop hover only */}
         <button
           onClick={() => scroll("left")}
           className="absolute left-0 top-1/3 -translate-y-1/2 -translate-x-3 z-10 bg-[#292B30] border border-gray-700/50 rounded-full p-1.5 shadow-lg hover:bg-[#343539] transition-all opacity-0 group-hover:opacity-100 hidden md:flex items-center justify-center"
@@ -216,7 +216,7 @@ const ProductShelf = ({
           </div>
         )}
 
-        {/* Right arrow — desktop hover only */}
+        {/* Right arrow - desktop hover only */}
         <button
           onClick={() => scroll("right")}
           className="absolute right-0 top-1/3 -translate-y-1/2 translate-x-3 z-10 bg-[#292B30] border border-gray-700/50 rounded-full p-1.5 shadow-lg hover:bg-[#343539] transition-all opacity-0 group-hover:opacity-100 hidden md:flex items-center justify-center"

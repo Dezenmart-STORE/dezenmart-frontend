@@ -34,7 +34,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
         </button>
       </div>
 
-      {/* Profile card — avatar + info + edit icon */}
+      {/* Profile card - avatar + info + edit icon */}
       <motion.div
         className="bg-[#292B30] rounded-2xl p-4 flex items-center gap-4"
         initial={{ opacity: 0, y: -10 }}
@@ -60,7 +60,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
           <p className="text-gray-400 text-sm truncate mt-0.5">{email}</p>
         </div>
 
-        {/* Edit icon — replaces the full-width button */}
+        {/* Edit icon - replaces the full-width button */}
         <button
           onClick={onEditProfile}
           aria-label="Edit profile"
@@ -70,7 +70,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
         </button>
       </motion.div>
 
-      {/* Verify notice — compact contextual banner, only shown when unverified */}
+      {/* Verify notice - compact contextual banner, only shown when unverified */}
       {!isVerified && (
         <motion.button
           onClick={onVerify}

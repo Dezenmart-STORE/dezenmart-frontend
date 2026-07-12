@@ -22,7 +22,7 @@ const SECTIONS: Section[] = [
   {
     title: 'Who we share data with',
     content:
-      'Blockchain transactions are publicly visible on Celo. Logistics providers receive your delivery address only after an order is confirmed. We use Thirdweb and WalletConnect for wallet integration — each governed by their own privacy policies.',
+      'Blockchain transactions are publicly visible on Celo. Logistics providers receive your delivery address only after an order is confirmed. We use Thirdweb and WalletConnect for wallet integration - each governed by their own privacy policies.',
   },
   {
     title: 'Your rights',
@@ -32,7 +32,7 @@ const SECTIONS: Section[] = [
   {
     title: 'Data security',
     content:
-      'All API traffic is encrypted over HTTPS/TLS. Authentication tokens are stored in secure browser storage and expire automatically. We never store private keys or seed phrases — these remain exclusively in your wallet.',
+      'All API traffic is encrypted over HTTPS/TLS. Authentication tokens are stored in secure browser storage and expire automatically. We never store private keys or seed phrases - these remain exclusively in your wallet.',
   },
 ];
 

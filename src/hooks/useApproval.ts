@@ -43,7 +43,7 @@ export function useApproval(
   try {
     escrowAddress = getEscrowAddress(chainId) as `0x${string}`;
   } catch {
-    // Chain not configured — allowance will be 0
+    // Chain not configured - allowance will be 0
   }
 
   const enabled = !!address && !!tokenAddress && !!escrowAddress;
@@ -75,7 +75,7 @@ export function useApproval(
         throw new Error("Wallet not connected or token not available");
       }
 
-      // Already approved — skip
+      // Already approved - skip
       if (isApproved) return "0x0" as `0x${string}`;
 
       const approvalAmount = useUnlimited
@@ -95,7 +95,7 @@ export function useApproval(
         chainId
       });
 
-      // Wait for confirmation before refreshing allowance — avoids stale "not approved" flash
+      // Wait for confirmation before refreshing allowance - avoids stale "not approved" flash
       await waitForTransactionReceipt(wagmiConfig, { hash, timeout: 60_000 });
       refetch();
 

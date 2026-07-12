@@ -110,7 +110,7 @@ const VariantsSection: React.FC<Props> = ({ variants, totalStock, onChange, erro
               {/* Hint */}
               {!hasAnyProps && (
                 <p className="text-xs text-gray-500 bg-[#3A3C41] rounded-lg px-3 py-2">
-                  Add variants for products with options like Size (S, M, L), Color (Red, Blue), or Material. Each variant needs a quantity — the total must equal your stock.
+                  Add variants for products with options like Size (S, M, L), Color (Red, Blue), or Material. Each variant needs a quantity - the total must equal your stock.
                 </p>
               )}
 

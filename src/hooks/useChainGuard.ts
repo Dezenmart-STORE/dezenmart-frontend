@@ -18,7 +18,7 @@ export interface ChainGuard {
  *
  * - Auto-switches the wallet to Celo the first time it connects on a
  *   different network (e.g. Ethereum). The user sees a system prompt from
- *   their wallet app — no extra UI required for that one attempt.
+ *   their wallet app - no extra UI required for that one attempt.
  * - If they reject the auto-switch (or switch away later), `isOnCelo`
  *   becomes false so the WrongNetworkBanner can show and they can manually
  *   switch via `switchToCelo()`.
@@ -46,7 +46,7 @@ export function useChainGuard(): ChainGuard {
 
     if (isOnCelo || hasAttemptedSwitch.current) return;
 
-    // First connection on a non-Celo chain — attempt auto-switch
+    // First connection on a non-Celo chain - attempt auto-switch
     hasAttemptedSwitch.current = true;
     setIsSwitching(true);
     switchChainAsync({ chainId: CHAIN_IDS.CELO })
@@ -62,7 +62,7 @@ export function useChainGuard(): ChainGuard {
     try {
       await switchChainAsync({ chainId: CHAIN_IDS.CELO });
     } catch {
-      // User rejected — nothing to do; banner stays visible
+      // User rejected - nothing to do; banner stays visible
     } finally {
       setIsSwitching(false);
     }

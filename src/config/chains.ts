@@ -52,7 +52,7 @@ export const TARGET_CHAIN = celo;
 export const SUPPORTED_CHAINS = [celo, celoAlfajores] as const;
 
 // ---------------------------------------------------------------------------
-// Wagmi config — single source of truth for wallet connectivity
+// Wagmi config - single source of truth for wallet connectivity
 // ---------------------------------------------------------------------------
 const appMeta = {
   name: "Dezenmart",
@@ -65,13 +65,13 @@ const appMeta = {
 export const wagmiConfig = createConfig({
   chains: [celo, celoAlfajores],
   connectors: [
-    // Smart Wallet — email / passkey / phone (best for Web2 users)
+    // Smart Wallet - email / passkey / phone (best for Web2 users)
     coinbaseWallet({
       appName: appMeta.name,
       appLogoUrl: appMeta.logo,
       preference: "smartWalletOnly",
     }),
-    // Coinbase Wallet — traditional browser extension / mobile app
+    // Coinbase Wallet - traditional browser extension / mobile app
     coinbaseWallet({
       appName: appMeta.name,
       appLogoUrl: appMeta.logo,

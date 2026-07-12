@@ -66,9 +66,9 @@ export interface Product {
   logisticsProviders: string[];
   /** Unit weight in kg. Priced as weight × quantity for logistics. */
   weight: number;
-  /** Origin state the item ships from — the `fromState` for logistics routing. */
+  /** Origin state the item ships from - the `fromState` for logistics routing. */
   state: string;
-  /** Origin city/LGA the item ships from — the `fromLga` for logistics routing. */
+  /** Origin city/LGA the item ships from - the `fromLga` for logistics routing. */
   lga: string;
   /** On-chain numeric trade ID assigned by the escrow contract when the listing was created */
   tradeId?: string;
@@ -147,7 +147,7 @@ export interface Order {
   updatedAt: string;
   logisticsProviderWalletAddress: string[];
   purchaseId: string;
-  // Shipping fields — populated by the backend when seller marks order as shipped
+  // Shipping fields - populated by the backend when seller marks order as shipped
   shippedAt?: string;
   trackingNumber?: string;
   logisticsProviderName?: string;
@@ -518,7 +518,7 @@ export interface MarkReadParams {
 export interface CreateOrderParams {
   product: string;
   quantity: number;
-  /** Provider wallet address — a single string, not an array. */
+  /** Provider wallet address - a single string, not an array. */
   logisticsProvider: string;
   /** Delivery address id. */
   deliveryAddress: string;

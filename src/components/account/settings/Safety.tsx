@@ -24,7 +24,7 @@ const TIPS: Tip[] = [
   {
     icon: <HiOutlineShieldCheck className="w-5 h-5 text-blue-400" />,
     title: 'All trades are escrow-protected',
-    body: 'Funds are locked in a smart contract until you confirm delivery. Never agree to trade outside the platform — you lose escrow protection.',
+    body: 'Funds are locked in a smart contract until you confirm delivery. Never agree to trade outside the platform - you lose escrow protection.',
   },
   {
     icon: <HiOutlineEye className="w-5 h-5 text-yellow-400" />,
@@ -66,7 +66,7 @@ const Safety = ({ onBack }: { onBack: () => void }) => (
     <div className="bg-green-500/10 border border-green-500/20 rounded-xl px-4 py-3 mb-5">
       <p className="text-sm text-green-400 font-medium">Your trades are escrow-protected</p>
       <p className="text-xs text-green-400/70 mt-0.5">
-        Funds are held by a smart contract — not us — until you confirm receipt.
+        Funds are held by a smart contract - not us - until you confirm receipt.
       </p>
     </div>
 

@@ -12,7 +12,7 @@ interface Props {
 }
 
 /**
- * Transaction result screen — success or failure. Dark themed.
+ * Transaction result screen - success or failure. Dark themed.
  */
 export default function TransactionResult({
   success,

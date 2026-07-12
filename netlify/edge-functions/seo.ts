@@ -138,7 +138,7 @@ export default async (request: Request, context: Context) => {
       const name = decodeURIComponent(categoryMatch[1]);
       const canonical = `${SITE}/product/category/${categoryMatch[1]}`;
       return page({
-        title: `${name} — Buy with crypto | DezenMart`,
+        title: `${name} - Buy with crypto | DezenMart`,
         description: `Shop ${name} on DezenMart and pay securely with stablecoins (USDT, cUSD, G$) under escrow protection.`,
         image: DEFAULTS.image,
         canonical,
@@ -148,7 +148,7 @@ export default async (request: Request, context: Context) => {
     // Fall through to defaults on any API/parse error.
   }
 
-  // Product listing or an unresolved product — serve sensible defaults.
+  // Product listing or an unresolved product - serve sensible defaults.
   return page({
     title: "Browse Products | DezenMart",
     description: DEFAULTS.description,

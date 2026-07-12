@@ -48,7 +48,7 @@ html {
   overflow: hidden auto;
 }
 
-/* ── Global page scrollbar — slim, subtle, fades in on hover ── */
+/* ── Global page scrollbar - slim, subtle, fades in on hover ── */
 html::-webkit-scrollbar {
   width: 4px;
 }

@@ -32,7 +32,7 @@ const ViewOrderDetail = () => {
     try {
       await switchChainAsync({ chainId: CHAIN_IDS.CELO });
     } catch {
-      // User rejected — banner will remain visible
+      // User rejected - banner will remain visible
     } finally {
       setIsSwitching(false);
     }
@@ -121,7 +121,7 @@ const ViewOrderDetail = () => {
 
   const logisticsCostNumeric = parseFloat(logisticsCostRaw) || 0.1;
 
-  // order.product.price is stored in USD — convert to payment token for correct amounts.
+  // order.product.price is stored in USD - convert to payment token for correct amounts.
   // Fall back to order.amount (actual on-chain token amount) if product price unavailable.
   const productPriceInToken = order.product?.price
     ? convertPrice(order.product.price, "USD", tokenSymbol)
@@ -292,7 +292,7 @@ const ViewOrderDetail = () => {
                             details: {
                               status: "accepted",
                               // Only store the numeric on-chain purchaseId.
-                              // Never fall back to txHash — it is not a valid
+                              // Never fall back to txHash - it is not a valid
                               // purchaseId and would break confirmDelivery.
                               ...(purchaseId ? { purchaseId } : {}),
                               txHash,
@@ -304,14 +304,14 @@ const ViewOrderDetail = () => {
                           if (attempt < 3) {
                             await new Promise((r) => setTimeout(r, 2000 * attempt));
                           } else {
-                            // All retries exhausted — at least refresh so RTK
+                            // All retries exhausted - at least refresh so RTK
                             // Query picks up any server-side change.
                             await refetch();
                           }
                         }
                       }
                     }
-                    // Do NOT close here — let the user read the success screen
+                    // Do NOT close here - let the user read the success screen
                     // (which shows the txHash and purchaseId) and click Done.
                   }}
                   onClose={() => setShowPayment(false)}
@@ -344,7 +344,7 @@ const ViewOrderDetail = () => {
                       hour: "2-digit",
                       minute: "2-digit",
                     })
-                  : "—"
+                  : "-"
               }
             />
             {order.quantity && (
@@ -354,7 +354,7 @@ const ViewOrderDetail = () => {
           </div>
         </div>
 
-        {/* Post-payment actions — only when purchaseId is a valid numeric on-chain ID */}
+        {/* Post-payment actions - only when purchaseId is a valid numeric on-chain ID */}
         {order.purchaseId && /^\d+$/.test(order.purchaseId) && (
           <TradeActions
             purchaseId={order.purchaseId}
@@ -376,7 +376,7 @@ const ViewOrderDetail = () => {
                     details: { status: newStatus },
                   }).unwrap();
                 } catch {
-                  // Mutation failed — invalidatesTags didn't fire, so manually
+                  // Mutation failed - invalidatesTags didn't fire, so manually
                   // refetch to keep the UI in sync with the server.
                   refetch();
                 }
@@ -387,7 +387,7 @@ const ViewOrderDetail = () => {
           />
         )}
 
-        {/* Review — only after order is completed */}
+        {/* Review - only after order is completed */}
         {status === "completed" && sellerId && orderId && (
           <ReviewForm orderId={orderId} reviewed={sellerId} />
         )}
@@ -527,7 +527,7 @@ function StatusInfoPanel({
         </div>
 
         <p className="mt-3 text-center text-xs text-gray-500">
-          Your order is reserved — complete payment to confirm it.
+          Your order is reserved - complete payment to confirm it.
         </p>
       </div>
     );
@@ -799,7 +799,7 @@ function StatusInfoPanel({
             Order Summary
           </p>
           <div className="space-y-2.5">
-            <DetailRow label="Product" value={order.product?.name ?? "—"} />
+            <DetailRow label="Product" value={order.product?.name ?? "-"} />
             <DetailRow label="Quantity" value={String(order.quantity ?? 1)} />
             <DetailRow
               label="Total Paid"
@@ -900,7 +900,7 @@ function ReviewForm({ orderId, reviewed }: { orderId: string; reviewed: string }
 
   if (reviewLoading) return null;
 
-  // Already reviewed — show the submitted review
+  // Already reviewed - show the submitted review
   if (existingReview || done) {
     const r = existingReview;
     const displayRating = r?.rating ?? rating;

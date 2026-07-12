@@ -19,16 +19,16 @@ interface UseTokenBalancesReturn {
   celoNumeric: number;
   /** True while any balance is loading */
   isLoading: boolean;
-  /** True if any RPC call failed — lets UI distinguish empty vs failed */
+  /** True if any RPC call failed - lets UI distinguish empty vs failed */
   isError: boolean;
-  /** Re-fetch all balances — returns a Promise that resolves when complete */
+  /** Re-fetch all balances - returns a Promise that resolves when complete */
   refetch: () => Promise<void>;
   /** Get a single token balance by symbol */
   getBalance: (symbol: string) => TokenBalanceEntry | undefined;
   /**
    * Check if user has enough of a token.
    * Returns null when balances are still loading or the token is not in the
-   * cache (e.g. wrong chain, RPC error) — callers must distinguish this from
+   * cache (e.g. wrong chain, RPC error) - callers must distinguish this from
    * false (balance known and insufficient).
    */
   hasSufficient: (symbol: string, amount: number) => boolean | null;

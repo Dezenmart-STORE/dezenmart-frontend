@@ -145,7 +145,7 @@ const SortBar = ({
 /** Category pill strip with icons and right-side fade hint */
 const CategoryPills = ({ active }: { active: string }) => (
   <div className="relative mt-6">
-    {/* Right-side fade hint — signals more items to scroll to */}
+    {/* Right-side fade hint - signals more items to scroll to */}
     <div className="absolute right-0 top-0 bottom-2 w-10 bg-gradient-to-l from-Dark to-transparent pointer-events-none z-10" />
 
     <div className="overflow-x-auto scrollbar-hide">
@@ -210,13 +210,13 @@ const Product = () => {
     }
   }, [categoryParam]);
 
-  // Category definition (icon, colors, hex) — null for "All"
+  // Category definition (icon, colors, hex) - null for "All"
   const catDef = useMemo(
     () => (isAllCategory ? null : getCategoryByName(activeCategory)),
     [isAllCategory, activeCategory]
   );
 
-  // Fetch category products to show count in the hero — shares RTK cache with ProductList
+  // Fetch category products to show count in the hero - shares RTK cache with ProductList
   const { data: categoryProducts = [] } = useGetProductsByCategoryQuery(
     activeCategory,
     { skip: isAllCategory }

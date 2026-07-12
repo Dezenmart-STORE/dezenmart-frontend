@@ -98,7 +98,7 @@ export default function ConnectButton() {
             isCorrectChain ? "bg-green-400" : "bg-amber-400"
           }`}
         />
-        {/* Balance — lg+ only (hides at the tight md breakpoint) */}
+        {/* Balance - lg+ only (hides at the tight md breakpoint) */}
         {balance && (
           <span className="hidden text-xs text-gray-300 lg:inline">
             {balance.numeric.toFixed(2)} {selectedToken.symbol}

@@ -43,7 +43,7 @@ export const registerServiceWorker = (config?: ServiceWorkerConfig) => {
 
       onNeedRefresh() {
         config?.onNeedRefresh?.();
-        // Notify the React app — it will show a brief banner then reload
+        // Notify the React app - it will show a brief banner then reload
         window.dispatchEvent(new CustomEvent('pwa:update-ready'));
       },
 

@@ -45,7 +45,7 @@ class ErrorBoundary extends Component<Props, State> {
   public static getDerivedStateFromError(error: Error): State {
     if (isChunkLoadError(error) && shouldReload()) {
       markReload();
-      // Reload asynchronously — getDerivedStateFromError must be synchronous
+      // Reload asynchronously - getDerivedStateFromError must be synchronous
       setTimeout(() => window.location.reload(), 0);
       return { hasError: false, reloading: true };
     }

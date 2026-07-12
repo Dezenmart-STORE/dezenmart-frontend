@@ -1,6 +1,6 @@
 /**
- * Internal Mento swap hook — uses lean config.
- * Not exported from the barrel — only consumed by useSwap.
+ * Internal Mento swap hook - uses lean config.
+ * Not exported from the barrel - only consumed by useSwap.
  */
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { useAccount, useWalletClient, usePublicClient } from "wagmi";
@@ -29,7 +29,7 @@ export interface SwapParams {
   toSymbol: string;
   amount: number;
   slippageTolerance?: number;
-  /** Celo fee currency address — gas is deducted from this token instead of CELO */
+  /** Celo fee currency address - gas is deducted from this token instead of CELO */
   feeCurrency?: `0x${string}`;
 }
 
@@ -237,7 +237,7 @@ export function useMentoInternal() {
     return initPromiseRef.current;
   }, [address, walletClient, publicClient]);
 
-  // Auto-init — no window.ethereum dependency; walletClient is connector-agnostic
+  // Auto-init - no window.ethereum dependency; walletClient is connector-agnostic
   useEffect(() => {
     if (address && walletClient && !isInitialized) {
       initialize();

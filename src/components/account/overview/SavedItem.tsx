@@ -28,7 +28,7 @@ const SavedItem: React.FC<Props> = React.memo(({ item, onRemove, viewMode = "lis
   if (viewMode === "grid") {
     return (
       <div className="bg-[#292B30] rounded-xl overflow-hidden relative group">
-        {/* Remove button — top-right corner overlay */}
+        {/* Remove button - top-right corner overlay */}
         <button
           onClick={(e) => { e.stopPropagation(); onRemove(item.product._id); }}
           aria-label="Remove from saved"

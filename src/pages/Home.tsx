@@ -98,7 +98,7 @@ const Home = () => {
     structuredData: [generateOrganizationSchema(), generateWebSiteSchema()],
   });
 
-  // First name only — keeps the greeting casual
+  // First name only - keeps the greeting casual
   const firstName = useMemo(() => {
     if (!isAuthenticated || typeof user?.name !== "string") return null;
     return user.name.trim().split(" ")[0] || null;
@@ -133,7 +133,7 @@ const Home = () => {
               ) : (
                 <GoUnverified
                   className="text-yellow-500 text-xl flex-shrink-0"
-                  title="Account not verified — verify on your account page"
+                  title="Account not verified - verify on your account page"
                 />
               )
             )}
@@ -240,7 +240,7 @@ const Home = () => {
           maxItems={20}
         />
 
-        {/* ── All Products — infinite scroll grid ──────────── */}
+        {/* ── All Products - infinite scroll grid ──────────── */}
         <ProductList
           title="All Products"
           subtitle="Browse everything on DezenMart"

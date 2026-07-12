@@ -14,7 +14,7 @@ import ConnectModal from "../wallet/ConnectModal";
 import { detectMiniPay } from "../../hooks/useMiniPay";
 
 // ---------------------------------------------------------------------------
-// Step config — maps state machine steps to UI
+// Step config - maps state machine steps to UI
 // ---------------------------------------------------------------------------
 const STEP_CONFIG: Record<
   PaymentStep,
@@ -49,7 +49,7 @@ interface Props {
 }
 
 /**
- * Complete payment flow component — dark themed, responsive.
+ * Complete payment flow component - dark themed, responsive.
  */
 export default function PaymentFlow({
   tradeId,
@@ -95,7 +95,7 @@ export default function PaymentFlow({
   // Priority:
   //   1. Payment token's own fee currency (e.g. paying with cUSD → cUSD pays gas)
   //   2. Fallback fee currency (e.g. MiniPay user paying with USDT, holds cUSD)
-  //   3. CELO (user must hold native CELO for gas — MetaMask always ends up here)
+  //   3. CELO (user must hold native CELO for gas - MetaMask always ends up here)
   //
   // MetaMask re-signs all txs as EIP-1559 and strips `feeCurrency`, so CIP-64
   // gas deduction silently fails. MiniPay connects via the same injected target
@@ -180,7 +180,7 @@ export default function PaymentFlow({
     ? balance.numeric >= totalWithGas && gasIsCovered
     : false;
 
-  // Notify parent on success — only once
+  // Notify parent on success - only once
   useEffect(() => {
     if (state.step === "success" && state.txHash && !successCalledRef.current) {
       successCalledRef.current = true;
@@ -308,8 +308,8 @@ export default function PaymentFlow({
             </svg>
             <span>
               {feeTokenSymbol === paymentToken
-                ? `Network fees are paid in ${paymentToken} — no CELO needed.`
-                : `Network fees are covered by your ${feeTokenSymbol} balance — no CELO needed.`}
+                ? `Network fees are paid in ${paymentToken} - no CELO needed.`
+                : `Network fees are covered by your ${feeTokenSymbol} balance - no CELO needed.`}
             </span>
           </div>
         ) : !hasSufficientCelo ? (
@@ -516,11 +516,11 @@ export default function PaymentFlow({
       </p>
 
       {/* When the conversion succeeded but the escrow failed, guide the user
-          to retry just the purchase step — they already hold the tokens. */}
+          to retry just the purchase step - they already hold the tokens. */}
       {swapCompletedBeforeFailure && (
         <div className="mt-4 w-full rounded-xl border border-amber-800/40 bg-amber-900/20 p-3 text-sm text-amber-300">
           Your tokens were successfully converted to {productToken} and are in
-          your wallet. Click <strong>Complete Purchase</strong> to finish — no
+          your wallet. Click <strong>Complete Purchase</strong> to finish - no
           new conversion needed.
         </div>
       )}

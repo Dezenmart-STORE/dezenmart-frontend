@@ -10,7 +10,7 @@ interface Props {
 }
 
 /**
- * Token picker dropdown — dark themed.
+ * Token picker dropdown - dark themed.
  * Shows symbol, icon, and user's balance for each token.
  * Tokens with a balance are sorted to the top.
  */

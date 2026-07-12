@@ -46,7 +46,7 @@ const VERSION_STORE_KEY = "_app_build_v";
 if (APP_VERSION) {
   const storedVersion = localStorage.getItem(VERSION_STORE_KEY);
   if (storedVersion && storedVersion !== APP_VERSION) {
-    // New deployment detected — clear potentially stale offline queue
+    // New deployment detected - clear potentially stale offline queue
     localStorage.removeItem("pwa-sync-queue");
     // Reset the chunk-reload cooldown so the fresh build can reload if needed
     sessionStorage.removeItem("_chunk_reload_at");
@@ -164,7 +164,7 @@ const SplashDismisser = () => {
 
 // ── Silent update banner ────────────────────────────────────────────────────
 // Shown for 3 seconds when a new SW version is ready, then the page reloads.
-// This is non-blocking and non-disruptive — no action required from the user.
+// This is non-blocking and non-disruptive - no action required from the user.
 const UpdateBanner = () => (
   <div
     role="status"

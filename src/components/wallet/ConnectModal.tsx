@@ -102,7 +102,7 @@ function getWalletMeta(
 const EDUCATION_STEPS = [
   {
     title: "What's a wallet?",
-    body: "A digital wallet stores your money and lets you pay securely — like Apple Pay, but for crypto. You stay in control of your funds at all times.",
+    body: "A digital wallet stores your money and lets you pay securely - like Apple Pay, but for crypto. You stay in control of your funds at all times.",
   },
   {
     title: "Is it safe?",
@@ -110,7 +110,7 @@ const EDUCATION_STEPS = [
   },
   {
     title: "Do I need crypto first?",
-    body: "No — start with Email or Phone sign-in (Smart Wallet). You'll be guided through adding funds when you're ready to buy.",
+    body: "No - start with Email or Phone sign-in (Smart Wallet). You'll be guided through adding funds when you're ready to buy.",
   },
 ];
 
@@ -122,7 +122,7 @@ export default function ConnectModal({ onClose }: Props) {
   const [showEducation, setShowEducation] = useState(false);
   const [connectingId, setConnectingId] = useState<string | null>(null);
 
-  // Inside MiniPay, the wallet is always pre-authorised — connect silently and close.
+  // Inside MiniPay, the wallet is always pre-authorised - connect silently and close.
   useEffect(() => {
     if (!detectMiniPay()) return;
     if (isConnected) { onClose(); return; }
@@ -151,7 +151,7 @@ export default function ConnectModal({ onClose }: Props) {
     (c: Connector) => classifyConnector(c, connectors) !== "smart_wallet"
   );
 
-  // Inside MiniPay, wallet connection is automatic — show a spinner instead of
+  // Inside MiniPay, wallet connection is automatic - show a spinner instead of
   // the wallet-picker so the user never sees irrelevant options.
   if (detectMiniPay()) {
     return (
@@ -174,7 +174,7 @@ export default function ConnectModal({ onClose }: Props) {
     >
       <div className="relative w-full max-h-[92dvh] overflow-y-auto rounded-t-3xl border border-[#292B30] bg-[#212428] shadow-2xl shadow-black/80 sm:max-w-md sm:rounded-2xl">
 
-        {/* Drag handle — mobile only */}
+        {/* Drag handle - mobile only */}
         <div className="flex justify-center pt-3 sm:hidden">
           <div className="h-1 w-10 rounded-full bg-[#373A3F]" />
         </div>
@@ -236,7 +236,7 @@ export default function ConnectModal({ onClose }: Props) {
                       {isConnecting ? "Connecting…" : meta.sublabel}
                     </p>
 
-                    {/* Feature pills — hide while connecting */}
+                    {/* Feature pills - hide while connecting */}
                     {!isConnecting && (
                       <div className="mt-2 flex flex-wrap gap-1.5">
                         {["Works in-browser", "No app switching", "Email or passkey"].map(

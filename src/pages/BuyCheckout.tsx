@@ -78,7 +78,7 @@ const BuyCheckout = () => {
     .map((lp) => ({
       provider: lp.walletAddress as `0x${string}`,
       name: lp.name,
-      cost: 0, // Will come from contract/API — zero for now
+      cost: 0, // Will come from contract/API - zero for now
       costRaw: "0",
     }));
 

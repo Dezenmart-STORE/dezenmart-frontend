@@ -77,7 +77,7 @@ const STATUS_BADGE: Record<
 };
 
 /**
- * Single trade card — dark themed, responsive.
+ * Single trade card - dark themed, responsive.
  */
 export default function TradeCard({ trade, onClick }: Props) {
   const { formatAmount } = useCurrency();

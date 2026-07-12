@@ -1,6 +1,6 @@
 /**
  * Trade status as a visual state machine (stepper).
- * Dark themed, responsive — labels hidden on very small screens.
+ * Dark themed, responsive - labels hidden on very small screens.
  */
 
 // ---------------------------------------------------------------------------
@@ -147,7 +147,7 @@ export default function TradeStatus({ status, className = "" }: Props) {
                 )}
               </div>
 
-              {/* Step label — short on xs, full on sm+ */}
+              {/* Step label - short on xs, full on sm+ */}
               <p
                 className={`mt-2 ${i===0?"text-left w-full": i===STEPS.length-1 ? "text-right w-full": "text-center"} text-[10px] font-medium sm:text-xs ${
                   isDone

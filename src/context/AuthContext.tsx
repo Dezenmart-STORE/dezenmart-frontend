@@ -206,7 +206,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         resolve();
       };
 
-      // BroadcastChannel is the primary signal — works across same-origin
+      // BroadcastChannel is the primary signal - works across same-origin
       // windows without needing window.opener.
       let bc: BroadcastChannel | null = null;
       try {

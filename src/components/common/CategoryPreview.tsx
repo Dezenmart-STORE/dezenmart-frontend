@@ -12,7 +12,7 @@ import { useGetProductsQuery } from '../../store/api';
  * Desktop → flat 7-column grid (no scroll).
  *
  * Product counts are derived from the `getProducts` cache that ProductShelf
- * components on the same page already populate — zero extra network requests.
+ * components on the same page already populate - zero extra network requests.
  */
 const CategoryPreview = () => {
   const { data: allProducts = [] } = useGetProductsQuery();
@@ -54,7 +54,7 @@ const CategoryPreview = () => {
                 to={categoryHref(name)}
                 className="flex flex-col items-center gap-2 group"
               >
-                {/* Icon bubble — uses static bg/color classes from categories.ts */}
+                {/* Icon bubble - uses static bg/color classes from categories.ts */}
                 <div
                   className={`w-[60px] h-[60px] md:w-16 md:h-16 rounded-2xl ${bg} flex items-center justify-center transition-transform duration-200 group-hover:scale-105`}
                 >

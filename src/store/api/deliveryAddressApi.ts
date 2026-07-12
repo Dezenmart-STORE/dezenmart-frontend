@@ -83,7 +83,7 @@ export const deliveryAddressApi = baseApi.injectEndpoints({
     }),
 
     // Set an address as default.
-    // The backend has no dedicated route — this is sugar over PUT /:id { isDefault: true }.
+    // The backend has no dedicated route - this is sugar over PUT /:id { isDefault: true }.
     setDefaultDeliveryAddress: builder.mutation<DeliveryAddress, string>({
       query: (addressId) => ({
         url: `/delivery-addresses/${addressId}`,

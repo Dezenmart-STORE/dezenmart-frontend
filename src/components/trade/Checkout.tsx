@@ -33,7 +33,7 @@ interface Props {
 }
 
 /**
- * Unified checkout page — handles both buy and sell flows.
+ * Unified checkout page - handles both buy and sell flows.
  * Dark themed, responsive, web2-friendly.
  */
 export default function Checkout({
@@ -52,7 +52,7 @@ export default function Checkout({
   );
   const [showPayment, setShowPayment] = useState(false);
 
-  // product.price is stored in USD — convert to the payment token denomination
+  // product.price is stored in USD - convert to the payment token denomination
   // so all math (subtotal, total) and the PaymentFlow amount are correct.
   const priceInToken = convertPrice(product.price, "USD", product.tokenSymbol);
 

@@ -71,7 +71,7 @@ const SuccessScreen: React.FC = () => (
     </div>
     <h3 className="text-xl font-bold text-white mb-2">You're all set!</h3>
     <p className="text-gray-400 text-sm leading-relaxed max-w-xs">
-      Terms accepted. Welcome to Dezenmart — your trusted marketplace across
+      Terms accepted. Welcome to Dezenmart - your trusted marketplace across
       Africa and beyond.
     </p>
     <div className="flex items-center gap-1.5 mt-6">
@@ -320,7 +320,7 @@ const TermsModal: React.FC = () => {
                     the Celo blockchain to deliver trust, transparency, and
                     top-quality products across Africa and beyond. Our escrow
                     system ensures that buyers only release payment after
-                    confirming satisfaction — solving the age-old problem of
+                    confirming satisfaction - solving the age-old problem of
                     "what I ordered vs. what I got."
                   </p>
                 </section>
@@ -554,7 +554,7 @@ const TermsModal: React.FC = () => {
                     <p>
                       Buyers, Vendors, and Logistics Partners who join
                       Dezenmart in its early phase will earn Dezenmart
-                      Supporter Points (DSPs) — a utility-based reputation and
+                      Supporter Points (DSPs) - a utility-based reputation and
                       reward system that unlocks future perks, visibility, and
                       platform privileges.
                     </p>

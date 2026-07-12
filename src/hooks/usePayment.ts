@@ -35,7 +35,7 @@ interface PaymentState {
   txHash: string | null;
   /** Extracted purchaseId from event logs */
   purchaseId: string | null;
-  /** Swap hash — set as soon as swap completes, preserved through errors */
+  /** Swap hash - set as soon as swap completes, preserved through errors */
   swapHash: string | null;
   /**
    * Amount of productToken available for retry (as precise string).
@@ -351,7 +351,7 @@ export function usePayment() {
       if (!result.success) {
         if (result.pending && result.hash) {
           // Tx was submitted but receipt confirmation timed out.
-          // The payment IS on-chain — treat as success so the user reaches the
+          // The payment IS on-chain - treat as success so the user reaches the
           // success screen rather than a false "Payment Failed". The backend
           // order-status poller will reconcile the final state.
           dispatch({
@@ -394,7 +394,7 @@ export function usePayment() {
   );
 
   // ---------------------------------------------------------------------------
-  // startPayment — full flow
+  // startPayment - full flow
   // ---------------------------------------------------------------------------
   const startPayment = useCallback(
     async (params: PaymentParams) => {
@@ -467,7 +467,7 @@ export function usePayment() {
         const gasBuffer = params.gasEstimateInPaymentToken ?? 0;
         const requiredPaymentBalance = params.totalAmount + gasBuffer;
 
-        // Read balance directly from chain — bypasses React state staleness
+        // Read balance directly from chain - bypasses React state staleness
         const rawPayBalance = await readContract(wagmiConfig, {
           address: payTokenAddress,
           abi: erc20Abi,
@@ -481,7 +481,7 @@ export function usePayment() {
         refetchBalances();
 
         // ── 2. Swap if paying with different token ────────────────
-        // Track swap hash in a local variable — do NOT read from state after
+        // Track swap hash in a local variable - do NOT read from state after
         // dispatch because React batches updates and state.swapHash will still
         // be null within the same async execution frame.
         let completedSwapHash: string | undefined;
@@ -555,13 +555,13 @@ export function usePayment() {
 
           completedSwapHash = swapResult.hash;
 
-          // Persist swap result immediately — if the escrow call below fails,
+          // Persist swap result immediately - if the escrow call below fails,
           // the error state will still carry swapHash + swappedAmount so the
           // user can retry escrow without re-doing the swap.
           dispatch({
             type: "SWAP_COMPLETE",
             swapHash: completedSwapHash!,
-            // Use the original required amount (not the scaled input) — this is
+            // Use the original required amount (not the scaled input) - this is
             // what the escrow contract expects and avoids float precision issues.
             swappedAmount: params.totalAmount.toString(),
           });
@@ -579,7 +579,7 @@ export function usePayment() {
           }
         }
 
-        // effectiveAmountStr: use the raw totalAmount string — never parseFloat
+        // effectiveAmountStr: use the raw totalAmount string - never parseFloat
         // round-trips which lose precision for 18-decimal tokens.
         const effectiveAmountStr = params.totalAmount.toString();
 
@@ -593,7 +593,7 @@ export function usePayment() {
   );
 
   // ---------------------------------------------------------------------------
-  // retryEscrow — skip straight to approval when swap already completed
+  // retryEscrow - skip straight to approval when swap already completed
   // ---------------------------------------------------------------------------
   const retryEscrow = useCallback(
     async (params: PaymentParams) => {

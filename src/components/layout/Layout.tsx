@@ -51,10 +51,10 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
       {/* Offline Status Indicator */}
       <OfflineIndicator showOnlineStatus={true} />
 
-      {/* PWA Install Prompt — suppressed while login nudge is visible */}
+      {/* PWA Install Prompt - suppressed while login nudge is visible */}
       <InstallPrompt suppressWhile={loginNudgeVisible} />
 
-      {/* Login nudge — shown only outside auth pages */}
+      {/* Login nudge - shown only outside auth pages */}
       {!isAuthPage && <LoginNudge onVisibilityChange={handleNudgeVisibility} />}
 
       {!isAuthPage && <Header />}

@@ -262,7 +262,7 @@ export function getTokenDecimals(symbol: string): number {
  *          CGP-0167 (USDT adapter, executed 2025-03-21).
  *
  * NOTE on G$ (GoodDollar, 18 decimals): registration evidence is strong but
- * unconfirmed on-chain. Verify with `celocli network:whitelist` — if confirmed,
+ * unconfirmed on-chain. Verify with `celocli network:whitelist` - if confirmed,
  * add "G$" here; no adapter entry needed (18-decimal tokens use their own address).
  */
 const FEE_CURRENCY_SYMBOLS = new Set([
@@ -281,14 +281,14 @@ const FEE_CURRENCY_SYMBOLS = new Set([
   "cCHF",                    // Mento Swiss Franc
   "cJPY",                    // Mento Japanese Yen
   "USDT",                    // Tether USD (CGP-0167, via FeeCurrencyAdapter)
-  // G$ (GoodDollar) is NOT in the FeeCurrencyDirectory — confirmed via on-chain query
+  // G$ (GoodDollar) is NOT in the FeeCurrencyDirectory - confirmed via on-chain query
   // WETH is whitelisted on-chain but is not a payment token in this app
   // USDC adapter (0x2F25...) is whitelisted but USDC is not a supported payment token
 ]);
 
 /**
  * Tokens with non-18 decimals cannot be registered directly in the
- * FeeCurrencyDirectory — a FeeCurrencyAdapter normalises decimals for the Celo
+ * FeeCurrencyDirectory - a FeeCurrencyAdapter normalises decimals for the Celo
  * gas engine. The `feeCurrency` field must point to the adapter address, NOT
  * the token address, for these tokens to function as fee currencies.
  *
@@ -308,7 +308,7 @@ const FEE_CURRENCY_ADAPTERS: Partial<Record<string, Partial<Record<number, `0x${
  * For adapter tokens (e.g. USDT): returns the adapter address.
  * For 18-decimal Mento stablecoins: returns the token's own address.
  * For adapter tokens with no entry on this chainId: returns undefined
- * (fee currency unavailable on this network — caller falls back to CELO).
+ * (fee currency unavailable on this network - caller falls back to CELO).
  */
 export function getFeeCurrencyAddress(
   tokenSymbol: string,
@@ -348,7 +348,7 @@ export function getFallbackFeeCurrency(
   /** Map of symbol → numeric balance. Only needs fee-currency tokens. */
   balances: Partial<Record<string, number>>
 ): { address: `0x${string}`; symbol: string } | undefined {
-  // Payment token itself is a fee currency — no fallback needed
+  // Payment token itself is a fee currency - no fallback needed
   if (FEE_CURRENCY_SYMBOLS.has(paymentToken)) return undefined;
 
   for (const symbol of FEE_CURRENCY_PRIORITY) {

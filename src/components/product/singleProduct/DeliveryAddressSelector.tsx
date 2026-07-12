@@ -26,7 +26,7 @@ const DeliveryAddressSelector: React.FC<DeliveryAddressSelectorProps> = ({
   const [showAddForm, setShowAddForm] = useState(false);
   const [expanded, setExpanded] = useState(false);
 
-  // No dedicated "default" endpoint — derive it from the list.
+  // No dedicated "default" endpoint - derive it from the list.
   const defaultAddress = useMemo(
     () => addresses.find((a) => a.isDefault) ?? addresses[0] ?? null,
     [addresses]

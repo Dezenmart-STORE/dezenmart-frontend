@@ -59,7 +59,7 @@ const NotificationItem = ({ notification, onRead }: NotificationItemProps) => {
         </p>
       </div>
 
-      {/* Chevron — only shown when there is a route */}
+      {/* Chevron - only shown when there is a route */}
       {route && (
         <HiChevronRight className="text-gray-500 flex-shrink-0 ml-2 text-lg self-center" />
       )}

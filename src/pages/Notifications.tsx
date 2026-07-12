@@ -36,7 +36,7 @@ const NotificationPage = () => {
     try {
       await markAsReadMutation({ notificationIds: [id] }).unwrap();
     } catch {
-      // Silently ignore — optimistic update already applied
+      // Silently ignore - optimistic update already applied
     }
   };
 

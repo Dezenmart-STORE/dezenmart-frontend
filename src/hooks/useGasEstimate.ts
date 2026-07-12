@@ -3,7 +3,7 @@ import { useGasPrice } from "wagmi";
 import { CHAIN_IDS } from "../config/chains";
 
 // ---------------------------------------------------------------------------
-// Gas unit estimates — conservative upper bounds for Celo transactions
+// Gas unit estimates - conservative upper bounds for Celo transactions
 // ---------------------------------------------------------------------------
 
 /** token approval + escrow buyTrade */
@@ -14,7 +14,7 @@ const GAS_UNITS_WITH_SWAP = 900_000n;
 
 const GWEI = 1_000_000_000n;
 
-/** 10 Gwei — conservative Celo fallback (actual is usually 5–10 Gwei) */
+/** 10 Gwei - conservative Celo fallback (actual is usually 5–10 Gwei) */
 const FALLBACK_GAS_PRICE = 10n * GWEI;
 
 // ---------------------------------------------------------------------------

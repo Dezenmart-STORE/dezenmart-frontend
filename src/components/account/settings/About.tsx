@@ -12,7 +12,7 @@ const LINKS = [
     label: 'Website',
     href: 'https://dezenmart.com',
   },
-  // Telegram removed — we only use X and LinkedIn.
+  // Telegram removed - we only use X and LinkedIn.
   // {
   //   icon: <RiTelegramLine className="text-blue-400 text-base" />,
   //   label: 'Telegram community',

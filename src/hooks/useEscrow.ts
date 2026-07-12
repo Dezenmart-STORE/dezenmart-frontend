@@ -22,7 +22,7 @@ export interface EscrowResult {
   success: boolean;
   /**
    * True when the tx was submitted (hash known) but the receipt wait timed
-   * out. The payment may still confirm — callers should treat this as success
+   * out. The payment may still confirm - callers should treat this as success
    * and let the backend reconcile order status.
    */
   pending?: boolean;
@@ -118,7 +118,7 @@ export function useEscrow() {
             simMsg.includes("contract function") ||
             simMsg.includes("reason:");
           if (isRevert) throw simErr;
-          // Network/RPC issue — proceed with default gas.
+          // Network/RPC issue - proceed with default gas.
         }
 
         // ── Execute via @wagmi/core (no React lifecycle dependency) ──
@@ -202,7 +202,7 @@ export function useEscrow() {
       }
     },
     // address + isConnected are the only React-derived deps we need.
-    // writeContract is imported from @wagmi/core — not a hook, not a dep.
+    // writeContract is imported from @wagmi/core - not a hook, not a dep.
     [isConnected, address]
   );
 

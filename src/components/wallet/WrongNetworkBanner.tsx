@@ -4,7 +4,7 @@ import { useChainGuard } from "../../hooks/useChainGuard";
  * Full-width banner that appears when the user's wallet is connected to
  * a non-Celo network.
  *
- * - Mounts in Layout so it's always rendered (even when hidden) — this
+ * - Mounts in Layout so it's always rendered (even when hidden) - this
  *   is what triggers the auto-switch useEffect in useChainGuard.
  * - Returns null silently when not needed (disconnected or correct chain).
  * - Non-dismissible: the wrong network blocks purchases, so the user must
@@ -37,7 +37,7 @@ export default function WrongNetworkBanner() {
         {/* Message */}
         <div className="min-w-0 flex-1">
           <p className="text-xs font-semibold text-white sm:text-sm">
-            Wrong network — Dezenmart runs on Celo
+            Wrong network - Dezenmart runs on Celo
           </p>
           <p className="hidden text-xs text-amber-100 sm:block">
             Switch your wallet network to continue shopping

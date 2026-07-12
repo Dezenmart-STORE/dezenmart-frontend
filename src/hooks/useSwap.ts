@@ -60,7 +60,7 @@ export function useSwap(): UseSwapReturn {
       if (mento.isReady) return { protocol: mento, name: "mento" as const };
       return null;
     },
-    // Only stable primitives in deps — objects captured via closure are valid for the call's duration
+    // Only stable primitives in deps - objects captured via closure are valid for the call's duration
     [uniswap.isReady, mento.isReady]
   );
 

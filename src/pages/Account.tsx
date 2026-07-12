@@ -129,7 +129,7 @@ const RateApp = ({ onBack }: { onBack: () => void }) => {
         </p>
       </div>
 
-      {/* Feedback box — show always if low rating, show as optional if high */}
+      {/* Feedback box - show always if low rating, show as optional if high */}
       {rating > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 8 }}

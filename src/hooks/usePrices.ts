@@ -66,7 +66,7 @@ const GEO_KEY = "dezen_user_geo";
 const GEO_EXPIRY = 24 * 60 * 60 * 1000; // 24 hours
 
 const RATES_KEY = "dezen_rates_cache";
-const RATES_EXPIRY = 60 * 60 * 1000; // 1 hour — used for cold-start warm-up only
+const RATES_EXPIRY = 60 * 60 * 1000; // 1 hour - used for cold-start warm-up only
 
 // ---------------------------------------------------------------------------
 // Types
@@ -167,7 +167,7 @@ async function fetchRatesSnapshot(): Promise<RatesSnapshot> {
 
   try {
     localStorage.setItem(RATES_KEY, JSON.stringify(snapshot));
-  } catch { /* storage quota — skip silently */ }
+  } catch { /* storage quota - skip silently */ }
 
   return { rates, fiatRates, userFiat };
 }
@@ -216,7 +216,7 @@ export function usePrices() {
    * use the live USDT/fiat rate fetched via TOKEN_FIAT_MAP as a bridge.
    *
    * e.g. cKES → TOKEN_FIAT_MAP["cKES"] = "KES" → fiatRates["USD_KES"] ≈ 129
-   *   $100 → cKES: 100 * 129 = 12,900 cKES  (pegged fallback was 100/0.0065 ≈ 15,384 — wrong)
+   *   $100 → cKES: 100 * 129 = 12,900 cKES  (pegged fallback was 100/0.0065 ≈ 15,384 - wrong)
    *
    * Returns the live bridge rate (USD per 1 fiat unit → multiplier FROM usd),
    * or undefined when the token has a direct CoinGecko rate or no fiat mapping.
@@ -248,7 +248,7 @@ export function usePrices() {
    * "FIAT" always refers to the user's local fiat currency (from geolocation).
    *
    * For stablecoins pegged to fiat (cKES, PUSO, cNGN, cGBP, etc.) live
-   * fiatRates from CoinGecko are used — not the stale hardcoded PEGGED_RATES.
+   * fiatRates from CoinGecko are used - not the stale hardcoded PEGGED_RATES.
    */
   const convertPrice = useCallback(
     (amount: number, from: string, to: string): number => {
@@ -293,7 +293,7 @@ export function usePrices() {
   /** Format a price amount with its currency symbol. */
   const formatPrice = useCallback(
     (amount: number, currency: string): string => {
-      if (isNaN(amount)) return "—";
+      if (isNaN(amount)) return "-";
 
       if (currency === "G$") {
         return `G$${amount.toLocaleString(undefined, {
@@ -329,7 +329,7 @@ export function usePrices() {
         }
       }
 
-      // CELO or unknown tokens — show raw amount + symbol
+      // CELO or unknown tokens - show raw amount + symbol
       return `${amount.toLocaleString(undefined, {
         minimumFractionDigits: 2,
         maximumFractionDigits: 3,

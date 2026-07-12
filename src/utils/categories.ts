@@ -10,7 +10,7 @@ import {
 } from '../components/common/CategoryIcons';
 
 export interface CategoryDef {
-  /** Display name — used for API queries and UI labels */
+  /** Display name - used for API queries and UI labels */
   name: string;
   /** Icon component */
   Icon: ComponentType<{ className?: string }>;

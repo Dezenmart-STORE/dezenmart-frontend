@@ -318,7 +318,7 @@ const PriceBreakdown = memo(
   )
 );
 
-// ── Provider — all logic lives here ──────────────────────────────────────────
+// ── Provider - all logic lives here ──────────────────────────────────────────
 export const PurchaseSectionProvider: React.FC<
   PurchaseSectionProps & { children: React.ReactNode }
 > = ({ product, selectedVariant, children }) => {
@@ -574,7 +574,7 @@ export const PurchaseSectionProvider: React.FC<
   return <PurchaseContext.Provider value={ctxValue}>{children}</PurchaseContext.Provider>;
 };
 
-// ── Body — scrollable content ──────────────────────────────────────────────────
+// ── Body - scrollable content ──────────────────────────────────────────────────
 export const PurchaseSectionBody: React.FC = () => {
   const {
     state,
@@ -645,7 +645,7 @@ export const PurchaseSectionBody: React.FC = () => {
         onRefresh={refreshQuote}
       />
 
-      {/* Wallet info — shown when connected */}
+      {/* Wallet info - shown when connected */}
       {isConnected && (
         <div className="bg-gray-800/60 border border-gray-700/50 rounded-lg p-3 text-xs space-y-2">
           <div className="flex justify-between items-center">
@@ -679,7 +679,7 @@ export const PurchaseSectionBody: React.FC = () => {
   );
 };
 
-// ── Footer — always-visible buy button + modals ───────────────────────────────
+// ── Footer - always-visible buy button + modals ───────────────────────────────
 export const PurchaseSectionFooter: React.FC = () => {
   const {
     state,
@@ -786,7 +786,7 @@ export const PurchaseSectionFooter: React.FC = () => {
   );
 };
 
-// ── Default export — convenience wrapper (non-xl / simple usage) ──────────────
+// ── Default export - convenience wrapper (non-xl / simple usage) ──────────────
 const PurchaseSection: React.FC<PurchaseSectionProps> = memo(({ product, selectedVariant }) => (
   <PurchaseSectionProvider product={product} selectedVariant={selectedVariant}>
     <PurchaseSectionBody />

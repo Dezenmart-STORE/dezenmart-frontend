@@ -88,7 +88,7 @@ const Settings = ({
           label: "Delivery Addresses",
           onClick: () => setViewState("delivery-addresses"),
         },
-        // Telegram community removed — we only use X and LinkedIn.
+        // Telegram community removed - we only use X and LinkedIn.
         // {
         //   icon: <RiContactsBook2Fill className="text-white text-base" />,
         //   label: "Join Our Community",

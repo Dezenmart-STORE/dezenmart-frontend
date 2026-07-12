@@ -11,7 +11,7 @@ interface Props {
 }
 
 /**
- * Contextual action buttons based on trade status — dark themed.
+ * Contextual action buttons based on trade status - dark themed.
  * Shows only relevant actions for the current state.
  */
 export default function TradeActions({
@@ -130,7 +130,7 @@ export default function TradeActions({
                 Raise a dispute?
               </p>
               <p className="mt-1 text-xs text-amber-500">
-                This will flag the order for review. Use this if there's an issue — we'll help resolve it.
+                This will flag the order for review. Use this if there's an issue - we'll help resolve it.
               </p>
               <div className="mt-3 flex gap-2">
                 <button

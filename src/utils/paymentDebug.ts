@@ -1,5 +1,5 @@
 /**
- * Payment flow debugger — dev-only, tree-shaken in production.
+ * Payment flow debugger - dev-only, tree-shaken in production.
  */
 
 const IS_DEV = import.meta.env.DEV;
@@ -51,7 +51,7 @@ class PaymentDebugger {
   }
 }
 
-// Singleton — components just import and use
+// Singleton - components just import and use
 export const paymentDebug = new PaymentDebugger();
 
 // Expose in dev console for manual inspection

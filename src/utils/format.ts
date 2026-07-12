@@ -85,7 +85,7 @@ export async function copyToClipboard(text: string): Promise<void> {
 /**
  * Calculate order amounts.
  * Uses integer arithmetic at 6 d.p. precision to avoid IEEE 754 drift.
- * Escrow fee is already baked into productPrice — not added here.
+ * Escrow fee is already baked into productPrice - not added here.
  */
 export function calculateOrderTotal(
   productPrice: number,

@@ -26,7 +26,7 @@ const BannerCarousel: FC<BannerCarouselProps> = ({
     setCurrentIndex(index);
   }, []);
 
-  // Auto-rotation — pauses on hover and when user manually navigates
+  // Auto-rotation - pauses on hover and when user manually navigates
   useEffect(() => {
     if (!autoRotate || banners.length <= 1 || isPaused) return;
     const interval = window.setInterval(goToNext, rotationInterval);

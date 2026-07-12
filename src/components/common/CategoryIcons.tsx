@@ -1,5 +1,5 @@
 /**
- * Category Icons — hand-crafted SVGs for each marketplace category.
+ * Category Icons - hand-crafted SVGs for each marketplace category.
  *
  * All icons:
  *  - 64 × 64 viewBox for crisp rendering at any size
@@ -44,7 +44,7 @@ export const ElectronicsIcon: React.FC<IconProps> = ({
     />
     {/* Front camera dot */}
     <circle cx="40" cy="10" r="1.75" fill="currentColor" fillOpacity="0.65" />
-    {/* Signal bars — short / medium / tall */}
+    {/* Signal bars - short / medium / tall */}
     <rect x="22" y="37" width="5" height="6"  rx="1" fill="currentColor" />
     <rect x="30" y="31" width="5" height="12" rx="1" fill="currentColor" />
     <rect x="38" y="25" width="5" height="18" rx="1" fill="currentColor" />
@@ -57,7 +57,7 @@ export const ElectronicsIcon: React.FC<IconProps> = ({
 );
 
 // ─── Clothing ─────────────────────────────────────────────────────────────────
-// Classic crew-neck T-shirt silhouette — universally understood as "apparel"
+// Classic crew-neck T-shirt silhouette - universally understood as "apparel"
 
 export const ClothingIcon: React.FC<IconProps> = ({
   className = "w-8 h-8",
@@ -80,7 +80,7 @@ export const ClothingIcon: React.FC<IconProps> = ({
       fill="currentColor" fillOpacity="0.1"
       strokeLinejoin="round"
     />
-    {/* Crew-neck seam — the subtle inner fold line */}
+    {/* Crew-neck seam - the subtle inner fold line */}
     <path
       d="M26,20 Q32,15 38,20"
       stroke="currentColor" strokeWidth="1.5"
@@ -90,7 +90,7 @@ export const ClothingIcon: React.FC<IconProps> = ({
 );
 
 // ─── Home & Garden ────────────────────────────────────────────────────────────
-// House with cross-pane windows + arched door — classic "home" read at a glance
+// House with cross-pane windows + arched door - classic "home" read at a glance
 
 export const HomeGardenIcon: React.FC<IconProps> = ({
   className = "w-8 h-8",
@@ -169,7 +169,7 @@ export const BeautyIcon: React.FC<IconProps> = ({
     {/*
       Bullet: rectangular body with a diagonal angled cut at the top.
       The diagonal goes from (28,22) lower-left to (36,17) upper-right
-      — the classic "just-used" lipstick silhouette.
+      - the classic "just-used" lipstick silhouette.
     */}
     <path
       d="M28,32 L28,22 L36,17 L36,32 Z"
@@ -177,12 +177,12 @@ export const BeautyIcon: React.FC<IconProps> = ({
       fill="currentColor" fillOpacity="0.2"
       strokeLinejoin="round"
     />
-    {/* Large sparkle — top right */}
+    {/* Large sparkle - top right */}
     <line x1="50" y1="8"  x2="50" y2="20" stroke="currentColor" strokeWidth="2"   strokeLinecap="round" />
     <line x1="44" y1="14" x2="56" y2="14" stroke="currentColor" strokeWidth="2"   strokeLinecap="round" />
     <line x1="46" y1="10" x2="54" y2="18" stroke="currentColor" strokeWidth="1"   strokeLinecap="round" opacity="0.5" />
     <line x1="54" y1="10" x2="46" y2="18" stroke="currentColor" strokeWidth="1"   strokeLinecap="round" opacity="0.5" />
-    {/* Small sparkle — left side */}
+    {/* Small sparkle - left side */}
     <line x1="13" y1="30" x2="13" y2="38" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
     <line x1="9"  y1="34" x2="17" y2="34" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
     {/* Accent dot */}
@@ -191,7 +191,7 @@ export const BeautyIcon: React.FC<IconProps> = ({
 );
 
 // ─── Sports & Outdoors ────────────────────────────────────────────────────────
-// Dumbbell with double weight plates — universal symbol for fitness / sports
+// Dumbbell with double weight plates - universal symbol for fitness / sports
 
 export const SportsIcon: React.FC<IconProps> = ({
   className = "w-8 h-8",
@@ -246,19 +246,19 @@ export const ArtWorkIcon: React.FC<IconProps> = ({
     fill="none"
     xmlns="http://www.w3.org/2000/svg"
   >
-    {/* Palette body — organic bean / kidney shape */}
+    {/* Palette body - organic bean / kidney shape */}
     <path
       d="M14,30 Q12,14 28,10 Q44,6 52,18 Q60,30 52,42 Q46,52 36,52 Q22,54 16,44 Q10,38 14,30 Z"
       stroke="currentColor" strokeWidth="2.5"
       fill="currentColor" fillOpacity="0.08"
     />
-    {/* Thumb hole — the cutout makes the palette instantly recognizable */}
+    {/* Thumb hole - the cutout makes the palette instantly recognizable */}
     <circle
       cx="22" cy="44" r="6"
       stroke="currentColor" strokeWidth="2"
       fill="none"
     />
-    {/* Paint blobs — varying opacity suggests different colors */}
+    {/* Paint blobs - varying opacity suggests different colors */}
     <circle cx="30" cy="16" r="4.5" fill="currentColor" fillOpacity="0.95" />
     <circle cx="42" cy="12" r="4"   fill="currentColor" fillOpacity="0.7"  />
     <circle cx="51" cy="22" r="4"   fill="currentColor" fillOpacity="0.5"  />
@@ -274,7 +274,7 @@ export const ArtWorkIcon: React.FC<IconProps> = ({
 );
 
 // ─── Accessories ─────────────────────────────────────────────────────────────
-// Structured handbag with arched handle + clasp — the #1 accessory icon in e-commerce
+// Structured handbag with arched handle + clasp - the #1 accessory icon in e-commerce
 
 export const AccessoriesIcon: React.FC<IconProps> = ({
   className = "w-8 h-8",
@@ -291,7 +291,7 @@ export const AccessoriesIcon: React.FC<IconProps> = ({
       stroke="currentColor" strokeWidth="2.5"
       fill="currentColor" fillOpacity="0.08"
     />
-    {/* Handle — U-shaped arc above the bag */}
+    {/* Handle - U-shaped arc above the bag */}
     <path
       d="M20,26 Q20,10 32,10 Q44,10 44,26"
       stroke="currentColor" strokeWidth="2.5"

@@ -168,7 +168,7 @@
       rel="stylesheet"
     />
 
-    <!-- Splash screen styles — loaded synchronously to prevent any white flash -->
+    <!-- Splash screen styles - loaded synchronously to prevent any white flash -->
     <style>
       body {
         margin: 0;
@@ -211,7 +211,7 @@
       /* ── Logo ──────────────────────────────────────────────────────────────── */
       /*
         min(52vmin, 200px):
-          vmin = smaller of vw / vh — keeps logo proportional on any orientation.
+          vmin = smaller of vw / vh - keeps logo proportional on any orientation.
           52vmin on a 375×812 phone ≈ 195px (just under the cap).
           Cap at 200px so it doesn't overpower larger screens.
           Result: logo is always fully visible, never cropped, never too large.
@@ -301,12 +301,12 @@
     </style>
   </head>
   <body>
-    <!-- Splash screen — visible before React hydrates. Dismissed via app-ready event. -->
+    <!-- Splash screen - visible before React hydrates. Dismissed via app-ready event. -->
     <div id="splash-screen" role="status" aria-label="Loading Dezenmart">
       <div class="sp-inner">
 
         <!--
-          Logo SVG — identical shapes to /public/images/logo.svg.
+          Logo SVG - identical shapes to /public/images/logo.svg.
           No background rect needed here: the #splash-screen provides #212428.
           Unique clip-path IDs (sp-*) avoid any conflict with other SVGs on the page.
         -->
@@ -394,7 +394,7 @@
         /* React signals the app is mounted and ready to display */
         window.addEventListener("app-ready", dismiss, { once: true });
 
-        /* Hard timeout — dismiss even if React never fires */
+        /* Hard timeout - dismiss even if React never fires */
         setTimeout(dismiss, MAX_MS);
       })();
     </script>

@@ -1,6 +1,6 @@
 /**
- * Internal Uniswap V3 swap hook — uses lean config.
- * Not exported from the barrel — only consumed by useSwap.
+ * Internal Uniswap V3 swap hook - uses lean config.
+ * Not exported from the barrel - only consumed by useSwap.
  */
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { useAccount, useWalletClient, usePublicClient } from "wagmi";
@@ -117,7 +117,7 @@ export interface SwapParams {
   toSymbol: string;
   amount: number;
   slippageTolerance?: number;
-  /** Celo fee currency address — gas is deducted from this token instead of CELO */
+  /** Celo fee currency address - gas is deducted from this token instead of CELO */
   feeCurrency?: `0x${string}`;
 }
 
@@ -402,7 +402,7 @@ export function useUniswapInternal() {
       const quote = await getSwapQuote(fromSymbol, toSymbol, amount, slippageTolerance);
       const minAmountOut = parseUnits(quote.minAmountOut, toToken.decimals);
 
-      // Approve exactly amountIn + 10 % buffer — never use unlimited approval.
+      // Approve exactly amountIn + 10 % buffer - never use unlimited approval.
       const approvalAmount = (amountIn * 110n) / 100n;
       const allowanceHash = await walletClient.writeContract({
         address: fromAddress as `0x${string}`,

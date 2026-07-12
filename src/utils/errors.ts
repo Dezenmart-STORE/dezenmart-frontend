@@ -71,7 +71,7 @@ const ERROR_PATTERNS: Array<{
     result: {
       title: "Price Changed",
       message: "The price moved too much during the transaction.",
-      suggestion: "Try again — or increase slippage tolerance.",
+      suggestion: "Try again - or increase slippage tolerance.",
     },
   },
 
@@ -338,6 +338,6 @@ function _forwardToReporter(
   try {
     _reporter(error, context, parsed, extra);
   } catch {
-    // reporter itself failed — don't crash the app
+    // reporter itself failed - don't crash the app
   }
 }

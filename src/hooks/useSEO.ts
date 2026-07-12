@@ -32,13 +32,13 @@ function setMeta(
 }
 
 /**
- * useSEO — manages page-level meta tags and JSON-LD structured data.
+ * useSEO - manages page-level meta tags and JSON-LD structured data.
  *
  * Design:
  * - Meta tags (description, og:*, twitter:*, robots, canonical) are written
  *   on every render; index.html supplies the static fallback values.
  * - JSON-LD <script> elements are tracked per-instance via ref so each page
- *   only removes its own scripts on unmount — no cross-page contamination.
+ *   only removes its own scripts on unmount - no cross-page contamination.
  * - Static infrastructure tags (viewport, theme-color, preconnect) live only
  *   in index.html and are never touched here.
  */

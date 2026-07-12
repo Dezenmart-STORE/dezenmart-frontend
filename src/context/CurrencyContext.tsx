@@ -61,7 +61,7 @@ interface CurrencyContextValue {
   /** True while live exchange rates are being fetched */
   isFetching: boolean;
 
-  /** Timestamp (ms) of the last successful rate fetch — 0 if only pegged rates loaded */
+  /** Timestamp (ms) of the last successful rate fetch - 0 if only pegged rates loaded */
   updatedAt: number;
 
   /** Trigger an immediate rate refresh */
@@ -69,7 +69,7 @@ interface CurrencyContextValue {
 
   // ── Backward-compatible props ─────────────────────────────────────────────
 
-  /** "TOKEN" or "FIAT" — same meaning as displayMode */
+  /** "TOKEN" or "FIAT" - same meaning as displayMode */
   secondaryCurrency: SecondaryCurrency;
 
   /** Shortcut for selectedToken.symbol */

@@ -63,7 +63,7 @@ const Community = () => {
     }
   };
 
-  // Telegram community removed — we only use X and LinkedIn.
+  // Telegram community removed - we only use X and LinkedIn.
   // const handleTelegramJoin = () => {
   //   window.open("https://t.me/dezenmart_commuinity", "_blank");
   // };
@@ -179,7 +179,7 @@ const Community = () => {
                 </div>
               </form>
 
-              {/* Telegram community removed — we only use X and LinkedIn.
+              {/* Telegram community removed - we only use X and LinkedIn.
               <motion.div
                 variants={itemVariants}
                 whileHover={{ scale: 1.05 }}
@@ -244,7 +244,7 @@ const Community = () => {
           {/* Footer */}
           <motion.div variants={itemVariants} className="mt-auto w-full">
             <div className="flex justify-center space-x-6 mb-6">
-              {/* Facebook & Instagram removed — we only use X and LinkedIn. */}
+              {/* Facebook & Instagram removed - we only use X and LinkedIn. */}
               {/* <SocialIcon icon={<FaFacebookF />} /> */}
               <SocialIcon icon={<FaXTwitter />} href="https://x.com/Dezenmart?s=20" />
               {/* <SocialIcon icon={<FaInstagram />} /> */}

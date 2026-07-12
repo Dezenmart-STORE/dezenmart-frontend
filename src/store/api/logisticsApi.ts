@@ -111,7 +111,7 @@ export const logisticsApi = baseApi.injectEndpoints({
       providesTags: ['Logistics'],
     }),
 
-    // A provider's pricing rules — used to compute the delivery cost for a route.
+    // A provider's pricing rules - used to compute the delivery cost for a route.
     // NOTE: backend currently only exposes /providers/me/pricing-rules (provider-
     // only). This targets the planned public /providers/{id}/pricing-rules; until
     // that ships it 403/404s and the UI falls back to "Price n/a".
