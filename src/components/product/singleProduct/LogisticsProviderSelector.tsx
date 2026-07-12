@@ -3,8 +3,8 @@ import { motion } from "framer-motion";
 import { FaTruck, FaCheck, FaStar, FaSearch } from "react-icons/fa";
 import { HiExclamationTriangle, HiCheckBadge } from "react-icons/hi2";
 import {
-  useGetAllProvidersQuery,
   useGetAvailableProvidersQuery,
+  useGetAllProvidersQuery,
   useGetProviderPricingRulesQuery,
   useGetLogisticsQuoteQuery,
 } from "../../../store/api";
@@ -34,6 +34,14 @@ interface Props {
 
 const SEARCH_THRESHOLD = 4; // only show the search box beyond this many providers
 
+// What each provider row reports back: its quote (for sorting), the quoteId
+// (needed to order), and whether it can actually be quoted for this route.
+interface RowInfo {
+  quote: DeliveryQuote | null;
+  quoteId?: string;
+  status: "loading" | "ok" | "unavailable";
+}
+
 const LogisticsProviderSelector: React.FC<Props> = ({
   product,
   deliveryAddress,
@@ -43,7 +51,7 @@ const LogisticsProviderSelector: React.FC<Props> = ({
 }) => {
   const [sort, setSort] = useState<LogisticsSort>("price");
   const [search, setSearch] = useState("");
-  const [quotes, setQuotes] = useState<Record<string, DeliveryQuote | null>>({});
+  const [rowInfo, setRowInfo] = useState<Record<string, RowInfo>>({});
   const [expanded, setExpanded] = useState(false);
 
   // Origin + weight (fall back to legacy defaults for older products).
@@ -56,59 +64,108 @@ const LogisticsProviderSelector: React.FC<Props> = ({
     [fromState, fromLga, deliveryAddress.state, deliveryAddress.lga]
   );
 
-  const { data: providers = [], isLoading, isFetching, isError, refetch } = useGetAllProvidersQuery()
-    // useGetAvailableProvidersQuery({
-    //   fromState,
-    //   fromLga,
-    //   toState: deliveryAddress.state,
-    //   toLga: deliveryAddress.lga,
-    //   weight,
-    // });
+  // Primary: providers that serve this route. If none, fall back to all active
+  // providers and let /logistics/quotes decide who can actually deliver.
+  const availableQ = useGetAvailableProvidersQuery({
+    fromState,
+    fromLga,
+    toState: deliveryAddress.state,
+    toLga: deliveryAddress.lga,
+    weight,
+  });
+  const available = availableQ.data ?? [];
+  const needFallback = !availableQ.isFetching && available.length === 0;
+  const fallbackQ = useGetAllProvidersQuery(undefined, { skip: !needFallback });
+
+  const providers = (
+    available.length > 0 ? available : fallbackQ.data ?? []
+  ) as AvailableProvider[];
+  const isLoading = availableQ.isLoading || (needFallback && fallbackQ.isLoading);
+  const isFetching = availableQ.isFetching || fallbackQ.isFetching;
+  const isError = availableQ.isError && (!needFallback || fallbackQ.isError);
+  const refetch = () => {
+    availableQ.refetch();
+    if (needFallback) fallbackQ.refetch();
+  };
 
   const tokenSymbol = product.paymentToken || "USDT";
 
-  // Each row reports its computed quote up so we can sort by price/speed.
-  const reportQuote = useCallback((id: string, quote: DeliveryQuote | null) => {
-    setQuotes((prev) => {
-      const prevQ = prev[id];
-      if (id in prev && prevQ?.cost === quote?.cost && prevQ?.daysMin === quote?.daysMin) {
+  // Each row reports its quote status up so we can sort, gate selection, and
+  // auto-pick a provider that can actually be quoted.
+  const reportInfo = useCallback((id: string, info: RowInfo) => {
+    setRowInfo((prev) => {
+      const p = prev[id];
+      if (
+        p &&
+        p.status === info.status &&
+        p.quoteId === info.quoteId &&
+        p.quote?.cost === info.quote?.cost &&
+        p.quote?.daysMin === info.quote?.daysMin
+      ) {
         return prev;
       }
-      return { ...prev, [id]: quote };
+      return { ...prev, [id]: info };
     });
   }, []);
 
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase();
     const filtered = q ? providers.filter((p) => p.name.toLowerCase().includes(q)) : providers;
+    // Quotable providers first, then unavailable ones.
+    const rank = (id: string) => (rowInfo[id]?.status === "unavailable" ? 1 : 0);
     const withIndex = filtered.map((p, i) => ({ p, i }));
     withIndex.sort((a, b) => {
+      const ra = rank(a.p._id);
+      const rb = rank(b.p._id);
+      if (ra !== rb) return ra - rb;
       if (sort === "rating") return (b.p.rating || 0) - (a.p.rating || 0) || a.i - b.i;
-      const qa = quotes[a.p._id];
-      const qb = quotes[b.p._id];
+      const qa = rowInfo[a.p._id]?.quote;
+      const qb = rowInfo[b.p._id]?.quote;
       if (sort === "days") {
         return (qa?.daysMin ?? Infinity) - (qb?.daysMin ?? Infinity) || a.i - b.i;
       }
       return (qa?.cost ?? Infinity) - (qb?.cost ?? Infinity) || a.i - b.i;
     });
     return withIndex.map((x) => x.p);
-  }, [providers, search, sort, quotes]);
+  }, [providers, search, sort, rowInfo]);
 
-  // Auto-select the first provider once, if none chosen.
+  // True once every candidate has resolved and none can be quoted.
+  const noneQuotable =
+    providers.length > 0 &&
+    providers.every((p) => rowInfo[p._id]?.status === "unavailable");
+
+  // Auto-select the first provider that quoted successfully.
   useEffect(() => {
-    if (!selectedProvider && providers.length > 0) {
-      onProviderSelect(providers[0]);
+    if (selectedProvider) return;
+    const firstOk = visible.find((p) => rowInfo[p._id]?.status === "ok");
+    if (firstOk) {
+      const info = rowInfo[firstOk._id];
+      onProviderSelect({
+        ...firstOk,
+        cost: info?.quote?.cost,
+        estimatedDays: info?.quote?.estimatedDays,
+        quoteId: info?.quoteId,
+      });
     }
-  }, [providers, selectedProvider, onProviderSelect]);
+  }, [visible, rowInfo, selectedProvider, onProviderSelect]);
 
-  // Keep the selected provider's cost in sync once its quote resolves.
+  // Keep the selected provider's cost + quoteId in sync as its quote resolves.
   useEffect(() => {
     if (!selectedProvider) return;
-    const q = quotes[selectedProvider._id];
-    if (q && (q.cost !== selectedProvider.cost || q.estimatedDays !== selectedProvider.estimatedDays)) {
-      onProviderSelect({ ...selectedProvider, cost: q.cost, estimatedDays: q.estimatedDays });
+    const info = rowInfo[selectedProvider._id];
+    if (
+      info?.status === "ok" &&
+      (info.quoteId !== selectedProvider.quoteId ||
+        info.quote?.cost !== selectedProvider.cost)
+    ) {
+      onProviderSelect({
+        ...selectedProvider,
+        cost: info.quote?.cost,
+        estimatedDays: info.quote?.estimatedDays,
+        quoteId: info.quoteId,
+      });
     }
-  }, [quotes, selectedProvider, onProviderSelect]);
+  }, [rowInfo, selectedProvider, onProviderSelect]);
 
   const handleSelect = useCallback(
     (p: AvailableProvider) => {
@@ -152,7 +209,7 @@ const LogisticsProviderSelector: React.FC<Props> = ({
           deliveryAddressId={deliveryAddress._id}
           selected
           onSelect={() => setExpanded(true)}
-          onQuote={reportQuote}
+          onReport={reportInfo}
         />
       ) : (
       <>
@@ -216,7 +273,7 @@ const LogisticsProviderSelector: React.FC<Props> = ({
             </button>
           </div>
         </div>
-      ) : providers.length === 0 ? (
+      ) : providers.length === 0 || noneQuotable ? (
         <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4">
           <div className="flex items-start gap-2 text-yellow-400">
             <HiExclamationTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" />
@@ -245,7 +302,7 @@ const LogisticsProviderSelector: React.FC<Props> = ({
               deliveryAddressId={deliveryAddress._id}
               selected={selectedProvider?.walletAddress === provider.walletAddress}
               onSelect={handleSelect}
-              onQuote={reportQuote}
+              onReport={reportInfo}
             />
           ))}
         </div>
@@ -266,7 +323,7 @@ interface RowProps {
   deliveryAddressId?: string;
   selected: boolean;
   onSelect: (provider: AvailableProvider) => void;
-  onQuote: (id: string, quote: DeliveryQuote | null) => void;
+  onReport: (id: string, info: RowInfo) => void;
 }
 
 const ProviderRow: React.FC<RowProps> = ({
@@ -277,7 +334,7 @@ const ProviderRow: React.FC<RowProps> = ({
   deliveryAddressId,
   selected,
   onSelect,
-  onQuote,
+  onReport,
 }) => {
   const hasAddressId = !!deliveryAddressId;
 
@@ -309,7 +366,15 @@ const ProviderRow: React.FC<RowProps> = ({
     liveQuote?.estimatedDays ?? ruleQuote?.estimatedDays ?? provider.estimatedDays;
   const quoteId = liveQuote?.quoteId;
 
-  // Report a quote up for sorting.
+  // A row is orderable only once it has a quoteId. Without a saved address id we
+  // can't get one, so those rows are informational-only (not orderable).
+  const status: RowInfo["status"] = isLoading
+    ? "loading"
+    : quoteId
+    ? "ok"
+    : "unavailable";
+  const unavailable = status === "unavailable";
+
   const sortQuote = useMemo<DeliveryQuote | null>(() => {
     if (cost == null) return ruleQuote;
     return {
@@ -322,18 +387,24 @@ const ProviderRow: React.FC<RowProps> = ({
   }, [cost, estimatedDays, ruleQuote]);
 
   useEffect(() => {
-    onQuote(provider._id, sortQuote);
-  }, [provider._id, sortQuote, onQuote]);
+    onReport(provider._id, { quote: sortQuote, quoteId, status });
+  }, [provider._id, sortQuote, quoteId, status, onReport]);
 
-  const handleSelect = () => onSelect({ ...provider, cost, estimatedDays, quoteId });
+  const handleSelect = () => {
+    if (unavailable) return;
+    onSelect({ ...provider, cost, estimatedDays, quoteId });
+  };
 
   return (
     <motion.button
       type="button"
       onClick={handleSelect}
-      whileTap={{ scale: 0.98 }}
+      disabled={unavailable}
+      whileTap={unavailable ? undefined : { scale: 0.98 }}
       className={`w-full text-left p-4 rounded-xl border-2 transition-colors ${
-        selected
+        unavailable
+          ? "border-transparent bg-[#292B30]/50 opacity-60 cursor-not-allowed"
+          : selected
           ? "border-red-600 bg-red-600/10"
           : "border-transparent bg-[#292B30] hover:border-gray-600"
       }`}
@@ -364,6 +435,8 @@ const ProviderRow: React.FC<RowProps> = ({
           <div className="text-right">
             {isLoading ? (
               <div className="text-gray-500 text-xs">…</div>
+            ) : unavailable ? (
+              <div className="text-gray-500 text-xs">Unavailable</div>
             ) : cost != null ? (
               <div className="text-red-500 font-semibold text-sm">
                 {cost} {tokenSymbol}
@@ -372,7 +445,7 @@ const ProviderRow: React.FC<RowProps> = ({
               <div className="text-gray-500 text-xs">Price n/a</div>
             )}
           </div>
-          {selected && <FaCheck className="text-red-500 w-4 h-4" />}
+          {selected && !unavailable && <FaCheck className="text-red-500 w-4 h-4" />}
         </div>
       </div>
     </motion.button>
