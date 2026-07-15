@@ -51,7 +51,7 @@ const walkthroughSteps: WalkthroughStep[] = [
       "1 USDT ≈ $1 USD (stable value)",
       "We support 16+ stablecoins including cUSD, cEUR, G$",
       "Pay in your preferred currency",
-      "Prices show in both crypto and USD",
+      "Prices show in both crypto and fiat",
     ],
   },
   {

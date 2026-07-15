@@ -93,18 +93,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const FRONTEND_URL = window.location.origin; // Automatically gets current URL
 
     if (provider === "google") {
-      // Use current origin in development, production URL in production
-      const origin = import.meta.env.MODE === 'development'
-        ? FRONTEND_URL  // localhost:5173 (or whatever port is running)
-        : 'https://dezenmart.netlify.app';
-
+      // Always come back to the origin the request was made from
+      // (dezenmart.com, the netlify preview, or localhost), not a hardcoded host.
+      const origin = FRONTEND_URL;
       const redirectUrl = `${API_URL}/auth/google?origin=${encodeURIComponent(origin)}`;
-
-      console.log("🔐 OAuth Login:");
-      console.log("   API:", API_URL);
-      console.log("   Redirect to:", origin);
-      console.log("   Mode:", import.meta.env.MODE);
-
       window.location.href = redirectUrl;
     }
   };
@@ -168,9 +160,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const loginInPopup = (): Promise<void> => {
     return new Promise((resolve) => {
       const API_URL = import.meta.env.VITE_API_URL;
-      const origin = import.meta.env.MODE === "development"
-        ? window.location.origin
-        : "https://dezenmart.netlify.app";
+      // Come back to whichever origin opened the popup (dezenmart.com, preview, localhost).
+      const origin = window.location.origin;
 
       const url = `${API_URL}/auth/google?origin=${encodeURIComponent(origin)}`;
       const w = 500, h = 620;
