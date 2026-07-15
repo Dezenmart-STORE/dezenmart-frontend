@@ -25,6 +25,8 @@ interface AuthContextType {
   isLoading: boolean;
   login: (provider: string) => void;
   loginInPopup: () => Promise<void>;
+  /** Exchange a Google One Tap ID token for our session, in place. */
+  loginWithGoogleCredential: (credential: string) => Promise<void>;
   // loginWithWallet: (walletAddress: string) => Promise<void>;
   handleUserUpdate: (userData: any) => void;
   handleAuthCallback: (token: string, userData: any) => void;
@@ -233,6 +235,33 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });
   };
 
+  // One Tap hands us a Google ID token; the backend verifies it and returns our
+  // session. No redirect/popup, so auth state updates in place.
+  const loginWithGoogleCredential = async (credential: string): Promise<void> => {
+    const API_URL = import.meta.env.VITE_API_URL;
+    const res = await fetch(`${API_URL}/auth/google/one-tap`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ credential }),
+    });
+    if (!res.ok) throw new Error("Google sign-in failed");
+    const json = await res.json().catch(() => ({}));
+    const token: string | undefined = json?.data?.token ?? json?.token;
+    if (!token) throw new Error("Google sign-in failed: no token returned");
+
+    let profile: UserProfile | undefined = json?.data?.user ?? json?.user;
+    if (!profile) {
+      // Backend returned only a token — fetch the profile with it.
+      storage.setItem(TOKEN_KEY, token);
+      const p = await fetch(`${API_URL}/users/profile`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const pj = await p.json().catch(() => ({}));
+      profile = (pj?.data ?? pj) as UserProfile;
+    }
+    handleAuthCallback(token, profile);
+  };
+
   const handleAuthCallback = (token: string, userData: UserProfile) => {
     try {
       storage.setItem(TOKEN_KEY, token);
@@ -279,6 +308,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     isLoading,
     login,
     loginInPopup,
+    loginWithGoogleCredential,
     // loginWithWallet,
     handleAuthCallback,
     handleUserUpdate,
