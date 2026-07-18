@@ -69,7 +69,7 @@ interface RampProviderProps {
    */
   integrationMode?: RampIntegrationMode;
   /** Required when integrationMode === "widget" */
-  widgetConfig?: WidgetConfig;
+  widgetConfig?: WidgetConfig | null;
 }
 
 /** Split a display name into first / last (best-effort) */
