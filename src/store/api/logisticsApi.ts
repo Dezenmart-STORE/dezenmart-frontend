@@ -129,8 +129,12 @@ export const logisticsApi = baseApi.injectEndpoints({
     }),
 
     // Create a logistics quote for a route + weight (destination from the saved
-    // address). Modelled as a query so it's deduped and cached (keyed by args);
-    // the resulting quoteId travels with the order.
+    // address). Modelled as a query so rows on the same route share one deduped
+    // request; the resulting quoteId travels with the order.
+    // A quote is ephemeral (server-side expiry), so it must not be cached and
+    // reused: keepUnusedDataFor 0 purges it the moment no row subscribes, so
+    // re-selecting an address always mints a fresh quote (see the hook's
+    // refetchOnMountOrArgChange).
     // The exact response field names aren't locked, so normalise defensively.
     getLogisticsQuote: builder.query<LogisticsQuote, CreateQuoteParams>({
       query: (body) => ({
@@ -139,6 +143,7 @@ export const logisticsApi = baseApi.injectEndpoints({
         headers: { 'Content-Type': 'application/json' },
         body,
       }),
+      keepUnusedDataFor: 0,
       transformResponse: (res: unknown): LogisticsQuote => {
         const r = res as Record<string, any>;
         const q = r?.data?.quote ?? r?.data ?? r?.quote ?? r ?? {};

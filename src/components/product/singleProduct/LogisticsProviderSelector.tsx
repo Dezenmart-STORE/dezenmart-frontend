@@ -301,7 +301,8 @@ const ProviderRow: React.FC<RowProps> = ({
       toLga: route.toLga,
       weight,
     },
-    { skip: !hasAddressId || !provider._id }
+    // Quotes expire, so always mint a fresh one rather than reuse a cached quote.
+    { skip: !hasAddressId || !provider._id, refetchOnMountOrArgChange: true }
   );
 
   // Fallback for a one-time address (no id): compute a price from pricing rules.
