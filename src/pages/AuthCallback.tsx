@@ -46,38 +46,9 @@ const AuthCallback = () => {
       const token = searchParams.get("token");
       if (token) {
         handleAuthCallback(token, userProfile);
-
-        // localStorage is origin-keyed and survives cross-origin navigation,
-        // unlike window.opener and window.name which are cleared by Chrome 88+
-        // when the popup travels through Google's servers.
-        const isPopup = localStorage.getItem("dezen-auth-popup") === "1";
-        localStorage.removeItem("dezen-auth-popup");
-
-        if (isPopup) {
-          // BroadcastChannel works same-origin without needing window.opener.
-          try {
-            const bc = new BroadcastChannel("dezen-auth");
-            bc.postMessage({ type: "DEZEN_AUTH_SUCCESS" });
-            bc.close();
-          } catch {}
-
-          // Keep postMessage as a belt-and-suspenders fallback for any
-          // browser that still has window.opener intact.
-          if (window.opener && window.opener !== window) {
-            try {
-              window.opener.postMessage(
-                { type: "DEZEN_AUTH_SUCCESS" },
-                window.location.origin
-              );
-            } catch {}
-          }
-
-          window.close();
-        } else {
-          startTransition(() => {
-            navigate("/", { replace: true });
-          });
-        }
+        startTransition(() => {
+          navigate("/", { replace: true });
+        });
       }
     }
   }, [userProfile, shouldFetch, searchParams, handleAuthCallback, navigate]);

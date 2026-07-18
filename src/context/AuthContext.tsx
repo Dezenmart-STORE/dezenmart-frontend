@@ -24,7 +24,6 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (provider: string) => void;
-  loginInPopup: () => Promise<void>;
   /** Exchange a Google One Tap ID token for our session, in place. */
   loginWithGoogleCredential: (credential: string) => Promise<void>;
   // loginWithWallet: (walletAddress: string) => Promise<void>;
@@ -145,96 +144,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } catch {}
   };
 
-  const refreshAuthFromStorage = () => {
-    try {
-      const token = storage.getItem(TOKEN_KEY);
-      const storedUser = storage.getItem(USER_KEY);
-      if (!token || !storedUser) return;
-      const decoded = jwtDecode<JwtPayload>(token);
-      if (decoded.exp < Date.now() / 1000) return;
-      const parsedUser = JSON.parse(storedUser);
-      setUser(parsedUser);
-      setSentryUser({ id: parsedUser._id, name: parsedUser.name, email: parsedUser.email });
-      saveLastAccount(parsedUser);
-    } catch {}
-  };
-
-  const loginInPopup = (): Promise<void> => {
-    return new Promise((resolve) => {
-      const API_URL = import.meta.env.VITE_API_URL;
-      // Come back to whichever origin opened the popup (dezenmart.com, preview, localhost).
-      const origin = window.location.origin;
-
-      const url = `${API_URL}/auth/google?origin=${encodeURIComponent(origin)}`;
-      const w = 500, h = 620;
-      const left = Math.round(window.screenX + (window.outerWidth - w) / 2);
-      const top = Math.round(window.screenY + (window.outerHeight - h) / 2);
-
-      // localStorage is keyed by origin and survives the popup's cross-origin
-      // OAuth journey (Google servers). window.opener and window.name are both
-      // cleared by Chrome 88+/Edge/FF on cross-origin navigation so we can't
-      // use either. This flag is the only reliable way AuthCallback can know
-      // it is running inside a popup rather than a full-page navigation.
-      localStorage.setItem("dezen-auth-popup", "1");
-
-      const popup = window.open(
-        url,
-        "google-auth",
-        `width=${w},height=${h},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=yes`
-      );
-
-      if (!popup) {
-        localStorage.removeItem("dezen-auth-popup");
-        window.location.href = url;
-        resolve();
-        return;
-      }
-
-      let settled = false;
-      const handleSuccess = () => {
-        if (settled) return;
-        settled = true;
-        cleanup();
-        refreshAuthFromStorage();
-        resolve();
-      };
-
-      // BroadcastChannel is the primary signal - works across same-origin
-      // windows without needing window.opener.
-      let bc: BroadcastChannel | null = null;
-      try {
-        bc = new BroadcastChannel("dezen-auth");
-        bc.onmessage = (e) => {
-          if (e.data?.type === "DEZEN_AUTH_SUCCESS") handleSuccess();
-        };
-      } catch {}
-
-      // Keep postMessage as a fallback for browsers where opener survives.
-      const onMessage = (e: MessageEvent) => {
-        if (e.origin !== window.location.origin) return;
-        if (e.data?.type !== "DEZEN_AUTH_SUCCESS") return;
-        handleSuccess();
-      };
-      window.addEventListener("message", onMessage);
-
-      // Poll for the popup being closed without completing auth (user dismissed).
-      const poll = setInterval(() => {
-        if (popup.closed) {
-          cleanup();
-          resolve();
-        }
-      }, 500);
-
-      const cleanup = () => {
-        clearInterval(poll);
-        window.removeEventListener("message", onMessage);
-        localStorage.removeItem("dezen-auth-popup");
-        bc?.close();
-        bc = null;
-      };
-    });
-  };
-
   // One Tap hands us a Google ID token; the backend verifies it and returns our
   // session. No redirect/popup, so auth state updates in place.
   const loginWithGoogleCredential = async (credential: string): Promise<void> => {
@@ -307,7 +216,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     isAuthenticated: !!user,
     isLoading,
     login,
-    loginInPopup,
     loginWithGoogleCredential,
     // loginWithWallet,
     handleAuthCallback,
