@@ -1,12 +1,5 @@
 import { baseApi } from './baseApi';
-import type {
-  AvailableProvider,
-  ProviderProfile,
-  AvailableProvidersQuery,
-  PricingRule,
-  CreateQuoteParams,
-  LogisticsQuote,
-} from '../../utils/types';
+import type { CreateQuoteParams, ProviderQuote } from '../../utils/types';
 
 interface StatesEnvelope {
   data?: { states?: string[] };
@@ -14,59 +7,13 @@ interface StatesEnvelope {
 interface LgasEnvelope {
   data?: { lgas?: string[] };
 }
-interface ProvidersEnvelope {
-  data?: { providers?: unknown[] };
-}
-interface PricingRulesEnvelope {
-  data?: { pricingRules?: PricingRule[]; rules?: PricingRule[] } | PricingRule[];
+interface QuotesEnvelope {
+  data?: { quotes?: ProviderQuote[] };
 }
 
-type RawProvider = Record<string, unknown> & { pricing?: Record<string, unknown> };
-
-const num = (v: unknown): number | undefined => {
-  if (v == null) return undefined;
+const num = (v: unknown): number => {
   const n = Number(v);
-  return Number.isFinite(n) ? n : undefined;
-};
-
-// The exact pricing field names on /logistics/available aren't locked yet, so
-// normalise defensively into { cost, estimatedDays } for a stable UI shape.
-const normalizeAvailable = (raw: RawProvider): AvailableProvider => {
-  // Undefined (not 0) when the response carries no pricing field, so the UI can
-  // tell "no price for this route" apart from a genuine zero cost.
-  const cost =
-    num(raw.cost) ??
-    num(raw.price) ??
-    num(raw.totalCost) ??
-    num(raw.totalPrice) ??
-    num(raw.deliveryCost) ??
-    num(raw.pricing?.cost) ??
-    num(raw.pricing?.price);
-
-  const daysRaw =
-    raw.estimatedDays ??
-    raw.deliveryDays ??
-    raw.days ??
-    raw.estimatedDeliveryDays ??
-    raw.pricing?.estimatedDays ??
-    raw.pricing?.days;
-  const estimatedDays =
-    daysRaw == null
-      ? undefined
-      : typeof daysRaw === 'number'
-      ? `${daysRaw} day${daysRaw === 1 ? '' : 's'}`
-      : String(daysRaw);
-
-  return {
-    ...(raw as unknown as AvailableProvider),
-    _id: String(raw._id ?? ''),
-    name: String(raw.name ?? ''),
-    walletAddress: String(raw.walletAddress ?? ''),
-    rating: num(raw.rating) ?? 0,
-    cost,
-    estimatedDays,
-    currency: typeof raw.currency === 'string' ? raw.currency : undefined,
-  };
+  return Number.isFinite(n) ? n : 0;
 };
 
 export const logisticsApi = baseApi.injectEndpoints({
@@ -87,56 +34,15 @@ export const logisticsApi = baseApi.injectEndpoints({
       keepUnusedDataFor: 86400,
     }),
 
-    // Available providers for a specific route + weight, with pricing.
-    getAvailableProviders: builder.query<AvailableProvider[], AvailableProvidersQuery>({
-      query: ({ fromState, fromLga, toState, toLga, weight, sort }) => ({
-        url: '/logistics/available',
-        params: {
-          fromState,
-          fromLga,
-          toState,
-          toLga,
-          weight,
-          ...(sort ? { sort } : {}),
-        },
-      }),
-      transformResponse: (res: ProvidersEnvelope) =>
-        (res?.data?.providers ?? []).map((p) => normalizeAvailable(p as RawProvider)),
-      providesTags: ['Logistics'],
-    }),
-
-    // All registered providers (profiles, no route pricing).
-    getAllProviders: builder.query<ProviderProfile[], void>({
-      query: () => '/logistics/providers',
-      transformResponse: (res: ProvidersEnvelope) =>
-        (res?.data?.providers ?? []) as ProviderProfile[],
-      providesTags: ['Logistics'],
-    }),
-
-    // A provider's pricing rules - used to compute the delivery cost for a route.
-    // NOTE: backend currently only exposes /providers/me/pricing-rules (provider-
-    // only). This targets the planned public /providers/{id}/pricing-rules; until
-    // that ships it 403/404s and the UI falls back to "Price n/a".
-    getProviderPricingRules: builder.query<PricingRule[], string>({
-      query: (providerId) => `/logistics/providers/${providerId}/pricing-rules`,
-      transformResponse: (res: PricingRulesEnvelope) => {
-        if (Array.isArray(res?.data)) return res.data;
-        return res?.data?.pricingRules ?? res?.data?.rules ?? [];
-      },
-      providesTags: (result, error, providerId) => [
-        { type: 'Logistics', id: `PRICING-${providerId}` },
-      ],
-    }),
-
-    // Create a logistics quote for a route + weight (destination from the saved
-    // address). Modelled as a query so rows on the same route share one deduped
-    // request; the resulting quoteId travels with the order.
-    // A quote is ephemeral (server-side expiry), so it must not be cached and
-    // reused: keepUnusedDataFor 0 purges it the moment no row subscribes, so
-    // re-selecting an address always mints a fresh quote (see the hook's
+    // Quotes for a route + weight from the buyer's saved address. Returns every
+    // provider that can deliver, each with its own quoteId + fee, so this single
+    // POST is the source of truth for the provider list (no separate /available).
+    //
+    // A quote is ephemeral (server-side expiry), so it must not be reused from
+    // cache: keepUnusedDataFor 0 purges it the moment nothing subscribes, so
+    // (re)selecting an address always mints fresh quotes (see the hook's
     // refetchOnMountOrArgChange).
-    // The exact response field names aren't locked, so normalise defensively.
-    getLogisticsQuote: builder.query<LogisticsQuote, CreateQuoteParams>({
+    getLogisticsQuotes: builder.query<ProviderQuote[], CreateQuoteParams>({
       query: (body) => ({
         url: '/logistics/quotes',
         method: 'POST',
@@ -144,23 +50,13 @@ export const logisticsApi = baseApi.injectEndpoints({
         body,
       }),
       keepUnusedDataFor: 0,
-      transformResponse: (res: unknown): LogisticsQuote => {
-        const r = res as Record<string, any>;
-        const q = r?.data?.quote ?? r?.data ?? r?.quote ?? r ?? {};
-        const days =
-          q.estimatedDays ??
-          q.deliveryDays ??
-          (q.estimatedDaysMin != null && q.estimatedDaysMax != null
-            ? `${q.estimatedDaysMin}-${q.estimatedDaysMax} days`
-            : undefined);
-        return {
-          quoteId: String(q.quoteId ?? q._id ?? q.id ?? ''),
-          deliveryFee: num(q.deliveryFee ?? q.fee ?? q.totalFee ?? q.total ?? q.amount ?? q.price),
-          estimatedDays: days != null ? String(days) : undefined,
-          currency: typeof q.currency === 'string' ? q.currency : undefined,
-          expiresAt: q.expiresAt ?? q.expiry ?? q.expiresIn,
-        };
-      },
+      transformResponse: (res: QuotesEnvelope): ProviderQuote[] =>
+        (res?.data?.quotes ?? []).map((q) => ({
+          ...q,
+          quoteId: String(q.quoteId ?? ''),
+          providerId: String(q.providerId ?? q.provider?.id ?? ''),
+          deliveryFee: num(q.deliveryFee ?? q.breakdown?.totalPrice),
+        })),
     }),
   }),
 });
@@ -168,8 +64,5 @@ export const logisticsApi = baseApi.injectEndpoints({
 export const {
   useGetNigerianStatesQuery,
   useGetStateLgasQuery,
-  useGetAvailableProvidersQuery,
-  useGetAllProvidersQuery,
-  useGetProviderPricingRulesQuery,
-  useGetLogisticsQuoteQuery,
+  useGetLogisticsQuotesQuery,
 } = logisticsApi;

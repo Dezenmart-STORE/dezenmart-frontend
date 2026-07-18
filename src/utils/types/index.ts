@@ -263,6 +263,31 @@ export interface LogisticsQuote {
   expiresAt?: string;
 }
 
+// One deliverable provider's quote from POST /logistics/quotes. The endpoint
+// returns every provider that serves the route, each with its own quoteId,
+// so a single POST replaces the old /logistics/available + per-provider quote.
+export interface ProviderQuote {
+  quoteId: string;
+  providerId: string;
+  deliveryFee: number;
+  provider: {
+    id: string;
+    name: string;
+    rating: number;
+    phone?: string;
+    walletAddress: string;
+  };
+  breakdown?: {
+    basePrice: number;
+    insuranceFee: number;
+    packagingFee: number;
+    totalPrice: number;
+  };
+  estimatedDaysMin?: number;
+  estimatedDaysMax?: number;
+  expiresAt?: string;
+}
+
 export type LogisticsSort = "price" | "days" | "rating";
 
 export interface AvailableProvidersQuery {
