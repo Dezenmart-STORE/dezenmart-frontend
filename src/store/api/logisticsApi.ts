@@ -128,9 +128,9 @@ export const logisticsApi = baseApi.injectEndpoints({
       ],
     }),
 
-    // Create a logistics quote for one provider on a route + weight.
-    // Modelled as a query so each provider row's quote is deduped and cached
-    // (keyed by args); selecting a provider then already holds its quoteId.
+    // Create a logistics quote for a route + weight (destination from the saved
+    // address). Modelled as a query so it's deduped and cached (keyed by args);
+    // the resulting quoteId travels with the order.
     // The exact response field names aren't locked, so normalise defensively.
     getLogisticsQuote: builder.query<LogisticsQuote, CreateQuoteParams>({
       query: (body) => ({

@@ -245,12 +245,13 @@ export interface AvailableProvider extends Partial<ProviderProfile> {
   quoteId?: string;
 }
 
-// A logistics quote for one provider on a route + weight.
+// A logistics quote for a route + weight (POST /logistics/quotes).
 export interface CreateQuoteParams {
   deliveryAddressId: string;
-  providerId: string;
   fromState: string;
   fromLga: string;
+  toState: string;
+  toLga: string;
   weight: number;
 }
 

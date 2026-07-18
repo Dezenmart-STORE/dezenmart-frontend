@@ -290,12 +290,15 @@ const ProviderRow: React.FC<RowProps> = ({
   const hasAddressId = !!deliveryAddressId;
 
   // Preferred path: a real quote from the backend (gives the quoteId + fee).
+  // The quote is route-level (no providerId), so rows on the same route share
+  // one deduped request.
   const { data: liveQuote, isFetching: quoteLoading } = useGetLogisticsQuoteQuery(
     {
       deliveryAddressId: deliveryAddressId ?? "",
-      providerId: provider._id,
       fromState: route.fromState,
       fromLga: route.fromLga,
+      toState: route.toState,
+      toLga: route.toLga,
       weight,
     },
     { skip: !hasAddressId || !provider._id }
