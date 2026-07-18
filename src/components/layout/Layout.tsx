@@ -16,6 +16,8 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
   const [loginNudgeVisible, setLoginNudgeVisible] = useState(false);
   const handleNudgeVisibility = useCallback((v: boolean) => setLoginNudgeVisible(v), []);
+  // When a popup (install prompt) is showing, slide the mobile nav out of the way.
+  const [installVisible, setInstallVisible] = useState(false);
 
   // Pages that should not display header/footer
   const isAuthPage = ["/login", "/auth/google"].includes(location.pathname);
@@ -51,8 +53,9 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
       {/* Offline Status Indicator */}
       <OfflineIndicator showOnlineStatus={true} />
 
-      {/* PWA Install Prompt - suppressed while login nudge is visible */}
-      <InstallPrompt suppressWhile={loginNudgeVisible} />
+      {/* PWA Install Prompt - suppressed while login nudge is visible.
+          Slides in from the right; the mobile nav slides out below it. */}
+      <InstallPrompt suppressWhile={loginNudgeVisible} onVisibleChange={setInstallVisible} />
 
       {/* Login nudge - shown only outside auth pages */}
       {!isAuthPage && <LoginNudge onVisibilityChange={handleNudgeVisibility} />}
@@ -73,7 +76,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
       </ErrorBoundary>
       {!isAuthPage && (
         <>
-          <MobileNavigation />
+          <MobileNavigation hidden={installVisible} />
           <Footer />
         </>
       )}

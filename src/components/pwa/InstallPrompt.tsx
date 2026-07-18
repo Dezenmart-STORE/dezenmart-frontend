@@ -14,10 +14,19 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 }
 
-export const InstallPrompt: React.FC<{ suppressWhile?: boolean }> = ({ suppressWhile = false }) => {
+export const InstallPrompt: React.FC<{
+  suppressWhile?: boolean;
+  onVisibleChange?: (visible: boolean) => void;
+}> = ({ suppressWhile = false, onVisibleChange }) => {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showPrompt, setShowPrompt] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
+
+  // Tell the layout when we're visible so the mobile nav can slide out of the way.
+  const visible = showPrompt && !suppressWhile && !isInstalled && !!deferredPrompt;
+  useEffect(() => {
+    onVisibleChange?.(visible);
+  }, [visible, onVisibleChange]);
 
   useEffect(() => {
     // Check if already installed
@@ -100,13 +109,13 @@ export const InstallPrompt: React.FC<{ suppressWhile?: boolean }> = ({ suppressW
 
   return (
     <AnimatePresence>
-      {showPrompt && !suppressWhile && (
+      {visible && (
           <motion.div
-            initial={{ y: 100, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 100, opacity: 0 }}
-            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-96 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl z-50 overflow-hidden"
+            initial={{ x: '110%', opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: '110%', opacity: 0 }}
+            transition={{ type: 'spring', damping: 26, stiffness: 300 }}
+            className="fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-96 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl z-[60] overflow-hidden"
           >
             {/* Header */}
             <div className="bg-gradient-to-r from-Red to-red-600 p-4 text-white">

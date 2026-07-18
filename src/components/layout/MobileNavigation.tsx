@@ -27,7 +27,7 @@ const navItems = [
   { icon: <RiUser3Line size={22} />, label: "Account", path: "/account" },
 ];
 
-const MobileNavigation = () => {
+const MobileNavigation = ({ hidden = false }: { hidden?: boolean }) => {
   const { isAuthenticated } = useAuth();
   const location = useLocation();
   const [activeIndex, setActiveIndex] = useState(0);
@@ -84,7 +84,11 @@ const MobileNavigation = () => {
   }, [location.pathname]);
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-[#212428]/95 backdrop-blur-lg flex justify-evenly items-center px-2 py-2 md:hidden z-50 border-t border-[#292B30] shadow-2xl">
+    <nav
+      className={`fixed bottom-0 left-0 right-0 bg-[#212428]/95 backdrop-blur-lg flex justify-evenly items-center px-2 py-2 md:hidden z-50 border-t border-[#292B30] shadow-2xl transition-transform duration-300 ease-out ${
+        hidden ? "translate-y-full" : "translate-y-0"
+      }`}
+    >
       {/* Active indicator - only show if activeIndex is valid */}
       {activeIndex >= 0 && (
         <motion.div

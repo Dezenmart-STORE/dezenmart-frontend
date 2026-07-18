@@ -32,10 +32,12 @@ const ArrowUpDown = () => (
   </svg>
 );
 
+// On mobile the bottom nav (md:hidden) sits at the bottom edge, so lift the
+// button above it; on desktop there's no bottom nav, so sit at the corner.
 const positionClasses = {
-  "bottom-right": "bottom-6 right-6",
-  "bottom-left": "bottom-6 left-6",
-  "bottom-center": "bottom-6 left-1/2 -translate-x-1/2",
+  "bottom-right": "bottom-24 right-4 md:bottom-6 md:right-6",
+  "bottom-left": "bottom-24 left-4 md:bottom-6 md:left-6",
+  "bottom-center": "bottom-24 left-1/2 -translate-x-1/2 md:bottom-6",
 };
 
 export const FloatingRampButton = ({
