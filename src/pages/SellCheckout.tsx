@@ -78,7 +78,7 @@ const SellCheckout = () => {
           price: product.price,
           image: product.images?.[0],
           tradeId: product.tradeId,
-          tokenSymbol: product.paymentToken || "cUSD",
+          tokenSymbol: product.paymentToken || "USDm",
         }}
         logisticsOptions={[]}
         onSuccess={() => {

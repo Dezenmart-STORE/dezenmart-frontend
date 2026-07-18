@@ -45,7 +45,7 @@ const ViewTradeDetail = () => {
   }
 
   const status = mapStatus(order.status);
-  const tokenSymbol = order.product?.paymentToken ?? "cUSD";
+  const tokenSymbol = order.product?.paymentToken ?? "USDm";
 
   return (
     <div className="min-h-screen bg-[#212428] px-4 py-6">

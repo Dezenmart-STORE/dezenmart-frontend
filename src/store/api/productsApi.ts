@@ -107,7 +107,7 @@ export const productsApi = baseApi.injectEndpoints({
           _id: "opt-new",
           name: "New listing…",
           price: 0,
-          currency: "cUSD",
+          currency: "USDm",
           category: "",
           description: "",
           quantity: 1,

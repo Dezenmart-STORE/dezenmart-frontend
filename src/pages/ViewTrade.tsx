@@ -194,7 +194,7 @@ function mapOrderToTradeData(order: any): TradeData {
     productName: order.product?.name ?? "Unknown Product",
     productImage: order.product?.images?.[0],
     amount: order.amount ?? 0,
-    tokenSymbol: order.product?.paymentToken ?? "cUSD",
+    tokenSymbol: order.product?.paymentToken ?? "USDm",
     quantity: order.quantity ?? 1,
     status: mapStatus(order.status),
     role: order.role ?? "buyer",

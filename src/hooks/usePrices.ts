@@ -43,6 +43,23 @@ const PEGGED_RATES: Record<string, number> = {
 
 /** Token → corresponding fiat currency ISO code. */
 export const TOKEN_FIAT_MAP: Record<string, string> = {
+  // New Mento tickers
+  USDm: "USD",
+  EURm: "EUR",
+  BRLm: "BRL",
+  KESm: "KES",
+  PHPm: "PHP",
+  COPm: "COP",
+  XOFm: "XOF",
+  NGNm: "NGN",
+  JPYm: "JPY",
+  CHFm: "CHF",
+  ZARm: "ZAR",
+  GBPm: "GBP",
+  AUDm: "AUD",
+  CADm: "CAD",
+  GHSm: "GHS",
+  // Legacy cX tickers (existing products/orders stored before the rebrand)
   cUSD: "USD",
   cEUR: "EUR",
   cREAL: "BRL",

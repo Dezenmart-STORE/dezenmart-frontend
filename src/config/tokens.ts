@@ -1,6 +1,6 @@
-import { celo, celoAlfajores } from "wagmi/chains";
+import { celo, celoSepolia } from "wagmi/chains";
 
-// Icon imports
+// Icon imports (existing SVGs are reused for the renamed Mento tokens)
 import cUSDIcon from "../assets/icons/cUSD.svg";
 import cEURIcon from "../assets/icons/cEUR.svg";
 import cREALIcon from "../assets/icons/cREAL.svg";
@@ -35,6 +35,9 @@ export interface StableToken {
 
 // ---------------------------------------------------------------------------
 // All supported stablecoins
+// Mento rebranded its stablecoins to the "…m" tickers (USDm, EURm, …). Mainnet
+// addresses are unchanged from the old cX tokens; testnet is now Celo Sepolia.
+// See: https://docs.celo.org/build-on-celo/build-with-local-stablecoin
 // ---------------------------------------------------------------------------
 export const TOKENS: StableToken[] = [
   {
@@ -43,7 +46,7 @@ export const TOKENS: StableToken[] = [
     decimals: 6,
     address: {
       [celo.id]: "0x48065fbBE25f71C9282ddf5e1cD6D6A887483D5e",
-      [celoAlfajores.id]: "0x803700bD991d293306D6e7dCcF2B49F9137b437e",
+      [celoSepolia.id]: "0xd077A400968890Eacc75cdc901F0356c943e4fDb",
     },
     icon: USDTIcon,
     isStableToken: true,
@@ -54,177 +57,196 @@ export const TOKENS: StableToken[] = [
     decimals: 18,
     address: {
       [celo.id]: "0x62B8B11039FcfE5aB0C56E502b1C372A3d2a9c7A",
-      [celoAlfajores.id]: "0x62B8B11039FcfE5aB0C56E502b1C372A3d2a9c7A",
     },
     icon: GDIcon,
     isStableToken: false,
   },
   {
-    name: "Celo Dollar",
-    symbol: "cUSD",
+    name: "Mento Dollar",
+    symbol: "USDm",
     decimals: 18,
     address: {
       [celo.id]: "0x765de816845861e75a25fca122bb6898b8b1282a",
-      [celoAlfajores.id]: "0x874069fa1eb16d44d622f2e0ca25eea172369bc1",
+      [celoSepolia.id]: "0xdE9e4C3ce781b4bA68120d6261cbad65ce0aB00b",
     },
     icon: cUSDIcon,
     isStableToken: true,
   },
   {
-    name: "Celo Euro",
-    symbol: "cEUR",
+    name: "Mento Euro",
+    symbol: "EURm",
     decimals: 18,
     address: {
       [celo.id]: "0xd8763cba276a3738e6de85b4b3bf5fded6d6ca73",
-      [celoAlfajores.id]: "0x10c892a6ec43a53e45d0b916b4b7d383b1b78c0f",
+      [celoSepolia.id]: "0xA99dC247d6b7B2E3ab48a1fEE101b83cD6aCd82a",
     },
     icon: cEURIcon,
     isStableToken: true,
   },
   {
-    name: "Celo Brazilian Real",
-    symbol: "cREAL",
+    name: "Mento Brazilian Real",
+    symbol: "BRLm",
     decimals: 18,
     address: {
       [celo.id]: "0xe8537a3d056da446677b9e9d6c5db704eaab4787",
-      [celoAlfajores.id]: "0xe4d517785d091d3c54818832db6094bcc2744545",
+      [celoSepolia.id]: "0x2294298942fdc79417DE9E0D740A4957E0e7783a",
     },
     icon: cREALIcon,
     isStableToken: true,
   },
   {
-    name: "Celo Kenyan Shilling",
-    symbol: "cKES",
-    decimals: 18,
-    address: {
-      [celo.id]: "0x456a3D042C0DbD3db53D5489e98dFb038553B0d0",
-      [celoAlfajores.id]: "0x1E0433C1769271ECcF4CFF9FDdD515eefE6CdF92",
-    },
-    icon: cKESIcon,
-    isStableToken: true,
-  },
-  {
-    name: "Philippine Peso",
-    symbol: "PUSO",
-    decimals: 18,
-    address: {
-      [celo.id]: "0x105d4A9306D2E55a71d2Eb95B81553AE1dC20d7B",
-      [celoAlfajores.id]: "0x5E0E3c9419C42a1B04e2525991FB1A2C467AB8bF",
-    },
-    icon: PUSOIcon,
-    isStableToken: true,
-  },
-  {
-    name: "Colombian Peso",
-    symbol: "cCOP",
-    decimals: 18,
-    address: {
-      [celo.id]: "0x8a567e2ae79ca692bd748ab832081c45de4041ea",
-      [celoAlfajores.id]: "0xe6A57340f0df6E020c1c0a80bC6E13048601f0d4",
-    },
-    icon: cCOPIcon,
-    isStableToken: true,
-  },
-  {
-    name: "CFA Franc",
-    symbol: "eXOF",
+    name: "Mento West African CFA Franc",
+    symbol: "XOFm",
     decimals: 18,
     address: {
       [celo.id]: "0x73F93dcc49cB8A239e2032663e9475dd5ef29A08",
-      [celoAlfajores.id]: "0xB0FA15e002516d0301884059c0aaC0F0C72b019D",
+      [celoSepolia.id]: "0x5505b70207aE3B826c1A7607F19F3Bf73444A082",
     },
     icon: eXOFIcon,
     isStableToken: true,
   },
   {
-    name: "Nigerian Naira",
-    symbol: "cNGN",
+    name: "Mento Kenyan Shilling",
+    symbol: "KESm",
     decimals: 18,
     address: {
-      [celo.id]: "0xE2702Bd97ee33c88c8f6f92DA3B733608aa76F71",
-      [celoAlfajores.id]: "0x4a5b03B8b16122D330306c65e4CA4BC5Dd6511d0",
+      [celo.id]: "0x456a3D042C0DbD3db53D5489e98dFb038553B0d0",
+      [celoSepolia.id]: "0xC7e4635651E3e3Af82b61d3E23c159438daE3BbF",
     },
-    icon: cNGNIcon,
+    icon: cKESIcon,
     isStableToken: true,
   },
   {
-    name: "Japanese Yen",
-    symbol: "cJPY",
+    name: "Mento Philippine Peso",
+    symbol: "PHPm",
     decimals: 18,
     address: {
-      [celo.id]: "0xc45eCF20f3CD864B32D9794d6f76814aE8892e20",
-      [celoAlfajores.id]: "0x2E51F41238cA36a421C9B8b3e189e8Cc7653FE67",
+      [celo.id]: "0x105d4A9306D2E55a71d2Eb95B81553AE1dC20d7B",
+      [celoSepolia.id]: "0x0352976d940a2C3FBa0C3623198947Ee1d17869E",
     },
-    icon: cJPYIcon,
+    icon: PUSOIcon,
     isStableToken: true,
   },
   {
-    name: "Swiss Franc",
-    symbol: "cCHF",
+    name: "Mento Colombian Peso",
+    symbol: "COPm",
     decimals: 18,
     address: {
-      [celo.id]: "0xb55a79F398E759E43C95b979163f30eC87Ee131D",
-      [celoAlfajores.id]: "0xADC57C2C34aD021Df4421230a6532F4e2E1dCE4F",
+      [celo.id]: "0x8a567e2ae79ca692bd748ab832081c45de4041ea",
+      [celoSepolia.id]: "0x5F8d55c3627d2dc0a2B4afa798f877242F382F67",
     },
-    icon: cCHFIcon,
+    icon: cCOPIcon,
     isStableToken: true,
   },
   {
-    name: "South African Rand",
-    symbol: "cZAR",
-    decimals: 18,
-    address: {
-      [celo.id]: "0x4c35853A3B4e647fD266f4de678dCc8fEC410BF6",
-      [celoAlfajores.id]: "0x1e5b44015Ff90610b54000DAad31C89b3284df4d",
-    },
-    icon: cZARIcon,
-    isStableToken: true,
-  },
-  {
-    name: "British Pound",
-    symbol: "cGBP",
+    name: "Mento British Pound",
+    symbol: "GBPm",
     decimals: 18,
     address: {
       [celo.id]: "0xCCF663b1fF11028f0b19058d0f7B674004a40746",
-      [celoAlfajores.id]: "0x47f2Fb88105155a18c390641C8a73f1402B2BB12",
+      [celoSepolia.id]: "0x85F5181Abdbf0e1814Fc4358582Ae07b8eBA3aF3",
     },
     icon: cGBPIcon,
     isStableToken: true,
   },
   {
-    name: "Australian Dollar",
-    symbol: "cAUD",
-    decimals: 18,
-    address: {
-      [celo.id]: "0x7175504C455076F15c04A2F90a8e352281F492F9",
-      [celoAlfajores.id]: "0x84CBD49F5aE07632B6B88094E81Cce8236125Fe0",
-    },
-    icon: cAUDIcon,
-    isStableToken: true,
-  },
-  {
-    name: "Canadian Dollar",
-    symbol: "cCAD",
+    name: "Mento Canadian Dollar",
+    symbol: "CADm",
     decimals: 18,
     address: {
       [celo.id]: "0xff4Ab19391af240c311c54200a492233052B6325",
-      [celoAlfajores.id]: "0x02EC9E0D2Fd73e89168C1709e542a48f58d7B133",
+      [celoSepolia.id]: "0xF151c9a13b78C84f93f50B8b3bC689fedc134F60",
     },
     icon: cCADIcon,
     isStableToken: true,
   },
   {
-    name: "Ghanaian Cedi",
-    symbol: "cGHS",
+    name: "Mento Australian Dollar",
+    symbol: "AUDm",
+    decimals: 18,
+    address: {
+      [celo.id]: "0x7175504C455076F15c04A2F90a8e352281F492F9",
+      [celoSepolia.id]: "0x5873Faeb42F3563dcD77F0fbbdA818E6d6DA3139",
+    },
+    icon: cAUDIcon,
+    isStableToken: true,
+  },
+  {
+    name: "Mento South African Rand",
+    symbol: "ZARm",
+    decimals: 18,
+    address: {
+      [celo.id]: "0x4c35853A3B4e647fD266f4de678dCc8fEC410BF6",
+      [celoSepolia.id]: "0x10CCfB235b0E1Ed394bACE4560C3ed016697687e",
+    },
+    icon: cZARIcon,
+    isStableToken: true,
+  },
+  {
+    name: "Mento Ghanaian Cedi",
+    symbol: "GHSm",
     decimals: 18,
     address: {
       [celo.id]: "0xfAeA5F3404bbA20D3cc2f8C4B0A888F55a3c7313",
-      [celoAlfajores.id]: "0x295B66bE7714458Af45E6A6Ea142A5358A6cA375",
+      [celoSepolia.id]: "0x5e94B8C872bD47BC4255E60ECBF44D5E66e7401C",
     },
     icon: cGHSIcon,
     isStableToken: true,
   },
+  {
+    name: "Mento Nigerian Naira",
+    symbol: "NGNm",
+    decimals: 18,
+    address: {
+      [celo.id]: "0xE2702Bd97ee33c88c8f6f92DA3B733608aa76F71",
+      [celoSepolia.id]: "0x3d5ae86F34E2a82771496D140daFAEf3789dF888",
+    },
+    icon: cNGNIcon,
+    isStableToken: true,
+  },
+  {
+    name: "Mento Japanese Yen",
+    symbol: "JPYm",
+    decimals: 18,
+    address: {
+      [celo.id]: "0xc45eCF20f3CD864B32D9794d6f76814aE8892e20",
+      [celoSepolia.id]: "0x85Bee67D435A39f7467a8a9DE34a5B73D25Df426",
+    },
+    icon: cJPYIcon,
+    isStableToken: true,
+  },
+  {
+    name: "Mento Swiss Franc",
+    symbol: "CHFm",
+    decimals: 18,
+    address: {
+      [celo.id]: "0xb55a79F398E759E43C95b979163f30eC87Ee131D",
+      [celoSepolia.id]: "0x284E9b7B623eAE866914b7FA0eB720C2Bb3C2980",
+    },
+    icon: cCHFIcon,
+    isStableToken: true,
+  },
 ];
+
+// Old cX tickers -> new Mento tickers, so products/orders stored with the old
+// symbols still resolve to the right token after the rebrand.
+const LEGACY_SYMBOL_ALIASES: Record<string, string> = {
+  cUSD: "USDm",
+  cEUR: "EURm",
+  cREAL: "BRLm",
+  eXOF: "XOFm",
+  cKES: "KESm",
+  PUSO: "PHPm",
+  cCOP: "COPm",
+  cGBP: "GBPm",
+  cCAD: "CADm",
+  cAUD: "AUDm",
+  cZAR: "ZARm",
+  cGHS: "GHSm",
+  cNGN: "NGNm",
+  cJPY: "JPYm",
+  cCHF: "CHFm",
+};
 
 // ---------------------------------------------------------------------------
 // Lookup helpers
@@ -239,51 +261,31 @@ function ensureSymbolMap(): Map<string, StableToken> {
 }
 
 export function getToken(symbol: string): StableToken | undefined {
-  return ensureSymbolMap().get(symbol);
+  const map = ensureSymbolMap();
+  return map.get(symbol) ?? map.get(LEGACY_SYMBOL_ALIASES[symbol] ?? "");
 }
 
 export function getTokenAddress(
   symbol: string,
   chainId: number
 ): `0x${string}` | undefined {
-  return ensureSymbolMap().get(symbol)?.address[chainId];
+  return getToken(symbol)?.address[chainId];
 }
 
 export function getTokenDecimals(symbol: string): number {
-  return ensureSymbolMap().get(symbol)?.decimals ?? 18;
+  return getToken(symbol)?.decimals ?? 18;
 }
 
 /**
  * Tokens accepted by the Celo FeeCurrencyDirectory contract (CIP-64).
  * When set as `feeCurrency` in a transaction, gas is deducted from that token
- * instead of CELO. Each entry has passed a Celo governance proposal.
- *
- * Sources: CIP-54 (cKES), CGP-0118 (cCOP), CIP-47 (eXOF), CGP-134 (PUSO),
- *          CGP-0167 (USDT adapter, executed 2025-03-21).
- *
- * NOTE on G$ (GoodDollar, 18 decimals): registration evidence is strong but
- * unconfirmed on-chain. Verify with `celocli network:whitelist` - if confirmed,
- * add "G$" here; no adapter entry needed (18-decimal tokens use their own address).
+ * instead of CELO. All Mento stablecoins + USDT (via adapter) are registered.
  */
 const FEE_CURRENCY_SYMBOLS = new Set([
-  // Verified on-chain 2026-05-16 via FeeCurrencyDirectory.getCurrencies() on Celo mainnet
-  "cUSD", "cEUR", "cREAL",  // original Mento stablecoins
-  "cKES",                    // Mento Kenyan Shilling
-  "eXOF",                    // Mento West African CFA
-  "cCOP",                    // Mento Colombian Peso
-  "PUSO",                    // Mento Philippine Peso
-  "cGHS",                    // Mento Ghanaian Cedi
-  "cNGN",                    // Mento Nigerian Naira
-  "cGBP",                    // Mento British Pound
-  "cZAR",                    // Mento South African Rand
-  "cCAD",                    // Mento Canadian Dollar
-  "cAUD",                    // Mento Australian Dollar
-  "cCHF",                    // Mento Swiss Franc
-  "cJPY",                    // Mento Japanese Yen
-  "USDT",                    // Tether USD (CGP-0167, via FeeCurrencyAdapter)
-  // G$ (GoodDollar) is NOT in the FeeCurrencyDirectory - confirmed via on-chain query
-  // WETH is whitelisted on-chain but is not a payment token in this app
-  // USDC adapter (0x2F25...) is whitelisted but USDC is not a supported payment token
+  "USDm", "EURm", "BRLm", "KESm", "XOFm", "COPm", "PHPm", "GHSm",
+  "NGNm", "GBPm", "ZARm", "CADm", "AUDm", "CHFm", "JPYm",
+  "USDT", // Tether USD (CGP-0167, via FeeCurrencyAdapter)
+  // G$ (GoodDollar) is NOT in the FeeCurrencyDirectory.
 ]);
 
 /**
@@ -291,9 +293,6 @@ const FEE_CURRENCY_SYMBOLS = new Set([
  * FeeCurrencyDirectory - a FeeCurrencyAdapter normalises decimals for the Celo
  * gas engine. The `feeCurrency` field must point to the adapter address, NOT
  * the token address, for these tokens to function as fee currencies.
- *
- * Only mainnet entries are listed; Alfajores adapters are not yet deployed for
- * these tokens (on testnet, fee currency resolves to undefined → CELO fallback).
  */
 const FEE_CURRENCY_ADAPTERS: Partial<Record<string, Partial<Record<number, `0x${string}`>>>> = {
   USDT: {
@@ -304,19 +303,12 @@ const FEE_CURRENCY_ADAPTERS: Partial<Record<string, Partial<Record<number, `0x${
 /**
  * Returns the on-chain address to pass as `feeCurrency` in a Celo transaction,
  * or `undefined` if the token is not whitelisted or has no adapter on this chain.
- *
- * For adapter tokens (e.g. USDT): returns the adapter address.
- * For 18-decimal Mento stablecoins: returns the token's own address.
- * For adapter tokens with no entry on this chainId: returns undefined
- * (fee currency unavailable on this network - caller falls back to CELO).
  */
 export function getFeeCurrencyAddress(
   tokenSymbol: string,
   chainId: number
 ): `0x${string}` | undefined {
   if (!FEE_CURRENCY_SYMBOLS.has(tokenSymbol)) return undefined;
-  // Tokens with adapters must have an entry for this chainId or the fee
-  // currency is not available on this network.
   if (FEE_CURRENCY_ADAPTERS[tokenSymbol]) {
     return FEE_CURRENCY_ADAPTERS[tokenSymbol]?.[chainId];
   }
@@ -326,11 +318,11 @@ export function getFeeCurrencyAddress(
 
 /**
  * Priority order for fee currency fallback.
- * cUSD first because it's the most liquid and universally held on MiniPay.
+ * USDm first because it's the most liquid and universally held on MiniPay.
  */
 const FEE_CURRENCY_PRIORITY = [
-  "cUSD", "cEUR", "cREAL", "cKES", "eXOF", "cCOP", "PUSO",
-  "cGHS", "cNGN", "cGBP", "cZAR", "cCAD", "cAUD", "cCHF", "cJPY",
+  "USDm", "EURm", "BRLm", "KESm", "XOFm", "COPm", "PHPm",
+  "GHSm", "NGNm", "GBPm", "ZARm", "CADm", "AUDm", "CHFm", "JPYm",
   "USDT",
 ];
 
@@ -338,9 +330,6 @@ const FEE_CURRENCY_PRIORITY = [
  * For wallets that support CIP-64 but are paying with a non-fee-currency token
  * (e.g. USDT on MiniPay), returns the address + symbol of the best available
  * fee currency based on the user's actual balances.
- *
- * Returns undefined if the payment token is already a fee currency, or if no
- * usable fee currency balance was found.
  */
 export function getFallbackFeeCurrency(
   paymentToken: string,
@@ -348,7 +337,6 @@ export function getFallbackFeeCurrency(
   /** Map of symbol → numeric balance. Only needs fee-currency tokens. */
   balances: Partial<Record<string, number>>
 ): { address: `0x${string}`; symbol: string } | undefined {
-  // Payment token itself is a fee currency - no fallback needed
   if (FEE_CURRENCY_SYMBOLS.has(paymentToken)) return undefined;
 
   for (const symbol of FEE_CURRENCY_PRIORITY) {

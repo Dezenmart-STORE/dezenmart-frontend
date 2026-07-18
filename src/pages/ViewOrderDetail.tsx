@@ -25,7 +25,7 @@ const ViewOrderDetail = () => {
   const chainId = useChainId();
   const { switchChainAsync } = useSwitchChain();
   const [isSwitching, setIsSwitching] = useState(false);
-  const isOnCelo = chainId === CHAIN_IDS.CELO || chainId === CHAIN_IDS.ALFAJORES;
+  const isOnCelo = chainId === CHAIN_IDS.CELO || chainId === CHAIN_IDS.CELO_SEPOLIA;
 
   const switchToCelo = async () => {
     setIsSwitching(true);
@@ -91,7 +91,7 @@ const ViewOrderDetail = () => {
   }
 
   const status = mapStatus(order.status);
-  const tokenSymbol = order.product?.paymentToken ?? "cUSD";
+  const tokenSymbol = order.product?.paymentToken ?? "USDm";
 
   const sellerName =
     typeof order.seller === "object" ? order.seller?.name : order.seller;

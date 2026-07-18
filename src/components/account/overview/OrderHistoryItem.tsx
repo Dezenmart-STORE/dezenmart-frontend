@@ -115,7 +115,7 @@ const OrderHistoryItem: React.FC<Props> = React.memo((item) => {
         </p>
         <p className="text-xs text-gray-400 mt-0.5 truncate">by {sellerName}</p>
         <p className="text-sm font-medium text-white mt-1.5">
-          {formatAmount(item.amount ?? 0, item.product?.paymentToken ?? "cUSD")}
+          {formatAmount(item.amount ?? 0, item.product?.paymentToken ?? "USDm")}
         </p>
       </div>
 

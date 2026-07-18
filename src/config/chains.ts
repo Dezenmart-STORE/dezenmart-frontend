@@ -1,5 +1,5 @@
 import { http, createConfig, fallback } from "wagmi";
-import { celo, celoAlfajores } from "wagmi/chains";
+import { celo, celoSepolia } from "wagmi/chains";
 import { coinbaseWallet, metaMask, walletConnect } from "wagmi/connectors";
 
 // ---------------------------------------------------------------------------
@@ -11,7 +11,7 @@ const RPC_ENDPOINTS = {
     "https://forno.celo.org",
     "https://celo-mainnet.public.blastapi.io",
   ],
-  [celoAlfajores.id]: ["https://alfajores-forno.celo-testnet.org"],
+  [celoSepolia.id]: ["https://forno.celo-sepolia.celo-testnet.org"],
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -19,7 +19,7 @@ const RPC_ENDPOINTS = {
 // ---------------------------------------------------------------------------
 export const ESCROW_ADDRESSES: Record<number, string> = {
   [celo.id]: import.meta.env.VITE_ESCROW_CONTRACT_MAINNET ?? "",
-  [celoAlfajores.id]: import.meta.env.VITE_ESCROW_CONTRACT_TESTNET ?? "",
+  [celoSepolia.id]: import.meta.env.VITE_ESCROW_CONTRACT_TESTNET ?? "",
 };
 
 export function getEscrowAddress(chainId: number): string {
@@ -33,7 +33,7 @@ export function getEscrowAddress(chainId: number): string {
 // ---------------------------------------------------------------------------
 const EXPLORER_URLS: Record<number, string> = {
   [celo.id]: "https://celo.blockscout.com",
-  [celoAlfajores.id]: "https://celo-alfajores.blockscout.com",
+  [celoSepolia.id]: "https://celo-sepolia.blockscout.com",
 };
 
 export function getExplorerUrl(
@@ -49,7 +49,7 @@ export function getExplorerUrl(
 // Target chain (production default)
 // ---------------------------------------------------------------------------
 export const TARGET_CHAIN = celo;
-export const SUPPORTED_CHAINS = [celo, celoAlfajores] as const;
+export const SUPPORTED_CHAINS = [celo, celoSepolia] as const;
 
 // ---------------------------------------------------------------------------
 // Wagmi config - single source of truth for wallet connectivity
@@ -63,7 +63,7 @@ const appMeta = {
 };
 
 export const wagmiConfig = createConfig({
-  chains: [celo, celoAlfajores],
+  chains: [celo, celoSepolia],
   connectors: [
     // Smart Wallet - email / passkey / phone (best for Web2 users)
     coinbaseWallet({
@@ -117,8 +117,8 @@ export const wagmiConfig = createConfig({
         http(url, { batch: { wait: 100 }, retryCount: 2, retryDelay: 1000, timeout: 30_000 })
       )
     ),
-    [celoAlfajores.id]: fallback(
-      RPC_ENDPOINTS[celoAlfajores.id].map((url) =>
+    [celoSepolia.id]: fallback(
+      RPC_ENDPOINTS[celoSepolia.id].map((url) =>
         http(url, { batch: { wait: 100 }, retryCount: 2, retryDelay: 1000, timeout: 30_000 })
       )
     ),
@@ -130,7 +130,7 @@ export const wagmiConfig = createConfig({
 
 export const CHAIN_IDS = {
   CELO: celo.id,
-  ALFAJORES: celoAlfajores.id,
+  CELO_SEPOLIA: celoSepolia.id,
 } as const;
 
 // ---------------------------------------------------------------------------

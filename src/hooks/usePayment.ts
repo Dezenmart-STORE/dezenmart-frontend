@@ -121,7 +121,7 @@ export interface PaymentParams {
   feeCurrencyFallback?: `0x${string}`;
 }
 
-const SUPPORTED_CHAIN_IDS = [CHAIN_IDS.CELO, CHAIN_IDS.ALFAJORES] as number[];
+const SUPPORTED_CHAIN_IDS = [CHAIN_IDS.CELO, CHAIN_IDS.CELO_SEPOLIA] as number[];
 
 // ---------------------------------------------------------------------------
 // Hook

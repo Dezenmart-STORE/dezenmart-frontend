@@ -2,10 +2,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useAccount, useChainId, useSwitchChain } from "wagmi";
 import { CHAIN_IDS, TARGET_CHAIN } from "../config/chains";
 
-const CELO_IDS = new Set<number>([CHAIN_IDS.CELO, CHAIN_IDS.ALFAJORES]);
+const CELO_IDS = new Set<number>([CHAIN_IDS.CELO, CHAIN_IDS.CELO_SEPOLIA]);
 
 export interface ChainGuard {
-  /** True when wallet is on Celo mainnet or Alfajores */
+  /** True when wallet is on Celo mainnet or Celo Sepolia */
   isOnCelo: boolean;
   isConnected: boolean;
   isSwitching: boolean;

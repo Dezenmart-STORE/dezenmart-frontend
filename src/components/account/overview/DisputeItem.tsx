@@ -92,7 +92,7 @@ const DisputeItem: React.FC<Props> = React.memo(({ order, disputeStatus, viewMod
         </p>
         <p className="text-xs text-gray-400 mt-0.5 truncate">by {sellerName}</p>
         <p className="text-sm font-medium text-white mt-1.5">
-          {formatAmount(order.amount ?? 0, order.product?.paymentToken ?? "cUSD")}
+          {formatAmount(order.amount ?? 0, order.product?.paymentToken ?? "USDm")}
         </p>
       </div>
 
