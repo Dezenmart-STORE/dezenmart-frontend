@@ -8,13 +8,16 @@ import { RampProvider, RampModal, FloatingRampButton, useRamp } from "./index";
 // 1. ZERO CONFIG — auth user resolved automatically
 //    RampProvider reads useAuth() internally. Just wrap and go.
 // ═══════════════════════════════════════════════════════════════
-// let QuidaxPublickKey = import.meta.env.VITE_API_URL
-let QuidaxPublickKey = import.meta.env.QUIDAX_PUBLIC_KEY
+// Vite only exposes VITE_-prefixed env vars to the client. Falls back to the
+// (publishable) Quidax key so the widget works out of the box.
+const QUIDAX_PUBLIC_KEY =
+  (import.meta.env.VITE_QUIDAX_PUBLIC_KEY as string | undefined) ??
+  "pub_xf5sW5X3uoa5aB6E9U1QUn617qP9tFbL";
 
 export const RampMinimalProvider = ({ children }: { children: React.ReactNode }) => (
   <RampProvider
     integrationMode="widget"
-    widgetConfig={{ publicKey:QuidaxPublickKey}}
+    widgetConfig={{ publicKey: QUIDAX_PUBLIC_KEY }}
   >
     <RampModal />
     <FloatingRampButton label="Buy / Sell Crypto" />
