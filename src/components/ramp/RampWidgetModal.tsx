@@ -1079,7 +1079,7 @@ export const RampWidgetModal = () => {
                       <div style={{ display: "flex", justifyContent: "center", color: "#545456" }}><ArrowDown /></div>
 
                       {/* To currency (read-only preview) */}
-                      <div style={{ background: "#292B30", borderRadius: "14px", padding: "16px" }}>
+                      {/*<div style={{ background: "#292B30", borderRadius: "14px", padding: "16px" }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
                           <span style={{ color: "#C6C6C8", fontSize: "12px" }}>
                             {mode === "onramp" ? "You receive" : "You receive"}
@@ -1092,7 +1092,7 @@ export const RampWidgetModal = () => {
                         <p style={{ color: "#545456", fontSize: "11px", margin: "6px 0 0", display: "flex", alignItems: "center", gap: "4px" }}>
                           <ExternalLink /> Rate shown in Quidax widget
                         </p>
-                      </div>
+                      </div>*/}
 
                       {/* Network selector */}
                       <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
