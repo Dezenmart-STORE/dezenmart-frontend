@@ -19,11 +19,9 @@ interface Props {
   error?: string;
 }
 
+// Prices are money - show 2 decimals everywhere for a consistent look.
 const fmt = (n: number, d = 2) =>
   n.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
-
-const fmtToken = (n: number) =>
-  n.toLocaleString("en-US", { maximumFractionDigits: 4 });
 
 const PriceField: React.FC<Props> = ({
   listPrice,
@@ -93,18 +91,26 @@ const PriceField: React.FC<Props> = ({
 
         {/* Equivalents */}
         {priceUSD > 0 && (
-          <div className="mt-1.5 text-xs text-gray-500 space-y-0.5">
+          <div className="mt-2 space-y-2">
+            {/* Secondary reference - the other currency */}
             {priceCurrency === "FIAT" ? (
-              <p>≈ ${fmt(priceUSD)} USD</p>
+              <p className="text-xs text-gray-500">≈ ${fmt(priceUSD)} USD</p>
             ) : hasFiat ? (
-              <p>
-                ≈ {fmt(fiatEquivalent, 0)} {fiatCode}
+              <p className="text-xs text-gray-500">
+                ≈ {fmt(fiatEquivalent)} {fiatCode}
               </p>
             ) : null}
+
+            {/* Primary - what buyers actually pay, made hard to miss */}
             {tokenEquivalent > 0 && paymentToken && (
-              <p>
-                Buyers pay ≈ {fmtToken(tokenEquivalent)} {paymentToken}
-              </p>
+              <div className="flex items-center justify-between gap-2 rounded-xl border border-red-600/40 bg-red-600/10 px-3 py-2.5">
+                <span className="text-xs font-medium text-gray-300">
+                  Buyers pay
+                </span>
+                <span className="text-sm font-bold text-white">
+                  ≈ {fmt(tokenEquivalent)} {paymentToken}
+                </span>
+              </div>
             )}
           </div>
         )}

@@ -307,7 +307,13 @@ export function usePrices() {
     [rates, fiatRates, userFiat]
   );
 
-  /** Format a price amount with its currency symbol. */
+  /**
+   * Format a price amount with its currency symbol.
+   * Displayed prices are money, so always show exactly 2 decimals for a
+   * consistent, professional look across fiat, stablecoins and other tokens.
+   * (Transaction-precision amounts - wallet balances, gas - are formatted
+   * separately with more decimals; this is for display prices only.)
+   */
   const formatPrice = useCallback(
     (amount: number, currency: string): string => {
       if (isNaN(amount)) return "-";
@@ -315,7 +321,7 @@ export function usePrices() {
       if (currency === "G$") {
         return `G$${amount.toLocaleString(undefined, {
           minimumFractionDigits: 2,
-          maximumFractionDigits: 3,
+          maximumFractionDigits: 2,
         })}`;
       }
 
@@ -339,7 +345,7 @@ export function usePrices() {
             style: "currency",
             currency: fiatCode,
             minimumFractionDigits: 2,
-            maximumFractionDigits: 3,
+            maximumFractionDigits: 2,
           }).format(amount);
         } catch {
           return `${amount.toFixed(2)} ${currency}`;
@@ -349,7 +355,7 @@ export function usePrices() {
       // CELO or unknown tokens - show raw amount + symbol
       return `${amount.toLocaleString(undefined, {
         minimumFractionDigits: 2,
-        maximumFractionDigits: 3,
+        maximumFractionDigits: 2,
       })} ${currency}`;
     },
     [userFiat]

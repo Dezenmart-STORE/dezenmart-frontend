@@ -10,6 +10,7 @@ import type {
   ProviderQuote,
 } from "../../../utils/types";
 import { LEGACY_ORIGIN, DEFAULT_WEIGHT_PER_UNIT } from "../../../config/logistics";
+import { useCurrency } from "../../../context/CurrencyContext";
 import LoadingSpinner from "../../common/LoadingSpinner";
 
 interface Props {
@@ -51,6 +52,9 @@ const LogisticsProviderSelector: React.FC<Props> = ({
 }) => {
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState(false);
+  // Delivery fees come from the quote endpoint in USD, so format them exactly
+  // like the product price (selected token or local fiat).
+  const { formatDisplayPrice } = useCurrency();
 
   // Origin + weight (fall back to legacy defaults for older products).
   const fromState = product.state || LEGACY_ORIGIN.state;
@@ -61,7 +65,7 @@ const LogisticsProviderSelector: React.FC<Props> = ({
 
   // One POST returns every provider that can deliver this route + weight, each
   // with its own quoteId + fee. Keyed by deliveryAddressId, so changing the
-  // address re-fires the request (and the endpoint isn't cached — see the api).
+  // address re-fires the request (and the endpoint isn't cached - see the api).
   const {
     data: quotes = [],
     isLoading,
@@ -79,8 +83,6 @@ const LogisticsProviderSelector: React.FC<Props> = ({
     },
     { skip: !hasAddressId, refetchOnMountOrArgChange: true }
   );
-
-  const tokenSymbol = product.paymentToken || "USDT";
 
   // Alphabetical by provider name.
   const visible = useMemo(() => {
@@ -142,8 +144,7 @@ const LogisticsProviderSelector: React.FC<Props> = ({
           name={selectedProvider.name ?? ""}
           rating={selectedProvider.rating ?? 0}
           estimatedDays={selectedProvider.estimatedDays}
-          cost={selectedProvider.cost}
-          tokenSymbol={tokenSymbol}
+          costLabel={selectedProvider.cost != null ? formatDisplayPrice(selectedProvider.cost) : undefined}
           selected
           onSelect={() => setExpanded(true)}
         />
@@ -219,8 +220,7 @@ const LogisticsProviderSelector: React.FC<Props> = ({
                   name={q.provider.name}
                   rating={q.provider.rating}
                   estimatedDays={daysLabel(q.estimatedDaysMin, q.estimatedDaysMax)}
-                  cost={q.deliveryFee}
-                  tokenSymbol={tokenSymbol}
+                  costLabel={q.deliveryFee != null ? formatDisplayPrice(q.deliveryFee) : undefined}
                   selected={selectedProvider?._id === q.providerId}
                   onSelect={() => handleSelect(q)}
                 />
@@ -238,8 +238,8 @@ interface RowProps {
   name: string;
   rating: number;
   estimatedDays?: string;
-  cost?: number;
-  tokenSymbol: string;
+  /** Fee already formatted in the user's display currency, or undefined. */
+  costLabel?: string;
   selected: boolean;
   onSelect: () => void;
 }
@@ -248,8 +248,7 @@ const ProviderRow: React.FC<RowProps> = ({
   name,
   rating,
   estimatedDays,
-  cost,
-  tokenSymbol,
+  costLabel,
   selected,
   onSelect,
 }) => (
@@ -276,10 +275,8 @@ const ProviderRow: React.FC<RowProps> = ({
       </div>
       <div className="flex items-center gap-2 flex-shrink-0">
         <div className="text-right">
-          {cost != null ? (
-            <div className="text-red-500 font-semibold text-sm">
-              {cost} {tokenSymbol}
-            </div>
+          {costLabel ? (
+            <div className="text-red-500 font-semibold text-sm">{costLabel}</div>
           ) : (
             <div className="text-gray-500 text-xs">Price n/a</div>
           )}
