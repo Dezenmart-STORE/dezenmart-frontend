@@ -392,7 +392,7 @@ export const RampModal = () => {
         data = await initiateOffRamp(payload);
       }
 
-      // Parse response — adapt field names to Quidax actual response shape
+      // Parse response - adapt field names to Quidax actual response shape
       const d = data?.data ?? data;
       const qd = d?.quidaxData??d;
       setQuote({
@@ -400,8 +400,8 @@ export const RampModal = () => {
         // merchantRef: d?.merchant_reference ?? merchantRef.current,
         
         fromAmount: d?.from_amount ?? fromAmount,
-        toAmount: qd?.to_amount ?? "—",
-        rate: qd?.rate ?? "—",
+        toAmount: qd?.to_amount ?? "-",
+        rate: qd?.rate ?? "-",
         expiresAt: Date.now() + (qd?.expires_in_seconds ? qd.expires_in_seconds * 1000 : 600_000),
         paymentDetails: {
           accountName: qd?.payment_details?.account_name,
@@ -598,7 +598,7 @@ console.log(isOpen,"isppppp")
                             {mode === "onramp" ? "USDT" : "NGN"}
                           </span>
                         </div>
-                        <p className="text-2xl font-semibold text-[#3A3C40]">—</p>
+                        <p className="text-2xl font-semibold text-[#3A3C40]">-</p>
                         <p className="text-xs text-[#545456] mt-1">Rate fetched on next step</p>
                       </div>
 

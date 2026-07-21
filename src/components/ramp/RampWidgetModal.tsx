@@ -393,7 +393,7 @@
 //                     </motion.div>
 //                   )}
 
-//                   {/* Active — widget is open externally, show helper info */}
+//                   {/* Active - widget is open externally, show helper info */}
 //                   {widgetState === "active" && (
 //                     <motion.div
 //                       key="active"
@@ -875,7 +875,7 @@ export const RampWidgetModal = () => {
   const navigate = useNavigate();
   const [showConnect, setShowConnect] = useState(false);
 
-  // Form state — collected before handing off to the widget
+  // Form state - collected before handing off to the widget
   const [fromAmount, setFromAmount] = useState("");
   const [network, setNetwork] = useState<Network>("BEP20");
   const [walletAddress, setWalletAddress] = useState("");
@@ -907,7 +907,7 @@ export const RampWidgetModal = () => {
   }, [isOpen, mode, widgetConfig, address]);
 
   // If the wallet connects while the form is open and the field is still empty,
-  // fill it in — but never clobber an address the user has already typed.
+  // fill it in - but never clobber an address the user has already typed.
   useEffect(() => {
     if (isOpen && mode === "onramp" && address && !walletAddress.trim()) {
       setWalletAddress(address);
@@ -1088,7 +1088,7 @@ export const RampWidgetModal = () => {
                             {mode === "onramp" ? "USDT" : "NGN"}
                           </span>
                         </div>
-                        <p style={{ color: "#3A3C40", fontSize: "28px", fontWeight: 700, margin: 0 }}>—</p>
+                        <p style={{ color: "#3A3C40", fontSize: "28px", fontWeight: 700, margin: 0 }}>-</p>
                         <p style={{ color: "#545456", fontSize: "11px", margin: "6px 0 0", display: "flex", alignItems: "center", gap: "4px" }}>
                           <ExternalLink /> Rate shown in Quidax widget
                         </p>
@@ -1148,7 +1148,7 @@ export const RampWidgetModal = () => {
                             <p style={{ color: "#22c55e", fontSize: "11px", margin: 0 }}>✓ Using your connected wallet</p>
                           ) : (
                             <p style={{ color: "#545456", fontSize: "11px", margin: 0 }}>
-                              Double-check this — crypto sent to the wrong address can't be recovered.
+                              Double-check this. Crypto sent to the wrong address can't be recovered.
                             </p>
                           )}
                         </div>
@@ -1184,7 +1184,7 @@ export const RampWidgetModal = () => {
                         You'll see the live rate and exactly what you receive next.
                       </p>
 
-                      {/* Who's transacting — surface a real identity, prompt login otherwise */}
+                      {/* Who's transacting - surface a real identity, prompt login otherwise */}
                       {isAuthenticated ? (
                         <p style={{ color: "#545456", fontSize: "11px", textAlign: "center", margin: 0 }}>
                           Transacting as <span style={{ color: "#C6C6C8" }}>{customer.email}</span>

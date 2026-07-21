@@ -38,7 +38,7 @@ export interface RampContextType {
   isOpen: boolean;
   mode: RampMode;
   integrationMode: RampIntegrationMode;
-  /** Resolved customer — auth user as base, overridden by anything passed to openRamp() or the provider */
+  /** Resolved customer - auth user as base, overridden by anything passed to openRamp() or the provider */
   customer: CustomerInfo;
   widgetConfig: WidgetConfig | null;
   openRamp: (mode?: RampMode, customer?: Partial<CustomerInfo>) => void;
@@ -59,7 +59,7 @@ interface RampProviderProps {
   /**
    * Optional static customer override. When omitted the provider falls back
    * to the authenticated user from useAuth(), then to safe placeholder values.
-   * You can also pass a partial — only the fields you supply replace the defaults.
+   * You can also pass a partial - only the fields you supply replace the defaults.
    */
   customer?: Partial<CustomerInfo>;
   /**

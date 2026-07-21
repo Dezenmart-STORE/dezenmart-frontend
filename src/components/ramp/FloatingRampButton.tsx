@@ -9,7 +9,7 @@ const HIDDEN_PREFIXES = ["/login", "/auth", "/offline"];
  * FloatingRampButton
  *
  * A fixed-position floating action button that opens the Ramp modal.
- * Drop this anywhere inside <RampProvider> — typically at the root layout.
+ * Drop this anywhere inside <RampProvider> - typically at the root layout.
  *
  * Props:
  *  - defaultMode: which tab opens first ("onramp" | "offramp"). Default "onramp".

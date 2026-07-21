@@ -160,7 +160,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     let profile: UserProfile | undefined = json?.data?.user ?? json?.user;
     if (!profile) {
-      // Backend returned only a token — fetch the profile with it.
+      // Backend returned only a token - fetch the profile with it.
       storage.setItem(TOKEN_KEY, token);
       const p = await fetch(`${API_URL}/users/profile`, {
         headers: { Authorization: `Bearer ${token}` },

@@ -254,8 +254,8 @@ export const RampApiModal = () => {
       setQuote({
         merchantRef: d?.merchant_reference ?? merchantRef.current,
         fromAmount: d?.from_amount ?? fromAmount,
-        toAmount: d?.to_amount ?? "—",
-        rate: d?.rate ?? "—",
+        toAmount: d?.to_amount ?? "-",
+        rate: d?.rate ?? "-",
         expiresAt: Date.now() + (d?.expires_in_seconds ? d.expires_in_seconds * 1000 : 600_000),
         paymentDetails: {
           accountName: d?.payment_details?.account_name,
@@ -351,7 +351,7 @@ export const RampApiModal = () => {
                         <div className="flex justify-between mb-1">
                           <span className="text-xs text-[#C6C6C8]">{mode === "onramp" ? "You receive (USDT)" : "You receive (NGN)"}</span>
                         </div>
-                        <p className="text-2xl font-semibold text-[#3A3C40]">—</p>
+                        <p className="text-2xl font-semibold text-[#3A3C40]">-</p>
                         <p className="text-xs text-[#545456] mt-1">Fetched on next step</p>
                       </div>
                       <Select label="Network" value={network} onChange={(v) => setNetwork(v as typeof NETWORKS[number])}

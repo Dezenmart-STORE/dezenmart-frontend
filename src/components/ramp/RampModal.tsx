@@ -1,5 +1,5 @@
 /**
- * RampModal — smart router
+ * RampModal - smart router
  *
  * Renders the correct implementation based on the `integrationMode`
  * set on <RampProvider>:

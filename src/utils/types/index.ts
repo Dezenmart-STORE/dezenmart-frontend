@@ -66,11 +66,9 @@ export interface Product {
   logisticsProviders: string[];
   /** Unit weight in kg. Priced as weight × quantity for logistics. */
   weight: number;
-  /** Origin state the item ships from - the `fromState` for logistics routing. */
+  /** Origin the item ships from - the `fromState` for logistics routing. */
   state: string;
-  /** Origin city/LGA the item ships from - the `fromLga` for logistics routing. */
   lga: string;
-  /** On-chain numeric trade ID assigned by the escrow contract when the listing was created */
   tradeId?: string;
 }
 //review

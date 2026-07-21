@@ -50,7 +50,7 @@ const LoginNudge: React.FC<LoginNudgeProps> = ({ onVisibilityChange }) => {
     if (isAuthenticated) cancel();
   }, [isAuthenticated, cancel]);
 
-  // No custom UI — Google renders the One Tap bubble itself.
+  // No custom UI - Google renders the One Tap bubble itself.
   useEffect(() => {
     onVisibilityChange?.(false);
   }, [onVisibilityChange]);
