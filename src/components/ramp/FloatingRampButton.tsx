@@ -1,5 +1,9 @@
 import { motion } from "framer-motion";
+import { useLocation } from "react-router-dom";
 import { useRamp } from "./RampContext";
+
+// Routes where the floating button shouldn't appear (auth flows, error/offline).
+const HIDDEN_PREFIXES = ["/login", "/auth", "/offline"];
 
 /**
  * FloatingRampButton
@@ -47,8 +51,11 @@ export const FloatingRampButton = ({
   hidden = false,
 }: FloatingRampButtonProps) => {
   const { openRamp } = useRamp();
+  const { pathname } = useLocation();
 
   if (hidden) return null;
+  if (HIDDEN_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`)))
+    return null;
 
   return (
     <motion.button

@@ -711,7 +711,11 @@
 // cat > /mnt/user-data/outputs/RampWidgetModal.tsx << 'ENDOFFILE'
 import { useEffect, useRef, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useAccount } from "wagmi";
+import { useNavigate } from "react-router-dom";
 import { useRamp } from "./RampContext";
+import { useAuth } from "../../context/AuthContext";
+import ConnectModal from "../wallet/ConnectModal";
 
 // ─── Quidax types ────────────────────────────────────────────────────────
 interface QuidaxWalletDetails {
@@ -747,8 +751,22 @@ interface QuidaxRampConfig {
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────
-const NETWORKS = ["BEP20", "TRC20", "ERC20", "POLYGON"] as const;
-type Network = typeof NETWORKS[number];
+// Delivery networks Quidax supports for USDT. Labelled for non-crypto users,
+// with a fee hint and whether the network uses EVM (0x) addresses. TRC20 (Tron)
+// uses a different address format (T...), so a connected EVM wallet can't use it.
+const NETWORK_OPTIONS = [
+  { value: "BEP20", label: "BNB Smart Chain (BEP20)", hint: "Low fees · recommended", evm: true },
+  { value: "POLYGON", label: "Polygon (POLYGON)", hint: "Low fees", evm: true },
+  { value: "ERC20", label: "Ethereum (ERC20)", hint: "Higher fees", evm: true },
+  { value: "TRC20", label: "Tron (TRC20)", hint: "For Tron wallets", evm: false },
+] as const;
+const NETWORKS = NETWORK_OPTIONS.map((n) => n.value);
+type Network = typeof NETWORK_OPTIONS[number]["value"];
+
+const isEvmNetwork = (n: Network) =>
+  NETWORK_OPTIONS.find((o) => o.value === n)?.evm ?? true;
+const isEvmAddress = (a: string) => /^0x[a-fA-F0-9]{40}$/.test(a.trim());
+const isTronAddress = (a: string) => /^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(a.trim());
 
 // ─── Icons ───────────────────────────────────────────────────────────────
 const X = () => (
@@ -852,6 +870,10 @@ type WidgetStep = "form" | "launching" | "active" | "success" | "error";
 export const RampWidgetModal = () => {
   const { isOpen, mode, setMode, closeRamp, widgetConfig, customer } = useRamp();
   const scriptStatus = useQuidaxScript();
+  const { address, isConnected } = useAccount();
+  const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+  const [showConnect, setShowConnect] = useState(false);
 
   // Form state — collected before handing off to the widget
   const [fromAmount, setFromAmount] = useState("");
@@ -867,13 +889,14 @@ export const RampWidgetModal = () => {
   const [walletDetails, setWalletDetails] = useState<QuidaxWalletDetails | null>(null);
   const currentRef = useRef(genRef());
 
-  // Reset when modal opens or mode switches
+  // Reset when modal opens or mode switches. Pre-fill the buy address with the
+  // connected wallet so users don't paste it by hand (an explicit default wins).
   useEffect(() => {
     if (isOpen) {
       setStep("form");
       setFromAmount(widgetConfig?.defaultAmount ?? "");
       setNetwork((widgetConfig?.defaultNetwork as Network) ?? "BEP20");
-      setWalletAddress(widgetConfig?.defaultAddress ?? "");
+      setWalletAddress(widgetConfig?.defaultAddress ?? address ?? "");
       setAmountError("");
       setWalletError("");
       setWidgetError("");
@@ -881,7 +904,16 @@ export const RampWidgetModal = () => {
       setWalletDetails(null);
       currentRef.current = genRef();
     }
-  }, [isOpen, mode, widgetConfig]);
+  }, [isOpen, mode, widgetConfig, address]);
+
+  // If the wallet connects while the form is open and the field is still empty,
+  // fill it in — but never clobber an address the user has already typed.
+  useEffect(() => {
+    if (isOpen && mode === "onramp" && address && !walletAddress.trim()) {
+      setWalletAddress(address);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [address, isOpen, mode]);
 
   const validate = () => {
     let ok = true;
@@ -889,9 +921,18 @@ export const RampWidgetModal = () => {
       setAmountError("Enter a valid amount");
       ok = false;
     } else setAmountError("");
-    if (mode === "onramp" && !walletAddress.trim()) {
-      setWalletError("Enter your wallet address");
-      ok = false;
+    if (mode === "onramp") {
+      const addr = walletAddress.trim();
+      if (!addr) {
+        setWalletError("Enter your wallet address");
+        ok = false;
+      } else if (isEvmNetwork(network) && !isEvmAddress(addr)) {
+        setWalletError("Enter a valid 0x… address for this network");
+        ok = false;
+      } else if (!isEvmNetwork(network) && !isTronAddress(addr)) {
+        setWalletError("TRC20 needs a Tron (T…) address");
+        ok = false;
+      } else setWalletError("");
     } else setWalletError("");
     return ok;
   };
@@ -1012,8 +1053,8 @@ export const RampWidgetModal = () => {
 
                       <p style={{ color: "#C6C6C8", fontSize: "13px", margin: 0 }}>
                         {mode === "onramp"
-                          ? "Enter the amount of NGN to spend and your wallet address."
-                          : "Enter the amount of USDT to sell and choose your network."}
+                          ? "Enter how much NGN to spend, then get your live rate."
+                          : "Enter how much USDT to sell, then get your live rate."}
                       </p>
 
                       {/* Amount input */}
@@ -1055,31 +1096,61 @@ export const RampWidgetModal = () => {
 
                       {/* Network selector */}
                       <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                        <label style={{ color: "#C6C6C8", fontSize: "12px", fontWeight: 500 }}>Network</label>
+                        <label style={{ color: "#C6C6C8", fontSize: "12px", fontWeight: 500 }}>
+                          Delivery network
+                        </label>
                         <div style={{ position: "relative", background: "#212428", borderRadius: "10px", border: "1px solid transparent" }}>
-                          <select value={network} onChange={(e) => setNetwork(e.target.value as Network)}
+                          <select value={network} onChange={(e) => { setNetwork(e.target.value as Network); setWalletError(""); }}
                             style={{ width: "100%", background: "transparent", color: "#fff", padding: "12px 36px 12px 12px", fontSize: "13px", border: "none", outline: "none", appearance: "none", cursor: "pointer" }}>
-                            {NETWORKS.map((n) => <option key={n} value={n} style={{ background: "#212428" }}>{n}</option>)}
+                            {NETWORK_OPTIONS.map((n) => (
+                              <option key={n.value} value={n.value} style={{ background: "#212428" }}>
+                                {n.label} · {n.hint}
+                              </option>
+                            ))}
                           </select>
                           <span style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", color: "#545456", pointerEvents: "none" }}><ChevronDown /></span>
                         </div>
+                        <p style={{ color: "#545456", fontSize: "11px", margin: 0 }}>
+                          {mode === "onramp"
+                            ? "The blockchain your USDT is delivered on. Not sure? The default works with most wallets."
+                            : "The blockchain you'll send USDT from."}
+                        </p>
                       </div>
 
                       {/* Wallet address (onramp only) */}
                       {mode === "onramp" && (
                         <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                          <label style={{ color: "#C6C6C8", fontSize: "12px", fontWeight: 500 }}>Your Wallet Address</label>
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                            <label style={{ color: "#C6C6C8", fontSize: "12px", fontWeight: 500 }}>Wallet address (where USDT is sent)</label>
+                            {!isConnected && (
+                              <button
+                                type="button"
+                                onClick={() => setShowConnect(true)}
+                                style={{ background: "none", border: "none", color: "#E23B3B", fontSize: "11px", fontWeight: 600, cursor: "pointer", padding: 0 }}
+                              >
+                                Connect wallet
+                              </button>
+                            )}
+                          </div>
                           <input
                             value={walletAddress}
                             onChange={(e) => { setWalletAddress(e.target.value); setWalletError(""); }}
-                            placeholder="0x..."
+                            placeholder="Paste a wallet address, or connect your wallet"
                             style={{
                               background: "#212428", color: "#fff", padding: "12px", borderRadius: "10px", fontSize: "13px",
                               border: walletError ? "1px solid #ef4444" : "1px solid transparent",
                               outline: "none", fontFamily: "monospace",
                             }}
                           />
-                          {walletError && <p style={{ color: "#f87171", fontSize: "12px", margin: 0 }}>{walletError}</p>}
+                          {walletError ? (
+                            <p style={{ color: "#f87171", fontSize: "12px", margin: 0 }}>{walletError}</p>
+                          ) : isConnected && walletAddress.trim().toLowerCase() === address?.toLowerCase() ? (
+                            <p style={{ color: "#22c55e", fontSize: "11px", margin: 0 }}>✓ Using your connected wallet</p>
+                          ) : (
+                            <p style={{ color: "#545456", fontSize: "11px", margin: 0 }}>
+                              Double-check this — crypto sent to the wrong address can't be recovered.
+                            </p>
+                          )}
                         </div>
                       )}
 
@@ -1107,13 +1178,28 @@ export const RampWidgetModal = () => {
                         onMouseEnter={(e) => { if (scriptStatus === "ready") e.currentTarget.style.background = "#c52f2f"; }}
                         onMouseLeave={(e) => { if (scriptStatus === "ready") e.currentTarget.style.background = "#E23B3B"; }}
                       >
-                        Continue to Payment <ExternalLink />
+                        Get Rate <ExternalLink />
                       </button>
+                      <p style={{ color: "#545456", fontSize: "11px", textAlign: "center", margin: "-6px 0 0" }}>
+                        You'll see the live rate and exactly what you receive next.
+                      </p>
 
-                      {/* Customer info preview */}
-                      {customer && (
+                      {/* Who's transacting — surface a real identity, prompt login otherwise */}
+                      {isAuthenticated ? (
                         <p style={{ color: "#545456", fontSize: "11px", textAlign: "center", margin: 0 }}>
                           Transacting as <span style={{ color: "#C6C6C8" }}>{customer.email}</span>
+                        </p>
+                      ) : (
+                        <p style={{ color: "#545456", fontSize: "11px", textAlign: "center", margin: 0 }}>
+                          Not signed in.{" "}
+                          <button
+                            type="button"
+                            onClick={() => { closeRamp(); navigate("/login"); }}
+                            style={{ background: "none", border: "none", color: "#E23B3B", fontSize: "11px", fontWeight: 600, cursor: "pointer", padding: 0 }}
+                          >
+                            Log in
+                          </button>{" "}
+                          for a smoother experience.
                         </p>
                       )}
                     </motion.div>
@@ -1259,6 +1345,9 @@ export const RampWidgetModal = () => {
               </div>
             </div>
           </motion.div>
+
+          {/* Wallet connect (opened from the address field when disconnected) */}
+          {showConnect && <ConnectModal onClose={() => setShowConnect(false)} />}
         </>
       )}
     </AnimatePresence>
