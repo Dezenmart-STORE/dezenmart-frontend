@@ -1,12 +1,15 @@
-import { useNavigate } from "react-router-dom";
+import { useMemo } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { LiaAngleLeftSolid } from "react-icons/lia";
 import { HiExclamationTriangle } from "react-icons/hi2";
 import { useGetCurrentTermsQuery } from "../store/api";
 import type { LegalDocType } from "../utils/types";
+import { extractHeadings } from "../utils/markdown";
 import { useSEO } from "../hooks/useSEO";
 import Container from "../components/common/Container";
 import LoadingSpinner from "../components/common/LoadingSpinner";
 import MarkdownContent from "../components/common/MarkdownContent";
+import TableOfContents from "../components/common/TableOfContents";
 
 // Static SEO/meta per document. Adding a new legal type = add a route + an
 // entry here; everything else (fetch, render, format) is driven by `type`.
@@ -25,20 +28,13 @@ const META: Record<LegalDocType, { title: string; description: string }> = {
   },
 };
 
-const formatDate = (iso?: string): string => {
-  if (!iso) return "";
-  const d = new Date(iso);
-  return isNaN(d.getTime())
-    ? ""
-    : d.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
-};
-
 interface Props {
   type: LegalDocType;
 }
 
 const Legal: React.FC<Props> = ({ type }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { data, isLoading, isError, refetch, isFetching } = useGetCurrentTermsQuery(type);
   const meta = META[type];
 
@@ -47,25 +43,31 @@ const Legal: React.FC<Props> = ({ type }) => {
     description: meta.description,
   });
 
+  const headings = useMemo(
+    () => (data?.content ? extractHeadings(data.content) : []),
+    [data?.content]
+  );
+
+  // Return to wherever we came from. Settings opens legal pages with a
+  // returnTo flag so Back lands on the Settings view, not the account overview.
+  const handleBack = () => {
+    const returnTo = (location.state as { returnTo?: string } | null)?.returnTo;
+    if (returnTo === "settings") navigate("/account?view=settings");
+    else navigate(-1);
+  };
+
   return (
     <div className="bg-Dark min-h-screen text-white">
-      <Container className="max-w-3xl">
-        {/* Top bar: back + version/updated meta */}
-        <div className="flex items-center justify-between gap-3 py-4">
+      <Container className="max-w-5xl">
+        <div className="py-4">
           <button
-            onClick={() => navigate(-1)}
+            onClick={handleBack}
             className="flex items-center gap-1 text-gray-400 hover:text-white text-sm transition-colors"
             aria-label="Go back"
           >
             <LiaAngleLeftSolid className="w-5 h-5" />
             Back
           </button>
-          {data && (
-            <span className="text-xs text-gray-500">
-              v{data.version}
-              {data.updatedAt ? ` · Updated ${formatDate(data.updatedAt)}` : ""}
-            </span>
-          )}
         </div>
 
         {isLoading ? (
@@ -86,9 +88,14 @@ const Legal: React.FC<Props> = ({ type }) => {
             </button>
           </div>
         ) : (
-          <article className={`pb-8 ${isFetching ? "opacity-70" : ""}`}>
-            <MarkdownContent content={data.content} />
-          </article>
+          <div className="lg:flex lg:gap-10 pb-10">
+            <aside className="lg:w-60 lg:flex-shrink-0 lg:order-2">
+              <TableOfContents headings={headings} />
+            </aside>
+            <article className={`min-w-0 flex-1 max-w-3xl ${isFetching ? "opacity-70" : ""}`}>
+              <MarkdownContent content={data.content} />
+            </article>
+          </div>
         )}
       </Container>
     </div>

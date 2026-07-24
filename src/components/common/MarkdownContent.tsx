@@ -1,6 +1,7 @@
 import { memo } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
+import rehypeSlug from "rehype-slug";
 
 /**
  * Renders trusted markdown (e.g. legal documents from the backend) with the
@@ -83,7 +84,11 @@ interface Props {
 
 const MarkdownContent = memo(({ content, className = "" }: Props) => (
   <div className={className}>
-    <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm]}
+      rehypePlugins={[rehypeSlug]}
+      components={components}
+    >
       {content}
     </ReactMarkdown>
   </div>

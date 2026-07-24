@@ -118,17 +118,17 @@ const Settings = ({
         {
           icon: <RiFileList3Line className="text-white text-base" />,
           label: "Terms of Service",
-          onClick: () => navigate("/terms"),
+          onClick: () => navigate("/terms", { state: { returnTo: "settings" } }),
         },
         {
           icon: <RiShieldUserLine className="text-white text-base" />,
           label: "Privacy Policy",
-          onClick: () => navigate("/privacy"),
+          onClick: () => navigate("/privacy", { state: { returnTo: "settings" } }),
         },
         {
           icon: <RiCupLine className="text-white text-base" />,
           label: "Cookie Policy",
-          onClick: () => navigate("/cookies"),
+          onClick: () => navigate("/cookies", { state: { returnTo: "settings" } }),
         },
       ],
     },

@@ -176,13 +176,19 @@ const Account = () => {
   const [viewState, setViewState] = useState<AccountViewState>("overview");
   const [showVerifyModal, setShowVerifyModal] = useState(false);
 
-  // Honour ?tab= deep-link param
+  // Honour ?tab= and ?view= deep-link params
   useEffect(() => {
     const tabParam = searchParams.get("tab");
+    const viewParam = searchParams.get("view");
     if (tabParam && TAB_OPTIONS.some((o) => o.id === tabParam)) {
       setActiveTab(tabParam as TabType);
       setViewState("overview");
       searchParams.delete("tab");
+      setSearchParams(searchParams, { replace: true });
+    } else if (viewParam === "settings") {
+      // Returning from a legal page opened via Settings.
+      setViewState("settings");
+      searchParams.delete("view");
       setSearchParams(searchParams, { replace: true });
     }
   }, [searchParams, setSearchParams]);
