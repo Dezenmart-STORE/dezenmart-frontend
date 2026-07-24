@@ -751,20 +751,25 @@ interface QuidaxRampConfig {
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────
-// Delivery networks Quidax supports for USDT. Labelled for non-crypto users,
-// with a fee hint and whether the network uses EVM (0x) addresses. TRC20 (Tron)
-// uses a different address format (T...), so a connected EVM wallet can't use it.
+// Delivery networks Quidax supports for USDT (per Quidax docs: bep20, erc20,
+// trc20, celo). `code` is the exact value Quidax expects; `value` is our UI id.
+// Celo is first/default because DezenMart runs on Celo, so USDT bought on Celo
+// lands directly in the user's connected wallet. TRC20 (Tron) uses a different
+// address format (T...), so a connected EVM wallet can't use it.
 const NETWORK_OPTIONS = [
-  { value: "BEP20", label: "BNB Smart Chain (BEP20)", hint: "Low fees · recommended", evm: true },
-  { value: "POLYGON", label: "Polygon (POLYGON)", hint: "Low fees", evm: true },
-  { value: "ERC20", label: "Ethereum (ERC20)", hint: "Higher fees", evm: true },
-  { value: "TRC20", label: "Tron (TRC20)", hint: "For Tron wallets", evm: false },
+  { value: "CELO", code: "celo", label: "Celo (CELO)", hint: "Recommended - lands in your DezenMart wallet", evm: true },
+  { value: "BEP20", code: "bep20", label: "BNB Smart Chain (BEP20)", hint: "Low fees", evm: true },
+  { value: "ERC20", code: "erc20", label: "Ethereum (ERC20)", hint: "Higher fees", evm: true },
+  { value: "TRC20", code: "trc20", label: "Tron (TRC20)", hint: "For Tron wallets", evm: false },
 ] as const;
 const NETWORKS = NETWORK_OPTIONS.map((n) => n.value);
+const DEFAULT_NETWORK: Network = "CELO";
 type Network = typeof NETWORK_OPTIONS[number]["value"];
 
-const isEvmNetwork = (n: Network) =>
-  NETWORK_OPTIONS.find((o) => o.value === n)?.evm ?? true;
+const networkOption = (n: Network) => NETWORK_OPTIONS.find((o) => o.value === n);
+const isEvmNetwork = (n: Network) => networkOption(n)?.evm ?? true;
+/** The network code Quidax expects (lowercase, e.g. "celo"). */
+const quidaxNetworkCode = (n: Network) => networkOption(n)?.code ?? "celo";
 const isEvmAddress = (a: string) => /^0x[a-fA-F0-9]{40}$/.test(a.trim());
 const isTronAddress = (a: string) => /^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(a.trim());
 
@@ -877,7 +882,7 @@ export const RampWidgetModal = () => {
 
   // Form state - collected before handing off to the widget
   const [fromAmount, setFromAmount] = useState("");
-  const [network, setNetwork] = useState<Network>("BEP20");
+  const [network, setNetwork] = useState<Network>(DEFAULT_NETWORK);
   const [walletAddress, setWalletAddress] = useState("");
   const [amountError, setAmountError] = useState("");
   const [walletError, setWalletError] = useState("");
@@ -895,7 +900,7 @@ export const RampWidgetModal = () => {
     if (isOpen) {
       setStep("form");
       setFromAmount(widgetConfig?.defaultAmount ?? "");
-      setNetwork((widgetConfig?.defaultNetwork as Network) ?? "BEP20");
+      setNetwork((widgetConfig?.defaultNetwork as Network) ?? DEFAULT_NETWORK);
       setWalletAddress(widgetConfig?.defaultAddress ?? address ?? "");
       setAmountError("");
       setWalletError("");
@@ -961,7 +966,7 @@ export const RampWidgetModal = () => {
       to_currency: isBuy ? "usdt" : "ngn",
       from_amount: fromAmount,
       mode: isBuy ? "buy" : "sell",
-      network,
+      network: quidaxNetworkCode(network),
       ...(isBuy && walletAddress ? { address: walletAddress } : {}),
       onClose: (ref) => {
         console.log("[Quidax Ramp] closed", ref);
