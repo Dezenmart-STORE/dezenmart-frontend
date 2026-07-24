@@ -1,95 +1,40 @@
-import {
-  createContext,
-  useContext,
-  useState,
-  ReactNode,
-  useCallback,
-  useMemo,
-} from "react";
+import { ReactNode, useEffect, useRef } from "react";
 import { useAuth } from "./AuthContext";
-import { useAcceptTermsMutation, useGetUserProfileQuery } from "../store/api";
+import { useAcceptTermsMutation } from "../store/api";
 
-interface TermsContextType {
-  showTermsModal: boolean;
-  hasAcceptedTerms: boolean;
-  isLoading: boolean;
-  acceptTerms: () => Promise<void>;
-}
-
-const TermsContext = createContext<TermsContextType | undefined>(undefined);
-
+/**
+ * Records Terms acceptance on first login.
+ *
+ * Acceptance is captured on the login screen itself ("By continuing, you agree
+ * to our Terms of Service, Privacy Policy & Cookie Policy"), so there is no
+ * blocking modal. Once a signed-in user is seen without hasAcceptedTerms, we
+ * record that acceptance silently in the background.
+ */
 export const TermsProvider = ({ children }: { children: ReactNode }) => {
-  const {
-    user,
-    isAuthenticated,
-    isLoading: authLoading,
-    handleUserUpdate,
-  } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading, handleUserUpdate } = useAuth();
+  const [acceptUserTerms] = useAcceptTermsMutation();
+  const recordedRef = useRef(false);
 
-  const { data: selectedUser } = useGetUserProfileQuery(undefined, {
-    skip: !isAuthenticated,
-  });
-  const [acceptUserTerms, { isLoading: userLoading }] = useAcceptTermsMutation();
-
-  const [isLoading, setIsLoading] = useState(false);
-
-  const hasAcceptedTerms = useMemo(() => {
-    return user?.hasAcceptedTerms ?? false;
-  }, [user?.hasAcceptedTerms]);
-
-  const showTermsModal = useMemo(() => {
-    return isAuthenticated && !authLoading && !hasAcceptedTerms;
-  }, [isAuthenticated, authLoading, hasAcceptedTerms]);
-
-  const acceptTerms = useCallback(async () => {
-    if (!isAuthenticated || isLoading || userLoading) {
+  useEffect(() => {
+    if (authLoading || !isAuthenticated || !user) return;
+    if (user.hasAcceptedTerms) {
+      recordedRef.current = true;
       return;
     }
+    if (recordedRef.current) return;
+    recordedRef.current = true;
 
-    setIsLoading(true);
-    try {
-      const result = await acceptUserTerms().unwrap();
+    acceptUserTerms()
+      .unwrap()
+      .then((result) => {
+        if (result?.data?.user) handleUserUpdate(result.data.user);
+      })
+      .catch((error) => {
+        // Non-fatal - allow another attempt on the next load.
+        recordedRef.current = false;
+        console.error("Failed to record terms acceptance:", error);
+      });
+  }, [authLoading, isAuthenticated, user, acceptUserTerms, handleUserUpdate]);
 
-      if (result?.data?.user) {
-        handleUserUpdate(result.data.user);
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, 1800));
-    } catch (error) {
-      console.error("Failed to accept terms:", error);
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [
-    isAuthenticated,
-    isLoading,
-    userLoading,
-    acceptUserTerms,
-    handleUserUpdate,
-  ]);
-
-  const contextValue = useMemo(
-    () => ({
-      showTermsModal,
-      hasAcceptedTerms,
-      isLoading: isLoading || userLoading,
-      acceptTerms,
-    }),
-    [showTermsModal, hasAcceptedTerms, isLoading, userLoading, acceptTerms]
-  );
-
-  return (
-    <TermsContext.Provider value={contextValue}>
-      {children}
-    </TermsContext.Provider>
-  );
-};
-
-export const useTerms = () => {
-  const context = useContext(TermsContext);
-  if (context === undefined) {
-    throw new Error("useTerms must be used within a TermsProvider");
-  }
-  return context;
+  return <>{children}</>;
 };

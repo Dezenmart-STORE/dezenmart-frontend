@@ -22,7 +22,6 @@ import ReferralHandler from "./components/referrals/ReferralHandler.tsx";
 import { CurrencyProvider } from "./context/CurrencyContext.tsx";
 import { WagmiProvider } from "wagmi";
 import { wagmiConfig } from "./config/chains.ts";
-import TermsModal from "./components/common/TermsModal.tsx";
 import { TermsProvider } from "./context/TermsContext.tsx";
 import { WalkthroughProvider } from "./context/WalkthroughContext.tsx";
 import Walkthrough from "./components/walkthrough/Walkthrough.tsx";
@@ -215,7 +214,6 @@ const RouterLayout = () => {
                           <Outlet />
                         </Suspense>
                         <ReferralHandler />
-                        <TermsModal />
                         <Walkthrough />
                       </Layout>
                     </WalkthroughProvider>
