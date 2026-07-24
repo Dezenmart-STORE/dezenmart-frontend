@@ -15,7 +15,6 @@ import { LiaAngleLeftSolid } from "react-icons/lia";
 const TabContent = lazy(() => import("../components/account/overview/TabContent"));
 const EditProfile = lazy(() => import("../components/account/edit/EditProfile"));
 const Settings    = lazy(() => import("../components/account/settings/Settings"));
-const Privacy     = lazy(() => import("../components/account/settings/Privacy"));
 const Safety      = lazy(() => import("../components/account/settings/Safety"));
 const TwoFactorAuth = lazy(() => import("../components/account/settings/TwoFactorAuth"));
 const HelpSupport = lazy(() => import("../components/account/settings/HelpSupport"));
@@ -34,7 +33,6 @@ export type AccountViewState =
   | "settings"
   | "edit-profile"
   | "delivery-addresses"
-  | "privacy"
   | "safety"
   | "two-factor"
   | "help"
@@ -261,9 +259,6 @@ const Account = () => {
   }
   if (viewState === "delivery-addresses") {
     return subViewWrapper(<DeliveryAddressManager onBack={handleBackToSettings} />);
-  }
-  if (viewState === "privacy") {
-    return subViewWrapper(<Privacy onBack={handleBackToSettings} />);
   }
   if (viewState === "safety") {
     return subViewWrapper(<Safety onBack={handleBackToSettings} />);
