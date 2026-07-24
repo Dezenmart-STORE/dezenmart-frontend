@@ -130,10 +130,14 @@ const Login: React.FC<LoginProps> = ({ isFromReferral = false }) => {
           By continuing, you agree to our{" "}
           <Link to="/terms" className="text-[#4FA3FF] hover:underline">
             Terms of Service
-          </Link>{" "}
-          &{" "}
+          </Link>
+          ,{" "}
           <Link to="/privacy" className="text-[#4FA3FF] hover:underline">
             Privacy Policy
+          </Link>{" "}
+          &{" "}
+          <Link to="/cookies" className="text-[#4FA3FF] hover:underline">
+            Cookie Policy
           </Link>
           .
         </p>

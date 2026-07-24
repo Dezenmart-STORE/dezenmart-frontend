@@ -132,6 +132,7 @@ const BuyCheckout = lazy(() => import("./pages/BuyCheckout.tsx"));
 const SellCheckout = lazy(() => import("./pages/SellCheckout.tsx"));
 const ViewTrade = lazy(() => import("./pages/Trade.tsx"));
 const ViewTradeDetail = lazy(() => import("./pages/ViewTradeDetail.tsx"));
+const Legal = lazy(() => import("./pages/Legal.tsx"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -262,6 +263,9 @@ const router = createBrowserRouter([
       { path: "/product/:productId", element: <SingleProduct /> },
       { path: "/trades", element: <ComingSoon /> },
       { path: "/community", element: <Community /> },
+      { path: "/terms", element: <Legal type="terms_of_use" /> },
+      { path: "/privacy", element: <Legal type="privacy_policy" /> },
+      { path: "/cookies", element: <Legal type="cookie_policy" /> },
       { path: "/referral", element: <ReferralLanding /> },
       { path: "/load", element: <Loadscreen /> },
       { path: "/offline", element: <Offline /> },

@@ -41,6 +41,21 @@ export interface terms {
   };
 }
 
+// Legal documents served as markdown by GET /terms/current?type=...
+export type LegalDocType = "terms_of_use" | "privacy_policy" | "cookie_policy";
+
+export interface LegalDocument {
+  _id: string;
+  title: string;
+  /** Markdown body. */
+  content: string;
+  version: string;
+  isActive: boolean;
+  type: LegalDocType;
+  createdAt: string;
+  updatedAt: string;
+}
+
 //product
 export interface ProductVariant {
   quantity: number;
