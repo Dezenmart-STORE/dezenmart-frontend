@@ -28,7 +28,6 @@ import { useTokenBalances } from "../../../hooks/useTokenBalances";
 import ConnectModal from "../../wallet/ConnectModal";
 import { TOKENS } from "../../../config/tokens";
 import type { StableToken } from "../../../config/tokens";
-import { DEMO_FALLBACK_PROVIDER_ID } from "../../../config/logistics";
 import { debounce } from "lodash-es";
 
 import QuantitySelector from "./QuantitySelector";
@@ -462,15 +461,12 @@ export const PurchaseSectionProvider: React.FC<
     updateState({ isProcessing: true, purchaseError: null });
     try {
       const addr = state.selectedAddress;
-      // Use the chosen provider's quote when we have one; otherwise fall back to
-      // a static real provider id so the demo purchase can still complete.
-      const lp = state.selectedLogistics;
-      const hasQuote = !!lp?.quoteId;
+      // The quoteId carries the chosen logistics provider; the delivery address
+      // is sent inline (a saved id isn't required).
       const orderData: CreateOrderParams = {
         product: product._id,
         quantity: state.quantity,
-        logisticsProvider: hasQuote ? lp._id : DEMO_FALLBACK_PROVIDER_ID,
-        quoteId: hasQuote ? lp.quoteId! : "",
+        quoteId: state.selectedLogistics?.quoteId ?? "",
         deliveryAddress: {
           label: addr.label,
           fullName: addr.fullName,

@@ -586,12 +586,11 @@ export interface OrderAddressInput {
   isDefault?: boolean;
 }
 
-// POST /orders body.
+// POST /orders body. The quoteId identifies the logistics provider, and the
+// full deliveryAddress is sent inline so a one-time address needn't be saved.
 export interface CreateOrderParams {
   product: string;
   quantity: number;
-  /** Logistics provider id (NOT the wallet address). */
-  logisticsProvider: string;
   /** Id of the logistics quote the buyer selected (from POST /logistics/quotes). */
   quoteId: string;
   deliveryAddress: OrderAddressInput;
