@@ -125,10 +125,12 @@ export interface Order {
     name: string;
     price: number;
     images: string[];
-    tradeId: string;
-    logisticsCost: string[];
-    logisticsProviders: string[];
-    paymentToken: string;
+    // The order's embedded product is trimmed by the backend; these may be
+    // absent, so treat them as optional and fetch the full product when needed.
+    tradeId?: string;
+    logisticsCost?: string[];
+    logisticsProviders?: string[];
+    paymentToken?: string;
   };
   buyer:
     | {
@@ -146,6 +148,8 @@ export interface Order {
       }
     | string;
   amount: number;
+  /** Delivery fee in USD (from the selected quote), set by the backend. */
+  deliveryFee?: number;
   status: OrderStatus;
   dispute?: {
     raisedBy: string;

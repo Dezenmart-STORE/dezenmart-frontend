@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useChainId, useSwitchChain } from "wagmi";
 import {
   useGetOrderByIdQuery,
+  useGetProductByIdQuery,
   useUpdateOrderStatusMutation,
   useCreateReviewMutation,
   useGetOrderReviewQuery,
@@ -44,6 +45,14 @@ const ViewOrderDetail = () => {
     error,
     refetch,
   } = useGetOrderByIdQuery(orderId!, { skip: !orderId });
+
+  // The order's embedded product is trimmed (no tradeId/paymentToken), which
+  // the escrow payment needs — fetch the full product to fill those in.
+  const productId =
+    order && typeof order.product === "object" ? order.product?._id : undefined;
+  const { data: fullProduct } = useGetProductByIdQuery(productId ?? "", {
+    skip: !productId,
+  });
 
   const [updateOrderStatus] = useUpdateOrderStatusMutation();
   const [showPayment, setShowPayment] = useState(false);
@@ -91,14 +100,17 @@ const ViewOrderDetail = () => {
   }
 
   const status = mapStatus(order.status);
-  const tokenSymbol = order.product?.paymentToken ?? "USDm";
+  const tokenSymbol =
+    fullProduct?.paymentToken ?? order.product?.paymentToken ?? "USDm";
 
   const sellerName =
     typeof order.seller === "object" ? order.seller?.name : order.seller;
   const sellerId =
     typeof order.seller === "object" ? order.seller?._id : order.seller;
 
-  const tradeId = order.product?.tradeId ?? "";
+  // tradeId (the on-chain listing id) drives escrow payment; the order's trimmed
+  // product omits it, so prefer the full product.
+  const tradeId = fullProduct?.tradeId ?? order.product?.tradeId ?? "";
   const canPay =
     status === "pending_payment" &&
     !order.purchaseId &&
@@ -107,19 +119,26 @@ const ViewOrderDetail = () => {
 
   const providerAddr = DEFAULT_LOGISTICS_PROVIDER;
 
-  const _providerList = order.product?.logisticsProviders as string[] | undefined;
-  const _costList = order.product?.logisticsCost as string[] | undefined;
+  // Logistics cost in the payment token (to match productPriceInToken below).
+  // Prefer the order's authoritative deliveryFee (USD -> token); fall back to
+  // the product's legacy per-provider cost list, then a small default.
+  const _providerList = fullProduct?.logisticsProviders as string[] | undefined;
+  const _costList = fullProduct?.logisticsCost as string[] | undefined;
   const _providerIdx = _providerList?.findIndex(
     (addr: string) => addr?.toLowerCase() === DEFAULT_LOGISTICS_PROVIDER.toLowerCase()
   ) ?? -1;
-  const logisticsCostRaw =
+  const _legacyCost =
     (_providerIdx >= 0 && _costList?.[_providerIdx] && parseFloat(_costList[_providerIdx]) > 0)
-      ? _costList[_providerIdx]
+      ? parseFloat(_costList[_providerIdx])
       : (_costList?.[0] && parseFloat(_costList[0]) > 0)
-      ? _costList[0]
-      : "0.1";
+      ? parseFloat(_costList[0])
+      : 0;
 
-  const logisticsCostNumeric = parseFloat(logisticsCostRaw) || 0.1;
+  const logisticsCostNumeric =
+    order.deliveryFee != null && order.deliveryFee > 0
+      ? convertPrice(order.deliveryFee, "USD", tokenSymbol)
+      : _legacyCost || 0.1;
+  const logisticsCostRaw = String(logisticsCostNumeric);
 
   // order.product.price is stored in USD - convert to payment token for correct amounts.
   // Fall back to order.amount (actual on-chain token amount) if product price unavailable.
