@@ -162,13 +162,25 @@ export interface Order {
   createdAt: string;
   quantity: number;
   updatedAt: string;
-  logisticsProviderWalletAddress: string[];
+  logisticsProviderWalletAddress: string[] | string;
   purchaseId: string;
-  // Shipping fields - populated by the backend when seller marks order as shipped
+  logisticsStatus?: string;
+  /** Full logistics provider profile embedded on the order. */
+  logisticsProvider?: {
+    _id: string;
+    name?: string;
+    email?: string;
+    phone?: string;
+    walletAddress?: string;
+  };
+  // Shipping fields - populated by the backend as the delivery progresses.
+  logisticsAcceptedAt?: string;
   shippedAt?: string;
+  shippingNotes?: string;
+  expectedDeliveryDate?: string;
+  // Legacy/optional - not currently sent by the backend.
   trackingNumber?: string;
   logisticsProviderName?: string;
-  estimatedDeliveryDate?: string;
 }
 
 export interface OrderStatusUpdate {

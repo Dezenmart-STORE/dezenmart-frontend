@@ -56,22 +56,10 @@ const ViewOrderDetail = () => {
 
   const [updateOrderStatus] = useUpdateOrderStatusMutation();
   const [showPayment, setShowPayment] = useState(false);
-  const [isMarkingReceived, setIsMarkingReceived] = useState(false);
   const [checklistComplete, setChecklistComplete] = useState(false);
   // Set to true the moment buyTrade succeeds so the Pay button never re-appears
   // even if the backend API update is slow or fails.
   const [paidOnChain, setPaidOnChain] = useState(false);
-
-  const handleMarkReceived = async () => {
-    if (!orderId) return;
-    setIsMarkingReceived(true);
-    try {
-      await updateOrderStatus({ orderId, details: { status: "delivered" } });
-      await refetch();
-    } finally {
-      setIsMarkingReceived(false);
-    }
-  };
 
   if (isLoading) {
     return (
@@ -208,8 +196,6 @@ const ViewOrderDetail = () => {
           tokenSymbol={tokenSymbol}
           logisticsCostNumeric={logisticsCostNumeric}
           chainId={chainId}
-          onMarkReceived={handleMarkReceived}
-          isMarkingReceived={isMarkingReceived}
           onChecklistChange={setChecklistComplete}
         />
 
@@ -468,8 +454,6 @@ function StatusInfoPanel({
   tokenSymbol,
   logisticsCostNumeric,
   chainId,
-  onMarkReceived,
-  isMarkingReceived = false,
   onChecklistChange,
 }: {
   status: TradeState;
@@ -478,8 +462,6 @@ function StatusInfoPanel({
   tokenSymbol: string;
   logisticsCostNumeric: number;
   chainId: number;
-  onMarkReceived?: () => Promise<void>;
-  isMarkingReceived?: boolean;
   onChecklistChange?: (complete: boolean) => void;
 }) {
   const [checked, setChecked] = useState<Record<string, boolean>>(
@@ -587,41 +569,24 @@ function StatusInfoPanel({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
           </svg>
           <p className="text-xs text-gray-400">
-            Payment is held in a smart contract escrow and will only be released once you confirm delivery.
+            Payment is held in a smart contract escrow. It's released to the seller only after your order is delivered and you confirm receipt.
           </p>
         </div>
-
-        {onMarkReceived && (
-          <button
-            onClick={onMarkReceived}
-            disabled={isMarkingReceived}
-            className="mt-4 w-full rounded-xl bg-[#292B30] py-3 text-sm font-semibold text-white transition-colors hover:bg-[#373A3F] active:scale-[0.98] disabled:opacity-60"
-          >
-            {isMarkingReceived ? (
-              <span className="flex items-center justify-center gap-2">
-                <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                </svg>
-                Updating…
-              </span>
-            ) : (
-              "I've Received My Order"
-            )}
-          </button>
-        )}
       </div>
     );
   }
 
   if (status === "shipped") {
-    const shippedDate = order.shippedAt
-      ? new Date(order.shippedAt).toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-          year: "numeric",
-        })
-      : null;
+    const fmtDate = (iso?: string) =>
+      iso
+        ? new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+        : null;
+    const shippedDate = fmtDate(order.shippedAt);
+    const carrierName = order.logisticsProvider?.name;
+    const carrierPhone = order.logisticsProvider?.phone;
+    const shippingNotes = order.shippingNotes?.trim();
+    const eta = fmtDate(order.expectedDeliveryDate);
+    const hasShippingDetails = carrierName || carrierPhone || shippingNotes || eta;
 
     return (
       <div className="rounded-2xl border border-blue-800/40 bg-blue-900/10 p-5">
@@ -640,32 +605,39 @@ function StatusInfoPanel({
         </div>
 
         <div className="space-y-3 rounded-xl bg-[#292B30] p-4">
-          {order.trackingNumber ? (
+          {hasShippingDetails ? (
             <>
-              {order.logisticsProviderName && (
+              {carrierName && (
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-gray-500">Carrier</span>
-                  <span className="text-sm font-medium text-white">{order.logisticsProviderName}</span>
+                  <span className="text-sm font-medium text-white">{carrierName}</span>
                 </div>
               )}
-              <div className="flex items-start justify-between gap-4">
-                <span className="flex-shrink-0 text-xs text-gray-500">Tracking No.</span>
-                <span className="break-all text-right font-mono text-xs text-white">
-                  {order.trackingNumber}
-                </span>
-              </div>
+              {carrierPhone && (
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-500">Carrier contact</span>
+                  <a href={`tel:${carrierPhone}`} className="text-sm font-medium text-blue-300 hover:text-blue-200">
+                    {carrierPhone}
+                  </a>
+                </div>
+              )}
+              {shippingNotes && (
+                <div className="flex items-start justify-between gap-4">
+                  <span className="flex-shrink-0 text-xs text-gray-500">Note</span>
+                  <span className="text-right text-sm text-gray-300">{shippingNotes}</span>
+                </div>
+              )}
+              {eta && (
+                <div className="flex items-center justify-between border-t border-[#373A3F] pt-3">
+                  <span className="text-xs text-gray-500">Est. delivery</span>
+                  <span className="text-sm font-medium text-white">{eta}</span>
+                </div>
+              )}
             </>
           ) : (
             <p className="text-sm text-gray-400">
-              Tracking information is not yet available. Contact the seller for an update.
+              Your order is on the way. Contact the seller if you need an update.
             </p>
-          )}
-
-          {order.estimatedDeliveryDate && (
-            <div className="flex items-center justify-between border-t border-[#373A3F] pt-3">
-              <span className="text-xs text-gray-500">Est. Delivery</span>
-              <span className="text-sm font-medium text-white">{order.estimatedDeliveryDate}</span>
-            </div>
           )}
         </div>
 
@@ -674,29 +646,9 @@ function StatusInfoPanel({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           <p className="text-xs text-blue-300">
-            Only tap "Received" once your package arrives. Payment stays safely in escrow until you confirm.
+            Your delivery provider marks this as delivered once it arrives. You'll then be able to confirm receipt to release payment from escrow.
           </p>
         </div>
-
-        {onMarkReceived && (
-          <button
-            onClick={onMarkReceived}
-            disabled={isMarkingReceived}
-            className="mt-4 w-full rounded-xl bg-[#292B30] py-3 text-sm font-semibold text-white transition-colors hover:bg-[#373A3F] active:scale-[0.98] disabled:opacity-60"
-          >
-            {isMarkingReceived ? (
-              <span className="flex items-center justify-center gap-2">
-                <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                </svg>
-                Updating…
-              </span>
-            ) : (
-              "I've Received My Package"
-            )}
-          </button>
-        )}
       </div>
     );
   }
