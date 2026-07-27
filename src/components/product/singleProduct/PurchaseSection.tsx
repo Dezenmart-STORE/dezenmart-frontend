@@ -3,19 +3,17 @@ import React, {
   useEffect,
   useCallback,
   useMemo,
-  useRef,
   memo,
   startTransition,
   createContext,
   useContext,
 } from "react";
-import { FaWallet, FaSpinner, FaExchangeAlt } from "react-icons/fa";
+import { FaWallet, FaSpinner } from "react-icons/fa";
 import {
   HiCurrencyDollar,
   HiSignal,
   HiExclamationTriangle,
   HiCheckCircle,
-  HiArrowPath,
 } from "react-icons/hi2";
 import { Product, ProductVariant } from "../../../utils/types";
 import { useCreateOrderMutation } from "../../../store/api";
@@ -23,12 +21,9 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../../context/AuthContext";
 import { useAccount, useChainId } from "wagmi";
 import { useCurrency } from "../../../context/CurrencyContext";
-import { useSwap } from "../../../hooks/useSwap";
 import { useTokenBalances } from "../../../hooks/useTokenBalances";
 import ConnectModal from "../../wallet/ConnectModal";
-import { TOKENS } from "../../../config/tokens";
 import type { StableToken } from "../../../config/tokens";
-import { debounce } from "lodash-es";
 
 import QuantitySelector from "./QuantitySelector";
 import DeliveryAddressSelector from "./DeliveryAddressSelector";
@@ -54,8 +49,6 @@ interface PurchaseSectionProps {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const BALANCE_PRECISION = 6;
-const QUOTE_DEBOUNCE_MS = 800;
-const SWAP_CONFIRMATION_DELAY = 1000;
 const MIN_STOCK_THRESHOLD = 10;
 
 // ── Internal state hook ───────────────────────────────────────────────────────
@@ -67,9 +60,6 @@ const usePurchaseState = () => {
     isProcessing: false,
     purchaseError: null as string | null,
     showWalletModal: false,
-    showSwapModal: false,
-    swapQuote: "",
-    isGettingQuote: false,
     mounted: false,
   });
 
@@ -130,22 +120,17 @@ interface PurchaseContextValue {
   stockStatus: { isOutOfStock: boolean; isLowStock: boolean };
   computedTotals: ComputedTotals;
   hasSufficientBalance: boolean;
-  needsSwap: boolean;
-  swapOutputAmount: number;
   isLoading: boolean;
   walletSelectedToken: StableToken;
   isConnected: boolean;
   address: `0x${string}` | undefined;
   isAuthenticated: boolean;
-  isSwapping: boolean;
   isLoadingBalance: boolean;
   celoBalance: string | undefined;
   formatPrice: (price: number, currency: string) => string;
   formatBalance: (balance: string | undefined) => string;
   getBalance: (symbol: string) => { numeric: number; formatted: string } | undefined;
   handleButtonClick: () => Promise<void>;
-  handleConfirmSwap: () => Promise<void>;
-  refreshQuote: () => void;
 }
 
 const PurchaseContext = createContext<PurchaseContextValue | null>(null);
@@ -189,110 +174,44 @@ const StockStatus = memo(({ availableQty }: { availableQty: number }) => {
   );
 });
 
-const BalanceWarning = memo(
-  ({ isConnected, hasSufficientBalance }: { isConnected: boolean; hasSufficientBalance: boolean }) => {
-    if (!isConnected || hasSufficientBalance) return null;
-    return (
-      <div className="bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 p-3 rounded-lg text-sm flex items-center gap-2">
-        <HiSignal className="w-4 h-4 flex-shrink-0" />
-        <span>Insufficient balance for this purchase</span>
-      </div>
-    );
-  }
-);
-
-const SwapPreview = memo(
+// Soft, non-blocking hint: what the buyer will pay and a gentle nudge if they
+// may be short. The authoritative balance/swap/gas checks run on the order page
+// at payment time, so this never blocks creating the order.
+const PaymentHint = memo(
   ({
-    isVisible,
-    fromAmount,
-    fromToken,
-    toAmount,
-    toToken,
-    isGettingQuote,
-    onRefresh,
+    isConnected,
+    payToken,
+    selectedSymbol,
+    payAmountLabel,
+    hasSufficientBalance,
   }: {
-    isVisible: boolean;
-    fromAmount: number;
-    fromToken: string;
-    toAmount: number;
-    toToken: string;
-    isGettingQuote: boolean;
-    onRefresh: () => void;
+    isConnected: boolean;
+    payToken: string;
+    selectedSymbol: string;
+    payAmountLabel: string;
+    hasSufficientBalance: boolean;
   }) => {
-    if (!isVisible) return null;
-
-    const exchangeRate = useMemo(() => {
-      if (toAmount > 0 && fromAmount > 0) return (toAmount / fromAmount).toFixed(6);
-      return null;
-    }, [toAmount, fromAmount]);
-
-    const priceImpact = useMemo(() => {
-      if (!exchangeRate) return null;
-      return parseFloat(((1 - parseFloat(exchangeRate)) * 100).toFixed(2));
-    }, [exchangeRate]);
-
+    const needsSwap = isConnected && selectedSymbol !== payToken;
     return (
-      <div className="bg-red-900/10 border border-red-500/20 rounded-lg p-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex-1">
-            <div className="flex items-center gap-2 text-red-400 text-sm font-medium mb-3">
-              <FaExchangeAlt className="w-4 h-4" />
-              <span>Token Swap Required</span>
-            </div>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between items-center">
-                <span className="text-gray-400">You'll swap:</span>
-                <span className="text-white font-medium">{fromAmount.toFixed(4)} {fromToken}</span>
-              </div>
-              {isGettingQuote ? (
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-400">To receive:</span>
-                  <div className="flex items-center gap-2">
-                    <FaSpinner className="animate-spin w-3 h-3 text-red-400" />
-                    <span className="text-gray-400">Calculating...</span>
-                  </div>
-                </div>
-              ) : toAmount > 0 ? (
-                <>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-400">To receive:</span>
-                    <span className="text-green-400 font-medium">≈ {toAmount.toFixed(4)} {toToken}</span>
-                  </div>
-                  {exchangeRate && (
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="text-gray-500">Rate:</span>
-                      <span className="text-gray-400">1 {fromToken} = {exchangeRate} {toToken}</span>
-                    </div>
-                  )}
-                  {priceImpact !== null && Math.abs(priceImpact) > 1 && (
-                    <div className="flex items-center gap-1 text-xs text-yellow-400">
-                      <HiExclamationTriangle className="w-3 h-3" />
-                      <span>Price impact: {Math.abs(priceImpact).toFixed(2)}%</span>
-                    </div>
-                  )}
-                </>
-              ) : null}
-            </div>
-          </div>
-          <button
-            onClick={onRefresh}
-            disabled={isGettingQuote}
-            className="p-2 hover:bg-red-500/10 rounded-lg transition-colors disabled:opacity-50"
-            aria-label="Refresh swap quote"
-          >
-            <HiArrowPath className={`w-4 h-4 text-red-400 ${isGettingQuote ? "animate-spin" : ""}`} />
-          </button>
+      <div className="bg-[#292B30] border border-gray-700/50 rounded-lg p-3 text-xs space-y-1.5">
+        <div className="flex justify-between items-center">
+          <span className="text-gray-400">You'll pay at checkout</span>
+          <span className="text-white font-medium">{payAmountLabel}</span>
         </div>
-        <div className="mt-3 pt-3 border-t border-red-500/20 text-xs space-y-1">
-          <div className="flex items-center gap-1 text-red-300/80">
-            <HiCheckCircle className="w-3 h-3" />
-            <span>Swap will be executed before purchase</span>
-          </div>
-          <div className="flex items-center gap-1 text-yellow-400/80">
-            <HiExclamationTriangle className="w-3 h-3" />
-            <span>Additional gas fees apply for swap</span>
-          </div>
-        </div>
+        {needsSwap && (
+          <p className="text-gray-500">
+            Your {selectedSymbol} will be swapped to {payToken} when you pay.
+          </p>
+        )}
+        {isConnected && !hasSufficientBalance && (
+          <p className="flex items-start gap-1.5 text-yellow-400/90">
+            <HiSignal className="w-3 h-3 mt-0.5 flex-shrink-0" />
+            <span>
+              You may need more funds. Add {payToken}
+              {needsSwap ? ` or enough ${selectedSymbol} to swap` : ""} before paying.
+            </span>
+          </p>
+        )}
       </div>
     );
   }
@@ -329,23 +248,18 @@ export const PurchaseSectionProvider: React.FC<
     convertPrice,
     formatPrice,
     selectedToken: walletSelectedToken,
-    setSelectedToken,
   } = useCurrency();
   const { isConnected, address } = useAccount();
   useChainId(); // keep for chain awareness
-  const { getQuote, swap, isSwapping, isReady: swapReady } = useSwap();
   const {
     isLoading: isLoadingBalance,
     refetch: refreshTokenBalance,
     getBalance,
-    hasSufficient,
     celoBalance,
   } = useTokenBalances();
   const { isAuthenticated } = useAuth();
 
   const [state, updateState] = usePurchaseState();
-  const abortControllerRef = useRef<AbortController | null>(null);
-  const quoteTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => { updateState({ mounted: true }); }, [updateState]);
 
@@ -381,81 +295,6 @@ export const PurchaseSectionProvider: React.FC<
     if (!current) return false;
     return current.numeric >= required;
   }, [isConnected, walletSelectedToken, product, computedTotals, state.mounted, getBalance]);
-
-  const isSwapSupported = useCallback(async () => {
-    if (!isConnected || !product || walletSelectedToken.symbol === product.paymentToken) return true;
-    try {
-      await getQuote(walletSelectedToken.symbol, product.paymentToken, 0.1);
-      return true;
-    } catch {
-      return false;
-    }
-  }, [walletSelectedToken.symbol, product?.paymentToken, getQuote, isConnected]);
-
-  const updateSwapQuote = useCallback(
-    debounce(async () => {
-      if (!product || !isConnected || walletSelectedToken.symbol === product.paymentToken) {
-        updateState({ swapQuote: "", isGettingQuote: false });
-        return;
-      }
-      if (computedTotals.totalInSelected <= 0) return;
-      if (abortControllerRef.current) abortControllerRef.current.abort();
-      abortControllerRef.current = new AbortController();
-      startTransition(() => { updateState({ isGettingQuote: true }); });
-      try {
-        const quote = await getQuote(walletSelectedToken.symbol, product.paymentToken, computedTotals.totalInSelected);
-        if (!abortControllerRef.current.signal.aborted) {
-          startTransition(() => { updateState({ swapQuote: quote?.amountOut ?? "", isGettingQuote: false }); });
-        }
-      } catch {
-        if (!abortControllerRef.current?.signal.aborted) {
-          startTransition(() => { updateState({ swapQuote: "", isGettingQuote: false }); });
-        }
-      }
-    }, QUOTE_DEBOUNCE_MS),
-    [product, isConnected, walletSelectedToken.symbol, computedTotals.totalInSelected, getQuote, updateState]
-  );
-
-  useEffect(() => {
-    if (quoteTimeoutRef.current) clearTimeout(quoteTimeoutRef.current);
-    quoteTimeoutRef.current = setTimeout(() => { updateSwapQuote(); }, 100);
-    return () => { if (quoteTimeoutRef.current) clearTimeout(quoteTimeoutRef.current); };
-  }, [updateSwapQuote]);
-
-  useEffect(() => {
-    return () => {
-      if (abortControllerRef.current) abortControllerRef.current.abort();
-      updateSwapQuote.cancel();
-    };
-  }, [updateSwapQuote]);
-
-  const validateSwapRequirements = useCallback(async () => {
-    if (!isConnected || !product) return false;
-    try {
-      if (!swapReady) {
-        updateState({ purchaseError: "Token swap isn't ready yet. Wait a moment and try again." });
-        return false;
-      }
-      const balance = getBalance(walletSelectedToken.symbol);
-      if (!balance || balance.numeric < computedTotals.totalInSelected) {
-        updateState({
-          purchaseError: `Not enough ${walletSelectedToken.symbol} to swap into ${product.paymentToken} for this order. This item is paid in ${product.paymentToken}, so add ${product.paymentToken} to your wallet to pay directly, or top up your ${walletSelectedToken.symbol}.`,
-        });
-        return false;
-      }
-      const supported = await isSwapSupported();
-      if (!supported) {
-        updateState({
-          purchaseError: `${walletSelectedToken.symbol} can't be swapped to ${product.paymentToken} for this item. Add ${product.paymentToken} to your wallet and pay with it directly.`,
-        });
-        return false;
-      }
-      return true;
-    } catch (err) {
-      updateState({ purchaseError: getErrorMessage(err) });
-      return false;
-    }
-  }, [isConnected, walletSelectedToken, product, computedTotals, swapReady, getBalance, isSwapSupported, updateState]);
 
   const executeOrder = useCallback(async () => {
     if (!product) return;
@@ -497,46 +336,16 @@ export const PurchaseSectionProvider: React.FC<
     }
   }, [product, state.selectedAddress, state.selectedLogistics, state.quantity, createOrder, refreshTokenBalance, navigate, updateState]);
 
+  // Buy just creates the order. Payment (and any token swap it needs) happens
+  // on the order page, so we don't gate on balance/swap here - the PaymentHint
+  // gives a soft nudge instead.
   const handleButtonClick = useCallback(async () => {
     updateState({ purchaseError: null });
     if (!isAuthenticated) return startTransition(() => navigate("/login"));
     if (!product) { updateState({ purchaseError: "This product's details didn't load. Refresh the page and try again." }); return; }
     if (!isConnected) { updateState({ showWalletModal: true }); return; }
-    if (!hasSufficientBalance) {
-      const payToken = product.paymentToken;
-      const selToken = walletSelectedToken.symbol;
-      updateState({
-        purchaseError:
-          selToken === payToken
-            ? `Insufficient ${payToken} balance. Add more ${payToken} to your wallet to complete this order.`
-            : `Not enough ${selToken} to cover this order. This item is paid in ${payToken}, so add ${payToken} to your wallet, or top up your ${selToken} to swap.`,
-      });
-      return;
-    }
-    if (walletSelectedToken.symbol !== product.paymentToken) {
-      const canSwap = await validateSwapRequirements();
-      if (!canSwap) return;
-      updateState({ showSwapModal: true });
-      return;
-    }
     await executeOrder();
-  }, [isAuthenticated, product, isConnected, walletSelectedToken, hasSufficientBalance, validateSwapRequirements, executeOrder, navigate, updateState]);
-
-  const handleConfirmSwap = useCallback(async () => {
-    if (!product) return;
-    updateState({ purchaseError: null });
-    try {
-      await swap(walletSelectedToken.symbol, product.paymentToken, computedTotals.totalInSelected);
-      const targetToken = TOKENS.find((t: StableToken) => t.symbol === product.paymentToken);
-      if (targetToken) setSelectedToken(targetToken);
-      updateState({ showSwapModal: false });
-      setTimeout(() => { executeOrder(); }, SWAP_CONFIRMATION_DELAY);
-    } catch (err) {
-      updateState({
-        purchaseError: getErrorMessage(err) || "The token swap didn't go through. Please try again.",
-      });
-    }
-  }, [product, swap, walletSelectedToken.symbol, computedTotals, setSelectedToken, executeOrder, updateState]);
+  }, [isAuthenticated, product, isConnected, executeOrder, navigate, updateState]);
 
   const formatBalance = useCallback(
     (balance: string | undefined) => {
@@ -549,10 +358,6 @@ export const PurchaseSectionProvider: React.FC<
     [state.mounted]
   );
 
-  const needsSwap = Boolean(
-    isConnected && product && walletSelectedToken.symbol !== product.paymentToken && computedTotals.totalInSelected > 0
-  );
-
   const ctxValue: PurchaseContextValue = {
     product,
     selectedVariant,
@@ -562,22 +367,17 @@ export const PurchaseSectionProvider: React.FC<
     stockStatus,
     computedTotals,
     hasSufficientBalance,
-    needsSwap,
-    swapOutputAmount: state.swapQuote ? parseFloat(state.swapQuote) : 0,
-    isLoading: state.isProcessing || isSwapping,
+    isLoading: state.isProcessing,
     walletSelectedToken,
     isConnected,
     address,
     isAuthenticated,
-    isSwapping,
     isLoadingBalance,
     celoBalance,
     formatPrice,
     formatBalance,
     getBalance,
     handleButtonClick,
-    handleConfirmSwap,
-    refreshQuote: () => updateSwapQuote(),
   };
 
   if (!state.mounted) {
@@ -605,9 +405,6 @@ export const PurchaseSectionBody: React.FC = () => {
     stockStatus,
     computedTotals,
     hasSufficientBalance,
-    needsSwap,
-    swapOutputAmount,
-    isLoading,
     walletSelectedToken,
     isConnected,
     address,
@@ -617,7 +414,6 @@ export const PurchaseSectionBody: React.FC = () => {
     formatBalance,
     getBalance,
     product,
-    refreshQuote,
   } = usePurchaseContext();
 
   return (
@@ -653,19 +449,16 @@ export const PurchaseSectionBody: React.FC = () => {
         />
       )}
 
-      {/* Balance warning */}
-      <BalanceWarning isConnected={isConnected} hasSufficientBalance={hasSufficientBalance} />
-
-      {/* Swap preview */}
-      <SwapPreview
-        isVisible={needsSwap}
-        fromAmount={computedTotals.totalInSelected}
-        fromToken={walletSelectedToken.symbol}
-        toAmount={swapOutputAmount}
-        toToken={product?.paymentToken || ""}
-        isGettingQuote={state.isGettingQuote}
-        onRefresh={refreshQuote}
-      />
+      {/* Soft payment hint (non-blocking) */}
+      {product && (
+        <PaymentHint
+          isConnected={isConnected}
+          payToken={product.paymentToken}
+          selectedSymbol={walletSelectedToken.symbol}
+          payAmountLabel={formatPrice(computedTotals.totalInPayment, product.paymentToken)}
+          hasSufficientBalance={hasSufficientBalance}
+        />
+      )}
 
       {/* Wallet info - shown when connected */}
       {isConnected && (
@@ -710,12 +503,7 @@ export const PurchaseSectionFooter: React.FC = () => {
     isLoading,
     isAuthenticated,
     isConnected,
-    needsSwap,
-    computedTotals,
-    walletSelectedToken,
     handleButtonClick,
-    handleConfirmSwap,
-    product,
   } = usePurchaseContext();
 
   return (
@@ -754,8 +542,6 @@ export const PurchaseSectionFooter: React.FC = () => {
                   ? "Connect Wallet"
                   : stockStatus.isOutOfStock
                   ? "Out of Stock"
-                  : needsSwap
-                  ? "Swap & Buy Now"
                   : "Buy Now"}
               </span>
             </>
@@ -766,43 +552,6 @@ export const PurchaseSectionFooter: React.FC = () => {
       {/* Connect Wallet modal */}
       {state.showWalletModal && (
         <ConnectModal onClose={() => updateState({ showWalletModal: false })} />
-      )}
-
-      {/* Swap confirmation modal */}
-      {state.showSwapModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-[#212428] rounded-xl p-6 max-w-sm w-full space-y-4">
-            <h3 className="text-white text-lg font-semibold">Confirm Swap</h3>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between text-gray-400">
-                <span>From:</span>
-                <span className="text-white">
-                  {computedTotals.totalInSelected.toFixed(4)} {walletSelectedToken.symbol}
-                </span>
-              </div>
-              <div className="flex justify-between text-gray-400">
-                <span>To:</span>
-                <span className="text-green-400">
-                  ≈ {state.swapQuote || "..."} {product?.paymentToken}
-                </span>
-              </div>
-            </div>
-            <div className="flex gap-3">
-              <button
-                onClick={() => updateState({ showSwapModal: false })}
-                className="flex-1 py-2.5 rounded-xl border border-gray-600 text-gray-300 hover:bg-gray-700 transition-colors text-sm"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleConfirmSwap}
-                className="flex-1 py-2.5 rounded-xl bg-red-600 text-white hover:bg-red-700 transition-colors text-sm font-medium"
-              >
-                Confirm Swap
-              </button>
-            </div>
-          </div>
-        </div>
       )}
     </>
   );
