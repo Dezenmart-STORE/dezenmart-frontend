@@ -34,6 +34,7 @@ import QuantitySelector from "./QuantitySelector";
 import DeliveryAddressSelector from "./DeliveryAddressSelector";
 import LogisticsProviderSelector from "./LogisticsProviderSelector";
 import type { DeliveryAddress, AvailableProvider, CreateOrderParams } from "../../../utils/types";
+import { getErrorMessage } from "../../../utils/errors";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface FormattedProduct extends Product {
@@ -432,22 +433,26 @@ export const PurchaseSectionProvider: React.FC<
     if (!isConnected || !product) return false;
     try {
       if (!swapReady) {
-        updateState({ purchaseError: "Swap functionality not available. Please try again." });
+        updateState({ purchaseError: "Token swap isn't ready yet. Wait a moment and try again." });
         return false;
       }
       const balance = getBalance(walletSelectedToken.symbol);
       if (!balance || balance.numeric < computedTotals.totalInSelected) {
-        updateState({ purchaseError: `Insufficient ${walletSelectedToken.symbol} balance for swap` });
+        updateState({
+          purchaseError: `Not enough ${walletSelectedToken.symbol} to cover this order. Add funds or pick a different token.`,
+        });
         return false;
       }
       const supported = await isSwapSupported();
       if (!supported) {
-        updateState({ purchaseError: `${walletSelectedToken.symbol}/${product.paymentToken} swap not supported` });
+        updateState({
+          purchaseError: `We can't convert ${walletSelectedToken.symbol} to ${product.paymentToken} right now. Pay with ${product.paymentToken} or choose another token.`,
+        });
         return false;
       }
       return true;
-    } catch {
-      updateState({ purchaseError: "Failed to validate swap requirements" });
+    } catch (err) {
+      updateState({ purchaseError: getErrorMessage(err) });
       return false;
     }
   }, [isConnected, walletSelectedToken, product, computedTotals, swapReady, getBalance, isSwapSupported, updateState]);
@@ -483,8 +488,10 @@ export const PurchaseSectionProvider: React.FC<
       if (!order?._id) throw new Error("Order creation failed");
       refreshTokenBalance();
       startTransition(() => { navigate(`/orders/${order._id}?status=pending`); });
-    } catch (err: any) {
-      updateState({ purchaseError: err.message || "Purchase failed. Please try again." });
+    } catch (err) {
+      updateState({
+        purchaseError: getErrorMessage(err) || "We couldn't place your order. Please try again.",
+      });
     } finally {
       updateState({ isProcessing: false });
     }
@@ -493,10 +500,12 @@ export const PurchaseSectionProvider: React.FC<
   const handleButtonClick = useCallback(async () => {
     updateState({ purchaseError: null });
     if (!isAuthenticated) return startTransition(() => navigate("/login"));
-    if (!product) { updateState({ purchaseError: "Product information is missing" }); return; }
+    if (!product) { updateState({ purchaseError: "This product's details didn't load. Refresh the page and try again." }); return; }
     if (!isConnected) { updateState({ showWalletModal: true }); return; }
     if (!hasSufficientBalance) {
-      updateState({ purchaseError: `Insufficient ${walletSelectedToken.symbol} balance` });
+      updateState({
+        purchaseError: `Not enough ${walletSelectedToken.symbol} to complete this order. Add funds or choose another token.`,
+      });
       return;
     }
     if (walletSelectedToken.symbol !== product.paymentToken) {
@@ -517,8 +526,10 @@ export const PurchaseSectionProvider: React.FC<
       if (targetToken) setSelectedToken(targetToken);
       updateState({ showSwapModal: false });
       setTimeout(() => { executeOrder(); }, SWAP_CONFIRMATION_DELAY);
-    } catch (err: any) {
-      updateState({ purchaseError: err.message || "Swap failed. Please try again." });
+    } catch (err) {
+      updateState({
+        purchaseError: getErrorMessage(err) || "The token swap didn't go through. Please try again.",
+      });
     }
   }, [product, swap, walletSelectedToken.symbol, computedTotals, setSelectedToken, executeOrder, updateState]);
 

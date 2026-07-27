@@ -295,7 +295,7 @@ export function usePayment() {
         ) {
           dispatch({
             type: "ERROR",
-            error: "You can't buy your own listing.",
+            error: "You can't buy your own listing. Connect a different wallet than the one that listed it.",
           });
           return;
         }
@@ -303,7 +303,7 @@ export function usePayment() {
         if (!isProviderRegistered) {
           dispatch({
             type: "ERROR",
-            error: `Delivery provider ${params.logisticsProvider} is not registered on this contract. Contact support.`,
+            error: "This delivery provider isn't available for payment right now. Go back and choose a different delivery option.",
           });
           return;
         }
@@ -311,7 +311,7 @@ export function usePayment() {
         if (!trade?.active) {
           dispatch({
             type: "ERROR",
-            error: `This listing is no longer active. [${preflightDebug}]`,
+            error: "This listing is no longer active. It may have sold out or been removed by the seller.",
           });
           return;
         }
@@ -327,8 +327,10 @@ export function usePayment() {
           return;
         }
       } catch (checkErr) {
-        const msg = getErrorMessage(checkErr);
-        dispatch({ type: "ERROR", error: `Pre-flight check failed: ${msg} [${preflightDebug}]` });
+        // Keep the technical detail in the console for debugging; show the user
+        // a clean, friendly message.
+        console.error("[payment] pre-flight check failed", preflightDebug, checkErr);
+        dispatch({ type: "ERROR", error: getErrorMessage(checkErr) });
         return;
       }
 
@@ -361,7 +363,8 @@ export function usePayment() {
             swapHash: priorSwapHash,
           });
         } else {
-          dispatch({ type: "ERROR", error: `${result.message} [${preflightDebug}]` });
+          console.error("[payment] buyTrade failed", preflightDebug, result.message);
+          dispatch({ type: "ERROR", error: getErrorMessage(result.message ?? "") });
         }
         return;
       }

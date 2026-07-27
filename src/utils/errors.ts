@@ -100,9 +100,23 @@ const ERROR_PATTERNS: Array<{
     },
   },
 
+  // ── Chain not added to wallet (MetaMask 4902) ──
+  // "Unrecognized chain ID ... Try adding the chain using wallet_addEthereumChain"
+  {
+    test: (s) =>
+      s.includes("4902") ||
+      s.includes("unrecognizedchain") ||
+      s.includes("addethereumchain"),
+    result: {
+      title: "Add the Celo Network",
+      message: "Celo isn't set up in your wallet yet.",
+      suggestion: "Approve the \"Add network\" prompt in your wallet, then try again.",
+    },
+  },
+
   // ── Wrong chain ──
   // Catches wagmi's ChainMismatchError: "The current chain of the wallet
-  // (id: X) does not match the target chain for the transaction (id: Y – …)"
+  // (id: X) does not match the target chain for the transaction (id: Y - ...)"
   {
     test: (s) =>
       s.includes("wrongnetwork") ||
@@ -141,10 +155,11 @@ const ERROR_PATTERNS: Array<{
 
   // ── Contract-specific errors ──
   {
-    test: (s) => s.includes("buyerisseller"),
+    test: (s) => s.includes("buyerisseller") || s.includes("buyyourownlisting"),
     result: {
       title: "Can't Buy Your Own Item",
       message: "You can't purchase your own listing.",
+      suggestion: "Connect a different wallet than the one that listed it.",
     },
   },
   {

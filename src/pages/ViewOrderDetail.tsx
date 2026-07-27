@@ -47,7 +47,7 @@ const ViewOrderDetail = () => {
   } = useGetOrderByIdQuery(orderId!, { skip: !orderId });
 
   // The order's embedded product is trimmed (no tradeId/paymentToken), which
-  // the escrow payment needs — fetch the full product to fill those in.
+  // the escrow payment needs - fetch the full product to fill those in.
   const productId =
     order && typeof order.product === "object" ? order.product?._id : undefined;
   const { data: fullProduct } = useGetProductByIdQuery(productId ?? "", {
