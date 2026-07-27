@@ -21,6 +21,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../../context/AuthContext";
 import { useAccount, useChainId } from "wagmi";
 import { useCurrency } from "../../../context/CurrencyContext";
+import { useSwap } from "../../../hooks/useSwap";
 import { useTokenBalances } from "../../../hooks/useTokenBalances";
 import ConnectModal from "../../wallet/ConnectModal";
 import type { StableToken } from "../../../config/tokens";
@@ -120,6 +121,13 @@ interface PurchaseContextValue {
   stockStatus: { isOutOfStock: boolean; isLowStock: boolean };
   computedTotals: ComputedTotals;
   hasSufficientBalance: boolean;
+  /** True when there is genuinely no way to pay: selected token has no swap
+   *  route to the payment token AND the payment-token balance is too low. */
+  isUnpayable: boolean;
+  /** True when the selected token can be swapped to the payment token. */
+  swapAvailable: boolean;
+  /** User-facing reason the purchase is blocked, or null. */
+  blockReason: string | null;
   isLoading: boolean;
   walletSelectedToken: StableToken;
   isConnected: boolean;
@@ -184,31 +192,37 @@ const PaymentHint = memo(
     selectedSymbol,
     payAmountLabel,
     hasSufficientBalance,
+    isUnpayable,
+    swapAvailable,
   }: {
     isConnected: boolean;
     payToken: string;
     selectedSymbol: string;
     payAmountLabel: string;
     hasSufficientBalance: boolean;
+    isUnpayable: boolean;
+    swapAvailable: boolean;
   }) => {
     const needsSwap = isConnected && selectedSymbol !== payToken;
+    // When blocked, the Footer shows the definitive red reason; here we just
+    // show the amount so the two don't duplicate.
     return (
       <div className="bg-[#292B30] border border-gray-700/50 rounded-lg p-3 text-xs space-y-1.5">
         <div className="flex justify-between items-center">
           <span className="text-gray-400">You'll pay at checkout</span>
           <span className="text-white font-medium">{payAmountLabel}</span>
         </div>
-        {needsSwap && (
+        {!isUnpayable && needsSwap && swapAvailable && (
           <p className="text-gray-500">
             Your {selectedSymbol} will be swapped to {payToken} when you pay.
           </p>
         )}
-        {isConnected && !hasSufficientBalance && (
+        {!isUnpayable && isConnected && !hasSufficientBalance && (
           <p className="flex items-start gap-1.5 text-yellow-400/90">
             <HiSignal className="w-3 h-3 mt-0.5 flex-shrink-0" />
             <span>
               You may need more funds. Add {payToken}
-              {needsSwap ? ` or enough ${selectedSymbol} to swap` : ""} before paying.
+              {needsSwap && swapAvailable ? ` or enough ${selectedSymbol} to swap` : ""} before paying.
             </span>
           </p>
         )}
@@ -251,6 +265,7 @@ export const PurchaseSectionProvider: React.FC<
   } = useCurrency();
   const { isConnected, address } = useAccount();
   useChainId(); // keep for chain awareness
+  const { getQuote } = useSwap();
   const {
     isLoading: isLoadingBalance,
     refetch: refreshTokenBalance,
@@ -296,6 +311,44 @@ export const PurchaseSectionProvider: React.FC<
     return current.numeric >= required;
   }, [isConnected, walletSelectedToken, product, computedTotals, state.mounted, getBalance]);
 
+  // Read-only probe: can the selected token be swapped to the payment token?
+  // "checking" is treated as available (optimistic) so we never block on a
+  // pending check. Only a confirmed "none" can contribute to a block.
+  const [swapRoute, setSwapRoute] = useState<"unknown" | "checking" | "available" | "none">("unknown");
+  useEffect(() => {
+    if (!isConnected || !product) { setSwapRoute("unknown"); return; }
+    if (walletSelectedToken.symbol === product.paymentToken) { setSwapRoute("available"); return; }
+    let cancelled = false;
+    setSwapRoute("checking");
+    getQuote(walletSelectedToken.symbol, product.paymentToken, 0.1)
+      .then((q) => { if (!cancelled) setSwapRoute(q ? "available" : "none"); })
+      .catch(() => { if (!cancelled) setSwapRoute("none"); });
+    return () => { cancelled = true; };
+  }, [isConnected, product, walletSelectedToken.symbol, getQuote]);
+
+  const swapAvailable = swapRoute === "available" || swapRoute === "checking";
+
+  // Can the buyer pay directly in the payment token they already hold?
+  const canPayInPaymentToken = useMemo(() => {
+    if (!product) return false;
+    const bal = getBalance(product.paymentToken)?.numeric ?? 0;
+    return bal >= computedTotals.totalInPayment;
+  }, [product, getBalance, computedTotals.totalInPayment]);
+
+  // Block only when there is genuinely no path to pay: a different token with no
+  // swap route AND not enough of the payment token to pay directly.
+  const isUnpayable = Boolean(
+    isConnected &&
+      product &&
+      walletSelectedToken.symbol !== product.paymentToken &&
+      swapRoute === "none" &&
+      !canPayInPaymentToken
+  );
+
+  const blockReason = isUnpayable && product
+    ? `This item is paid in ${product.paymentToken} and your ${walletSelectedToken.symbol} can't be converted to it. Add ${product.paymentToken} to your wallet to continue.`
+    : null;
+
   const executeOrder = useCallback(async () => {
     if (!product) return;
     if (!state.selectedAddress) {
@@ -337,15 +390,17 @@ export const PurchaseSectionProvider: React.FC<
   }, [product, state.selectedAddress, state.selectedLogistics, state.quantity, createOrder, refreshTokenBalance, navigate, updateState]);
 
   // Buy just creates the order. Payment (and any token swap it needs) happens
-  // on the order page, so we don't gate on balance/swap here - the PaymentHint
-  // gives a soft nudge instead.
+  // on the order page, so we only gate on affordability in the one truly
+  // unpayable case (no swap route and no payment-token fallback); otherwise the
+  // PaymentHint gives a soft nudge and the order page does the real check.
   const handleButtonClick = useCallback(async () => {
     updateState({ purchaseError: null });
     if (!isAuthenticated) return startTransition(() => navigate("/login"));
     if (!product) { updateState({ purchaseError: "This product's details didn't load. Refresh the page and try again." }); return; }
     if (!isConnected) { updateState({ showWalletModal: true }); return; }
+    if (isUnpayable) { updateState({ purchaseError: blockReason }); return; }
     await executeOrder();
-  }, [isAuthenticated, product, isConnected, executeOrder, navigate, updateState]);
+  }, [isAuthenticated, product, isConnected, isUnpayable, blockReason, executeOrder, navigate, updateState]);
 
   const formatBalance = useCallback(
     (balance: string | undefined) => {
@@ -367,6 +422,9 @@ export const PurchaseSectionProvider: React.FC<
     stockStatus,
     computedTotals,
     hasSufficientBalance,
+    isUnpayable,
+    swapAvailable,
+    blockReason,
     isLoading: state.isProcessing,
     walletSelectedToken,
     isConnected,
@@ -405,6 +463,8 @@ export const PurchaseSectionBody: React.FC = () => {
     stockStatus,
     computedTotals,
     hasSufficientBalance,
+    isUnpayable,
+    swapAvailable,
     walletSelectedToken,
     isConnected,
     address,
@@ -449,7 +509,7 @@ export const PurchaseSectionBody: React.FC = () => {
         />
       )}
 
-      {/* Soft payment hint (non-blocking) */}
+      {/* Soft payment hint (blocking reason is shown by the footer) */}
       {product && (
         <PaymentHint
           isConnected={isConnected}
@@ -457,6 +517,8 @@ export const PurchaseSectionBody: React.FC = () => {
           selectedSymbol={walletSelectedToken.symbol}
           payAmountLabel={formatPrice(computedTotals.totalInPayment, product.paymentToken)}
           hasSufficientBalance={hasSufficientBalance}
+          isUnpayable={isUnpayable}
+          swapAvailable={swapAvailable}
         />
       )}
 
@@ -503,21 +565,27 @@ export const PurchaseSectionFooter: React.FC = () => {
     isLoading,
     isAuthenticated,
     isConnected,
+    isUnpayable,
+    blockReason,
     handleButtonClick,
   } = usePurchaseContext();
 
   return (
     <>
       <div className="bg-[#212428] px-4 pb-4 pt-3 md:px-6 md:pb-6 xl:flex-shrink-0 border-t border-gray-700/40">
-        {/* Error shown right by the button so it's visible on tap */}
-        {state.purchaseError && (
+        {/* Blocking reason (persistent) or a transient action error, by the button */}
+        {blockReason ? (
+          <div className="mb-3">
+            <ErrorDisplay error={blockReason} />
+          </div>
+        ) : state.purchaseError ? (
           <div className="mb-3">
             <ErrorDisplay error={state.purchaseError} />
           </div>
-        )}
+        ) : null}
         <button
           onClick={handleButtonClick}
-          disabled={isLoading || stockStatus.isOutOfStock}
+          disabled={isLoading || stockStatus.isOutOfStock || isUnpayable}
           className="bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600 disabled:from-gray-600 disabled:to-gray-600 text-white py-3.5 px-6 rounded-xl w-full flex justify-center items-center gap-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed font-semibold text-sm shadow-lg hover:shadow-xl"
           aria-label={
             !isAuthenticated
