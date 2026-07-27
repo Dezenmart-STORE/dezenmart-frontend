@@ -33,19 +33,28 @@ export const ordersApi = baseApi.injectEndpoints({
           : [{ type: 'Orders', id: 'LIST' }],
     }),
 
-    // Get order by ID
+    // Get order by ID. Response is enveloped as { data: { order } }.
     getOrderById: builder.query<Order, string>({
       query: (orderId) => `/orders/${orderId}`,
+      transformResponse: (res: unknown): Order => {
+        const r = res as { data?: { order?: Order }; order?: Order };
+        return (r?.data?.order ?? r?.order ?? r) as Order;
+      },
       providesTags: (result, error, orderId) => [{ type: 'Order', id: orderId }],
     }),
 
-    // Create order
+    // Create order. Response is enveloped as { data: { order } }, so unwrap to
+    // the order itself (callers read order._id).
     createOrder: builder.mutation<Order, CreateOrderParams>({
       query: (orderData) => ({
         url: '/orders',
         method: 'POST',
         body: orderData,
       }),
+      transformResponse: (res: unknown): Order => {
+        const r = res as { data?: { order?: Order }; order?: Order };
+        return (r?.data?.order ?? r?.order ?? r) as Order;
+      },
       invalidatesTags: [
         { type: 'Orders', id: 'LIST' },
         { type: 'Orders', id: 'BUYER' },
