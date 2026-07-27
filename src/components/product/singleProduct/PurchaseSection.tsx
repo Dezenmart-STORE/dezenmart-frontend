@@ -439,14 +439,14 @@ export const PurchaseSectionProvider: React.FC<
       const balance = getBalance(walletSelectedToken.symbol);
       if (!balance || balance.numeric < computedTotals.totalInSelected) {
         updateState({
-          purchaseError: `Not enough ${walletSelectedToken.symbol} to cover this order. Add funds or pick a different token.`,
+          purchaseError: `Not enough ${walletSelectedToken.symbol} to swap into ${product.paymentToken} for this order. This item is paid in ${product.paymentToken}, so add ${product.paymentToken} to your wallet to pay directly, or top up your ${walletSelectedToken.symbol}.`,
         });
         return false;
       }
       const supported = await isSwapSupported();
       if (!supported) {
         updateState({
-          purchaseError: `We can't convert ${walletSelectedToken.symbol} to ${product.paymentToken} right now. Pay with ${product.paymentToken} or choose another token.`,
+          purchaseError: `${walletSelectedToken.symbol} can't be swapped to ${product.paymentToken} for this item. Add ${product.paymentToken} to your wallet and pay with it directly.`,
         });
         return false;
       }
@@ -503,8 +503,13 @@ export const PurchaseSectionProvider: React.FC<
     if (!product) { updateState({ purchaseError: "This product's details didn't load. Refresh the page and try again." }); return; }
     if (!isConnected) { updateState({ showWalletModal: true }); return; }
     if (!hasSufficientBalance) {
+      const payToken = product.paymentToken;
+      const selToken = walletSelectedToken.symbol;
       updateState({
-        purchaseError: `Not enough ${walletSelectedToken.symbol} to complete this order. Add funds or choose another token.`,
+        purchaseError:
+          selToken === payToken
+            ? `Insufficient ${payToken} balance. Add more ${payToken} to your wallet to complete this order.`
+            : `Not enough ${selToken} to cover this order. This item is paid in ${payToken}, so add ${payToken} to your wallet, or top up your ${selToken} to swap.`,
       });
       return;
     }

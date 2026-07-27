@@ -503,7 +503,7 @@ export function usePayment() {
           if (!quote) {
             dispatch({
               type: "ERROR",
-              error: `Can't convert ${payTokenSymbol} to ${params.productToken} right now. Try another token.`,
+              error: `We can't swap ${payTokenSymbol} to ${params.productToken} right now. Add ${params.productToken} to your wallet and pay with it directly.`,
             });
             return;
           }
