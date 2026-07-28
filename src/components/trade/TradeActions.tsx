@@ -44,7 +44,9 @@ export default function TradeActions({
     setConfirming(null);
   };
 
-  const canConfirmDelivery = status === "delivered" || status === "shipped";
+  // Receipt is confirmed only once the logistics provider marks the order
+  // delivered - not while it's still shipped/in transit.
+  const canConfirmDelivery = status === "delivered";
   const canDispute = status === "paid" || status === "shipped" || status === "delivered";
   const canCancel = status === "pending_payment" || status === "paid";
 
