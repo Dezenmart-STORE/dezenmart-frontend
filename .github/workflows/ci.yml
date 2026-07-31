@@ -34,6 +34,10 @@ jobs:
 
       - name: Build
         run: npm run build
+        env:
+          # The web3 bundle (appkit + walletconnect + Dynamic) exceeds Node's
+          # default heap during minify; matches netlify.toml.
+          NODE_OPTIONS: --max-old-space-size=8192
 
       - name: Bundle size report
         run: |

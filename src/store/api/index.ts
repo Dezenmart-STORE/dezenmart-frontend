@@ -12,4 +12,5 @@ export * from './tradesApi';
 export * from './deliveryAddressApi';
 export * from './logisticsApi';
 export * from './termsApi';
+export * from './walletApi';
 export { baseApi } from './baseApi';

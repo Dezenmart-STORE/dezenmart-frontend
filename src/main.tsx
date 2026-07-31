@@ -15,13 +15,12 @@ import ProtectedRoute from "./components/auth/ProtectedRoute.tsx";
 import { SnackbarProvider } from "./context/SnackbarContext.tsx";
 import { Provider } from "react-redux";
 import { store } from "./store/store.ts";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import ErrorBoundary from "./components/error/ErrorBoundary.tsx";
 import { setupGlobalErrorHandling } from "./utils/errorHandling";
 import ReferralHandler from "./components/referrals/ReferralHandler.tsx";
 import { CurrencyProvider } from "./context/CurrencyContext.tsx";
-import { WagmiProvider } from "wagmi";
-import { wagmiConfig } from "./config/chains.ts";
+import SmartWalletProvider from "./components/wallet/smart/SmartWalletProvider.tsx";
+import { SmartWalletContextProvider } from "./context/SmartWalletContext.tsx";
 import { TermsProvider } from "./context/TermsContext.tsx";
 import { WalkthroughProvider } from "./context/WalkthroughContext.tsx";
 import Walkthrough from "./components/walkthrough/Walkthrough.tsx";
@@ -133,17 +132,6 @@ const ViewTrade = lazy(() => import("./pages/Trade.tsx"));
 const ViewTradeDetail = lazy(() => import("./pages/ViewTradeDetail.tsx"));
 const Legal = lazy(() => import("./pages/Legal.tsx"));
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 1,
-      refetchOnWindowFocus: false,
-      staleTime: 30000,
-      gcTime: 5 * 60 * 1000,
-      refetchOnMount: false,
-    },
-  },
-});
 setupGlobalErrorHandling();
 
 declare global {
@@ -185,9 +173,9 @@ const RouterLayout = () => {
     <Configuration>
       <SnackbarProvider>
         <Provider store={store}>
-          <WagmiProvider config={wagmiConfig}>
-            <QueryClientProvider client={queryClient}>
+          <SmartWalletProvider>
               <AuthProvider>
+                <SmartWalletContextProvider>
                     <RampMinimalProvider
                       // defaultCustomer={{
                       //   email: "user@dezenmart.io",
@@ -220,9 +208,9 @@ const RouterLayout = () => {
                   </CurrencyProvider>
                 </TermsProvider>
                      </RampMinimalProvider>
+                </SmartWalletContextProvider>
               </AuthProvider>
-            </QueryClientProvider>
-          </WagmiProvider>
+          </SmartWalletProvider>
         </Provider>
       </SnackbarProvider>
     </Configuration>

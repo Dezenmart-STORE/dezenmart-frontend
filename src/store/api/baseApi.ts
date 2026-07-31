@@ -59,6 +59,7 @@ export const baseApi = createApi({
     'Logistics',
     'DeliveryAddress',
     'Legal',
+    'Wallet',
   ],
   endpoints: () => ({}),
 });
