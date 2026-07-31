@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { RiWallet3Line, RiFileCopyLine, RiCheckLine, RiShieldKeyholeLine } from "react-icons/ri";
+import { RiWallet3Line, RiFileCopyLine, RiCheckLine, RiLoader4Line } from "react-icons/ri";
 import { useSmartWallet } from "../../../context/SmartWalletContext";
 
 const short = (addr: string) => `${addr.slice(0, 6)}…${addr.slice(-4)}`;
@@ -9,7 +9,7 @@ const short = (addr: string) => `${addr.slice(0, 6)}…${addr.slice(-4)}`;
  * embedded-wallet feature is enabled.
  */
 export default function SmartWalletCard() {
-  const { enabled, phase, walletAddress, startOnboarding, startPinReset } = useSmartWallet();
+  const { enabled, phase, walletAddress } = useSmartWallet();
   const [copied, setCopied] = useState(false);
 
   if (!enabled || phase === "disabled" || phase === "loading") return null;
@@ -21,8 +21,6 @@ export default function SmartWalletCard() {
       setTimeout(() => setCopied(false), 2000);
     });
   };
-
-  const needsSetup = phase === "needs-setup" || phase === "needs-pin";
 
   return (
     <div className="mb-4 rounded-2xl border border-[#3A3A3C] bg-gradient-to-br from-[#292B30] to-[#212428] p-4">
@@ -36,20 +34,11 @@ export default function SmartWalletCard() {
         </div>
       </div>
 
-      {needsSetup ? (
-        <>
-          <p className="mb-3 text-xs text-gray-400">
-            {phase === "needs-setup"
-              ? "Finish setting up your wallet to pay and get paid on DezenMart."
-              : "Secure your wallet with a PIN to start transacting."}
-          </p>
-          <button
-            onClick={startOnboarding}
-            className="w-full rounded-xl bg-red-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-700"
-          >
-            Set up wallet
-          </button>
-        </>
+      {phase === "needs-setup" ? (
+        <div className="flex items-center gap-2 rounded-xl bg-[#1a1c20] px-3 py-2.5 text-xs text-gray-400">
+          <RiLoader4Line className="animate-spin text-red-500" />
+          Setting up your wallet…
+        </div>
       ) : (
         <>
           {walletAddress && (
@@ -69,12 +58,9 @@ export default function SmartWalletCard() {
               )}
             </button>
           )}
-          <button
-            onClick={startPinReset}
-            className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl border border-[#3A3A3C] py-2.5 text-sm font-medium text-gray-300 transition-colors hover:bg-[#3A3A3C]"
-          >
-            <RiShieldKeyholeLine /> Reset wallet PIN
-          </button>
+          <p className="mt-2 text-xs text-gray-500">
+            Self-custodial and secured by a passcode on new devices.
+          </p>
         </>
       )}
     </div>

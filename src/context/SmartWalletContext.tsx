@@ -18,9 +18,7 @@ import {
 } from "../store/api";
 import { SMART_WALLET_ENABLED } from "../config/smartWallet";
 import { TARGET_CHAIN } from "../config/chains";
-import WalletOnboardingModal from "../components/wallet/smart/WalletOnboardingModal";
-import PinPromptModal from "../components/wallet/smart/PinPromptModal";
-import PinResetModal from "../components/wallet/smart/PinResetModal";
+import WalletWelcomeModal from "../components/wallet/smart/WalletWelcomeModal";
 
 // Dynamic-importing bridge is lazy so the SDK stays out of the default bundle.
 const DynamicWalletBridge = lazy(
@@ -29,18 +27,16 @@ const DynamicWalletBridge = lazy(
 
 /**
  * Phases:
- *  - "disabled"    feature off (no env id) or user signed out
+ *  - "disabled"    feature off (no env id) or signed out
  *  - "loading"     fetching wallet status
- *  - "needs-setup" authenticated but no embedded wallet linked yet (new user)
- *  - "needs-pin"   wallet exists but no PIN set (resume onboarding)
- *  - "ready"       wallet + PIN set
+ *  - "needs-setup" authenticated but the embedded wallet isn't linked yet
+ *                  (Dynamic provisions it, then the bridge links it - automatic)
+ *  - "ready"       wallet linked; sign transactions via the embedded wallet
+ *
+ * Security & recovery are handled by Dynamic's passcode (per session), so there
+ * is no PIN prompt here - the embedded wallet is just the active wagmi signer.
  */
-export type SmartWalletPhase =
-  | "disabled"
-  | "loading"
-  | "needs-setup"
-  | "needs-pin"
-  | "ready";
+export type SmartWalletPhase = "disabled" | "loading" | "needs-setup" | "ready";
 
 interface SmartWalletContextValue {
   enabled: boolean;
@@ -49,15 +45,6 @@ interface SmartWalletContextValue {
   walletAddress: string | null;
   /** Called by the Dynamic bridge once the embedded wallet is available. */
   registerEmbeddedWallet: (address: string, dynamicUserId?: string) => void;
-  /** Open the set-PIN onboarding UI. */
-  startOnboarding: () => void;
-  /** Open the forgot-PIN reset flow. */
-  startPinReset: () => void;
-  /**
-   * Require the user's PIN before a transaction. Resolves with a short-lived
-   * txAuthToken from the backend, or rejects if the user cancels.
-   */
-  authorizeTransaction: () => Promise<string>;
   refetchStatus: () => void;
 }
 
@@ -82,20 +69,10 @@ export function SmartWalletContextProvider({ children }: { children: ReactNode }
 
   const [setupWallet] = useSetupWalletMutation();
 
-  const [showOnboarding, setShowOnboarding] = useState(false);
-  const [showReset, setShowReset] = useState(false);
-  const [pinPromptOpen, setPinPromptOpen] = useState(false);
-
-  // Promise plumbing for the imperative authorizeTransaction() flow.
-  const pinResolver = useRef<{ resolve: (t: string) => void; reject: (e: unknown) => void } | null>(
-    null
-  );
-
   const phase: SmartWalletPhase = useMemo(() => {
     if (!active) return "disabled";
     if (isLoading || (!status && isFetching)) return "loading";
     if (!status?.hasWallet) return "needs-setup";
-    if (!status.walletPinSet) return "needs-pin";
     return "ready";
   }, [active, isLoading, isFetching, status]);
 
@@ -112,41 +89,22 @@ export function SmartWalletContextProvider({ children }: { children: ReactNode }
       })
         .unwrap()
         .catch(() => {
-          /* surfaced via wallet status; keep silent here */
+          /* reflected in wallet status; stay silent */
         });
     },
     [active, status?.walletAddress, setupWallet]
   );
 
-  // Nudge the user through setup once their wallet needs a PIN or linking.
+  // Welcome is shown to genuinely new users only: those who pass through
+  // "needs-setup" this session. Returning users start at "ready" and never see it.
+  const wasNew = useRef(false);
+  const [showWelcome, setShowWelcome] = useState(false);
   useEffect(() => {
-    if (phase === "needs-setup" || phase === "needs-pin") {
-      setShowOnboarding(true);
-    } else if (phase === "ready" || phase === "disabled") {
-      setShowOnboarding(false);
+    if (phase === "needs-setup") {
+      wasNew.current = true;
+      setShowWelcome(true);
     }
   }, [phase]);
-
-  const authorizeTransaction = useCallback(
-    () =>
-      new Promise<string>((resolve, reject) => {
-        pinResolver.current = { resolve, reject };
-        setPinPromptOpen(true);
-      }),
-    []
-  );
-
-  const handlePinVerified = useCallback((txAuthToken: string) => {
-    setPinPromptOpen(false);
-    pinResolver.current?.resolve(txAuthToken);
-    pinResolver.current = null;
-  }, []);
-
-  const handlePinCancelled = useCallback(() => {
-    setPinPromptOpen(false);
-    pinResolver.current?.reject(new Error("PIN entry cancelled"));
-    pinResolver.current = null;
-  }, []);
 
   const value: SmartWalletContextValue = {
     enabled: SMART_WALLET_ENABLED,
@@ -154,9 +112,6 @@ export function SmartWalletContextProvider({ children }: { children: ReactNode }
     phase,
     walletAddress: status?.walletAddress ?? null,
     registerEmbeddedWallet,
-    startOnboarding: () => setShowOnboarding(true),
-    startPinReset: () => setShowReset(true),
-    authorizeTransaction,
     refetchStatus: () => void refetch(),
   };
 
@@ -170,37 +125,11 @@ export function SmartWalletContextProvider({ children }: { children: ReactNode }
         </Suspense>
       )}
 
-      {active && (showOnboarding && phase !== "ready") && (
-        <WalletOnboardingModal
-          phase={phase}
-          securityQuestion={status?.securityQuestion}
-          onClose={() => setShowOnboarding(false)}
-          onDone={() => {
-            setShowOnboarding(false);
-            refetch();
-          }}
-        />
-      )}
-
-      {active && pinPromptOpen && (
-        <PinPromptModal
-          onVerified={handlePinVerified}
-          onCancel={handlePinCancelled}
-          onForgot={() => {
-            handlePinCancelled();
-            setShowReset(true);
-          }}
-        />
-      )}
-
-      {active && showReset && (
-        <PinResetModal
-          securityQuestion={status?.securityQuestion}
-          onClose={() => setShowReset(false)}
-          onDone={() => {
-            setShowReset(false);
-            refetch();
-          }}
+      {active && showWelcome && wasNew.current && (phase === "needs-setup" || phase === "ready") && (
+        <WalletWelcomeModal
+          provisioning={phase !== "ready"}
+          walletAddress={status?.walletAddress ?? null}
+          onClose={() => setShowWelcome(false)}
         />
       )}
     </SmartWalletContext.Provider>
