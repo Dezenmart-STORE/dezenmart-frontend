@@ -131,6 +131,7 @@ const SellCheckout = lazy(() => import("./pages/SellCheckout.tsx"));
 const ViewTrade = lazy(() => import("./pages/Trade.tsx"));
 const ViewTradeDetail = lazy(() => import("./pages/ViewTradeDetail.tsx"));
 const Legal = lazy(() => import("./pages/Legal.tsx"));
+const WalletSpike = lazy(() => import("./pages/WalletSpike.tsx")); // THROWAWAY spike route
 
 setupGlobalErrorHandling();
 
@@ -252,6 +253,7 @@ const router = createBrowserRouter([
       { path: "/terms", element: <Legal type="terms_of_use" /> },
       { path: "/privacy", element: <Legal type="privacy_policy" /> },
       { path: "/cookies", element: <Legal type="cookie_policy" /> },
+      { path: "/wallet-spike", element: <WalletSpike /> },
       { path: "/referral", element: <ReferralLanding /> },
       { path: "/load", element: <Loadscreen /> },
       { path: "/offline", element: <Offline /> },
