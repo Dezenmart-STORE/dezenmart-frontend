@@ -42,9 +42,9 @@ const STATUS_LABELS: Record<string, string> = {
 
 const statusLabel = (s?: string) => (s ? STATUS_LABELS[s] ?? s : "");
 
-const idOf = (v: Order["buyer"] | Order["seller"]) =>
+const idOf = (v: Order["buyer"] | Order["seller"] | undefined) =>
   typeof v === "object" && v ? v._id : (v as string | undefined);
-const nameOf = (v: Order["buyer"] | Order["seller"]) =>
+const nameOf = (v: Order["buyer"] | Order["seller"] | undefined) =>
   typeof v === "object" && v ? v.name : undefined;
 
 const LOGISTICS_PORTAL_URL = (
