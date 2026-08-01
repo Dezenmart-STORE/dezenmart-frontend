@@ -44,7 +44,7 @@ export default function WalletWelcomeModal({ provisioning, walletAddress, onClos
         </div>
 
         <Feature icon={<RiShieldCheckLine />} title="Yours alone" text="Self-custodial and protected by a passcode on new devices." />
-        <Feature icon={<RiFlashlightLine />} title="No seed phrase" text="Just sign in - no keys to write down or lose." />
+        <Feature icon={<RiFlashlightLine />} title="No seed phrase" text="Just sign in, no keys to write down or lose." />
 
         <p className="mt-1 text-center text-xs text-gray-500">
           Prefer your own wallet? You can connect an external one any time.
