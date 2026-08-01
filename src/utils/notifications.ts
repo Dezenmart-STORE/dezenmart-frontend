@@ -100,8 +100,8 @@ export function resolveNotificationAction(n: Notification): NotificationAction {
   }
 }
 
-/** Where sellers manage their sales (Account -> Order History tab). */
-export const SELLER_ORDERS_ROUTE = `/account?tab=${ACCOUNT_TAB_ORDER_HISTORY}`;
+/** Where sellers manage their sales (Account -> Order History -> Sales). */
+export const SELLER_ORDERS_ROUTE = `/account?tab=${ACCOUNT_TAB_ORDER_HISTORY}&orders=sales`;
 
 /** Pull a human order code like "ORD-20260727-H9HTS3" out of a message. */
 export function parseOrderCode(message: string): string | null {

@@ -1,4 +1,5 @@
 import React, { lazy, Suspense, useCallback, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { LazyMotion, domAnimation, m } from "framer-motion";
 import { RiListCheck2, RiGridFill } from "react-icons/ri";
 import OrderHistoryItem from "./OrderHistoryItem";
@@ -80,6 +81,37 @@ function ViewToggle({
       >
         <RiGridFill size={14} />
       </button>
+    </div>
+  );
+}
+
+// ── Purchases / Sales segmented toggle ───────────────────────────────
+function OrderRoleToggle({
+  role,
+  onChange,
+}: {
+  role: "buyer" | "seller";
+  onChange: (r: "buyer" | "seller") => void;
+}) {
+  const opts: Array<{ id: "buyer" | "seller"; label: string }> = [
+    { id: "buyer", label: "Purchases" },
+    { id: "seller", label: "Sales" },
+  ];
+  return (
+    <div className="mt-4 flex gap-1 bg-[#292B30] rounded-lg p-1">
+      {opts.map((o) => (
+        <button
+          key={o.id}
+          onClick={() => onChange(o.id)}
+          className={`flex-1 px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+            role === o.id
+              ? "bg-[#3A3C41] text-white shadow-sm"
+              : "text-gray-400 hover:text-white"
+          }`}
+        >
+          {o.label}
+        </button>
+      ))}
     </div>
   );
 }
@@ -171,18 +203,38 @@ const slideProps = {
 
 // ── Main component ────────────────────────────────────────────────────
 const TabContent: React.FC<TabContentProps> = React.memo(({ activeTab }) => {
+  const [searchParams] = useSearchParams();
   const [savedMode, setSavedMode] = useViewMode("saved");
   const [ordersMode, setOrdersMode] = useViewMode("orders");
   const [disputesMode, setDisputesMode] = useViewMode("disputes");
 
+  // Order History splits into Purchases (buyer) and Sales (seller). Deep-link
+  // straight to Sales via ?orders=sales (used by the "new sale" notification).
+  const [orderRole, setOrderRole] = useState<"buyer" | "seller">(
+    searchParams.get("orders") === "sales" ? "seller" : "buyer"
+  );
+  const isSales = orderRole === "seller";
+
+  // Purchases - also the source for the Disputes tab.
   const {
-    data: ordersData,
-    isLoading: ordersLoading,
-    error: orderError,
-    refetch: refetchOrders,
+    data: buyerOrders,
+    isLoading: buyerLoading,
+    error: buyerError,
+    refetch: refetchBuyer,
   } = useGetUserOrdersQuery(
     { type: "buyer" },
     { skip: !["3", "4"].includes(activeTab) }
+  );
+
+  // Sales - only fetched when the Sales sub-view of Order History is active.
+  const {
+    data: sellerOrders,
+    isLoading: sellerLoading,
+    error: sellerError,
+    refetch: refetchSeller,
+  } = useGetUserOrdersQuery(
+    { type: "seller" },
+    { skip: activeTab !== "3" || !isSales }
   );
 
   const {
@@ -194,8 +246,15 @@ const TabContent: React.FC<TabContentProps> = React.memo(({ activeTab }) => {
 
   const [removeFromWatchlist] = useRemoveFromWatchlistMutation();
 
-  const disputeOrders = ordersData?.filter((o: Order) => o.dispute?.raisedBy) ?? [];
-  const regularOrders = ordersData?.filter((o: Order) => !o.dispute?.raisedBy) ?? [];
+  // Order History (respects the Purchases/Sales toggle).
+  const historyData = isSales ? sellerOrders : buyerOrders;
+  const historyLoading = isSales ? sellerLoading : buyerLoading;
+  const historyError = isSales ? sellerError : buyerError;
+  const refetchHistory = isSales ? refetchSeller : refetchBuyer;
+  const regularOrders = historyData?.filter((o: Order) => !o.dispute?.raisedBy) ?? [];
+
+  // Disputes stay purchase-based.
+  const disputeOrders = buyerOrders?.filter((o: Order) => o.dispute?.raisedBy) ?? [];
   const watchlistItems = watchlistData ?? [];
 
   const handleRemove = useCallback(
@@ -263,18 +322,23 @@ const TabContent: React.FC<TabContentProps> = React.memo(({ activeTab }) => {
       {/* Order History */}
       {activeTab === "3" && (
         <m.div {...slideProps}>
+          <OrderRoleToggle role={orderRole} onChange={setOrderRole} />
           <TabPanel
-            isLoading={ordersLoading}
-            hasError={!!orderError && regularOrders.length === 0}
-            onRetry={refetchOrders}
-            isEmpty={!ordersLoading && !orderError && regularOrders.length === 0}
-            emptyMessage="You haven't placed any orders yet."
-            emptyButtonText="Browse Products"
-            emptyButtonPath="/product"
+            isLoading={historyLoading}
+            hasError={!!historyError && regularOrders.length === 0}
+            onRetry={refetchHistory}
+            isEmpty={!historyLoading && !historyError && regularOrders.length === 0}
+            emptyMessage={
+              isSales
+                ? "You haven't made any sales yet."
+                : "You haven't placed any orders yet."
+            }
+            emptyButtonText={isSales ? "List a Product" : "Browse Products"}
+            emptyButtonPath={isSales ? "/account?tab=5" : "/product"}
           >
             <ContentHeader
               count={regularOrders.filter((o: Order) => o?._id && o?.product?._id).length}
-              label="orders"
+              label={isSales ? "sales" : "purchases"}
               mode={ordersMode}
               onModeChange={setOrdersMode}
             />
@@ -291,6 +355,7 @@ const TabContent: React.FC<TabContentProps> = React.memo(({ activeTab }) => {
                   <OrderHistoryItem
                     key={o.orderId}
                     {...o}
+                    role={orderRole}
                     index={i}
                     viewMode={ordersMode}
                   />
@@ -304,10 +369,10 @@ const TabContent: React.FC<TabContentProps> = React.memo(({ activeTab }) => {
       {activeTab === "4" && (
         <m.div {...slideProps}>
           <TabPanel
-            isLoading={ordersLoading}
-            hasError={!!orderError && disputeOrders.length === 0}
-            onRetry={refetchOrders}
-            isEmpty={!ordersLoading && !orderError && disputeOrders.length === 0}
+            isLoading={buyerLoading}
+            hasError={!!buyerError && disputeOrders.length === 0}
+            onRetry={refetchBuyer}
+            isEmpty={!buyerLoading && !buyerError && disputeOrders.length === 0}
             emptyMessage="No disputes raised yet."
             emptyButtonText="View Orders"
             emptyButtonPath="/account"

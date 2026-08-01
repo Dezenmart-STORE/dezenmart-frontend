@@ -35,12 +35,16 @@ const STATUS_LABELS: Record<string, string> = {
 interface Props extends Order {
   index?: number;
   viewMode?: "list" | "grid";
+  /** "buyer" = this is a purchase, "seller" = this is a sale. Drives the
+   *  counterparty label so a sale and a purchase are told apart at a glance. */
+  role?: "buyer" | "seller";
 }
 
 const OrderHistoryItem: React.FC<Props> = React.memo((item) => {
   const navigate = useNavigate();
   const { formatAmount } = useCurrency();
   const viewMode = item.viewMode ?? "list";
+  const isSale = item.role === "seller";
 
   const sellerName = useMemo(
     () =>
@@ -48,6 +52,16 @@ const OrderHistoryItem: React.FC<Props> = React.memo((item) => {
       "Unknown Seller",
     [item.seller]
   );
+
+  const buyerName = useMemo(
+    () =>
+      (typeof item.buyer === "object" ? item.buyer?.name : item.buyer) ||
+      "a buyer",
+    [item.buyer]
+  );
+
+  // "Sold to X" for a sale, "by <seller>" for a purchase.
+  const counterparty = isSale ? `Sold to ${buyerName}` : `by ${sellerName}`;
 
   const productImage = useMemo(
     () => item.product?.images?.[0] || "https://placehold.co/200x200?text=?",
@@ -84,7 +98,7 @@ const OrderHistoryItem: React.FC<Props> = React.memo((item) => {
           <p className="font-semibold text-white text-xs truncate">
             {item.product?.name ?? "Unknown Product"}
           </p>
-          <p className="text-xs text-gray-400 mt-0.5 truncate">by {sellerName}</p>
+          <p className="text-xs text-gray-400 mt-0.5 truncate">{counterparty}</p>
           <div className="flex items-center justify-between mt-1.5 gap-1">
             <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap ${statusStyle}`}>
               {statusLabel}
@@ -110,10 +124,19 @@ const OrderHistoryItem: React.FC<Props> = React.memo((item) => {
       />
 
       <div className="flex-1 min-w-0">
-        <p className="font-semibold text-white text-sm truncate">
-          {item.product?.name ?? "Unknown Product"}
-        </p>
-        <p className="text-xs text-gray-400 mt-0.5 truncate">by {sellerName}</p>
+        <div className="flex items-center gap-2">
+          <p className="font-semibold text-white text-sm truncate">
+            {item.product?.name ?? "Unknown Product"}
+          </p>
+          <span
+            className={`flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
+              isSale ? "bg-green-900/40 text-green-300" : "bg-blue-900/40 text-blue-300"
+            }`}
+          >
+            {isSale ? "Sale" : "Purchase"}
+          </span>
+        </div>
+        <p className="text-xs text-gray-400 mt-0.5 truncate">{counterparty}</p>
         <p className="text-sm font-medium text-white mt-1.5">
           {formatAmount(item.amount ?? 0, item.product?.paymentToken ?? "USDm")}
         </p>
