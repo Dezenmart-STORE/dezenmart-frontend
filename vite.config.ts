@@ -151,38 +151,42 @@ export default defineConfig({
     rollupOptions: {
       external: [],
       output: {
-        // Function-form chunking: route heavy node_modules (incl. transitive
-        // deps like @reown, @base-org, ox) into their own chunks by path. This
-        // keeps each rendered chunk small, which is what keeps peak build memory
-        // under the CI/Netlify container limit. Order = most specific first.
+        // Function-form chunking. The heavy transitive web3 deps MUST be split
+        // to keep render memory under the Netlify container (object-form OOM'd).
+        // But react/core packages are matched PRECISELY by package root (not a
+        // greedy "/react/" substring) - the greedy match reshuffled the react
+        // chunk and caused a temporal-dead-zone crash on boot. Precise matching
+        // reproduces the known-good object-form boundaries.
         manualChunks(id) {
           if (!id.includes("node_modules")) return;
           const nm = id.replace(/\\/g, "/");
+          const pkg = (p: string) => nm.includes(`/node_modules/${p}/`);
 
+          // Heavy transitive deps that caused the render-memory blow-up.
           if (nm.includes("/@dynamic-labs/")) return "vendor-dynamic";
-          if (
-            nm.includes("/@reown/") ||
-            nm.includes("/@walletconnect/") ||
-            nm.includes("/@base-org/") ||
-            nm.includes("/@coinbase/")
-          )
+          if (nm.includes("/@reown/") || nm.includes("/@base-org/") || nm.includes("/@coinbase/"))
             return "vendor-wallet-extras";
           if (nm.includes("/ox/")) return "vendor-ox";
-          if (nm.includes("/@uniswap/") || nm.includes("/ethers/")) return "vendor-uniswap";
-          if (nm.includes("/@mento-protocol/")) return "vendor-mento";
-          if (nm.includes("/wagmi/") || nm.includes("/@wagmi/") || nm.includes("/viem/"))
-            return "vendor-web3-core";
-          if (nm.includes("/@selfxyz/")) return "vendor-self";
-          if (nm.includes("/@reduxjs/") || nm.includes("/react-redux/")) return "vendor-redux";
-          if (
-            nm.includes("/react-dom/") ||
-            nm.includes("/react-router") ||
-            nm.includes("/react/")
-          )
+
+          // Known runtime-safe boundaries, matched by exact package root.
+          if (pkg("react") || pkg("react-dom") || pkg("react-router-dom") || pkg("react-router"))
             return "vendor-react";
-          if (nm.includes("/framer-motion/") || nm.includes("/@react-md/")) return "vendor-ui";
-          if (nm.includes("/lodash") || nm.includes("/uuid/")) return "vendor-utils";
-          // Long tail: let Rollup split the rest on its own.
+          if (pkg("@reduxjs/toolkit") || pkg("react-redux")) return "vendor-redux";
+          if (pkg("wagmi") || pkg("@wagmi/core") || pkg("viem")) return "vendor-web3-core";
+          if (
+            pkg("@uniswap/sdk-core") ||
+            pkg("@uniswap/v3-sdk") ||
+            pkg("@uniswap/smart-order-router") ||
+            pkg("ethers")
+          )
+            return "vendor-uniswap";
+          if (pkg("@mento-protocol/mento-sdk")) return "vendor-mento";
+          if (pkg("@walletconnect/ethereum-provider") || pkg("@walletconnect/modal"))
+            return "vendor-walletconnect";
+          if (pkg("framer-motion") || nm.includes("/@react-md/")) return "vendor-ui";
+          if (pkg("lodash-es") || pkg("uuid")) return "vendor-utils";
+          if (pkg("@selfxyz/core") || pkg("@selfxyz/qrcode")) return "vendor-self";
+          // Long tail: let Rollup split the rest.
           return;
         },
 
