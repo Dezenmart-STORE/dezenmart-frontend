@@ -133,10 +133,11 @@ export default defineConfig({
     // Target modern browsers for smaller bundles
     target: "es2020",
 
-    // "hidden" generates source maps for Sentry but omits the sourceMappingURL
-    // comment, so browsers don't auto-load app source in prod devtools.
-    // Full fix (REL-01): upload maps to Sentry, then strip *.map from the deploy.
-    sourcemap: "hidden",
+    // Source maps are disabled in the build: generating them roughly doubles
+    // peak memory during "rendering chunks", which OOM-killed the Netlify build
+    // once the Dynamic SDK was added. Re-enable ("hidden") only on a larger
+    // build instance, or upload + strip maps via the Sentry vite plugin.
+    sourcemap: false,
 
     // Increase chunk size warning limit (Web3 libraries are large)
     chunkSizeWarningLimit: 1000,
@@ -150,61 +151,39 @@ export default defineConfig({
     rollupOptions: {
       external: [],
       output: {
-        // Manual chunk splitting for better caching
-        manualChunks: {
-          // React core
-          "vendor-react": ["react", "react-dom", "react-router-dom"],
+        // Function-form chunking: route heavy node_modules (incl. transitive
+        // deps like @reown, @base-org, ox) into their own chunks by path. This
+        // keeps each rendered chunk small, which is what keeps peak build memory
+        // under the CI/Netlify container limit. Order = most specific first.
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return;
+          const nm = id.replace(/\\/g, "/");
 
-          // Redux ecosystem
-          "vendor-redux": [
-            "@reduxjs/toolkit",
-            "react-redux",
-          ],
-
-          // Web3 core (wagmi, viem)
-          "vendor-web3-core": [
-            "wagmi",
-            "viem",
-            "@wagmi/core",
-          ],
-
-          // Uniswap SDKs + Ethers (bundled together to avoid circular dependency)
-          "vendor-uniswap": [
-            "@uniswap/sdk-core",
-            "@uniswap/v3-sdk",
-            "@uniswap/smart-order-router",
-            "ethers",
-          ],
-
-          // Mento SDK
-          "vendor-mento": ["@mento-protocol/mento-sdk"],
-
-          // WalletConnect
-          "vendor-walletconnect": [
-            "@walletconnect/ethereum-provider",
-            "@walletconnect/modal",
-          ],
-
-          // UI libraries
-          "vendor-ui": [
-            "framer-motion",
-            "@react-md/layout",
-            "@react-md/app-bar",
-            "@react-md/form",
-            "@react-md/tabs",
-          ],
-
-          // Utilities
-          "vendor-utils": [
-            "lodash-es",
-            "uuid",
-          ],
-
-          // Self verification
-          "vendor-self": [
-            "@selfxyz/core",
-            "@selfxyz/qrcode",
-          ],
+          if (nm.includes("/@dynamic-labs/")) return "vendor-dynamic";
+          if (
+            nm.includes("/@reown/") ||
+            nm.includes("/@walletconnect/") ||
+            nm.includes("/@base-org/") ||
+            nm.includes("/@coinbase/")
+          )
+            return "vendor-wallet-extras";
+          if (nm.includes("/ox/")) return "vendor-ox";
+          if (nm.includes("/@uniswap/") || nm.includes("/ethers/")) return "vendor-uniswap";
+          if (nm.includes("/@mento-protocol/")) return "vendor-mento";
+          if (nm.includes("/wagmi/") || nm.includes("/@wagmi/") || nm.includes("/viem/"))
+            return "vendor-web3-core";
+          if (nm.includes("/@selfxyz/")) return "vendor-self";
+          if (nm.includes("/@reduxjs/") || nm.includes("/react-redux/")) return "vendor-redux";
+          if (
+            nm.includes("/react-dom/") ||
+            nm.includes("/react-router") ||
+            nm.includes("/react/")
+          )
+            return "vendor-react";
+          if (nm.includes("/framer-motion/") || nm.includes("/@react-md/")) return "vendor-ui";
+          if (nm.includes("/lodash") || nm.includes("/uuid/")) return "vendor-utils";
+          // Long tail: let Rollup split the rest on its own.
+          return;
         },
 
         // Optimize chunk names for better caching
@@ -236,17 +215,14 @@ export default defineConfig({
       ignoreTryCatch: true, // Prevent issues with try-catch detection
     },
 
-    // Minification options
-    minify: "terser",
-    terserOptions: {
-      compress: {
-        drop_console: true, // Remove console.logs in production
-        drop_debugger: true,
-        pure_funcs: ["console.log", "console.info"], // Remove specific console methods
-      },
-      format: {
-        comments: false, // Remove comments
-      },
-    },
+    // esbuild minify uses far less memory than terser (which OOM-killed the
+    // Netlify build after the Dynamic SDK was added). Console/debugger removal
+    // is handled by `esbuild.drop` below - same effect as terser drop_console.
+    minify: "esbuild",
+  },
+
+  // Strip console/debugger in production (was terser drop_console).
+  esbuild: {
+    drop: ["console", "debugger"],
   },
 });
