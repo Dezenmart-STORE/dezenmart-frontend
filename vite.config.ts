@@ -81,8 +81,9 @@ export default defineConfig({
         ],
       },
       injectManifest: {
-        // Increase file size limit to allow larger assets
-        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5 MB
+        // Headroom above the largest emitted chunk (the main index chunk is
+        // ~4.2 MB) so injectManifest can precache every asset without erroring.
+        maximumFileSizeToCacheInBytes: 8 * 1024 * 1024, // 8 MB
         globPatterns: ["**/*.{js,css,html,ico,png,svg,jpg,jpeg,webp,woff,woff2}"],
         globIgnores: ["**/stats.html", "**/node_modules/**"],
       },
@@ -151,62 +152,25 @@ export default defineConfig({
     rollupOptions: {
       external: [],
       output: {
-        // Function-form chunking. Two hard rules learned the hard way:
-        //  1. The heavy web3 deps MUST be pulled out of the entry so peak render
-        //     memory stays under the Netlify container (leaving them inline OOM'd).
-        //  2. Mutually-dependent packages MUST share a chunk. Splitting a package
-        //     from a module it cyclically imports puts a live-binding reference
-        //     (e.g. `og.base16`) in one chunk and its definition in another that
-        //     hasn't initialized yet -> "Cannot access 'x' before initialization"
-        //     (TDZ) at boot. So the wallet/signing graph is ONE chunk, and the
-        //     react-* family is matched by exact package root (a greedy "/react/"
-        //     substring swept react-icons/react-hook-form/etc. into vendor-react
-        //     and reshuffled it into the same crash).
-        manualChunks(id) {
-          if (!id.includes("node_modules")) return;
-          const nm = id.replace(/\\/g, "/");
-          const pkg = (p: string) => nm.includes(`/node_modules/${p}/`);
-
-          // Dynamic SDK: huge and lazy-loaded, so it stays in its own chunk. It
-          // consumes viem/wagmi one-directionally (no cycle back), so a separate
-          // chunk is safe.
-          if (nm.includes("/@dynamic-labs/")) return "vendor-dynamic";
-
-          // The wallet/signing web3 graph - walletconnect, reown/appkit,
-          // coinbase, base-org, ox, wagmi, viem - is deeply and cyclically
-          // interdependent. It renders fine as one chunk within the 4GB heap now
-          // that sourcemaps are off and esbuild (not terser) minifies. Do NOT
-          // split it: doing so caused the `og.base16` TDZ crash on boot.
-          if (
-            nm.includes("/@walletconnect/") ||
-            nm.includes("/@reown/") ||
-            nm.includes("/@base-org/") ||
-            nm.includes("/@coinbase/") ||
-            nm.includes("/ox/") ||
-            pkg("wagmi") ||
-            pkg("@wagmi/core") ||
-            pkg("viem")
-          )
-            return "vendor-web3";
-
-          // Self-contained families, matched by exact package root.
-          if (pkg("react") || pkg("react-dom") || pkg("react-router-dom") || pkg("react-router"))
-            return "vendor-react";
-          if (pkg("@reduxjs/toolkit") || pkg("react-redux")) return "vendor-redux";
-          if (
-            pkg("@uniswap/sdk-core") ||
-            pkg("@uniswap/v3-sdk") ||
-            pkg("@uniswap/smart-order-router") ||
-            pkg("ethers")
-          )
-            return "vendor-uniswap";
-          if (pkg("@mento-protocol/mento-sdk")) return "vendor-mento";
-          if (pkg("framer-motion") || nm.includes("/@react-md/")) return "vendor-ui";
-          if (pkg("lodash-es") || pkg("uuid")) return "vendor-utils";
-          if (pkg("@selfxyz/core") || pkg("@selfxyz/qrcode")) return "vendor-self";
-          // Long tail: let Rollup split the rest.
-          return;
-        },
+        // NO manualChunks. This was a hard-won lesson: every hand-drawn chunk
+        // boundary through the web3/crypto graph broke module init at boot,
+        // three different ways -
+        //   1. `Cannot access 'og' before initialization` - splitting
+        //      walletconnect off from its cyclic ESM deps (TDZ live-binding).
+        //   2. `Cannot access 'Ea' before initialization` - same, splitting
+        //      uniswap off.
+        //   3. `Object.defineProperty called on non-object` - splitting
+        //      @selfxyz off from the CommonJS ethers modules it require()s
+        //      (cross-chunk CJS exports not initialized yet).
+        // walletconnect/reown/ox/wagmi/viem/uniswap/ethers/mento/@selfxyz form
+        // one deeply interdependent ESM+CJS graph. Rollup's automatic chunker
+        // co-locates cyclic groups and commonjs proxies correctly, so it never
+        // produces these init-order bugs - only manual overrides do. The build's
+        // peak memory is controlled by `sourcemap: false` + esbuild minify
+        // (above), NOT by manual chunking, so letting Rollup chunk automatically
+        // costs nothing on memory and removes the entire class of boot crash.
+        // Lazy routes/components still split into their own async chunks via
+        // dynamic import().
 
         // Optimize chunk names for better caching
         chunkFileNames: (chunkInfo) => {
