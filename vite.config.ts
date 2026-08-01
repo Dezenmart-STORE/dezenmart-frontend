@@ -151,28 +151,48 @@ export default defineConfig({
     rollupOptions: {
       external: [],
       output: {
-        // Function-form chunking. The heavy transitive web3 deps MUST be split
-        // to keep render memory under the Netlify container (object-form OOM'd).
-        // But react/core packages are matched PRECISELY by package root (not a
-        // greedy "/react/" substring) - the greedy match reshuffled the react
-        // chunk and caused a temporal-dead-zone crash on boot. Precise matching
-        // reproduces the known-good object-form boundaries.
+        // Function-form chunking. Two hard rules learned the hard way:
+        //  1. The heavy web3 deps MUST be pulled out of the entry so peak render
+        //     memory stays under the Netlify container (leaving them inline OOM'd).
+        //  2. Mutually-dependent packages MUST share a chunk. Splitting a package
+        //     from a module it cyclically imports puts a live-binding reference
+        //     (e.g. `og.base16`) in one chunk and its definition in another that
+        //     hasn't initialized yet -> "Cannot access 'x' before initialization"
+        //     (TDZ) at boot. So the wallet/signing graph is ONE chunk, and the
+        //     react-* family is matched by exact package root (a greedy "/react/"
+        //     substring swept react-icons/react-hook-form/etc. into vendor-react
+        //     and reshuffled it into the same crash).
         manualChunks(id) {
           if (!id.includes("node_modules")) return;
           const nm = id.replace(/\\/g, "/");
           const pkg = (p: string) => nm.includes(`/node_modules/${p}/`);
 
-          // Heavy transitive deps that caused the render-memory blow-up.
+          // Dynamic SDK: huge and lazy-loaded, so it stays in its own chunk. It
+          // consumes viem/wagmi one-directionally (no cycle back), so a separate
+          // chunk is safe.
           if (nm.includes("/@dynamic-labs/")) return "vendor-dynamic";
-          if (nm.includes("/@reown/") || nm.includes("/@base-org/") || nm.includes("/@coinbase/"))
-            return "vendor-wallet-extras";
-          if (nm.includes("/ox/")) return "vendor-ox";
 
-          // Known runtime-safe boundaries, matched by exact package root.
+          // The wallet/signing web3 graph - walletconnect, reown/appkit,
+          // coinbase, base-org, ox, wagmi, viem - is deeply and cyclically
+          // interdependent. It renders fine as one chunk within the 4GB heap now
+          // that sourcemaps are off and esbuild (not terser) minifies. Do NOT
+          // split it: doing so caused the `og.base16` TDZ crash on boot.
+          if (
+            nm.includes("/@walletconnect/") ||
+            nm.includes("/@reown/") ||
+            nm.includes("/@base-org/") ||
+            nm.includes("/@coinbase/") ||
+            nm.includes("/ox/") ||
+            pkg("wagmi") ||
+            pkg("@wagmi/core") ||
+            pkg("viem")
+          )
+            return "vendor-web3";
+
+          // Self-contained families, matched by exact package root.
           if (pkg("react") || pkg("react-dom") || pkg("react-router-dom") || pkg("react-router"))
             return "vendor-react";
           if (pkg("@reduxjs/toolkit") || pkg("react-redux")) return "vendor-redux";
-          if (pkg("wagmi") || pkg("@wagmi/core") || pkg("viem")) return "vendor-web3-core";
           if (
             pkg("@uniswap/sdk-core") ||
             pkg("@uniswap/v3-sdk") ||
@@ -181,8 +201,6 @@ export default defineConfig({
           )
             return "vendor-uniswap";
           if (pkg("@mento-protocol/mento-sdk")) return "vendor-mento";
-          if (pkg("@walletconnect/ethereum-provider") || pkg("@walletconnect/modal"))
-            return "vendor-walletconnect";
           if (pkg("framer-motion") || nm.includes("/@react-md/")) return "vendor-ui";
           if (pkg("lodash-es") || pkg("uuid")) return "vendor-utils";
           if (pkg("@selfxyz/core") || pkg("@selfxyz/qrcode")) return "vendor-self";
