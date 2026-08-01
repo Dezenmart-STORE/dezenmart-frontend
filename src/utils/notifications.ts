@@ -7,44 +7,106 @@ import {
   HiOutlineChatAlt2,
   HiOutlineUsers,
   HiOutlineCube,
+  HiOutlineTruck,
+  HiOutlineGift,
+  HiOutlineCheckCircle,
+  HiOutlineClock,
 } from 'react-icons/hi';
 import type { IconType } from 'react-icons';
 
-// ---------- Deep-link routing ----------
+// Account overview tab ids (see TAB_OPTIONS in pages/Account.tsx).
+const ACCOUNT_TAB_REWARDS = '2';
+const ACCOUNT_TAB_ORDER_HISTORY = '3';
 
-export function getNotificationRoute(n: Notification): string | null {
-  const { type, metadata } = n;
-  const t = type.toUpperCase();
+// ---------- Click handling ----------
+//
+// A notification click either navigates straight to a route, or opens a detail
+// sheet when the destination depends on who the recipient is (buyer vs seller)
+// or the target lives outside this app (a logistics provider's own dashboard).
 
-  if (t === 'ORDER_PLACED' || t === 'ORDER_UPDATE' || t === 'ORDER') {
-    if (metadata?.orderId) return `/orders/${metadata.orderId}`;
+/** Sheet variants rendered by NotificationActionSheet. */
+export type NotificationSheetVariant =
+  | 'sale' //            ORDER_PLACED - seller: "someone bought your product"
+  | 'order-status' //    ORDER_UPDATE - buyer OR seller; role decided from the order
+  | 'logistics-pending'; // LOGISTICS_ORDER_PENDING - for a logistics provider
+
+export type NotificationAction =
+  | { kind: 'navigate'; to: string }
+  | { kind: 'sheet'; variant: NotificationSheetVariant }
+  | { kind: 'none' };
+
+/**
+ * Resolve what happens when a notification is clicked.
+ *
+ * Buyer-facing order-lifecycle events ("Your order ... shipped/delivered",
+ * logistics accepted) go straight to the order details page. Events whose
+ * destination depends on the recipient's role, or that concern an external
+ * logistics dashboard, open a sheet instead - see NotificationActionSheet.
+ */
+export function resolveNotificationAction(n: Notification): NotificationAction {
+  const { metadata } = n;
+  const t = (n.type || '').toUpperCase();
+  const orderId = metadata?.orderId;
+
+  switch (t) {
+    // Buyer-facing lifecycle updates -> order details.
+    case 'ORDER_SHIPPED':
+    case 'ORDER_DELIVERED':
+    case 'DELIVERY_CONFIRMED':
+    case 'LOGISTICS_ORDER_ACCEPTED':
+      return orderId ? { kind: 'navigate', to: `/orders/${orderId}` } : { kind: 'none' };
+
+    // Seller-facing "you made a sale".
+    case 'ORDER_PLACED':
+      return { kind: 'sheet', variant: 'sale' };
+
+    // Status change that can reach either the buyer or the seller - the sheet
+    // loads the order and routes by role.
+    case 'ORDER_UPDATE':
+    case 'ORDER':
+      return orderId ? { kind: 'sheet', variant: 'order-status' } : { kind: 'none' };
+
+    // Delivery request addressed to a logistics provider (their real work lives
+    // on their own provider dashboard, not here).
+    case 'LOGISTICS_ORDER_PENDING':
+      return { kind: 'sheet', variant: 'logistics-pending' };
+
+    case 'NEW_MESSAGE':
+    case 'MESSAGE': {
+      const senderId = metadata?.sender ?? metadata?.senderId;
+      return { kind: 'navigate', to: senderId ? `/chat/${senderId}` : '/chat' };
+    }
+
+    case 'TRADE':
+    case 'BUYER':
+      if (metadata?.tradeId) return { kind: 'navigate', to: `/trades/viewtrades/${metadata.tradeId}` };
+      return orderId ? { kind: 'navigate', to: `/orders/${orderId}` } : { kind: 'none' };
+
+    case 'REFERRAL':
+      return { kind: 'navigate', to: `/account?tab=${ACCOUNT_TAB_REWARDS}` };
+
+    case 'FUNDS':
+    case 'PAYMENT':
+      return { kind: 'navigate', to: `/account?tab=${ACCOUNT_TAB_REWARDS}` };
+
+    case 'PRODUCT':
+      return metadata?.productId
+        ? { kind: 'navigate', to: `/product/${metadata.productId}` }
+        : { kind: 'none' };
+
+    default:
+      // Unknown but order-linked notifications still land somewhere useful.
+      return orderId ? { kind: 'navigate', to: `/orders/${orderId}` } : { kind: 'none' };
   }
+}
 
-  if (t === 'NEW_MESSAGE' || t === 'MESSAGE') {
-    // API uses metadata.sender for message notifications
-    const senderId = metadata?.sender ?? metadata?.senderId;
-    if (senderId) return `/chat/${senderId}`;
-    return '/chat';
-  }
+/** Where sellers manage their sales (Account -> Order History tab). */
+export const SELLER_ORDERS_ROUTE = `/account?tab=${ACCOUNT_TAB_ORDER_HISTORY}`;
 
-  if (t === 'TRADE' || t === 'BUYER') {
-    if (metadata?.tradeId) return `/trades/viewtrades/${metadata.tradeId}`;
-    if (metadata?.orderId) return `/orders/${metadata.orderId}`;
-  }
-
-  if (t === 'FUNDS' || t === 'PAYMENT') {
-    return '/account';
-  }
-
-  if (t === 'REFERRAL') {
-    return '/account';
-  }
-
-  if (t === 'PRODUCT') {
-    if (metadata?.productId) return `/product/${metadata.productId}`;
-  }
-
-  return null;
+/** Pull a human order code like "ORD-20260727-H9HTS3" out of a message. */
+export function parseOrderCode(message: string): string | null {
+  const m = message?.match(/ORD-[A-Z0-9-]+/i);
+  return m ? m[0] : null;
 }
 
 // ---------- Time formatting ----------
@@ -94,26 +156,37 @@ interface NotificationMeta {
 export function getNotificationMeta(type: string): NotificationMeta {
   const t = type.toUpperCase();
 
-  if (t === 'ORDER_PLACED' || t === 'ORDER_UPDATE' || t === 'ORDER') {
-    return { icon: HiOutlineCube, color: 'text-orange-400', bgColor: 'bg-orange-500/20', label: 'Order' };
+  switch (t) {
+    case 'ORDER_PLACED':
+      return { icon: HiOutlineGift, color: 'text-green-400', bgColor: 'bg-green-500/20', label: 'New sale' };
+    case 'ORDER_SHIPPED':
+      return { icon: HiOutlineTruck, color: 'text-sky-400', bgColor: 'bg-sky-500/20', label: 'Shipped' };
+    case 'ORDER_DELIVERED':
+    case 'DELIVERY_CONFIRMED':
+      return { icon: HiOutlineCheckCircle, color: 'text-green-400', bgColor: 'bg-green-500/20', label: 'Delivered' };
+    case 'LOGISTICS_ORDER_ACCEPTED':
+      return { icon: HiOutlineTruck, color: 'text-blue-400', bgColor: 'bg-blue-500/20', label: 'Logistics' };
+    case 'LOGISTICS_ORDER_PENDING':
+      return { icon: HiOutlineClock, color: 'text-amber-400', bgColor: 'bg-amber-500/20', label: 'Delivery request' };
+    case 'ORDER_UPDATE':
+    case 'ORDER':
+      return { icon: HiOutlineCube, color: 'text-orange-400', bgColor: 'bg-orange-500/20', label: 'Order' };
+    case 'NEW_MESSAGE':
+    case 'MESSAGE':
+      return { icon: HiOutlineChatAlt2, color: 'text-blue-400', bgColor: 'bg-blue-500/20', label: 'Message' };
+    case 'TRADE':
+    case 'BUYER':
+      return { icon: HiOutlineShoppingBag, color: 'text-purple-400', bgColor: 'bg-purple-500/20', label: 'Trade' };
+    case 'FUNDS':
+    case 'PAYMENT':
+      return { icon: HiOutlineCurrencyDollar, color: 'text-green-400', bgColor: 'bg-green-500/20', label: 'Payment' };
+    case 'REFERRAL':
+      return { icon: HiOutlineUsers, color: 'text-yellow-400', bgColor: 'bg-yellow-500/20', label: 'Referral' };
+    case 'PRODUCT':
+      return { icon: HiOutlineCube, color: 'text-indigo-400', bgColor: 'bg-indigo-500/20', label: 'Product' };
+    default:
+      return { icon: HiOutlineInformationCircle, color: 'text-gray-400', bgColor: 'bg-gray-500/20', label: 'Update' };
   }
-  if (t === 'NEW_MESSAGE' || t === 'MESSAGE') {
-    return { icon: HiOutlineChatAlt2, color: 'text-blue-400', bgColor: 'bg-blue-500/20', label: 'Message' };
-  }
-  if (t === 'TRADE' || t === 'BUYER') {
-    return { icon: HiOutlineShoppingBag, color: 'text-purple-400', bgColor: 'bg-purple-500/20', label: 'Trade' };
-  }
-  if (t === 'FUNDS' || t === 'PAYMENT') {
-    return { icon: HiOutlineCurrencyDollar, color: 'text-green-400', bgColor: 'bg-green-500/20', label: 'Payment' };
-  }
-  if (t === 'REFERRAL') {
-    return { icon: HiOutlineUsers, color: 'text-yellow-400', bgColor: 'bg-yellow-500/20', label: 'Referral' };
-  }
-  if (t === 'PRODUCT') {
-    return { icon: HiOutlineCube, color: 'text-indigo-400', bgColor: 'bg-indigo-500/20', label: 'Product' };
-  }
-
-  return { icon: HiOutlineInformationCircle, color: 'text-gray-400', bgColor: 'bg-gray-500/20', label: 'Update' };
 }
 
 // ---------- Date grouping ----------
