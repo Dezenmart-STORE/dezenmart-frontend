@@ -15,6 +15,7 @@ import PaymentFlow from "../components/payment/PaymentFlow";
 import type { TradeState } from "../components/trade/TradeStatus";
 import type { OrderStatus } from "../utils/types";
 import { useCurrency } from "../context/CurrencyContext";
+import { useAuth } from "../context/AuthContext";
 import { calculateOrderTotal } from "../utils/format";
 import { CHAIN_IDS, DEFAULT_LOGISTICS_PROVIDER, getExplorerUrl } from "../config/chains";
 
@@ -22,6 +23,8 @@ const ViewOrderDetail = () => {
   const { orderId } = useParams<{ orderId: string }>();
   const navigate = useNavigate();
   const { formatAmount, convertPrice } = useCurrency();
+  const { user } = useAuth();
+  const currentUserId = user?._id;
 
   const chainId = useChainId();
   const { switchChainAsync } = useSwitchChain();
@@ -96,6 +99,17 @@ const ViewOrderDetail = () => {
   const sellerId =
     typeof order.seller === "object" ? order.seller?._id : order.seller;
 
+  const buyerName =
+    typeof order.buyer === "object" ? order.buyer?.name : order.buyer;
+  const buyerId =
+    typeof order.buyer === "object" ? order.buyer?._id : order.buyer;
+
+  // The same route serves both parties. When the viewer is the seller we show a
+  // read-only "Sale Details" view: status + counterparty, none of the buyer
+  // controls (pay, delivery checklist, confirm/dispute, review the seller).
+  const isSeller =
+    !!currentUserId && sellerId === currentUserId && buyerId !== currentUserId;
+
   // tradeId (the on-chain listing id) drives escrow payment; the order's trimmed
   // product omits it, so prefer the full product.
   const tradeId = fullProduct?.tradeId ?? order.product?.tradeId ?? "";
@@ -154,7 +168,9 @@ const ViewOrderDetail = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </button>
-          <h1 className="text-xl font-bold text-white">Order Details</h1>
+          <h1 className="text-xl font-bold text-white">
+            {isSeller ? "Sale Details" : "Order Details"}
+          </h1>
         </div>
 
         {/* Product info card */}
@@ -188,19 +204,28 @@ const ViewOrderDetail = () => {
           <TradeStatus status={status} />
         </div>
 
-        {/* Status-contextual info panel */}
-        <StatusInfoPanel
-          status={status}
-          order={order}
-          orderTotal={orderTotal}
-          tokenSymbol={tokenSymbol}
-          logisticsCostNumeric={logisticsCostNumeric}
-          chainId={chainId}
-          onChecklistChange={setChecklistComplete}
-        />
+        {/* Status-contextual info panel - buyers get the full flow, sellers a
+            read-only sale summary. */}
+        {isSeller ? (
+          <SellerStatusPanel
+            status={order.status}
+            orderTotal={orderTotal}
+            tokenSymbol={tokenSymbol}
+          />
+        ) : (
+          <StatusInfoPanel
+            status={status}
+            order={order}
+            orderTotal={orderTotal}
+            tokenSymbol={tokenSymbol}
+            logisticsCostNumeric={logisticsCostNumeric}
+            chainId={chainId}
+            onChecklistChange={setChecklistComplete}
+          />
+        )}
 
         {/* Wrong network warning (payment pending, wrong chain) */}
-        {canPay && !isOnCelo && (
+        {!isSeller && canPay && !isOnCelo && (
           <div className="rounded-2xl border border-amber-800/40 bg-amber-900/20 p-5">
             <div className="text-center">
               <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full border border-amber-800/50 bg-amber-900/30">
@@ -233,8 +258,8 @@ const ViewOrderDetail = () => {
           </div>
         )}
 
-        {/* Payment section (pending + correct chain) */}
-        {(canPay || showPayment) && isOnCelo && (
+        {/* Payment section (pending + correct chain) - buyer only */}
+        {!isSeller && (canPay || showPayment) && isOnCelo && (
           <div className="rounded-2xl border border-[#292B30] bg-[#212428] p-5">
             {!showPayment ? (
               <div className="text-center">
@@ -355,12 +380,14 @@ const ViewOrderDetail = () => {
             {order.quantity && (
               <DetailRow label="Quantity" value={String(order.quantity)} />
             )}
-            {sellerName && <DetailRow label="Seller" value={sellerName} />}
+            {isSeller
+              ? buyerName && <DetailRow label="Buyer" value={buyerName} />
+              : sellerName && <DetailRow label="Seller" value={sellerName} />}
           </div>
         </div>
 
-        {/* Post-payment actions - only when purchaseId is a valid numeric on-chain ID */}
-        {order.purchaseId && /^\d+$/.test(order.purchaseId) && (
+        {/* Post-payment actions (buyer only) - valid numeric on-chain purchaseId */}
+        {!isSeller && order.purchaseId && /^\d+$/.test(order.purchaseId) && (
           <TradeActions
             purchaseId={order.purchaseId}
             status={status}
@@ -392,23 +419,27 @@ const ViewOrderDetail = () => {
           />
         )}
 
-        {/* Review - only after order is completed */}
-        {status === "completed" && sellerId && orderId && (
+        {/* Review - buyer reviews the seller after completion */}
+        {!isSeller && status === "completed" && sellerId && orderId && (
           <ReviewForm orderId={orderId} reviewed={sellerId} />
         )}
 
-        {/* Contact seller */}
-        {sellerId && (
-          <button
-            onClick={() => navigate(`/chat/${sellerId}`)}
-            className="flex w-full items-center justify-center gap-2 rounded-xl border border-[#292B30] bg-[#292B30] py-3 text-sm font-medium text-gray-300 transition-colors hover:bg-[#373A3F] hover:text-white"
-          >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-            </svg>
-            Contact Seller
-          </button>
-        )}
+        {/* Contact the counterparty */}
+        {(() => {
+          const contactId = isSeller ? buyerId : sellerId;
+          if (!contactId) return null;
+          return (
+            <button
+              onClick={() => navigate(`/chat/${contactId}`)}
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-[#292B30] bg-[#292B30] py-3 text-sm font-medium text-gray-300 transition-colors hover:bg-[#373A3F] hover:text-white"
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
+              {isSeller ? "Contact Buyer" : "Contact Seller"}
+            </button>
+          );
+        })()}
       </div>
     </div>
   );
@@ -433,6 +464,111 @@ function DetailRow({
       >
         {value}
       </span>
+    </div>
+  );
+}
+
+// ── Seller-facing status panel (read-only sale summary) ──────────────
+
+const SELLER_STATUS_META: Record<
+  string,
+  { title: string; text: string; tone: "neutral" | "green" | "amber" | "red" }
+> = {
+  pending: {
+    title: "Awaiting buyer payment",
+    text: "The buyer placed this order. Funds are held in escrow once they pay.",
+    tone: "neutral",
+  },
+  accepted: {
+    title: "Payment secured in escrow",
+    text: "The buyer has paid. The logistics provider will handle pickup and delivery.",
+    tone: "green",
+  },
+  paid: {
+    title: "Payment secured in escrow",
+    text: "The buyer has paid. The logistics provider will handle pickup and delivery.",
+    tone: "green",
+  },
+  shipped: {
+    title: "On the way to the buyer",
+    text: "The logistics provider has shipped this order.",
+    tone: "amber",
+  },
+  delivered: {
+    title: "Delivered",
+    text: "Delivered to the buyer. Funds are released once they confirm receipt.",
+    tone: "amber",
+  },
+  delivery_confirmed: {
+    title: "Sale complete",
+    text: "The buyer confirmed delivery and the funds have been released to you.",
+    tone: "green",
+  },
+  completed: {
+    title: "Sale complete",
+    text: "The buyer confirmed delivery and the funds have been released to you.",
+    tone: "green",
+  },
+  disputed: {
+    title: "Dispute under review",
+    text: "The buyer raised a dispute on this order. Our team is reviewing it.",
+    tone: "red",
+  },
+  rejected: {
+    title: "Order cancelled",
+    text: "This order was cancelled.",
+    tone: "red",
+  },
+  refunded: {
+    title: "Refunded to buyer",
+    text: "This order was refunded to the buyer.",
+    tone: "red",
+  },
+};
+
+const SELLER_TONE: Record<string, string> = {
+  neutral: "border-[#292B30] bg-[#212428]",
+  green: "border-green-900/40 bg-green-900/10",
+  amber: "border-amber-900/40 bg-amber-900/20",
+  red: "border-red-900/40 bg-red-900/10",
+};
+
+function SellerStatusPanel({
+  status,
+  orderTotal,
+  tokenSymbol,
+}: {
+  status: string;
+  orderTotal: { subtotal: number; total: number };
+  tokenSymbol: string;
+}) {
+  const s = (status || "").toLowerCase();
+  const meta =
+    SELLER_STATUS_META[s] ?? {
+      title: "Order update",
+      text: "We'll keep you posted as this sale progresses.",
+      tone: "neutral" as const,
+    };
+
+  const released = s === "completed" || s === "delivery_confirmed";
+  const inEscrow = ["accepted", "paid", "shipped", "delivered"].includes(s);
+  const amountLabel = released
+    ? "Amount released to you"
+    : inEscrow
+    ? "Amount in escrow"
+    : "Order total";
+
+  return (
+    <div className={`rounded-2xl border p-5 ${SELLER_TONE[meta.tone]}`}>
+      <h3 className="text-sm font-semibold text-white">{meta.title}</h3>
+      <p className="mt-1 text-sm text-gray-400">{meta.text}</p>
+
+      <div className="mt-4 flex items-center justify-between rounded-xl bg-[#292B30] p-4">
+        <span className="text-xs text-gray-500">{amountLabel}</span>
+        <span className="text-sm font-bold text-white">
+          {orderTotal.total.toFixed(2)} {tokenSymbol}
+        </span>
+      </div>
     </div>
   );
 }
