@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { RiWallet3Line, RiFileCopyLine, RiCheckLine, RiLoader4Line } from "react-icons/ri";
+import { RiWallet3Line, RiFileCopyLine, RiCheckLine, RiShieldKeyholeLine } from "react-icons/ri";
 import { useSmartWallet } from "../../../context/SmartWalletContext";
 
 const short = (addr: string) => `${addr.slice(0, 6)}…${addr.slice(-4)}`;
@@ -9,7 +9,7 @@ const short = (addr: string) => `${addr.slice(0, 6)}…${addr.slice(-4)}`;
  * embedded-wallet feature is enabled.
  */
 export default function SmartWalletCard() {
-  const { enabled, phase, walletAddress } = useSmartWallet();
+  const { enabled, phase, walletAddress, openWalletSetup } = useSmartWallet();
   const [copied, setCopied] = useState(false);
 
   if (!enabled || phase === "disabled" || phase === "loading") return null;
@@ -35,10 +35,13 @@ export default function SmartWalletCard() {
       </div>
 
       {phase === "needs-setup" ? (
-        <div className="flex items-center gap-2 rounded-xl bg-[#1a1c20] px-3 py-2.5 text-xs text-gray-400">
-          <RiLoader4Line className="animate-spin text-red-500" />
-          Setting up your wallet…
-        </div>
+        <button
+          onClick={openWalletSetup}
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 px-3 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-700"
+        >
+          <RiShieldKeyholeLine className="text-base" />
+          Finish setting up your wallet
+        </button>
       ) : (
         <>
           {walletAddress && (

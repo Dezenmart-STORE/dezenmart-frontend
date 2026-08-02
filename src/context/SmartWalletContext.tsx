@@ -19,11 +19,13 @@ import {
 import { SMART_WALLET_ENABLED } from "../config/smartWallet";
 import { TARGET_CHAIN } from "../config/chains";
 import { useDynamicReady } from "../components/wallet/smart/dynamicReady";
-import WalletWelcomeModal from "../components/wallet/smart/WalletWelcomeModal";
 
-// Dynamic-importing bridge is lazy so the SDK stays out of the default bundle.
+// Dynamic-importing pieces are lazy so the SDK stays out of the default bundle.
 const DynamicWalletBridge = lazy(
   () => import("../components/wallet/smart/DynamicWalletBridge")
+);
+const WalletSetupModal = lazy(
+  () => import("../components/wallet/smart/WalletSetupModal")
 );
 
 /**
@@ -47,6 +49,8 @@ interface SmartWalletContextValue {
   /** Called by the Dynamic bridge once the embedded wallet is available. */
   registerEmbeddedWallet: (address: string, dynamicUserId?: string) => void;
   refetchStatus: () => void;
+  /** Re-open the "confirm it's you" wallet setup flow (e.g. from Settings). */
+  openWalletSetup: () => void;
 }
 
 const SmartWalletContext = createContext<SmartWalletContextValue | null>(null);
@@ -58,7 +62,7 @@ export const useSmartWallet = (): SmartWalletContextValue => {
 };
 
 export function SmartWalletContextProvider({ children }: { children: ReactNode }) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const active = SMART_WALLET_ENABLED && isAuthenticated;
   // True only once DynamicRoot (and its <DynamicContextProvider>) has mounted.
   // The bridge calls a Dynamic hook, so it must not render before this is true -
@@ -100,15 +104,19 @@ export function SmartWalletContextProvider({ children }: { children: ReactNode }
     [active, status?.walletAddress, setupWallet]
   );
 
-  // Welcome is shown to genuinely new users only: those who pass through
-  // "needs-setup" this session. Returning users start at "ready" and never see it.
-  const wasNew = useRef(false);
-  const [showWelcome, setShowWelcome] = useState(false);
+  // Auto-open the "confirm it's you" setup once per session when a signed-in
+  // user has no wallet yet. If they dismiss it, they can reopen it from Settings
+  // via openWalletSetup(); we don't nag them on every render.
+  const autoPrompted = useRef(false);
+  const [setupOpen, setSetupOpen] = useState(false);
+  const openWalletSetup = useCallback(() => setSetupOpen(true), []);
   useEffect(() => {
-    if (phase === "needs-setup") {
-      wasNew.current = true;
-      setShowWelcome(true);
+    if (phase === "needs-setup" && !autoPrompted.current) {
+      autoPrompted.current = true;
+      setSetupOpen(true);
     }
+    // Once a wallet exists there's nothing to set up.
+    if (phase === "ready") setSetupOpen(false);
   }, [phase]);
 
   const value: SmartWalletContextValue = {
@@ -118,6 +126,7 @@ export function SmartWalletContextProvider({ children }: { children: ReactNode }
     walletAddress: status?.walletAddress ?? null,
     registerEmbeddedWallet,
     refetchStatus: () => void refetch(),
+    openWalletSetup,
   };
 
   return (
@@ -130,12 +139,10 @@ export function SmartWalletContextProvider({ children }: { children: ReactNode }
         </Suspense>
       )}
 
-      {active && showWelcome && wasNew.current && (phase === "needs-setup" || phase === "ready") && (
-        <WalletWelcomeModal
-          provisioning={phase !== "ready"}
-          walletAddress={status?.walletAddress ?? null}
-          onClose={() => setShowWelcome(false)}
-        />
+      {active && dynamicReady && setupOpen && (
+        <Suspense fallback={null}>
+          <WalletSetupModal email={user?.email} onClose={() => setSetupOpen(false)} />
+        </Suspense>
       )}
     </SmartWalletContext.Provider>
   );
