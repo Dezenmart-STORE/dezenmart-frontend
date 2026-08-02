@@ -1,11 +1,30 @@
-import { useState, useEffect, type ReactNode } from "react";
+import { useState, useEffect, lazy, Suspense, type ReactNode } from "react";
 import { useModalPresence } from "../../utils/modalPresence";
 import { useConnect, useAccount, type Connector } from "wagmi";
 import { detectMiniPay } from "../../hooks/useMiniPay";
 import { injected } from "wagmi/connectors";
+import { SMART_WALLET_ENABLED } from "../../config/smartWallet";
+import { useDynamicReady } from "./smart/dynamicReady";
 
 interface Props {
   onClose: () => void;
+}
+
+// The Dynamic-driven connect flow (Dezen Wallet + curated external wallets +
+// Celo switch) loads lazily and only when Dynamic is enabled and mounted, so
+// the SDK stays out of the default bundle and the disabled path is unchanged.
+const DynamicConnectModal = lazy(() => import("./DynamicConnectModal"));
+
+export default function ConnectModal({ onClose }: Props) {
+  const dynamicReady = useDynamicReady();
+  if (SMART_WALLET_ENABLED && dynamicReady) {
+    return (
+      <Suspense fallback={null}>
+        <DynamicConnectModal onClose={onClose} />
+      </Suspense>
+    );
+  }
+  return <LegacyConnectModal onClose={onClose} />;
 }
 
 // ── Wallet identity helpers ───────────────────────────────────────────────
@@ -117,7 +136,7 @@ const EDUCATION_STEPS = [
 
 // ── Main component ────────────────────────────────────────────────────────
 
-export default function ConnectModal({ onClose }: Props) {
+function LegacyConnectModal({ onClose }: Props) {
   const { connect, connectors, isPending, error } = useConnect();
   const { isConnected } = useAccount();
   const [showEducation, setShowEducation] = useState(false);
