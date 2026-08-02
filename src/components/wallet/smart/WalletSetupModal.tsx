@@ -70,9 +70,10 @@ export default function WalletSetupModal({ email, onClose }: Props) {
     try {
       await verifyOneTimePassword(code);
       setStep("success");
-      // Give the success state a beat to land, then hand back. The bridge links
-      // the new wallet to the backend in the background.
-      setTimeout(onClose, 1600);
+      // Give the success state a beat to read (it mentions they can switch to
+      // their own wallet), then hand back. The bridge links the new wallet to
+      // the backend in the background.
+      setTimeout(onClose, 3200);
     } catch {
       setError("That code didn't match. Please check it and try again.");
       setStep("code");
@@ -173,6 +174,9 @@ export default function WalletSetupModal({ email, onClose }: Props) {
             <RiCheckLine className="text-3xl text-green-400" />
           </div>
           <p className="text-sm text-gray-300">Your wallet is ready. You can now pay and get paid on DezenMart.</p>
+          <p className="text-xs text-gray-500">
+            Prefer your own wallet? You can disconnect and connect MetaMask, Coinbase, Trust, or Valora any time. It's up to you.
+          </p>
         </Centered>
       </ModalShell>
     );

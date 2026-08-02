@@ -27,6 +27,9 @@ const DynamicWalletBridge = lazy(
 const WalletSetupModal = lazy(
   () => import("../components/wallet/smart/WalletSetupModal")
 );
+const DynamicLogoutSync = lazy(
+  () => import("../components/wallet/smart/DynamicLogoutSync")
+);
 
 /**
  * Phases:
@@ -136,6 +139,14 @@ export function SmartWalletContextProvider({ children }: { children: ReactNode }
       {active && dynamicReady && (
         <Suspense fallback={null}>
           <DynamicWalletBridge />
+        </Suspense>
+      )}
+
+      {/* Not gated on auth: it must survive the authenticated -> logged-out
+          transition to end the Dynamic session. */}
+      {dynamicReady && (
+        <Suspense fallback={null}>
+          <DynamicLogoutSync />
         </Suspense>
       )}
 

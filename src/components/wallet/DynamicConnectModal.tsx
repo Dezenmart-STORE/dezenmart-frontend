@@ -29,6 +29,14 @@ const matchCurated = (keyOrName: string): string | null => {
   return CURATED.find((c) => s.includes(c)) ?? null;
 };
 
+// Brand-coloured fallback tile (only used if Dynamic doesn't supply an icon).
+const BRAND: Record<string, string> = {
+  valora: "#35d07f",
+  metamask: "#f6851b",
+  coinbase: "#0052ff",
+  trust: "#3375bb",
+};
+
 type WalletOpt = { key: string; name: string; metadata?: unknown; isInstalledOnBrowser?: boolean };
 
 const iconUrlOf = (o: WalletOpt): string | undefined => {
@@ -158,8 +166,8 @@ export default function DynamicConnectModal({ onClose }: Props) {
             <RiInformationLine className="mt-0.5 flex-shrink-0 text-amber-400" />
             <p className="text-xs leading-relaxed text-amber-200/90">
               DezenMart runs on the <span className="font-semibold">Celo</span> network. When you connect an external
-              wallet we'll switch it to Celo. Funds on other networks won't be usable here until you move them to Celo -
-              we'll show you how right after.
+              wallet we'll switch it to Celo. Funds on other networks won't be usable here until you move them to Celo,
+              and we'll show you how right after.
             </p>
           </div>
 
@@ -174,6 +182,7 @@ export default function DynamicConnectModal({ onClose }: Props) {
               <div className="space-y-2">
                 {externals.map((o) => {
                   const url = iconUrlOf(o);
+                  const brand = matchCurated(o.key) || matchCurated(o.name) || "";
                   return (
                     <button
                       key={o.key}
@@ -185,13 +194,18 @@ export default function DynamicConnectModal({ onClose }: Props) {
                         {url ? (
                           <img src={url} alt="" className="h-7 w-7 object-contain" />
                         ) : (
-                          <span className="text-base font-bold text-gray-300">{o.name.charAt(0)}</span>
+                          <span
+                            className="flex h-7 w-7 items-center justify-center rounded-lg text-sm font-bold text-white"
+                            style={{ backgroundColor: BRAND[brand] || "#3A3A3C" }}
+                          >
+                            {o.name.charAt(0)}
+                          </span>
                         )}
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-semibold text-white">{o.name}</p>
                         <p className="text-xs text-gray-500">
-                          {o.isInstalledOnBrowser ? "Detected - tap to connect" : "Connect this wallet"}
+                          {o.isInstalledOnBrowser ? "Detected, tap to connect" : "Connect this wallet"}
                         </p>
                       </div>
                       <svg className="h-4 w-4 flex-shrink-0 text-gray-600 transition-transform group-hover:translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

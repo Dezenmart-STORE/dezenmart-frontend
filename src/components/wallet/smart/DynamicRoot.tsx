@@ -47,6 +47,15 @@ export default function DynamicRoot({ children }: { children: ReactNode }) {
         environmentId: DYNAMIC_ENV_ID,
         walletConnectors: [EthereumWalletConnectors],
         cssOverrides: DYNAMIC_CSS_OVERRIDES,
+        // Align any Dynamic-native surface with our curated shortlist. The
+        // authoritative curation (enabled networks = Celo only, embedded wallets
+        // on, wallet allow-list) is set in the Dynamic dashboard.
+        recommendedWallets: [
+          { walletKey: "valora", label: "Celo-native" },
+          { walletKey: "metamask" },
+          { walletKey: "coinbase" },
+          { walletKey: "trust" },
+        ],
       }}
     >
       <WagmiProvider config={wagmiConfig}>
