@@ -11,8 +11,14 @@ export const initSentry = () => {
   const dsn = import.meta.env.VITE_SENTRY_DSN;
   const environment = import.meta.env.MODE || "development";
 
-  // Only initialize if DSN is provided and not in development
-  if (dsn && environment !== "development") {
+  // A valid Sentry DSN is exactly https://<publicKey>@<host>/<projectId>.
+  // Guard against a malformed value (e.g. the project URL accidentally
+  // concatenated with the DSN) so Sentry doesn't spam the console with CORS
+  // and 404 envelope errors against a broken endpoint.
+  const isValidDsn = typeof dsn === "string" && /^https:\/\/[^@/]+@[^/]+\/\d+$/.test(dsn.trim());
+
+  // Only initialize with a well-formed DSN outside development.
+  if (isValidDsn && environment !== "development") {
     Sentry.init({
       dsn,
       environment,

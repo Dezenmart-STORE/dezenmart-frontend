@@ -18,6 +18,7 @@ import {
 } from "../store/api";
 import { SMART_WALLET_ENABLED } from "../config/smartWallet";
 import { TARGET_CHAIN } from "../config/chains";
+import { useDynamicReady } from "../components/wallet/smart/dynamicReady";
 import WalletWelcomeModal from "../components/wallet/smart/WalletWelcomeModal";
 
 // Dynamic-importing bridge is lazy so the SDK stays out of the default bundle.
@@ -59,6 +60,10 @@ export const useSmartWallet = (): SmartWalletContextValue => {
 export function SmartWalletContextProvider({ children }: { children: ReactNode }) {
   const { isAuthenticated } = useAuth();
   const active = SMART_WALLET_ENABLED && isAuthenticated;
+  // True only once DynamicRoot (and its <DynamicContextProvider>) has mounted.
+  // The bridge calls a Dynamic hook, so it must not render before this is true -
+  // during the lazy-load Suspense fallback there is no provider and it throws.
+  const dynamicReady = useDynamicReady();
 
   const {
     data: status,
@@ -119,7 +124,7 @@ export function SmartWalletContextProvider({ children }: { children: ReactNode }
     <SmartWalletContext.Provider value={value}>
       {children}
 
-      {active && (
+      {active && dynamicReady && (
         <Suspense fallback={null}>
           <DynamicWalletBridge />
         </Suspense>
