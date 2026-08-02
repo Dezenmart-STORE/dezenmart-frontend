@@ -8,6 +8,7 @@ import { RiUser3Line } from "react-icons/ri";
 import { motion, AnimatePresence } from "framer-motion";
 import { useGetConversationsQuery } from "../../store/api";
 import { useAuth } from "../../context/AuthContext";
+import { useAnyModalOpen } from "../../utils/modalPresence";
 
 const navItems = [
   { icon: <AiOutlineHome size={22} />, label: "Home", path: "/" },
@@ -31,6 +32,11 @@ const MobileNavigation = ({ hidden = false }: { hidden?: boolean }) => {
   const { isAuthenticated } = useAuth();
   const location = useLocation();
   const [activeIndex, setActiveIndex] = useState(0);
+
+  // Slide + fade the bottom nav out of the way whenever a modal is open, so it
+  // never overlaps a bottom-sheet dialog on mobile.
+  const anyModalOpen = useAnyModalOpen();
+  const isHidden = hidden || anyModalOpen;
 
   // RTK Query hook - polling for real-time updates, only when authenticated
   const { data: conversations = [] } = useGetConversationsQuery(undefined, {
@@ -84,10 +90,13 @@ const MobileNavigation = ({ hidden = false }: { hidden?: boolean }) => {
   }, [location.pathname]);
 
   return (
-    <nav
-      className={`fixed bottom-0 left-0 right-0 bg-[#212428]/95 backdrop-blur-lg flex justify-evenly items-center px-2 py-2 md:hidden z-50 border-t border-[#292B30] shadow-2xl transition-transform duration-300 ease-out ${
-        hidden ? "translate-y-full" : "translate-y-0"
-      }`}
+    <motion.nav
+      aria-hidden={isHidden}
+      initial={false}
+      animate={{ y: isHidden ? "100%" : "0%", opacity: isHidden ? 0 : 1 }}
+      transition={{ type: "tween", duration: 0.3, ease: "easeOut" }}
+      style={{ pointerEvents: isHidden ? "none" : "auto" }}
+      className="fixed bottom-0 left-0 right-0 bg-[#212428]/95 backdrop-blur-lg flex justify-evenly items-center px-2 py-2 md:hidden z-40 border-t border-[#292B30] shadow-2xl"
     >
       {/* Active indicator - only show if activeIndex is valid */}
       {activeIndex >= 0 && (
@@ -165,7 +174,7 @@ const MobileNavigation = ({ hidden = false }: { hidden?: boolean }) => {
           </NavLink>
         );
       })}
-    </nav>
+    </motion.nav>
   );
 };
 

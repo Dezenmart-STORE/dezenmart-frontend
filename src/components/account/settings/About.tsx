@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { LiaAngleLeftSolid } from 'react-icons/lia';
-import { RiTwitterXLine, RiLinkedinBoxLine, RiExternalLinkLine } from 'react-icons/ri';
+import { RiTwitterXLine, RiLinkedinBoxLine, RiTelegramLine, RiTiktokLine, RiExternalLinkLine } from 'react-icons/ri';
 import { HiOutlineGlobe, HiOutlineMail } from 'react-icons/hi';
 const logo = '/images/logo.svg';
 
@@ -12,12 +12,6 @@ const LINKS = [
     label: 'Website',
     href: 'https://dezenmart.com',
   },
-  // Telegram removed - we only use X and LinkedIn.
-  // {
-  //   icon: <RiTelegramLine className="text-blue-400 text-base" />,
-  //   label: 'Telegram community',
-  //   href: 'https://t.me/dezenmart_commuinity',
-  // },
   {
     icon: <RiTwitterXLine className="text-white text-base" />,
     label: 'X (Twitter)',
@@ -27,6 +21,16 @@ const LINKS = [
     icon: <RiLinkedinBoxLine className="text-white text-base" />,
     label: 'LinkedIn',
     href: 'https://linkedin.com/company/dezenmart',
+  },
+  {
+    icon: <RiTelegramLine className="text-white text-base" />,
+    label: 'Telegram community',
+    href: 'https://t.me/dezenmart_commuinity',
+  },
+  {
+    icon: <RiTiktokLine className="text-white text-base" />,
+    label: 'TikTok',
+    href: 'https://www.tiktok.com/@dezenmart?lang=en',
   },
   {
     icon: <HiOutlineMail className="text-white text-base" />,

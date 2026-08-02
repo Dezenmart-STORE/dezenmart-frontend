@@ -1,4 +1,5 @@
 import { useState, useEffect, type ReactNode } from "react";
+import { useModalPresence } from "../../utils/modalPresence";
 import { useConnect, useAccount, type Connector } from "wagmi";
 import { detectMiniPay } from "../../hooks/useMiniPay";
 import { injected } from "wagmi/connectors";
@@ -121,6 +122,7 @@ export default function ConnectModal({ onClose }: Props) {
   const { isConnected } = useAccount();
   const [showEducation, setShowEducation] = useState(false);
   const [connectingId, setConnectingId] = useState<string | null>(null);
+  useModalPresence();
 
   // Inside MiniPay, the wallet is always pre-authorised - connect silently and close.
   useEffect(() => {

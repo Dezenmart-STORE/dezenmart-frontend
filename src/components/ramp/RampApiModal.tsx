@@ -12,6 +12,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRamp } from "./RampContext";
+import { useModalPresence } from "../../utils/modalPresence";
 import {
   initiateOnRamp,
   refreshOnRamp,
@@ -186,6 +187,7 @@ const Select = ({ label, value, onChange, options }: {
 // ─── Main ─────────────────────────────────────────────────────────────────
 export const RampApiModal = () => {
   const { isOpen, mode, setMode, closeRamp, customer } = useRamp();
+  useModalPresence(isOpen);
 
   const [fromAmount, setFromAmount] = useState("");
   const [network, setNetwork] = useState<typeof NETWORKS[number]>("bep20");

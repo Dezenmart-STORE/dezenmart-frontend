@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { IoClose } from "react-icons/io5";
 import type { ReactNode } from "react";
+import { useModalPresence } from "../../../utils/modalPresence";
 
 interface Props {
   title: string;
@@ -21,6 +22,7 @@ export default function ModalShell({
   children,
   footer,
 }: Props) {
+  useModalPresence();
   return (
     <AnimatePresence>
       <motion.div

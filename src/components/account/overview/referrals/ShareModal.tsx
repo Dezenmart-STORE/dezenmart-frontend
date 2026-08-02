@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { FiX, FiCopy } from "react-icons/fi";
+import { useModalPresence } from "../../../../utils/modalPresence";
 import { FaFacebook, FaWhatsapp, FaTelegram, FaEnvelope } from "react-icons/fa";
 import { FaXTwitter } from "react-icons/fa6";
 import { useSnackbar } from "../../../../context/SnackbarContext";
@@ -18,6 +19,7 @@ const ShareModal: React.FC<ShareModalProps> = ({
   shareLink = "",
 }) => {
   const { showSnackbar } = useSnackbar();
+  useModalPresence(isOpen);
   const finalShareLink =
     shareLink || (typeof window !== "undefined" ? window.location.origin : "");
   const shareText = `Use my promo code ${promoCode} to get points on your first purchase!`;

@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { FC, ReactNode, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { IoMdClose } from "react-icons/io";
+import { useModalPresence } from "../../utils/modalPresence";
 
 interface ModalProps {
   isOpen: boolean;
@@ -21,6 +22,9 @@ const Modal: FC<ModalProps> = ({
   showCloseButton = true,
 }) => {
   const modalRef = useRef<HTMLDivElement>(null);
+
+  // Hide the mobile nav while this modal is open.
+  useModalPresence(isOpen);
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {

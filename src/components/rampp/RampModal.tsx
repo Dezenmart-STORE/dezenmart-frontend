@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useModalPresence } from "../../utils/modalPresence";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRamp } from "./RampContext";
 import {
@@ -282,6 +283,7 @@ const DetailRow = ({
 // ─── Main Modal ───────────────────────────────────────────────────────────
 export const RampModal = () => {
   const { isOpen, mode, setMode, closeRamp, customer } = useRamp();
+  useModalPresence(isOpen);
 
   // Form state
   const [fromAmount, setFromAmount] = useState("");
