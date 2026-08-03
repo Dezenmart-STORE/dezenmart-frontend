@@ -113,19 +113,25 @@ export function SmartWalletContextProvider({ children }: { children: ReactNode }
     [active, status?.walletAddress, setupWallet]
   );
 
-  // Auto-open the "confirm it's you" setup once per session when a signed-in
-  // user has no wallet yet. If they dismiss it, they can reopen it from Settings
-  // via openWalletSetup(); we don't nag them on every render.
+  // Once per session, surface the wallet modal: "setup" (confirm it's you) for a
+  // new user with no wallet, or "reconnect" (connecting to your existing wallet)
+  // for a returning user whose wallet is already on the backend. Either can be
+  // reopened later via openWalletSetup() (Settings / the Dezen Wallet option).
   const autoPrompted = useRef(false);
-  const [setupOpen, setSetupOpen] = useState(false);
-  const openWalletSetup = useCallback(() => setSetupOpen(true), []);
+  const [modal, setModal] = useState<null | "setup" | "reconnect">(null);
+  const openWalletSetup = useCallback(
+    () => setModal(status?.hasWallet ? "reconnect" : "setup"),
+    [status?.hasWallet]
+  );
   useEffect(() => {
-    if (phase === "needs-setup" && !autoPrompted.current) {
+    if (autoPrompted.current) return;
+    if (phase === "needs-setup") {
       autoPrompted.current = true;
-      setSetupOpen(true);
+      setModal("setup");
+    } else if (phase === "ready") {
+      autoPrompted.current = true;
+      setModal("reconnect");
     }
-    // Once a wallet exists there's nothing to set up.
-    if (phase === "ready") setSetupOpen(false);
   }, [phase]);
 
   const value: SmartWalletContextValue = {
@@ -156,9 +162,14 @@ export function SmartWalletContextProvider({ children }: { children: ReactNode }
         </Suspense>
       )}
 
-      {active && dynamicReady && setupOpen && (
+      {active && dynamicReady && modal && (
         <Suspense fallback={null}>
-          <WalletSetupModal email={user?.email} onClose={() => setSetupOpen(false)} />
+          <WalletSetupModal
+            mode={modal}
+            email={user?.email}
+            walletAddress={status?.walletAddress ?? null}
+            onClose={() => setModal(null)}
+          />
         </Suspense>
       )}
     </SmartWalletContext.Provider>

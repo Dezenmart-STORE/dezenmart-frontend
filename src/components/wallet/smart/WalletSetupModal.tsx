@@ -12,10 +12,23 @@ import ModalShell from "./ModalShell";
 interface Props {
   /** The signed-in user's email (from Google). Prefilled, never typed. */
   email: string | null | undefined;
+  /** "setup" for a brand-new wallet, "reconnect" for a returning user whose
+   *  wallet already exists on the backend. */
+  mode?: "setup" | "reconnect";
+  /** The existing wallet address (reconnect mode) to reassure the user. */
+  walletAddress?: string | null;
   onClose: () => void;
 }
 
-type Step = "intro" | "sending" | "code" | "verifying" | "success" | "error";
+type Step =
+  | "intro"
+  | "connecting"
+  | "reconnect"
+  | "sending"
+  | "code"
+  | "verifying"
+  | "success"
+  | "error";
 
 const OTP_LEN = 6;
 
@@ -26,26 +39,52 @@ const maskEmail = (email: string): string => {
   return `${head}${"•".repeat(Math.max(3, name.length - 1))}@${domain}`;
 };
 
+const shortAddr = (a?: string | null) => (a ? `${a.slice(0, 6)}…${a.slice(-4)}` : "");
+
 /**
  * "Confirm it's you" wallet-setup flow. We already know the user (Google), so
  * this is framed as securing THEIR wallet - not another sign-in. Dynamic emails
  * a code to their known address; verifying it provisions the embedded wallet.
  */
-export default function WalletSetupModal({ email, onClose }: Props) {
+export default function WalletSetupModal({ email, mode = "setup", walletAddress, onClose }: Props) {
   const { connectWithEmail, verifyOneTimePassword, retryOneTimePassword } = useConnectWithOtp();
   const { user, sdkHasLoaded } = useDynamicContext();
+  const isReconnect = mode === "reconnect";
 
-  const [step, setStep] = useState<Step>("intro");
+  const [step, setStep] = useState<Step>(isReconnect ? "connecting" : "intro");
   const [error, setError] = useState<string>("");
   const [resent, setResent] = useState(false);
 
   const masked = useMemo(() => (email ? maskEmail(email) : "your email"), [email]);
+  const addr = shortAddr(walletAddress);
 
-  // If a Dynamic session already exists (e.g. returning device), there's nothing
-  // to confirm - the wallet links itself; step aside.
+  // Setup mode: if a Dynamic session already exists there's nothing to confirm.
   useEffect(() => {
-    if (user) onClose();
-  }, [user, onClose]);
+    if (!isReconnect && user) onClose();
+  }, [isReconnect, user, onClose]);
+
+  // Reconnect mode: once the SDK has loaded, decide. If the session
+  // auto-restored (same device) we're already connected -> brief confirmation.
+  // Otherwise we need a code to reconnect on this device.
+  const decided = useRef(false);
+  useEffect(() => {
+    if (!isReconnect || !sdkHasLoaded || decided.current) return;
+    decided.current = true;
+    if (user) {
+      setStep("success");
+      setTimeout(onClose, 1600);
+    } else {
+      setStep("reconnect");
+    }
+  }, [isReconnect, sdkHasLoaded, user, onClose]);
+
+  // If the Dynamic session appears mid-reconnect (auto-restore raced us), close.
+  useEffect(() => {
+    if (isReconnect && user && (step === "reconnect" || step === "connecting")) {
+      setStep("success");
+      setTimeout(onClose, 1600);
+    }
+  }, [isReconnect, user, step, onClose]);
 
   const sendCode = async () => {
     if (!email) {
@@ -118,6 +157,52 @@ export default function WalletSetupModal({ email, onClose }: Props) {
     );
   }
 
+  // ---- Reconnect: brief "connecting" while Dynamic tries to auto-restore ----
+  if (step === "connecting") {
+    return (
+      <ModalShell title="Connecting your wallet" dismissible={false}>
+        <Centered>
+          <RiLoader4Line className="animate-spin text-2xl text-red-500" />
+          <p className="text-sm text-gray-300">Reconnecting to your Dezen Wallet…</p>
+          {addr && <p className="font-mono text-xs text-gray-500">{addr}</p>}
+        </Centered>
+      </ModalShell>
+    );
+  }
+
+  // ---- Reconnect: needs a code on this device ----
+  if (step === "reconnect") {
+    return (
+      <ModalShell
+        title="Welcome back"
+        subtitle="Confirm it's you to reconnect to your existing Dezen Wallet on this device."
+        dismissible
+        onClose={onClose}
+        footer={
+          <button
+            onClick={sendCode}
+            disabled={!sdkHasLoaded}
+            className="w-full rounded-xl bg-red-600 py-3 text-sm font-bold text-white transition-colors hover:bg-red-700 disabled:opacity-60"
+          >
+            Send confirmation code
+          </button>
+        }
+      >
+        <div className="flex flex-col gap-3">
+          <Hero icon={<RiShieldKeyholeLine />} />
+          {addr && (
+            <div className="flex items-center justify-between rounded-xl bg-[#292B30] px-3 py-2.5">
+              <span className="text-xs text-gray-500">Your wallet</span>
+              <span className="font-mono text-sm text-white">{addr}</span>
+            </div>
+          )}
+          <Point text={`We'll email a 6-digit code to ${masked} to confirm it's you.`} />
+          <Point text="Your funds and history stay exactly where they were." />
+        </div>
+      </ModalShell>
+    );
+  }
+
   if (step === "sending") {
     return (
       <ModalShell title="Sending your code" dismissible={false}>
@@ -133,7 +218,7 @@ export default function WalletSetupModal({ email, onClose }: Props) {
     return (
       <ModalShell
         title="Confirm it's you"
-        subtitle={`Enter the 6-digit code we sent to ${masked} to finish securing your wallet.`}
+        subtitle={`Enter the 6-digit code we sent to ${masked} to ${isReconnect ? "reconnect your wallet" : "finish securing your wallet"}.`}
         dismissible
         onClose={onClose}
       >
@@ -168,15 +253,24 @@ export default function WalletSetupModal({ email, onClose }: Props) {
 
   if (step === "success") {
     return (
-      <ModalShell title="You're all set" dismissible={false}>
+      <ModalShell title={isReconnect ? "Reconnected" : "You're all set"} dismissible={false}>
         <Centered>
           <div className="flex h-14 w-14 items-center justify-center rounded-full bg-green-500/15">
             <RiCheckLine className="text-3xl text-green-400" />
           </div>
-          <p className="text-sm text-gray-300">Your wallet is ready. You can now pay and get paid on DezenMart.</p>
-          <p className="text-xs text-gray-500">
-            Prefer your own wallet? You can disconnect and connect MetaMask, Coinbase, Trust, or Valora any time. It's up to you.
-          </p>
+          {isReconnect ? (
+            <>
+              <p className="text-sm text-gray-300">You're back in your Dezen Wallet.</p>
+              {addr && <p className="font-mono text-xs text-gray-500">{addr}</p>}
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-gray-300">Your wallet is ready. You can now pay and get paid on DezenMart.</p>
+              <p className="text-xs text-gray-500">
+                Prefer your own wallet? You can disconnect and connect MetaMask, Coinbase, Trust, or Valora any time. It's up to you.
+              </p>
+            </>
+          )}
         </Centered>
       </ModalShell>
     );
