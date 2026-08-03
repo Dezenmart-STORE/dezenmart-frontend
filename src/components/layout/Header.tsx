@@ -295,8 +295,10 @@ const Header = () => {
             <WalkthroughTrigger variant="icon" />
           </div>
 
-          {/* Wallet button - always visible (lean ConnectButton, dark themed) */}
-          <WalletConnectButton />
+          {/* Wallet button - only for signed-in users. Logged out shows just
+              Sign In; logged in shows Connect (disconnected) or the wallet
+              (connected). ConnectButton handles those two states internally. */}
+          {isAuthenticated && <WalletConnectButton />}
 
           {isAuthenticated ? (
             <>
@@ -475,23 +477,15 @@ const Header = () => {
             </>
           ) : (
             <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-              {/* xs: icon-only */}
+              {/* Sole CTA when logged out: icon + label at every breakpoint. */}
               <button
                 onClick={() => startTransition(() => navigate("/login"))}
-                className="flex items-center justify-center rounded-md bg-Red p-1.5 text-white transition-all hover:bg-opacity-90 sm:hidden"
+                className="flex items-center gap-1.5 rounded-md bg-Red px-3 py-1.5 text-sm font-semibold text-white transition-all hover:bg-opacity-90 active:scale-95"
                 aria-label="Sign in"
               >
                 <BiLogIn className="text-lg" />
+                <span>Sign In</span>
               </button>
-              {/* sm+: icon + text */}
-              <Button
-                title="Sign In"
-                className="hidden bg-Red text-white pl-2 pr-3 py-1.5 rounded-md hover:bg-opacity-90 transition-all sm:flex"
-                onClick={() => startTransition(() => navigate("/login"))}
-                icon={<BiLogIn className="text-lg" />}
-                iconPosition="start"
-                aria-label="Sign in"
-              />
             </motion.div>
           )}
         </div>
