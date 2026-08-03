@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ClipboardEvent, type KeyboardEvent } from "react";
 import { useConnectWithOtp, useDynamicContext } from "@dynamic-labs/sdk-react-core";
+import { useAccount, useConnect, useReconnect, type Connector } from "wagmi";
 import {
   RiShieldKeyholeLine,
   RiMailCheckLine,
@@ -49,6 +50,9 @@ const shortAddr = (a?: string | null) => (a ? `${a.slice(0, 6)}…${a.slice(-4)}
 export default function WalletSetupModal({ email, mode = "setup", walletAddress, onClose }: Props) {
   const { connectWithEmail, verifyOneTimePassword, retryOneTimePassword } = useConnectWithOtp();
   const { user, sdkHasLoaded } = useDynamicContext();
+  const { isConnected } = useAccount();
+  const { connectors, connectAsync } = useConnect();
+  const { reconnectAsync } = useReconnect();
   // Both "reconnect" (login) and "connect" (manual) use the returning-user flow;
   // only the wording differs. isLogin = auto-restore at login.
   const isReturning = mode !== "setup";
@@ -66,28 +70,50 @@ export default function WalletSetupModal({ email, mode = "setup", walletAddress,
     if (!isReturning && user) onClose();
   }, [isReturning, user, onClose]);
 
-  // Returning flow: once the SDK has loaded, decide. If the session auto-restored
-  // (same device) we're already connected -> brief confirmation. Otherwise we
-  // need a code to authorise on this device.
+  // Returning flow: actually re-establish the wagmi signer. A wagmi disconnect
+  // leaves the Dynamic session (user) intact, so "user exists" is NOT the same as
+  // being connected - we must reconnect the embedded wallet and only then report
+  // success. If already connected we succeed immediately; if the session is valid
+  // we reconnect silently; otherwise we fall back to a code on this device.
   const decided = useRef(false);
   useEffect(() => {
     if (!isReturning || !sdkHasLoaded || decided.current) return;
     decided.current = true;
+    if (isConnected) return; // handled by the success effect below
     if (user) {
-      setStep("success");
-      setTimeout(onClose, 1600);
+      setStep("connecting");
+      void (async () => {
+        try {
+          const dyn = connectors.find((c: Connector) =>
+            `${c.id} ${c.name}`.toLowerCase().includes("dynamic")
+          );
+          if (dyn) await connectAsync({ connector: dyn });
+          else await reconnectAsync();
+        } catch {
+          setStep("reconnect"); // couldn't reconnect silently -> confirm with a code
+        }
+      })();
     } else {
       setStep("reconnect");
     }
-  }, [isReturning, sdkHasLoaded, user, onClose]);
+  }, [isReturning, sdkHasLoaded, isConnected, user, connectors, connectAsync, reconnectAsync]);
 
-  // If the Dynamic session appears mid-flow (auto-restore raced us), close.
+  // Report success only once the wagmi signer is genuinely connected.
   useEffect(() => {
-    if (isReturning && user && (step === "reconnect" || step === "connecting")) {
+    if (isReturning && isConnected && step !== "success") {
       setStep("success");
       setTimeout(onClose, 1600);
     }
-  }, [isReturning, user, step, onClose]);
+  }, [isReturning, isConnected, step, onClose]);
+
+  // Don't hang on "connecting": if a silent reconnect doesn't land, ask for a code.
+  useEffect(() => {
+    if (step !== "connecting") return;
+    const t = setTimeout(() => {
+      setStep((s) => (s === "connecting" && !isConnected ? "reconnect" : s));
+    }, 9000);
+    return () => clearTimeout(t);
+  }, [step, isConnected]);
 
   const sendCode = async () => {
     if (!email) {
