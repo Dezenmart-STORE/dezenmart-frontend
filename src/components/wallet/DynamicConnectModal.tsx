@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, Suspense } from "react";
 import { useNavigate } from "react-router-dom";
+import { lazyWithReload } from "../../utils/lazyWithReload";
 import { useWalletOptions, useDynamicContext, useSwitchNetwork } from "@dynamic-labs/sdk-react-core";
 import {
   RiShieldCheckLine,
@@ -19,6 +20,11 @@ import DezenWalletIcon from "./DezenWalletIcon";
 interface Props {
   onClose: () => void;
 }
+
+// In-app bridge (heavy) - lazy, its own chunk, only when a user chooses to move
+// funds. Env-gated so it's inert until VITE_SQUID_INTEGRATOR_ID is set.
+const SQUID_ENABLED = !!(import.meta.env.VITE_SQUID_INTEGRATOR_ID as string | undefined)?.trim();
+const SquidBridgeModal = lazyWithReload(() => import("./SquidBridgeModal"), "SquidBridgeModal");
 
 // Curated external wallets (quality over quantity, all Celo-capable). Dynamic
 // handles the actual connection; we just surface a tidy, branded shortlist.
@@ -231,6 +237,8 @@ export default function DynamicConnectModal({ onClose }: Props) {
 
 function GuideView({ name, walletKey, onDone }: { name: string; walletKey: string; onDone: () => void }) {
   const guide = getFundGuide(walletKey || name);
+  const [showBridge, setShowBridge] = useState(false);
+  const canBridge = SQUID_ENABLED && !guide.alreadyOnCelo;
   return (
     <div>
       <div className="mb-3 flex items-center gap-2">
@@ -252,12 +260,30 @@ function GuideView({ name, walletKey, onDone }: { name: string; walletKey: strin
         ))}
       </ol>
 
+      {canBridge && (
+        <button
+          onClick={() => setShowBridge(true)}
+          className="mt-5 w-full rounded-xl bg-red-600 py-3 text-sm font-bold text-white transition-colors hover:bg-red-700"
+        >
+          Move funds to Celo
+        </button>
+      )}
       <button
         onClick={onDone}
-        className="mt-5 w-full rounded-xl bg-red-600 py-3 text-sm font-bold text-white transition-colors hover:bg-red-700"
+        className={`w-full rounded-xl py-3 text-sm font-bold transition-colors ${
+          canBridge
+            ? "mt-2 bg-[#292B30] text-gray-200 hover:bg-[#333940]"
+            : "mt-5 bg-red-600 text-white hover:bg-red-700"
+        }`}
       >
-        {guide.alreadyOnCelo ? "Start using DezenMart" : "Got it"}
+        {guide.alreadyOnCelo ? "Start using DezenMart" : canBridge ? "I'll do it later" : "Got it"}
       </button>
+
+      {showBridge && (
+        <Suspense fallback={null}>
+          <SquidBridgeModal onClose={() => setShowBridge(false)} />
+        </Suspense>
+      )}
     </div>
   );
 }

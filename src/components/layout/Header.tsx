@@ -28,7 +28,10 @@ import type { StableToken } from "../../config/tokens";
 import { useAccount, useDisconnect } from "wagmi";
 import { FiInfo } from "react-icons/fi";
 import { HiAcademicCap } from "react-icons/hi2";
-import SefldVerification from "../common/SefldVerification";
+import { Suspense } from "react";
+import { lazyWithReload } from "../../utils/lazyWithReload";
+// Heavy (@selfxyz ~2MB): load only when the verification modal opens.
+const SefldVerification = lazyWithReload(() => import("../common/SefldVerification"), "SefldVerification");
 import WalkthroughTrigger from "../walkthrough/WalkthroughTrigger";
 import { useWalkthrough } from "../../context/WalkthroughContext";
 
@@ -493,10 +496,14 @@ const Header = () => {
           )}
         </div>
       </Container>
-      <SefldVerification
-        isOpen={showVerifyModal}
-        onClose={() => setShowVerifyModal(false)}
-      />
+      {showVerifyModal && (
+        <Suspense fallback={null}>
+          <SefldVerification
+            isOpen={showVerifyModal}
+            onClose={() => setShowVerifyModal(false)}
+          />
+        </Suspense>
+      )}
     </motion.header>
   );
 };

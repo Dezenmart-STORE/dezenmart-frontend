@@ -8,7 +8,9 @@ import LoadingSpinner from "../components/common/LoadingSpinner";
 import { useGetUserProfileQuery } from "../store/api";
 import { TabOption, TabType } from "../utils/types";
 import { useAuth } from "../context/AuthContext";
-import SefldVerification from "../components/common/SefldVerification";
+import { lazyWithReload } from "../utils/lazyWithReload";
+// Heavy (@selfxyz ~2MB): load only when the verification modal opens.
+const SefldVerification = lazyWithReload(() => import("../components/common/SefldVerification"), "SefldVerification");
 import DeliveryAddressManager from "../components/account/DeliveryAddressManager";
 import { LiaAngleLeftSolid } from "react-icons/lia";
 
@@ -320,10 +322,14 @@ const Account = () => {
         </div>
       </Container>
 
-      <SefldVerification
-        isOpen={showVerifyModal}
-        onClose={() => setShowVerifyModal(false)}
-      />
+      {showVerifyModal && (
+        <Suspense fallback={null}>
+          <SefldVerification
+            isOpen={showVerifyModal}
+            onClose={() => setShowVerifyModal(false)}
+          />
+        </Suspense>
+      )}
     </div>
   );
 };
