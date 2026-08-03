@@ -19,16 +19,22 @@ import {
 import { SMART_WALLET_ENABLED } from "../config/smartWallet";
 import { TARGET_CHAIN } from "../config/chains";
 import { useDynamicReady } from "../components/wallet/smart/dynamicReady";
+import { lazyWithReload } from "../utils/lazyWithReload";
 
 // Dynamic-importing pieces are lazy so the SDK stays out of the default bundle.
-const DynamicWalletBridge = lazy(
-  () => import("../components/wallet/smart/DynamicWalletBridge")
+// lazyWithReload recovers from stale-deploy chunk 404s (e.g. after a redeploy a
+// returning user's cached index.html points at an old DynamicWalletBridge hash).
+const DynamicWalletBridge = lazyWithReload(
+  () => import("../components/wallet/smart/DynamicWalletBridge"),
+  "DynamicWalletBridge"
 );
-const WalletSetupModal = lazy(
-  () => import("../components/wallet/smart/WalletSetupModal")
+const WalletSetupModal = lazyWithReload(
+  () => import("../components/wallet/smart/WalletSetupModal"),
+  "WalletSetupModal"
 );
-const DynamicLogoutSync = lazy(
-  () => import("../components/wallet/smart/DynamicLogoutSync")
+const DynamicLogoutSync = lazyWithReload(
+  () => import("../components/wallet/smart/DynamicLogoutSync"),
+  "DynamicLogoutSync"
 );
 
 /**
