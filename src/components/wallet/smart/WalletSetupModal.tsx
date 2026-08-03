@@ -12,9 +12,9 @@ import ModalShell from "./ModalShell";
 interface Props {
   /** The signed-in user's email (from Google). Prefilled, never typed. */
   email: string | null | undefined;
-  /** "setup" for a brand-new wallet, "reconnect" for a returning user whose
-   *  wallet already exists on the backend. */
-  mode?: "setup" | "reconnect";
+  /** "setup" = brand-new wallet; "reconnect" = auto-restore at login (returning
+   *  user); "connect" = they manually disconnected and are connecting again. */
+  mode?: "setup" | "reconnect" | "connect";
   /** The existing wallet address (reconnect mode) to reassure the user. */
   walletAddress?: string | null;
   onClose: () => void;
@@ -49,9 +49,12 @@ const shortAddr = (a?: string | null) => (a ? `${a.slice(0, 6)}…${a.slice(-4)}
 export default function WalletSetupModal({ email, mode = "setup", walletAddress, onClose }: Props) {
   const { connectWithEmail, verifyOneTimePassword, retryOneTimePassword } = useConnectWithOtp();
   const { user, sdkHasLoaded } = useDynamicContext();
-  const isReconnect = mode === "reconnect";
+  // Both "reconnect" (login) and "connect" (manual) use the returning-user flow;
+  // only the wording differs. isLogin = auto-restore at login.
+  const isReturning = mode !== "setup";
+  const isLogin = mode === "reconnect";
 
-  const [step, setStep] = useState<Step>(isReconnect ? "connecting" : "intro");
+  const [step, setStep] = useState<Step>(isReturning ? "connecting" : "intro");
   const [error, setError] = useState<string>("");
   const [resent, setResent] = useState(false);
 
@@ -60,15 +63,15 @@ export default function WalletSetupModal({ email, mode = "setup", walletAddress,
 
   // Setup mode: if a Dynamic session already exists there's nothing to confirm.
   useEffect(() => {
-    if (!isReconnect && user) onClose();
-  }, [isReconnect, user, onClose]);
+    if (!isReturning && user) onClose();
+  }, [isReturning, user, onClose]);
 
-  // Reconnect mode: once the SDK has loaded, decide. If the session
-  // auto-restored (same device) we're already connected -> brief confirmation.
-  // Otherwise we need a code to reconnect on this device.
+  // Returning flow: once the SDK has loaded, decide. If the session auto-restored
+  // (same device) we're already connected -> brief confirmation. Otherwise we
+  // need a code to authorise on this device.
   const decided = useRef(false);
   useEffect(() => {
-    if (!isReconnect || !sdkHasLoaded || decided.current) return;
+    if (!isReturning || !sdkHasLoaded || decided.current) return;
     decided.current = true;
     if (user) {
       setStep("success");
@@ -76,15 +79,15 @@ export default function WalletSetupModal({ email, mode = "setup", walletAddress,
     } else {
       setStep("reconnect");
     }
-  }, [isReconnect, sdkHasLoaded, user, onClose]);
+  }, [isReturning, sdkHasLoaded, user, onClose]);
 
-  // If the Dynamic session appears mid-reconnect (auto-restore raced us), close.
+  // If the Dynamic session appears mid-flow (auto-restore raced us), close.
   useEffect(() => {
-    if (isReconnect && user && (step === "reconnect" || step === "connecting")) {
+    if (isReturning && user && (step === "reconnect" || step === "connecting")) {
       setStep("success");
       setTimeout(onClose, 1600);
     }
-  }, [isReconnect, user, step, onClose]);
+  }, [isReturning, user, step, onClose]);
 
   const sendCode = async () => {
     if (!email) {
@@ -163,7 +166,9 @@ export default function WalletSetupModal({ email, mode = "setup", walletAddress,
       <ModalShell title="Connecting your wallet" dismissible={false}>
         <Centered>
           <RiLoader4Line className="animate-spin text-2xl text-red-500" />
-          <p className="text-sm text-gray-300">Reconnecting to your Dezen Wallet…</p>
+          <p className="text-sm text-gray-300">
+            {isLogin ? "Reconnecting to your Dezen Wallet…" : "Connecting to your Dezen Wallet…"}
+          </p>
           {addr && <p className="font-mono text-xs text-gray-500">{addr}</p>}
         </Centered>
       </ModalShell>
@@ -174,8 +179,12 @@ export default function WalletSetupModal({ email, mode = "setup", walletAddress,
   if (step === "reconnect") {
     return (
       <ModalShell
-        title="Welcome back"
-        subtitle="Confirm it's you to reconnect to your existing Dezen Wallet on this device."
+        title={isLogin ? "Welcome back" : "Connect your Dezen Wallet"}
+        subtitle={
+          isLogin
+            ? "Confirm it's you to reconnect to your existing Dezen Wallet on this device."
+            : "Confirm it's you to connect back to your Dezen Wallet."
+        }
         dismissible
         onClose={onClose}
         footer={
@@ -218,7 +227,9 @@ export default function WalletSetupModal({ email, mode = "setup", walletAddress,
     return (
       <ModalShell
         title="Confirm it's you"
-        subtitle={`Enter the 6-digit code we sent to ${masked} to ${isReconnect ? "reconnect your wallet" : "finish securing your wallet"}.`}
+        subtitle={`Enter the 6-digit code we sent to ${masked} to ${
+          !isReturning ? "finish securing your wallet" : isLogin ? "reconnect your wallet" : "connect your wallet"
+        }.`}
         dismissible
         onClose={onClose}
       >
@@ -253,14 +264,19 @@ export default function WalletSetupModal({ email, mode = "setup", walletAddress,
 
   if (step === "success") {
     return (
-      <ModalShell title={isReconnect ? "Reconnected" : "You're all set"} dismissible={false}>
+      <ModalShell
+        title={!isReturning ? "You're all set" : isLogin ? "Reconnected" : "Connected"}
+        dismissible={false}
+      >
         <Centered>
           <div className="flex h-14 w-14 items-center justify-center rounded-full bg-green-500/15">
             <RiCheckLine className="text-3xl text-green-400" />
           </div>
-          {isReconnect ? (
+          {isReturning ? (
             <>
-              <p className="text-sm text-gray-300">You're back in your Dezen Wallet.</p>
+              <p className="text-sm text-gray-300">
+                {isLogin ? "You're back in your Dezen Wallet." : "Your Dezen Wallet is connected."}
+              </p>
               {addr && <p className="font-mono text-xs text-gray-500">{addr}</p>}
             </>
           ) : (

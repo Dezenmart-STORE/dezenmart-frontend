@@ -118,9 +118,11 @@ export function SmartWalletContextProvider({ children }: { children: ReactNode }
   // for a returning user whose wallet is already on the backend. Either can be
   // reopened later via openWalletSetup() (Settings / the Dezen Wallet option).
   const autoPrompted = useRef(false);
-  const [modal, setModal] = useState<null | "setup" | "reconnect">(null);
+  const [modal, setModal] = useState<null | "setup" | "reconnect" | "connect">(null);
+  // Manual open (Settings / the Dezen Wallet option after a disconnect) is a
+  // deliberate "connect", distinct from the automatic "reconnect" at login.
   const openWalletSetup = useCallback(
-    () => setModal(status?.hasWallet ? "reconnect" : "setup"),
+    () => setModal(status?.hasWallet ? "connect" : "setup"),
     [status?.hasWallet]
   );
   useEffect(() => {
