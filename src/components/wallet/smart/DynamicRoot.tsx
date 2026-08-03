@@ -56,6 +56,15 @@ export default function DynamicRoot({ children }: { children: ReactNode }) {
           { walletKey: "coinbase" },
           { walletKey: "trust" },
         ],
+        // Require an explicit confirmation on EVERY transaction. For the Dezen
+        // (embedded) wallet, Dynamic gates that confirmation behind the user's
+        // passcode per the dashboard security policy - so every payment must be
+        // passcode-authorised. Dynamic verifies the passcode itself and only
+        // signs on success; a wrong/cancelled passcode rejects the transaction.
+        // NOTE: the passcode requirement itself is turned on in the Dynamic
+        // dashboard (Embedded wallet -> Security -> require passcode per
+        // transaction). This flag ensures the confirmation view always appears.
+        transactionConfirmation: { required: true },
       }}
     >
       <WagmiProvider config={wagmiConfig}>
