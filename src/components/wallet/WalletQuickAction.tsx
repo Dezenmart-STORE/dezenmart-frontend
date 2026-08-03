@@ -5,6 +5,7 @@ import { useCurrency } from "../../context/CurrencyContext";
 import { useTokenBalances } from "../../hooks/useTokenBalances";
 import { truncateAddress, copyToClipboard } from "../../utils/format";
 import { TARGET_CHAIN, getExplorerUrl } from "../../config/chains";
+import { useSmartWallet } from "../../context/SmartWalletContext";
 import { Mywallet } from "../../pages";
 
 /**
@@ -20,6 +21,12 @@ export default function WalletQuickAction() {
   const { data: celoBalance } = useBalance({ address });
   const { getBalance, refetch: refetchBalances, isLoading: balancesLoading } = useTokenBalances();
   const { selectedToken, formatAmount } = useCurrency();
+  const { walletAddress: dezenAddress } = useSmartWallet();
+
+  // Connected via the in-app Dezen (embedded) wallet? Compare to the linked
+  // address from wallet status (no Dynamic SDK import needed here).
+  const isDezenWallet =
+    !!address && !!dezenAddress && address.toLowerCase() === dezenAddress.toLowerCase();
 
   const [showModal, setShowModal] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -110,6 +117,16 @@ export default function WalletQuickAction() {
                 <p className="text-xs text-amber-400">Tap to switch to {TARGET_CHAIN.name}</p>
               </div>
             </button>
+          )}
+
+          {/* Dezen Wallet notice */}
+          {isDezenWallet && (
+            <div className="mb-2 rounded-lg border border-red-800/40 bg-red-900/15 p-2.5">
+              <p className="text-xs font-semibold text-red-300">You're on your Dezen Wallet</p>
+              <p className="mt-0.5 text-[11px] leading-relaxed text-gray-400">
+                You can disconnect to use MetaMask, Coinbase, Trust or Valora, but we strongly recommend keeping Dezen Wallet for the smoothest, safest experience.
+              </p>
+            </div>
           )}
 
           {/* Balance section */}

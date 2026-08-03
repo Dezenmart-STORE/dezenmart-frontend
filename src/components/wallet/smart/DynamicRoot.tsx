@@ -17,18 +17,28 @@ import { DynamicReadyContext } from "./dynamicReady";
 const RED = "#dc2626";
 const RED_HOVER = "#b91c1c";
 const RED_SOFT = "#ef4444";
+// !important so these win over the accent colour the Dynamic dashboard injects
+// at runtime. NOTE: the password-setup illustrations (shield/key/checkmark) are
+// baked SVGs tinted by the dashboard brand colour - to turn those red as well,
+// set the accent colour to #dc2626 in the Dynamic dashboard's Design tab. These
+// overrides recolour the buttons, links and badges.
 const DYNAMIC_CSS_OVERRIDES = `
-  :host, .dynamic-shadow-dom, .dynamic-widget-inline-controls {
-    --dynamic-brand-primary-color: ${RED};
-    --dynamic-brand-hover-color: ${RED_HOVER};
-    --dynamic-brand-secondary-color: ${RED_SOFT};
-    --dynamic-button-primary-background: ${RED};
-    --dynamic-button-primary-hover: ${RED_HOVER};
-    --dynamic-button-primary-border: ${RED};
-    --dynamic-connect-button-background: ${RED};
-    --dynamic-connect-button-background-hover: ${RED_HOVER};
-    --dynamic-badge-primary-background: rgba(220, 38, 38, 0.15);
-    --dynamic-badge-primary-color: #f87171;
+  :host, .dynamic-shadow-dom, .dynamic-shadow-dom *, .dynamic-widget-inline-controls {
+    --dynamic-brand-primary-color: ${RED} !important;
+    --dynamic-brand-hover-color: ${RED_HOVER} !important;
+    --dynamic-brand-secondary-color: ${RED_SOFT} !important;
+    --dynamic-button-primary-background: ${RED} !important;
+    --dynamic-button-primary-hover: ${RED_HOVER} !important;
+    --dynamic-button-primary-border: ${RED} !important;
+    --dynamic-button-secondary-hover: ${RED_HOVER} !important;
+    --dynamic-connect-button-background: ${RED} !important;
+    --dynamic-connect-button-background-hover: ${RED_HOVER} !important;
+    --dynamic-connect-button-color: #ffffff !important;
+    --dynamic-text-link: ${RED_SOFT} !important;
+    --dynamic-badge-background: rgba(220, 38, 38, 0.15) !important;
+    --dynamic-badge-dot-background: ${RED} !important;
+    --dynamic-badge-primary-background: rgba(220, 38, 38, 0.15) !important;
+    --dynamic-badge-primary-color: #f87171 !important;
   }
 `;
 
