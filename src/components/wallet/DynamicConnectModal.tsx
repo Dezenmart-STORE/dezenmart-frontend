@@ -63,7 +63,12 @@ export default function DynamicConnectModal({ onClose }: Props) {
   const { isAuthenticated } = useAuth();
   const { openWalletSetup } = useSmartWallet();
   const { walletOptions, selectWalletOption } = useWalletOptions();
-  const { sdkHasLoaded, user, handleLogOut } = useDynamicContext();
+  const dynamic = useDynamicContext();
+  const { sdkHasLoaded, user, handleLogOut } = dynamic;
+  // Present on the context via useOverrides; not in the public d.ts surface.
+  const setAuthMode = (dynamic as unknown as {
+    setAuthMode?: (v: "connect-only" | "connect-and-sign") => void;
+  }).setAuthMode;
   const switchNetwork = useSwitchNetwork();
   const { isConnected } = useAccount();
   const { disconnectAsync } = useDisconnect();
@@ -117,6 +122,19 @@ export default function DynamicConnectModal({ onClose }: Props) {
           /* non-fatal */
         }
       }
+
+      // Connect the wallet WITHOUT signing it up as a Dynamic user. Otherwise
+      // Dynamic treats it as a brand-new user and runs its information-capture
+      // step ("We need a bit of information to get started"), which asks for an
+      // email and then rejects it with "Email already exists" - the address is
+      // already on the DezenMart account. We only need a signer here, not a
+      // second identity. (No-op if Dynamic still holds a wallet.)
+      try {
+        setAuthMode?.("connect-only");
+      } catch {
+        /* non-fatal */
+      }
+
       const wallet = await selectWalletOption(o.key);
       // Force Celo - DezenMart only operates there.
       try {

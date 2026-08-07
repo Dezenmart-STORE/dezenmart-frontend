@@ -4,7 +4,7 @@ import { EthereumWalletConnectors } from "@dynamic-labs/ethereum";
 import { DynamicWagmiConnector } from "@dynamic-labs/wagmi-connector";
 import { WagmiProvider } from "wagmi";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { wagmiConfig } from "../../../config/chains";
+import { wagmiConfig, TARGET_CHAIN } from "../../../config/chains";
 import { queryClient } from "../../../config/queryClient";
 import { DYNAMIC_ENV_ID } from "../../../config/smartWallet";
 import { DynamicReadyContext } from "./dynamicReady";
@@ -75,6 +75,13 @@ export default function DynamicRoot({ children }: { children: ReactNode }) {
         // dashboard (Embedded wallet -> Security -> require passcode per
         // transaction). This flag ensures the confirmation view always appears.
         transactionConfirmation: { required: true },
+        overrides: {
+          // Celo mainnet is the ONLY network DezenMart settles on. Filter the
+          // dashboard's list so external wallets can't be pointed at Ethereum or
+          // a Celo testnet from Dynamic's network switcher.
+          evmNetworks: (dashboardNetworks) =>
+            dashboardNetworks.filter((n) => Number(n.chainId) === TARGET_CHAIN.id),
+        },
       }}
     >
       <WagmiProvider config={wagmiConfig}>
