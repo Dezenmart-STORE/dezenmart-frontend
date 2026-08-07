@@ -1,12 +1,7 @@
 import { useMemo, useState, Suspense } from "react";
 import { useNavigate } from "react-router-dom";
 import { lazyWithReload } from "../../utils/lazyWithReload";
-import {
-  useWalletOptions,
-  useDynamicContext,
-  useSwitchNetwork,
-  useStepUpAuthentication,
-} from "@dynamic-labs/sdk-react-core";
+import { useWalletOptions, useDynamicContext, useSwitchNetwork } from "@dynamic-labs/sdk-react-core";
 import { useAccount, useDisconnect } from "wagmi";
 import {
   RiShieldCheckLine,
@@ -59,7 +54,6 @@ const iconUrlOf = (o: WalletOpt): string | undefined => {
 type Step =
   | { kind: "list" }
   | { kind: "connecting"; name: string }
-  | { kind: "verifying"; name: string }
   | { kind: "guide"; walletKey: string; name: string }
   | { kind: "error"; message: string };
 
@@ -69,11 +63,10 @@ export default function DynamicConnectModal({ onClose }: Props) {
   const { isAuthenticated } = useAuth();
   const { openWalletSetup } = useSmartWallet();
   const { walletOptions, selectWalletOption } = useWalletOptions();
-  const { sdkHasLoaded } = useDynamicContext();
+  const { sdkHasLoaded, user, handleLogOut } = useDynamicContext();
   const switchNetwork = useSwitchNetwork();
   const { isConnected } = useAccount();
   const { disconnectAsync } = useDisconnect();
-  const { promptStepUpAuth } = useStepUpAuthentication();
 
   const [step, setStep] = useState<Step>({ kind: "list" });
 
@@ -104,30 +97,27 @@ export default function DynamicConnectModal({ onClose }: Props) {
   const connectExternal = async (o: WalletOpt) => {
     setStep({ kind: "connecting", name: o.name });
     try {
-      // Free the slot first: with a wallet already attached (usually the Dezen
-      // embedded one), linking a second wallet is refused unless multi-wallet is
-      // enabled. Switching wallets is the intent here, so drop the current one.
-      if (isConnected) {
+      // End the Dezen (Dynamic) wallet session first. While a wallet session is
+      // authenticated, attaching another wallet counts as LINKING it to the
+      // account, which Dynamic guards behind step-up re-auth ("Elevated access
+      // token required") - an emailed code just to connect MetaMask. Ending the
+      // wallet session makes this a plain wallet connect instead: no linking, no
+      // code. The DezenMart login is untouched, and the Dezen Wallet stays on
+      // the account, so it can be reconnected any time.
+      if (user) {
+        try {
+          await handleLogOut();
+        } catch {
+          /* non-fatal - fall through and let the connect attempt report the truth */
+        }
+      } else if (isConnected) {
         try {
           await disconnectAsync();
         } catch {
-          /* non-fatal - continue and let the connect attempt report the truth */
+          /* non-fatal */
         }
       }
-      let wallet;
-      try {
-        wallet = await selectWalletOption(o.key);
-      } catch (err) {
-        // Dynamic guards wallet-linking on an already-authenticated account
-        // behind step-up auth ("Elevated access token required"). Run Dynamic's
-        // own re-auth UI, then retry the link once.
-        const m = ((err as Error)?.message ?? "").toLowerCase();
-        if (!m.includes("elevated") && !m.includes("scope")) throw err;
-        setStep({ kind: "verifying", name: o.name });
-        await promptStepUpAuth();
-        setStep({ kind: "connecting", name: o.name });
-        wallet = await selectWalletOption(o.key);
-      }
+      const wallet = await selectWalletOption(o.key);
       // Force Celo - DezenMart only operates there.
       try {
         await switchNetwork({ wallet, network: TARGET_CHAIN.id });
@@ -144,9 +134,8 @@ export default function DynamicConnectModal({ onClose }: Props) {
       } else if (msg.includes("not installed") || msg.includes("no provider")) {
         message = `${o.name} isn't installed on this device. Install it, then try again.`;
       } else if (msg.includes("elevated") || msg.includes("scope")) {
-        message = `We couldn't verify it's you, so ${o.name} wasn't linked. Please try again.`;
+        message = `Your Dezen Wallet is still active. Disconnect it from the wallet menu, then connect ${o.name}.`;
       } else if (msg.includes("already") || msg.includes("multi")) {
-        // Linking a second wallet needs multi-wallet enabled in the Dynamic dashboard.
         message = `Your Dezen Wallet is already connected. Disconnect it first, then connect ${o.name}.`;
       } else {
         // Surface the real reason - a generic message made this undiagnosable.
@@ -169,14 +158,9 @@ export default function DynamicConnectModal({ onClose }: Props) {
         <Centered>
           <RiLoader4Line className="animate-spin text-2xl text-red-500" />
           <p className="text-sm text-gray-300">Connecting {step.name}…</p>
-          <p className="text-xs text-gray-500">Approve the request in your wallet, then we'll switch it to Celo.</p>
-        </Centered>
-      ) : step.kind === "verifying" ? (
-        <Centered>
-          <RiLoader4Line className="animate-spin text-2xl text-red-500" />
-          <p className="text-sm text-gray-300">Confirming it's you…</p>
           <p className="text-xs text-gray-500">
-            For your security we verify it's really you before linking {step.name} to your account.
+            Approve the request in your wallet, then we'll switch it to Celo. Your Dezen Wallet stays on your
+            account and you can switch back any time.
           </p>
         </Centered>
       ) : step.kind === "error" ? (
