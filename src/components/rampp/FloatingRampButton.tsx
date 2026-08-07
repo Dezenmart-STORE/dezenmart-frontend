@@ -32,10 +32,11 @@ const ArrowUpDown = () => (
   </svg>
 );
 
+// Sits above the mobile bottom nav on small screens, normal offset from md up.
 const positionClasses = {
-  "bottom-right": "bottom-6 right-6",
-  "bottom-left": "bottom-6 left-6",
-  "bottom-center": "bottom-6 left-1/2 -translate-x-1/2",
+  "bottom-right": "bottom-20 right-4 md:bottom-6 md:right-6",
+  "bottom-left": "bottom-20 left-4 md:bottom-6 md:left-6",
+  "bottom-center": "bottom-20 left-1/2 -translate-x-1/2 md:bottom-6",
 };
 
 export const FloatingRampButton = ({
@@ -56,11 +57,21 @@ export const FloatingRampButton = ({
       whileHover={{ scale: 1.06 }}
       whileTap={{ scale: 0.95 }}
       transition={{ type: "spring", damping: 14, stiffness: 200 }}
-      className={`fixed ${positionClasses[position]} z-40 flex items-center gap-2 bg-[#E23B3B] hover:bg-red-600 text-white px-5 py-3.5 rounded-full shadow-xl shadow-red-900/30 font-semibold text-sm transition-colors`}
-      aria-label="Open buy/sell crypto"
+      // Compact icon-only circle on mobile (it used to cover a big slice of the
+      // screen); grows into the labelled pill from sm up.
+      className={`fixed ${positionClasses[position]} z-40 flex items-center justify-center gap-2 bg-[#E23B3B] hover:bg-red-600 text-white h-12 w-12 rounded-full sm:h-auto sm:w-auto sm:px-5 sm:py-3.5 shadow-xl shadow-red-900/30 font-semibold text-sm transition-colors`}
+      aria-label="Buy or sell crypto"
+      title="Buy or sell crypto"
     >
-      <ArrowUpDown />
-      {label ?? (defaultMode === "onramp" ? "Buy Crypto" : "Sell Crypto")}
+      {/* Currency glyph makes the purpose obvious without a label */}
+      <span className="relative flex items-center justify-center sm:hidden">
+        <ArrowUpDown />
+        <span className="absolute -right-1.5 -top-2 text-[11px] font-bold leading-none">$</span>
+      </span>
+      <span className="hidden sm:flex sm:items-center sm:gap-2">
+        <ArrowUpDown />
+        {label ?? (defaultMode === "onramp" ? "Buy Crypto" : "Sell Crypto")}
+      </span>
     </motion.button>
   );
 };

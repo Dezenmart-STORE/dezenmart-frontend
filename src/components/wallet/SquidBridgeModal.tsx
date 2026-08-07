@@ -4,6 +4,9 @@ import { TARGET_CHAIN } from "../../config/chains";
 
 interface Props {
   onClose: () => void;
+  /** "bridge" = move funds from another chain to Celo (post-connect guide).
+   *  "swap"   = swap tokens inside the Dezen Wallet (wallet menu). */
+  variant?: "bridge" | "swap";
 }
 
 const INTEGRATOR_ID = (import.meta.env.VITE_SQUID_INTEGRATOR_ID as string | undefined)?.trim();
@@ -22,18 +25,24 @@ const CELO_TOKEN = "0x471EcE3750Da237f93B8E339c536989b8978a438";
  *
  * Requires studio.squidrouter.com in the CSP frame-src (see netlify.toml).
  */
-export default function SquidBridgeModal({ onClose }: Props) {
+export default function SquidBridgeModal({ onClose, variant = "bridge" }: Props) {
   useModalPresence();
+  const isSwap = variant === "swap";
 
   const src = useMemo(() => {
     const config = {
       integratorId: INTEGRATOR_ID,
       themeType: "dark",
+      // Funds always end up on Celo, the only chain DezenMart settles on.
       availableChains: { destination: [String(TARGET_CHAIN.id)] },
-      initialAssets: { to: { chainId: String(TARGET_CHAIN.id), address: CELO_TOKEN } },
+      initialAssets: {
+        // Swapping starts from a Celo asset; bridging starts wherever the user is.
+        ...(isSwap ? { from: { chainId: String(TARGET_CHAIN.id), address: CELO_TOKEN } } : {}),
+        to: { chainId: String(TARGET_CHAIN.id), address: CELO_TOKEN },
+      },
     };
     return `https://studio.squidrouter.com/iframe?config=${encodeURIComponent(JSON.stringify(config))}`;
-  }, []);
+  }, [isSwap]);
 
   return (
     <div
@@ -43,8 +52,14 @@ export default function SquidBridgeModal({ onClose }: Props) {
       <div className="relative flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-3xl border border-[#292B30] bg-[#212428] shadow-2xl sm:max-w-md sm:rounded-2xl">
         <div className="flex items-center justify-between border-b border-[#292B30] px-5 py-4">
           <div>
-            <h2 className="text-base font-bold text-white">Move funds to Celo</h2>
-            <p className="mt-0.5 text-xs text-gray-500">Bridge from any chain into your DezenMart wallet</p>
+            <h2 className="text-base font-bold text-white">
+              {isSwap ? "Swap tokens" : "Move funds to Celo"}
+            </h2>
+            <p className="mt-0.5 text-xs text-gray-500">
+              {isSwap
+                ? "Swap inside your Dezen Wallet, powered by Squid"
+                : "Bridge from any chain into your Dezen Wallet"}
+            </p>
           </div>
           <button
             onClick={onClose}
@@ -58,7 +73,7 @@ export default function SquidBridgeModal({ onClose }: Props) {
         </div>
 
         <iframe
-          title="Move funds to Celo"
+          title={isSwap ? "Swap tokens" : "Move funds to Celo"}
           src={src}
           className="h-[640px] max-h-[75dvh] w-full border-0 bg-[#212428]"
           allow="clipboard-read; clipboard-write; accelerometer; gyroscope; payment"

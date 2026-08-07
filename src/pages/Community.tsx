@@ -2,13 +2,8 @@ import { motion } from "framer-motion";
 import Container from "../components/common/Container";
 import Button from "../components/common/Button";
 import { FormEvent, useState } from "react";
-import {
-  FaFacebookF,
-  FaInstagram,
-  FaLinkedinIn,
-  FaTelegram,
-} from "react-icons/fa";
-import { FaXTwitter } from "react-icons/fa6";
+import { FaLinkedinIn, FaTelegram } from "react-icons/fa";
+import { FaXTwitter, FaTiktok } from "react-icons/fa6";
 import { BsPeople } from "react-icons/bs";
 import { AiOutlineCalendar, AiOutlineMail } from "react-icons/ai";
 import { Rocket } from ".";
@@ -244,11 +239,10 @@ const Community = () => {
           {/* Footer */}
           <motion.div variants={itemVariants} className="mt-auto w-full">
             <div className="flex justify-center space-x-6 mb-6">
-              {/* Facebook & Instagram removed - we only use X and LinkedIn. */}
-              {/* <SocialIcon icon={<FaFacebookF />} /> */}
               <SocialIcon icon={<FaXTwitter />} href="https://x.com/Dezenmart?s=20" />
-              {/* <SocialIcon icon={<FaInstagram />} /> */}
               <SocialIcon icon={<FaLinkedinIn />} href="https://linkedin.com/company/dezenmart" />
+              <SocialIcon icon={<FaTelegram />} href="https://t.me/dezenmart_commuinity" />
+              <SocialIcon icon={<FaTiktok />} href="https://www.tiktok.com/@dezenmart?lang=en" />
             </div>
             <p className="text-[#C6C6C8] text-sm text-center">
               © Copyrights Dezenmart| All Rights Reserved
