@@ -29,12 +29,9 @@ export default function ConnectButton() {
   const { data: celoBalance } = useBalance({ address });
   const { getBalance, refetch: refetchBalances, isLoading: balancesLoading } = useTokenBalances();
   const { selectedToken, formatAmount } = useCurrency();
-  const { walletAddress: dezenAddress } = useSmartWallet();
-
-  // Connected via the in-app Dezen (embedded) wallet? Compare the connected
-  // address to the linked wallet-status address (no Dynamic SDK import needed).
-  const isDezenWallet =
-    !!address && !!dezenAddress && address.toLowerCase() === dezenAddress.toLowerCase();
+  // Authoritative: reported by the Dynamic bridge from the connector itself, so
+  // it stays correct even if the stored wallet address is stale or wrong.
+  const { isDezenWalletActive: isDezenWallet } = useSmartWallet();
 
   const [showModal, setShowModal] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);

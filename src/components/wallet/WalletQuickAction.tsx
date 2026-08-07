@@ -26,12 +26,8 @@ export default function WalletQuickAction() {
   const { data: celoBalance } = useBalance({ address });
   const { getBalance, refetch: refetchBalances, isLoading: balancesLoading } = useTokenBalances();
   const { selectedToken, formatAmount } = useCurrency();
-  const { walletAddress: dezenAddress } = useSmartWallet();
-
-  // Connected via the in-app Dezen (embedded) wallet? Compare to the linked
-  // address from wallet status (no Dynamic SDK import needed here).
-  const isDezenWallet =
-    !!address && !!dezenAddress && address.toLowerCase() === dezenAddress.toLowerCase();
+  // Authoritative: reported by the Dynamic bridge from the connector itself.
+  const { isDezenWalletActive: isDezenWallet } = useSmartWallet();
 
   const [showModal, setShowModal] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);

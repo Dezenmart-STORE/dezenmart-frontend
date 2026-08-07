@@ -57,6 +57,12 @@ interface SmartWalletContextValue {
   walletAddress: string | null;
   /** Called by the Dynamic bridge once the embedded wallet is available. */
   registerEmbeddedWallet: (address: string, dynamicUserId?: string) => void;
+  /** True when the CURRENTLY connected wallet is the Dezen embedded wallet.
+   *  Reported by the Dynamic bridge, so consumers (header, quick action) can
+   *  tell Dezen from an external wallet without importing the Dynamic SDK. */
+  isDezenWalletActive: boolean;
+  /** Bridge-only: report whether the connected wallet is the embedded one. */
+  setDezenWalletActive: (active: boolean) => void;
   refetchStatus: () => void;
   /** Re-open the "confirm it's you" wallet setup flow (e.g. from Settings). */
   openWalletSetup: () => void;
@@ -117,6 +123,9 @@ export function SmartWalletContextProvider({ children }: { children: ReactNode }
   // new user with no wallet, or "reconnect" (connecting to your existing wallet)
   // for a returning user whose wallet is already on the backend. Either can be
   // reopened later via openWalletSetup() (Settings / the Dezen Wallet option).
+  // Whether the connected wallet is the Dezen embedded one (set by the bridge).
+  const [isDezenWalletActive, setDezenWalletActive] = useState(false);
+
   const autoPrompted = useRef(false);
   const [modal, setModal] = useState<null | "setup" | "reconnect" | "connect">(null);
   // Manual open (Settings / the Dezen Wallet option after a disconnect) is a
@@ -142,6 +151,8 @@ export function SmartWalletContextProvider({ children }: { children: ReactNode }
     phase,
     walletAddress: status?.walletAddress ?? null,
     registerEmbeddedWallet,
+    isDezenWalletActive,
+    setDezenWalletActive,
     refetchStatus: () => void refetch(),
     openWalletSetup,
   };
