@@ -2,6 +2,7 @@ import { useMemo, useState, Suspense } from "react";
 import { useNavigate } from "react-router-dom";
 import { lazyWithReload } from "../../utils/lazyWithReload";
 import { useWalletOptions, useDynamicContext, useSwitchNetwork } from "@dynamic-labs/sdk-react-core";
+import { useAccount, useDisconnect } from "wagmi";
 import {
   RiShieldCheckLine,
   RiCheckLine,
@@ -64,6 +65,8 @@ export default function DynamicConnectModal({ onClose }: Props) {
   const { walletOptions, selectWalletOption } = useWalletOptions();
   const { sdkHasLoaded } = useDynamicContext();
   const switchNetwork = useSwitchNetwork();
+  const { isConnected } = useAccount();
+  const { disconnectAsync } = useDisconnect();
 
   const [step, setStep] = useState<Step>({ kind: "list" });
 
@@ -94,6 +97,16 @@ export default function DynamicConnectModal({ onClose }: Props) {
   const connectExternal = async (o: WalletOpt) => {
     setStep({ kind: "connecting", name: o.name });
     try {
+      // Free the slot first: with a wallet already attached (usually the Dezen
+      // embedded one), linking a second wallet is refused unless multi-wallet is
+      // enabled. Switching wallets is the intent here, so drop the current one.
+      if (isConnected) {
+        try {
+          await disconnectAsync();
+        } catch {
+          /* non-fatal - continue and let the connect attempt report the truth */
+        }
+      }
       const wallet = await selectWalletOption(o.key);
       // Force Celo - DezenMart only operates there.
       try {
@@ -103,14 +116,23 @@ export default function DynamicConnectModal({ onClose }: Props) {
       }
       setStep({ kind: "guide", walletKey: o.key, name: o.name });
     } catch (e) {
-      const msg = (e as Error)?.message?.toLowerCase() ?? "";
-      setStep({
-        kind: "error",
-        message:
-          msg.includes("reject") || msg.includes("cancel")
-            ? "Connection was cancelled."
-            : "Couldn't connect. Please try again.",
-      });
+      const raw = (e as Error)?.message ?? "";
+      const msg = raw.toLowerCase();
+      let message: string;
+      if (msg.includes("reject") || msg.includes("cancel")) {
+        message = "Connection was cancelled.";
+      } else if (msg.includes("not installed") || msg.includes("no provider")) {
+        message = `${o.name} isn't installed on this device. Install it, then try again.`;
+      } else if (msg.includes("already") || msg.includes("multi")) {
+        // Linking a second wallet needs multi-wallet enabled in the Dynamic dashboard.
+        message = `Your Dezen Wallet is already connected. Disconnect it first, then connect ${o.name}.`;
+      } else {
+        // Surface the real reason - a generic message made this undiagnosable.
+        message = raw
+          ? `Couldn't connect ${o.name}: ${raw}`
+          : `Couldn't connect ${o.name}. Please try again.`;
+      }
+      setStep({ kind: "error", message });
     }
   };
 

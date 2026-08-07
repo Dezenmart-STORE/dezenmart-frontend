@@ -65,11 +65,21 @@ export const FloatingRampButton = ({
       whileHover={{ scale: 1.06 }}
       whileTap={{ scale: 0.95 }}
       transition={{ type: "spring", damping: 14, stiffness: 200 }}
-      className={`fixed ${positionClasses[position]} z-40 flex items-center gap-2 bg-[#E23B3B] hover:bg-red-600 text-white px-5 py-3.5 rounded-full shadow-xl shadow-red-900/30 font-semibold text-sm transition-colors`}
-      aria-label="Open buy/sell crypto"
+      // Compact icon-only circle on mobile (the labelled pill covered a large
+      // slice of small screens); full pill from sm up.
+      className={`fixed ${positionClasses[position]} z-40 flex items-center justify-center gap-2 bg-[#E23B3B] hover:bg-red-600 text-white h-12 w-12 rounded-full sm:h-auto sm:w-auto sm:px-5 sm:py-3.5 shadow-xl shadow-red-900/30 font-semibold text-sm transition-colors`}
+      aria-label="Buy or sell crypto"
+      title="Buy or sell crypto"
     >
-      <ArrowUpDown />
-      {label ?? (defaultMode === "onramp" ? "Buy Crypto" : "Sell Crypto")}
+      {/* Swap arrows + "$" so the purpose reads without a label */}
+      <span className="relative flex items-center justify-center sm:hidden">
+        <ArrowUpDown />
+        <span className="absolute -right-1.5 -top-2 text-[11px] font-bold leading-none">$</span>
+      </span>
+      <span className="hidden sm:flex sm:items-center sm:gap-2">
+        <ArrowUpDown />
+        {label ?? (defaultMode === "onramp" ? "Buy Crypto" : "Sell Crypto")}
+      </span>
     </motion.button>
   );
 };
