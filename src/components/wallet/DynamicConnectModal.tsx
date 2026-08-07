@@ -1,7 +1,12 @@
 import { useMemo, useState, Suspense } from "react";
 import { useNavigate } from "react-router-dom";
 import { lazyWithReload } from "../../utils/lazyWithReload";
-import { useWalletOptions, useDynamicContext, useSwitchNetwork } from "@dynamic-labs/sdk-react-core";
+import {
+  useWalletOptions,
+  useDynamicContext,
+  useSwitchNetwork,
+  useStepUpAuthentication,
+} from "@dynamic-labs/sdk-react-core";
 import { useAccount, useDisconnect } from "wagmi";
 import {
   RiShieldCheckLine,
@@ -54,6 +59,7 @@ const iconUrlOf = (o: WalletOpt): string | undefined => {
 type Step =
   | { kind: "list" }
   | { kind: "connecting"; name: string }
+  | { kind: "verifying"; name: string }
   | { kind: "guide"; walletKey: string; name: string }
   | { kind: "error"; message: string };
 
@@ -67,6 +73,7 @@ export default function DynamicConnectModal({ onClose }: Props) {
   const switchNetwork = useSwitchNetwork();
   const { isConnected } = useAccount();
   const { disconnectAsync } = useDisconnect();
+  const { promptStepUpAuth } = useStepUpAuthentication();
 
   const [step, setStep] = useState<Step>({ kind: "list" });
 
@@ -107,7 +114,20 @@ export default function DynamicConnectModal({ onClose }: Props) {
           /* non-fatal - continue and let the connect attempt report the truth */
         }
       }
-      const wallet = await selectWalletOption(o.key);
+      let wallet;
+      try {
+        wallet = await selectWalletOption(o.key);
+      } catch (err) {
+        // Dynamic guards wallet-linking on an already-authenticated account
+        // behind step-up auth ("Elevated access token required"). Run Dynamic's
+        // own re-auth UI, then retry the link once.
+        const m = ((err as Error)?.message ?? "").toLowerCase();
+        if (!m.includes("elevated") && !m.includes("scope")) throw err;
+        setStep({ kind: "verifying", name: o.name });
+        await promptStepUpAuth();
+        setStep({ kind: "connecting", name: o.name });
+        wallet = await selectWalletOption(o.key);
+      }
       // Force Celo - DezenMart only operates there.
       try {
         await switchNetwork({ wallet, network: TARGET_CHAIN.id });
@@ -123,6 +143,8 @@ export default function DynamicConnectModal({ onClose }: Props) {
         message = "Connection was cancelled.";
       } else if (msg.includes("not installed") || msg.includes("no provider")) {
         message = `${o.name} isn't installed on this device. Install it, then try again.`;
+      } else if (msg.includes("elevated") || msg.includes("scope")) {
+        message = `We couldn't verify it's you, so ${o.name} wasn't linked. Please try again.`;
       } else if (msg.includes("already") || msg.includes("multi")) {
         // Linking a second wallet needs multi-wallet enabled in the Dynamic dashboard.
         message = `Your Dezen Wallet is already connected. Disconnect it first, then connect ${o.name}.`;
@@ -148,6 +170,14 @@ export default function DynamicConnectModal({ onClose }: Props) {
           <RiLoader4Line className="animate-spin text-2xl text-red-500" />
           <p className="text-sm text-gray-300">Connecting {step.name}…</p>
           <p className="text-xs text-gray-500">Approve the request in your wallet, then we'll switch it to Celo.</p>
+        </Centered>
+      ) : step.kind === "verifying" ? (
+        <Centered>
+          <RiLoader4Line className="animate-spin text-2xl text-red-500" />
+          <p className="text-sm text-gray-300">Confirming it's you…</p>
+          <p className="text-xs text-gray-500">
+            For your security we verify it's really you before linking {step.name} to your account.
+          </p>
         </Centered>
       ) : step.kind === "error" ? (
         <Centered>
