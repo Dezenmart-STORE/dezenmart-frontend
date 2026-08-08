@@ -18,14 +18,42 @@ const DynamicConnectModal = lazyWithReload(() => import("./DynamicConnectModal")
 
 export default function ConnectModal({ onClose }: Props) {
   const dynamicReady = useDynamicReady();
-  if (SMART_WALLET_ENABLED && dynamicReady) {
+
+  // With the feature on, ALWAYS use the Dynamic flow. Dynamic's chunk mounts a
+  // moment after boot, and falling back to the legacy wagmi picker during that
+  // window made the old modal flash up "sometimes" - a different, unbranded set
+  // of wallets. Wait for it instead; the legacy picker is only for the
+  // feature-disabled build.
+  if (SMART_WALLET_ENABLED) {
+    if (!dynamicReady) return <ConnectLoading onClose={onClose} />;
     return (
-      <Suspense fallback={null}>
+      <Suspense fallback={<ConnectLoading onClose={onClose} />}>
         <DynamicConnectModal onClose={onClose} />
       </Suspense>
     );
   }
   return <LegacyConnectModal onClose={onClose} />;
+}
+
+/** Shell shown while Dynamic's chunk mounts, so the modal never flashes. */
+function ConnectLoading({ onClose }: Props) {
+  useModalPresence();
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-end justify-center bg-black/60 p-0 backdrop-blur-sm sm:items-center sm:p-4"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div className="w-full rounded-t-3xl border border-[#292B30] bg-[#212428] p-8 shadow-2xl sm:max-w-md sm:rounded-2xl">
+        <div className="flex flex-col items-center gap-3 py-6 text-center">
+          <svg className="h-7 w-7 animate-spin text-red-500" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+          </svg>
+          <p className="text-sm text-gray-400">Loading wallets…</p>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // ── Wallet identity helpers ───────────────────────────────────────────────

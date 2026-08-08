@@ -10,6 +10,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useAccount } from "wagmi";
 import { useAuth } from "./AuthContext";
 import {
   useGetWalletStatusQuery,
@@ -125,6 +126,7 @@ export function SmartWalletContextProvider({ children }: { children: ReactNode }
   // reopened later via openWalletSetup() (Settings / the Dezen Wallet option).
   // Whether the connected wallet is the Dezen embedded one (set by the bridge).
   const [isDezenWalletActive, setDezenWalletActive] = useState(false);
+  const { isConnected, isConnecting, isReconnecting } = useAccount();
 
   const autoPrompted = useRef(false);
   const [modal, setModal] = useState<null | "setup" | "reconnect" | "connect">(null);
@@ -136,6 +138,12 @@ export function SmartWalletContextProvider({ children }: { children: ReactNode }
   );
   useEffect(() => {
     if (autoPrompted.current) return;
+    // Never auto-prompt while a wallet is connected or wagmi is still restoring
+    // one. On reload wagmi reconnects the last wallet asynchronously; firing the
+    // Dezen reconnect flow into that window hijacked an external wallet
+    // (MetaMask) by connecting the embedded connector over it, which is why a
+    // third-party wallet appeared to disconnect on every refresh.
+    if (isConnecting || isReconnecting || isConnected) return;
     if (phase === "needs-setup") {
       autoPrompted.current = true;
       setModal("setup");
@@ -143,7 +151,7 @@ export function SmartWalletContextProvider({ children }: { children: ReactNode }
       autoPrompted.current = true;
       setModal("reconnect");
     }
-  }, [phase]);
+  }, [phase, isConnected, isConnecting, isReconnecting]);
 
   const value: SmartWalletContextValue = {
     enabled: SMART_WALLET_ENABLED,
