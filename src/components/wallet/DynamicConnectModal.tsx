@@ -2,8 +2,10 @@ import { useMemo, useState, Suspense } from "react";
 import { useNavigate } from "react-router-dom";
 import { lazyWithReload } from "../../utils/lazyWithReload";
 import { useWalletOptions, useDynamicContext, useSwitchNetwork } from "@dynamic-labs/sdk-react-core";
-import { useAccount, useDisconnect, useConnect, useSwitchChain, type Connector } from "wagmi";
+import { useAccount, useDisconnect, useConnect, useSwitchChain } from "wagmi";
+import { metaMask, coinbaseWallet, walletConnect } from "wagmi/connectors";
 import { setWalletMode } from "../../config/walletMode";
+import { appMeta } from "../../config/chains";
 import {
   RiShieldCheckLine,
   RiCheckLine,
@@ -28,29 +30,54 @@ interface Props {
 const SQUID_ENABLED = !!(import.meta.env.VITE_SQUID_INTEGRATOR_ID as string | undefined)?.trim();
 const SquidBridgeModal = lazyWithReload(() => import("./SquidBridgeModal"), "SquidBridgeModal");
 
-// Curated external wallets (quality over quantity, all Celo-capable). Dynamic
-// handles the actual connection; we just surface a tidy, branded shortlist.
-const CURATED = ["valora", "metamask", "coinbase", "trust"];
+/**
+ * Curated external wallets, defined statically with their own wagmi connector
+ * factory.
+ *
+ * Deliberately NOT derived from Dynamic's wallet list or from
+ * useConnect().connectors: while the Dezen wallet is active, Dynamic replaces
+ * wagmi's connector list with its own, so any lookup against it comes back
+ * empty and the whole list disappears. wagmi's connect() accepts a connector
+ * factory directly, so we sidestep the live list entirely.
+ */
+const EXTERNAL_WALLETS = [
+  {
+    key: "metamask",
+    name: "MetaMask",
+    tagline: "Browser extension or mobile app",
+    brand: "#f6851b",
+    connector: () => metaMask({ dappMetadata: { name: appMeta.name, url: appMeta.url } }),
+  },
+  {
+    key: "coinbase",
+    name: "Coinbase Wallet",
+    tagline: "App or browser extension",
+    brand: "#0052ff",
+    connector: () =>
+      coinbaseWallet({
+        appName: appMeta.name,
+        appLogoUrl: appMeta.logo,
+        preference: "eoaOnly",
+      }),
+  },
+  ...(import.meta.env.VITE_WALLETCONNECT_PROJECT_ID
+    ? [
+        {
+          key: "walletconnect",
+          name: "Other wallets",
+          tagline: "Trust, Valora and more, via QR code",
+          brand: "#3b99fc",
+          connector: () =>
+            walletConnect({
+              projectId: import.meta.env.VITE_WALLETCONNECT_PROJECT_ID as string,
+              showQrModal: true,
+            }),
+        },
+      ]
+    : []),
+];
 
-const matchCurated = (keyOrName: string): string | null => {
-  const s = (keyOrName || "").toLowerCase();
-  return CURATED.find((c) => s.includes(c)) ?? null;
-};
-
-// Brand-coloured fallback tile (only used if Dynamic doesn't supply an icon).
-const BRAND: Record<string, string> = {
-  valora: "#35d07f",
-  metamask: "#f6851b",
-  coinbase: "#0052ff",
-  trust: "#3375bb",
-};
-
-type WalletOpt = { key: string; name: string; metadata?: unknown; isInstalledOnBrowser?: boolean };
-
-const iconUrlOf = (o: WalletOpt): string | undefined => {
-  const m = o.metadata as { icon?: string; iconUrl?: string } | undefined;
-  return m?.icon ?? m?.iconUrl;
-};
+type WalletOpt = (typeof EXTERNAL_WALLETS)[number];
 
 type Step =
   | { kind: "list" }
@@ -63,45 +90,14 @@ export default function DynamicConnectModal({ onClose }: Props) {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
   const { openWalletSetup } = useSmartWallet();
-  const { walletOptions, selectWalletOption } = useWalletOptions();
   const { sdkHasLoaded, user, handleLogOut } = useDynamicContext();
-  const switchNetwork = useSwitchNetwork();
   const { isConnected } = useAccount();
   const { disconnectAsync } = useDisconnect();
-  const { connectors: wagmiConnectors, connectAsync } = useConnect();
+  const { connectAsync } = useConnect();
   const { switchChainAsync } = useSwitchChain();
 
-  /** Our own wagmi connector for this wallet, if we ship one. */
-  const wagmiConnectorFor = (o: WalletOpt): Connector | undefined => {
-    const brand = matchCurated(o.key) || matchCurated(o.name);
-    if (!brand) return undefined;
-    return (wagmiConnectors as Connector[]).find((c) => {
-      const id = `${c.id} ${c.name}`.toLowerCase();
-      // Coinbase registers twice (smart wallet + EOA); take the EOA one.
-      if (brand === "coinbase") return id.includes("coinbase") && !id.includes("smart");
-      return id.includes(brand);
-    });
-  };
-
   const [step, setStep] = useState<Step>({ kind: "list" });
-
-  // Curated list, de-duplicated by matched brand, installed wallets first.
-  const externals = useMemo(() => {
-    const seen = new Set<string>();
-    return (walletOptions as WalletOpt[])
-      .map((o) => ({ o, brand: matchCurated(o.key) || matchCurated(o.name) }))
-      .filter((x): x is { o: WalletOpt; brand: string } => {
-        if (!x.brand || seen.has(x.brand)) return false;
-        seen.add(x.brand);
-        return true;
-      })
-      .sort((a, b) => Number(b.o.isInstalledOnBrowser) - Number(a.o.isInstalledOnBrowser))
-      .map((x) => x.o)
-      // Only offer what we can actually connect through wagmi, so a wallet
-      // never appears and then fails.
-      .filter((o) => !!wagmiConnectorFor(o));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [walletOptions, wagmiConnectors]);
+  const externals = EXTERNAL_WALLETS;
 
   const chooseDezenWallet = () => {
     if (!isAuthenticated) {
@@ -148,15 +144,9 @@ export default function DynamicConnectModal({ onClose }: Props) {
       // connecting, otherwise the connector list is still Dynamic's.
       await new Promise((r) => setTimeout(r, 0));
 
-      const direct = wagmiConnectorFor(o);
-      if (!direct) {
-        setStep({
-          kind: "error",
-          message: `${o.name} isn't available on this device. Try MetaMask or Coinbase Wallet.`,
-        });
-        return;
-      }
-      await connectAsync({ connector: direct, chainId: TARGET_CHAIN.id });
+      // wagmi accepts a connector factory, so this never depends on the live
+      // connector list (which Dynamic owns while the Dezen wallet is active).
+      await connectAsync({ connector: o.connector(), chainId: TARGET_CHAIN.id });
       try {
         await switchChainAsync({ chainId: TARGET_CHAIN.id });
       } catch {
@@ -261,32 +251,23 @@ export default function DynamicConnectModal({ onClose }: Props) {
               </div>
               <div className="space-y-2">
                 {externals.map((o) => {
-                  const url = iconUrlOf(o);
-                  const brand = matchCurated(o.key) || matchCurated(o.name) || "";
                   return (
                     <button
                       key={o.key}
                       onClick={() => connectExternal(o)}
-                      disabled={!sdkHasLoaded}
                       className="group flex w-full items-center gap-3 rounded-xl border border-[#292B30] bg-[#292B30] p-3.5 text-left transition-all hover:border-[#373A3F] hover:bg-[#373A3F] disabled:opacity-60"
                     >
                       <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#1a1c20]">
-                        {url ? (
-                          <img src={url} alt="" className="h-7 w-7 object-contain" />
-                        ) : (
-                          <span
-                            className="flex h-7 w-7 items-center justify-center rounded-lg text-sm font-bold text-white"
-                            style={{ backgroundColor: BRAND[brand] || "#3A3A3C" }}
-                          >
-                            {o.name.charAt(0)}
-                          </span>
-                        )}
+                        <span
+                          className="flex h-7 w-7 items-center justify-center rounded-lg text-sm font-bold text-white"
+                          style={{ backgroundColor: o.brand }}
+                        >
+                          {o.name.charAt(0)}
+                        </span>
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-semibold text-white">{o.name}</p>
-                        <p className="text-xs text-gray-500">
-                          {o.isInstalledOnBrowser ? "Detected, tap to connect" : "Connect this wallet"}
-                        </p>
+                        <p className="text-xs text-gray-500">{o.tagline}</p>
                       </div>
                       <svg className="h-4 w-4 flex-shrink-0 text-gray-600 transition-transform group-hover:translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />

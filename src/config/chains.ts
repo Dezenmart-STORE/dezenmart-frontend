@@ -54,7 +54,7 @@ export const SUPPORTED_CHAINS = [celo, celoSepolia] as const;
 // ---------------------------------------------------------------------------
 // Wagmi config - single source of truth for wallet connectivity
 // ---------------------------------------------------------------------------
-const appMeta = {
+export const appMeta = {
   name: "Dezenmart",
   url: typeof window !== "undefined" ? window.location.origin : "",
   logo: typeof window !== "undefined"
