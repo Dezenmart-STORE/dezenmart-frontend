@@ -2,7 +2,7 @@ import { useMemo, useState, Suspense } from "react";
 import { useNavigate } from "react-router-dom";
 import { lazyWithReload } from "../../utils/lazyWithReload";
 import { useWalletOptions, useDynamicContext, useSwitchNetwork } from "@dynamic-labs/sdk-react-core";
-import { useAccount, useDisconnect, useConnect, useSwitchChain, type Connector } from "wagmi";
+import { useAccount, useDisconnect } from "wagmi";
 import {
   RiShieldCheckLine,
   RiCheckLine,
@@ -67,29 +67,6 @@ export default function DynamicConnectModal({ onClose }: Props) {
   const switchNetwork = useSwitchNetwork();
   const { isConnected } = useAccount();
   const { disconnectAsync } = useDisconnect();
-  const { connectors: wagmiConnectors, connectAsync } = useConnect();
-  const { switchChainAsync } = useSwitchChain();
-
-  /**
-   * A plain wagmi connector for this wallet, if we ship one.
-   *
-   * Preferred over Dynamic's linking path: going through Dynamic makes the
-   * wallet a Dynamic *identity*, which triggers its information-capture step
-   * ("We need a bit of information" -> "Email already exists") and, on an
-   * authenticated session, the "Elevated access token required" guard. We only
-   * need a signer. wagmi also persists its own connection, so it survives a
-   * reload without any Dynamic session.
-   */
-  const wagmiConnectorFor = (o: WalletOpt): Connector | undefined => {
-    const brand = matchCurated(o.key) || matchCurated(o.name);
-    if (!brand) return undefined;
-    return (wagmiConnectors as Connector[]).find((c) => {
-      const id = `${c.id} ${c.name}`.toLowerCase();
-      // Coinbase registers twice (smart wallet + EOA); take the EOA one.
-      if (brand === "coinbase") return id.includes("coinbase") && !id.includes("smart");
-      return id.includes(brand);
-    });
-  };
 
   const [step, setStep] = useState<Step>({ kind: "list" });
 
@@ -141,25 +118,16 @@ export default function DynamicConnectModal({ onClose }: Props) {
         }
       }
 
-      const direct = wagmiConnectorFor(o);
-      if (direct) {
-        // Plain wagmi connect: no Dynamic identity, so no information-capture
-        // screen and no elevated-token guard, and wagmi restores it on reload.
-        await connectAsync({ connector: direct, chainId: TARGET_CHAIN.id });
-        try {
-          await switchChainAsync({ chainId: TARGET_CHAIN.id });
-        } catch {
-          /* the wrong-network guard elsewhere will prompt again */
-        }
-      } else {
-        // Wallets we don't ship a wagmi connector for (e.g. Valora) still go
-        // through Dynamic's picker.
-        const wallet = await selectWalletOption(o.key);
-        try {
-          await switchNetwork({ wallet, network: TARGET_CHAIN.id });
-        } catch {
-          /* keep going - the wrong-network guard elsewhere will prompt again */
-        }
+      // NOTE: every wallet must go through Dynamic here. DynamicWagmiConnector
+      // overwrites wagmi's connector list with its own single connector
+      // (`connectors.setState(connector ? [connector] : [])`) and force-
+      // disconnects wagmi whenever Dynamic holds no wallet, so a wallet
+      // connected straight through wagmi is wiped moments later.
+      const wallet = await selectWalletOption(o.key);
+      try {
+        await switchNetwork({ wallet, network: TARGET_CHAIN.id });
+      } catch {
+        /* keep going - the wrong-network guard elsewhere will prompt again */
       }
       setStep({ kind: "guide", walletKey: o.key, name: o.name });
     } catch (e) {
