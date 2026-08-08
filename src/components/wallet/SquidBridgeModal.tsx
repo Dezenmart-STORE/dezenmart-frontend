@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useModalPresence } from "../../utils/modalPresence";
-import { TARGET_CHAIN } from "../../config/chains";
+import { buildSquidIframeUrl } from "./squidConfig";
 
 interface Props {
   onClose: () => void;
@@ -11,9 +11,6 @@ interface Props {
 
 const INTEGRATOR_ID = (import.meta.env.VITE_SQUID_INTEGRATOR_ID as string | undefined)?.trim();
 export const SQUID_ENABLED = !!INTEGRATOR_ID;
-
-// CELO token on Celo mainnet - a sensible default destination asset.
-const CELO_TOKEN = "0x471EcE3750Da237f93B8E339c536989b8978a438";
 
 /**
  * In-app cross-chain bridge, Dezen-branded, destination locked to Celo.
@@ -39,20 +36,10 @@ export default function SquidBridgeModal({ onClose, variant = "bridge" }: Props)
     return () => clearTimeout(t);
   }, [loaded, failed]);
 
-  const src = useMemo(() => {
-    const config = {
-      integratorId: INTEGRATOR_ID,
-      themeType: "dark",
-      // Funds always end up on Celo, the only chain DezenMart settles on.
-      availableChains: { destination: [String(TARGET_CHAIN.id)] },
-      initialAssets: {
-        // Swapping starts from a Celo asset; bridging starts wherever the user is.
-        ...(isSwap ? { from: { chainId: String(TARGET_CHAIN.id), address: CELO_TOKEN } } : {}),
-        to: { chainId: String(TARGET_CHAIN.id), address: CELO_TOKEN },
-      },
-    };
-    return `https://studio.squidrouter.com/iframe?config=${encodeURIComponent(JSON.stringify(config))}`;
-  }, [isSwap]);
+  const src = useMemo(
+    () => buildSquidIframeUrl(INTEGRATOR_ID ?? "", isSwap ? "swap" : "bridge"),
+    [isSwap]
+  );
 
   return (
     <div
