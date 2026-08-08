@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useModalPresence } from "../../utils/modalPresence";
 import { TARGET_CHAIN } from "../../config/chains";
 
@@ -28,6 +28,16 @@ const CELO_TOKEN = "0x471EcE3750Da237f93B8E339c536989b8978a438";
 export default function SquidBridgeModal({ onClose, variant = "bridge" }: Props) {
   useModalPresence();
   const isSwap = variant === "swap";
+  const [loaded, setLoaded] = useState(false);
+  const [failed, setFailed] = useState(!SQUID_ENABLED);
+
+  // A blocked or misconfigured embed often never fires onError - it just never
+  // loads. Fall back rather than leaving a dead panel on screen.
+  useEffect(() => {
+    if (loaded || failed) return;
+    const t = setTimeout(() => setFailed((f) => f || !loaded), 12000);
+    return () => clearTimeout(t);
+  }, [loaded, failed]);
 
   const src = useMemo(() => {
     const config = {
@@ -72,13 +82,70 @@ export default function SquidBridgeModal({ onClose, variant = "bridge" }: Props)
           </button>
         </div>
 
-        <iframe
-          title={isSwap ? "Swap tokens" : "Move funds to Celo"}
-          src={src}
-          className="h-[640px] max-h-[75dvh] w-full border-0 bg-[#212428]"
-          allow="clipboard-read; clipboard-write; accelerometer; gyroscope; payment"
-        />
+        {failed ? (
+          <Fallback isSwap={isSwap} onClose={onClose} />
+        ) : (
+          <div className="relative">
+            {!loaded && (
+              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-[#212428]">
+                <div className="h-7 w-7 animate-spin rounded-full border-2 border-[#292B30] border-t-red-600" />
+                <p className="text-sm text-gray-500">Loading the exchange…</p>
+              </div>
+            )}
+            <iframe
+              title={isSwap ? "Swap tokens" : "Move funds to Celo"}
+              src={src}
+              onLoad={() => setLoaded(true)}
+              onError={() => setFailed(true)}
+              className="h-[640px] max-h-[75dvh] w-full border-0 bg-[#212428]"
+              allow="clipboard-read; clipboard-write; accelerometer; gyroscope; payment"
+            />
+          </div>
+        )}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Shown when the embedded exchange can't start (it reports itself offline, is
+ * blocked, or never loads). Better than leaving the user staring at a dead
+ * panel: explain it plainly and hand them a working way out.
+ */
+function Fallback({ isSwap, onClose }: { isSwap: boolean; onClose: () => void }) {
+  return (
+    <div className="p-5">
+      <div className="mb-3 flex items-center gap-2">
+        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-500/15">
+          <svg className="h-4 w-4 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <h3 className="text-sm font-bold text-white">The exchange isn't available right now</h3>
+      </div>
+      <p className="text-sm text-gray-400">
+        {isSwap
+          ? "You can still swap using Squid directly, then come back to DezenMart."
+          : "You can still bridge using Squid directly, then come back to DezenMart."}{" "}
+        Make sure the destination network is <span className="font-semibold text-gray-300">Celo</span>.
+      </p>
+      <a
+        href="https://app.squidrouter.com"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 py-3 text-sm font-bold text-white transition-colors hover:bg-red-700"
+      >
+        Open Squid
+        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+        </svg>
+      </a>
+      <button
+        onClick={onClose}
+        className="mt-2 w-full rounded-xl bg-[#292B30] py-3 text-sm font-medium text-gray-200 transition-colors hover:bg-[#333940]"
+      >
+        Close
+      </button>
     </div>
   );
 }
