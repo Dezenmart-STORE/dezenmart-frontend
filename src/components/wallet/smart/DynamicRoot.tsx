@@ -8,6 +8,7 @@ import { wagmiConfig, TARGET_CHAIN } from "../../../config/chains";
 import { queryClient } from "../../../config/queryClient";
 import { DYNAMIC_ENV_ID } from "../../../config/smartWallet";
 import { DynamicReadyContext } from "./dynamicReady";
+import { useWalletMode } from "../../../config/walletMode";
 
 // Theme Dynamic's built-in screens (passcode, embedded-wallet dialogs) to match
 // DezenMart: dark surface + red accent instead of the default light/blue. These
@@ -50,6 +51,7 @@ const DYNAMIC_CSS_OVERRIDES = `
  * into the app's existing useAccount / signing flows.
  */
 export default function DynamicRoot({ children }: { children: ReactNode }) {
+  const mode = useWalletMode();
   return (
     <DynamicContextProvider
       theme="dark"
@@ -93,11 +95,24 @@ export default function DynamicRoot({ children }: { children: ReactNode }) {
     >
       <WagmiProvider config={wagmiConfig}>
         <QueryClientProvider client={queryClient}>
-          <DynamicWagmiConnector>
+          {/* Only bridge Dynamic into wagmi for the embedded Dezen wallet. For a
+              third-party wallet we leave wagmi alone: DynamicWagmiConnector
+              replaces wagmi's connector list with its own and disconnects wagmi
+              whenever Dynamic holds no wallet, which turned every external
+              wallet into a Dynamic identity (email capture, elevated-token
+              guard) and dropped it on reload. Dynamic's context stays mounted
+              either way, so the Dezen wallet flows remain available. */}
+          {mode === "dezen" ? (
+            <DynamicWagmiConnector>
+              <DynamicReadyContext.Provider value={true}>
+                {children}
+              </DynamicReadyContext.Provider>
+            </DynamicWagmiConnector>
+          ) : (
             <DynamicReadyContext.Provider value={true}>
               {children}
             </DynamicReadyContext.Provider>
-          </DynamicWagmiConnector>
+          )}
         </QueryClientProvider>
       </WagmiProvider>
     </DynamicContextProvider>

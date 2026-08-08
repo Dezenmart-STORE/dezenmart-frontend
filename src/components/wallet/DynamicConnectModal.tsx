@@ -2,7 +2,8 @@ import { useMemo, useState, Suspense } from "react";
 import { useNavigate } from "react-router-dom";
 import { lazyWithReload } from "../../utils/lazyWithReload";
 import { useWalletOptions, useDynamicContext, useSwitchNetwork } from "@dynamic-labs/sdk-react-core";
-import { useAccount, useDisconnect } from "wagmi";
+import { useAccount, useDisconnect, useConnect, useSwitchChain, type Connector } from "wagmi";
+import { setWalletMode } from "../../config/walletMode";
 import {
   RiShieldCheckLine,
   RiCheckLine,
@@ -67,6 +68,20 @@ export default function DynamicConnectModal({ onClose }: Props) {
   const switchNetwork = useSwitchNetwork();
   const { isConnected } = useAccount();
   const { disconnectAsync } = useDisconnect();
+  const { connectors: wagmiConnectors, connectAsync } = useConnect();
+  const { switchChainAsync } = useSwitchChain();
+
+  /** Our own wagmi connector for this wallet, if we ship one. */
+  const wagmiConnectorFor = (o: WalletOpt): Connector | undefined => {
+    const brand = matchCurated(o.key) || matchCurated(o.name);
+    if (!brand) return undefined;
+    return (wagmiConnectors as Connector[]).find((c) => {
+      const id = `${c.id} ${c.name}`.toLowerCase();
+      // Coinbase registers twice (smart wallet + EOA); take the EOA one.
+      if (brand === "coinbase") return id.includes("coinbase") && !id.includes("smart");
+      return id.includes(brand);
+    });
+  };
 
   const [step, setStep] = useState<Step>({ kind: "list" });
 
@@ -81,8 +96,12 @@ export default function DynamicConnectModal({ onClose }: Props) {
         return true;
       })
       .sort((a, b) => Number(b.o.isInstalledOnBrowser) - Number(a.o.isInstalledOnBrowser))
-      .map((x) => x.o);
-  }, [walletOptions]);
+      .map((x) => x.o)
+      // Only offer what we can actually connect through wagmi, so a wallet
+      // never appears and then fails.
+      .filter((o) => !!wagmiConnectorFor(o));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [walletOptions, wagmiConnectors]);
 
   const chooseDezenWallet = () => {
     if (!isAuthenticated) {
@@ -90,6 +109,8 @@ export default function DynamicConnectModal({ onClose }: Props) {
       navigate("/login");
       return;
     }
+    // Hand wagmi back to Dynamic so it can bridge the embedded wallet in.
+    setWalletMode("dezen");
     onClose();
     openWalletSetup();
   };
@@ -118,14 +139,26 @@ export default function DynamicConnectModal({ onClose }: Props) {
         }
       }
 
-      // NOTE: every wallet must go through Dynamic here. DynamicWagmiConnector
-      // overwrites wagmi's connector list with its own single connector
-      // (`connectors.setState(connector ? [connector] : [])`) and force-
-      // disconnects wagmi whenever Dynamic holds no wallet, so a wallet
-      // connected straight through wagmi is wiped moments later.
-      const wallet = await selectWalletOption(o.key);
+      // Hand wagmi back to our own connectors. This unmounts
+      // DynamicWagmiConnector, so Dynamic stops replacing wagmi's connector list
+      // and stops disconnecting it - the external wallet is then a plain wagmi
+      // connection that persists on its own and never becomes a Dynamic identity.
+      setWalletMode("external");
+      // Let the provider tree re-render without DynamicWagmiConnector before
+      // connecting, otherwise the connector list is still Dynamic's.
+      await new Promise((r) => setTimeout(r, 0));
+
+      const direct = wagmiConnectorFor(o);
+      if (!direct) {
+        setStep({
+          kind: "error",
+          message: `${o.name} isn't available on this device. Try MetaMask or Coinbase Wallet.`,
+        });
+        return;
+      }
+      await connectAsync({ connector: direct, chainId: TARGET_CHAIN.id });
       try {
-        await switchNetwork({ wallet, network: TARGET_CHAIN.id });
+        await switchChainAsync({ chainId: TARGET_CHAIN.id });
       } catch {
         /* keep going - the wrong-network guard elsewhere will prompt again */
       }
