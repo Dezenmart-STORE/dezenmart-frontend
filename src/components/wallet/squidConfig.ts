@@ -1,5 +1,3 @@
-import { TARGET_CHAIN } from "../../config/chains";
-
 /**
  * Squid hosted-widget config, mirroring the shape Squid Studio emits for its
  * iframe embed. Two fields were missing from the first attempt and broke it:
@@ -123,8 +121,12 @@ export function buildSquidIframeUrl(integratorId: string, variant: "swap" | "bri
     },
     priceImpactWarnings: { warning: 3, critical: 5 },
     loadPreviousStateFromLocalStorage: true,
-    // DezenMart settles on Celo only, so funds must land there.
-    availableChains: { destination: [String(TARGET_CHAIN.id)] },
+    // NOTE: deliberately NOT setting availableChains. Locking the destination to
+    // Celo is only safe if Celo is enabled for the integrator; otherwise the
+    // widget initialises with no usable routes. The known-good Studio config
+    // omits it, so we match that. Celo is still enforced where it matters: we
+    // switch the wallet to Celo on connect and guard the wrong network at
+    // payment time.
   };
   return `https://studio.squidrouter.com/iframe?config=${encodeURIComponent(
     JSON.stringify(config)

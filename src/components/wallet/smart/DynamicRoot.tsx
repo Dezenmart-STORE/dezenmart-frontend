@@ -75,6 +75,13 @@ export default function DynamicRoot({ children }: { children: ReactNode }) {
         // dashboard (Embedded wallet -> Security -> require passcode per
         // transaction). This flag ensures the confirmation view always appears.
         transactionConfirmation: { required: true },
+        // Connecting a wallet must NOT sign it up as a Dynamic user. Dynamic's
+        // information-capture step then demands an email ("We need a bit of
+        // information" -> "Email already exists"), which is meaningless here:
+        // the person is already signed in to DezenMart with Google, and we only
+        // need the wallet as a signer. The Dezen embedded wallet is unaffected -
+        // it authenticates explicitly through the email OTP flow.
+        initialAuthenticationMode: "connect-only",
         overrides: {
           // Celo mainnet is the ONLY network DezenMart settles on. Filter the
           // dashboard's list so external wallets can't be pointed at Ethereum or

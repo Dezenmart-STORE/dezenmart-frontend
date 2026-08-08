@@ -70,7 +70,7 @@ export default function SquidBridgeModal({ onClose, variant = "bridge" }: Props)
         </div>
 
         {failed ? (
-          <Fallback isSwap={isSwap} onClose={onClose} />
+          <Fallback isSwap={isSwap} onClose={onClose} integratorId={INTEGRATOR_ID} />
         ) : (
           <div className="relative">
             {!loaded && (
@@ -99,7 +99,15 @@ export default function SquidBridgeModal({ onClose, variant = "bridge" }: Props)
  * blocked, or never loads). Better than leaving the user staring at a dead
  * panel: explain it plainly and hand them a working way out.
  */
-function Fallback({ isSwap, onClose }: { isSwap: boolean; onClose: () => void }) {
+function Fallback({
+  isSwap,
+  onClose,
+  integratorId,
+}: {
+  isSwap: boolean;
+  onClose: () => void;
+  integratorId?: string;
+}) {
   return (
     <div className="p-5">
       <div className="mb-3 flex items-center gap-2">
@@ -115,6 +123,11 @@ function Fallback({ isSwap, onClose }: { isSwap: boolean; onClose: () => void })
           ? "You can still swap using Squid directly, then come back to DezenMart."
           : "You can still bridge using Squid directly, then come back to DezenMart."}{" "}
         Make sure the destination network is <span className="font-semibold text-gray-300">Celo</span>.
+      </p>
+      {/* Surfaces the account the embed is using: an inactive, mistyped or
+          domain-restricted integrator id is the usual cause of "Squid Offline". */}
+      <p className="mt-3 rounded-lg bg-[#1a1c20] px-3 py-2 font-mono text-[11px] text-gray-500">
+        Integrator: {integratorId ? `${integratorId.slice(0, 6)}…${integratorId.slice(-4)}` : "not set"}
       </p>
       <a
         href="https://app.squidrouter.com"
