@@ -29,6 +29,16 @@ interface Props {
 const SQUID_ENABLED = !!(import.meta.env.VITE_SQUID_INTEGRATOR_ID as string | undefined)?.trim();
 const SquidBridgeModal = lazyWithReload(() => import("./SquidBridgeModal"), "SquidBridgeModal");
 
+// Mirrors the wallets registered in config/chains.ts (connectorsForWallets).
+// Shown as chips so people can see their wallet is supported before opening the
+// picker; RainbowKit renders the real icons and handles the connection.
+const SUPPORTED_WALLETS = [
+  { name: "MetaMask", short: "M", brand: "#f6851b" },
+  { name: "Coinbase", short: "C", brand: "#0052ff" },
+  { name: "Valora", short: "V", brand: "#35d07f" },
+  { name: "Trust", short: "T", brand: "#3375bb" },
+];
+
 
 type Step =
   | { kind: "list" }
@@ -173,14 +183,25 @@ export default function DynamicConnectModal({ onClose }: Props) {
             onClick={useAnotherWallet}
             className="group flex w-full items-center gap-3 rounded-xl border border-[#292B30] bg-[#292B30] p-3.5 text-left transition-all hover:border-[#373A3F] hover:bg-[#373A3F]"
           >
-            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[#1a1c20]">
-              <svg className="h-5 w-5 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-              </svg>
+            {/* Brand chips so the supported wallets are visible up front, rather
+                than hidden until the picker opens. */}
+            <div className="flex flex-shrink-0 -space-x-2">
+              {SUPPORTED_WALLETS.map((w) => (
+                <span
+                  key={w.name}
+                  title={w.name}
+                  className="flex h-8 w-8 items-center justify-center rounded-full text-[11px] font-bold text-white ring-2 ring-[#292B30]"
+                  style={{ backgroundColor: w.brand }}
+                >
+                  {w.short}
+                </span>
+              ))}
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold text-white">Connect another wallet</p>
-              <p className="text-xs text-gray-500">MetaMask, Coinbase, Valora, Trust and more</p>
+              <p className="text-xs text-gray-500">
+                {SUPPORTED_WALLETS.map((w) => w.name).join(", ")} and more
+              </p>
             </div>
             <svg className="h-4 w-4 flex-shrink-0 text-gray-600 transition-transform group-hover:translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
