@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { lazyWithReload } from "../../utils/lazyWithReload";
 import { useDynamicContext } from "@dynamic-labs/sdk-react-core";
 import { useAccount, useDisconnect } from "wagmi";
-import { useConnectModal } from "@rainbow-me/rainbowkit";
+import { WalletButton } from "@rainbow-me/rainbowkit";
 import { setWalletMode } from "../../config/walletMode";
 import {
   RiShieldCheckLine,
@@ -29,20 +29,17 @@ interface Props {
 const SQUID_ENABLED = !!(import.meta.env.VITE_SQUID_INTEGRATOR_ID as string | undefined)?.trim();
 const SquidBridgeModal = lazyWithReload(() => import("./SquidBridgeModal"), "SquidBridgeModal");
 
-// Mirrors the wallets registered in config/chains.ts (connectorsForWallets).
-// Shown as chips so people can see their wallet is supported before opening the
-// picker; RainbowKit renders the real icons and handles the connection.
-const SUPPORTED_WALLETS = [
-  { name: "MetaMask", short: "M", brand: "#f6851b" },
-  { name: "Coinbase", short: "C", brand: "#0052ff" },
-  { name: "Valora", short: "V", brand: "#35d07f" },
-  { name: "Trust", short: "T", brand: "#3375bb" },
-];
+// RainbowKit wallet ids, matching what config/chains.ts registers. We render
+// these inside our own modal (via WalletButton.Custom) rather than opening
+// RainbowKit's picker: that keeps our copy and layout, and avoids its "Get a
+// Wallet" page, which shipped empty.
+const WALLET_IDS = ["metaMask", "coinbase", "valora", "trust", "walletConnect"];
 
 
 type Step =
   | { kind: "list" }
   | { kind: "connecting"; name: string }
+  | { kind: "wallets" }
   | { kind: "guide"; walletKey: string; name: string }
   | { kind: "error"; message: string };
 
@@ -54,7 +51,6 @@ export default function DynamicConnectModal({ onClose }: Props) {
   const { sdkHasLoaded, user, handleLogOut } = useDynamicContext();
   const { isConnected } = useAccount();
   const { disconnectAsync } = useDisconnect();
-  const { openConnectModal } = useConnectModal();
 
   const [step, setStep] = useState<Step>({ kind: "list" });
 
@@ -95,23 +91,85 @@ export default function DynamicConnectModal({ onClose }: Props) {
       }
     }
 
-    // Unmounts DynamicWagmiConnector, so Dynamic stops replacing wagmi's
-    // connector list and stops disconnecting it. The external wallet is then a
-    // plain wagmi connection that persists on its own.
+    // Unmounts DynamicWagmiConnector and restores our own connectors, so the
+    // external wallet is a plain wagmi connection that persists on its own.
     setWalletMode("external");
-
-    onClose();
-    // Let the tree re-render without DynamicWagmiConnector before RainbowKit
-    // reads the connector list.
-    setTimeout(() => openConnectModal?.(), 50);
+    setStep({ kind: "wallets" });
   };
 
   return (
-    <Shell onClose={onClose} title={step.kind === "guide" ? "Almost done" : "Connect a wallet"}
-      subtitle={step.kind === "guide" ? undefined : "Choose how you'd like to connect"}
-      onBack={step.kind === "connecting" || step.kind === "error" ? () => setStep({ kind: "list" }) : undefined}
+    <Shell
+      onClose={onClose}
+      title={
+        step.kind === "guide"
+          ? "Almost done"
+          : step.kind === "wallets"
+          ? "Choose your wallet"
+          : "Connect a wallet"
+      }
+      subtitle={
+        step.kind === "guide"
+          ? undefined
+          : step.kind === "wallets"
+          ? "We'll switch it to Celo once it's connected"
+          : "Choose how you'd like to connect"
+      }
+      onBack={
+        step.kind === "connecting" || step.kind === "error" || step.kind === "wallets"
+          ? () => setStep({ kind: "list" })
+          : undefined
+      }
     >
-      {step.kind === "guide" ? (
+      {step.kind === "wallets" ? (
+        <div className="space-y-2">
+          {WALLET_IDS.map((id) => (
+            <WalletButton.Custom key={id} wallet={id}>
+              {({ ready, connect, connector: rawConnector }) => {
+                // RainbowKit's public type omits the display fields it actually
+                // provides at runtime.
+                const connector = rawConnector as unknown as {
+                  name?: string;
+                  iconUrl?: string | (() => Promise<string>);
+                  installed?: boolean;
+                };
+                return (
+                <button
+                  onClick={() => {
+                    void connect();
+                    onClose();
+                  }}
+                  disabled={!ready}
+                  className="group flex w-full items-center gap-3 rounded-xl border border-[#292B30] bg-[#292B30] p-3.5 text-left transition-all hover:border-[#373A3F] hover:bg-[#373A3F] disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#1a1c20]">
+                    {connector?.iconUrl ? (
+                      <img
+                        src={typeof connector.iconUrl === "string" ? connector.iconUrl : undefined}
+                        alt=""
+                        className="h-7 w-7 rounded-md object-contain"
+                      />
+                    ) : (
+                      <span className="text-sm font-bold text-gray-300">
+                        {(connector?.name ?? id).charAt(0)}
+                      </span>
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-white">{connector?.name ?? id}</p>
+                    <p className="text-xs text-gray-500">
+                      {connector?.installed ? "Detected, tap to connect" : "Connect this wallet"}
+                    </p>
+                  </div>
+                  <svg className="h-4 w-4 flex-shrink-0 text-gray-600 transition-transform group-hover:translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+                );
+              }}
+            </WalletButton.Custom>
+          ))}
+        </div>
+      ) : step.kind === "guide" ? (
         <GuideView name={step.name} walletKey={step.walletKey} onDone={onClose} />
       ) : step.kind === "connecting" ? (
         <Centered>
@@ -183,25 +241,14 @@ export default function DynamicConnectModal({ onClose }: Props) {
             onClick={useAnotherWallet}
             className="group flex w-full items-center gap-3 rounded-xl border border-[#292B30] bg-[#292B30] p-3.5 text-left transition-all hover:border-[#373A3F] hover:bg-[#373A3F]"
           >
-            {/* Brand chips so the supported wallets are visible up front, rather
-                than hidden until the picker opens. */}
-            <div className="flex flex-shrink-0 -space-x-2">
-              {SUPPORTED_WALLETS.map((w) => (
-                <span
-                  key={w.name}
-                  title={w.name}
-                  className="flex h-8 w-8 items-center justify-center rounded-full text-[11px] font-bold text-white ring-2 ring-[#292B30]"
-                  style={{ backgroundColor: w.brand }}
-                >
-                  {w.short}
-                </span>
-              ))}
+            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[#1a1c20]">
+              <svg className="h-5 w-5 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+              </svg>
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold text-white">Connect another wallet</p>
-              <p className="text-xs text-gray-500">
-                {SUPPORTED_WALLETS.map((w) => w.name).join(", ")} and more
-              </p>
+              <p className="text-xs text-gray-500">MetaMask, Coinbase, Valora, Trust and more</p>
             </div>
             <svg className="h-4 w-4 flex-shrink-0 text-gray-600 transition-transform group-hover:translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
