@@ -9,6 +9,16 @@ import { queryClient } from "../../../config/queryClient";
 import { DYNAMIC_ENV_ID } from "../../../config/smartWallet";
 import { DynamicReadyContext } from "./dynamicReady";
 import { useWalletMode } from "../../../config/walletMode";
+import { RainbowKitProvider, darkTheme } from "@rainbow-me/rainbowkit";
+import "@rainbow-me/rainbowkit/styles.css";
+
+// RainbowKit's modal, themed to DezenMart (dark + brand red).
+const rkTheme = darkTheme({
+  accentColor: "#dc2626",
+  accentColorForeground: "#ffffff",
+  borderRadius: "large",
+  overlayBlur: "small",
+});
 
 // Theme Dynamic's built-in screens (passcode, embedded-wallet dialogs) to match
 // DezenMart: dark surface + red accent instead of the default light/blue. These
@@ -102,17 +112,23 @@ export default function DynamicRoot({ children }: { children: ReactNode }) {
               wallet into a Dynamic identity (email capture, elevated-token
               guard) and dropped it on reload. Dynamic's context stays mounted
               either way, so the Dezen wallet flows remain available. */}
-          {mode === "dezen" ? (
-            <DynamicWagmiConnector>
+          {/* RainbowKit is mounted in both modes: unlike DynamicWagmiConnector
+              it doesn't take over wagmi, it just provides the connect modal, so
+              useConnectModal() is available even while the Dezen wallet holds
+              the connection. */}
+          <RainbowKitProvider theme={rkTheme} modalSize="compact" initialChain={TARGET_CHAIN}>
+            {mode === "dezen" ? (
+              <DynamicWagmiConnector>
+                <DynamicReadyContext.Provider value={true}>
+                  {children}
+                </DynamicReadyContext.Provider>
+              </DynamicWagmiConnector>
+            ) : (
               <DynamicReadyContext.Provider value={true}>
                 {children}
               </DynamicReadyContext.Provider>
-            </DynamicWagmiConnector>
-          ) : (
-            <DynamicReadyContext.Provider value={true}>
-              {children}
-            </DynamicReadyContext.Provider>
-          )}
+            )}
+          </RainbowKitProvider>
         </QueryClientProvider>
       </WagmiProvider>
     </DynamicContextProvider>

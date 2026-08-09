@@ -1,11 +1,10 @@
 import { useMemo, useState, Suspense } from "react";
 import { useNavigate } from "react-router-dom";
 import { lazyWithReload } from "../../utils/lazyWithReload";
-import { useWalletOptions, useDynamicContext, useSwitchNetwork } from "@dynamic-labs/sdk-react-core";
-import { useAccount, useDisconnect, useConnect, useSwitchChain } from "wagmi";
-import { metaMask, coinbaseWallet, walletConnect } from "wagmi/connectors";
+import { useDynamicContext } from "@dynamic-labs/sdk-react-core";
+import { useAccount, useDisconnect } from "wagmi";
+import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { setWalletMode } from "../../config/walletMode";
-import { appMeta } from "../../config/chains";
 import {
   RiShieldCheckLine,
   RiCheckLine,
@@ -30,54 +29,6 @@ interface Props {
 const SQUID_ENABLED = !!(import.meta.env.VITE_SQUID_INTEGRATOR_ID as string | undefined)?.trim();
 const SquidBridgeModal = lazyWithReload(() => import("./SquidBridgeModal"), "SquidBridgeModal");
 
-/**
- * Curated external wallets, defined statically with their own wagmi connector
- * factory.
- *
- * Deliberately NOT derived from Dynamic's wallet list or from
- * useConnect().connectors: while the Dezen wallet is active, Dynamic replaces
- * wagmi's connector list with its own, so any lookup against it comes back
- * empty and the whole list disappears. wagmi's connect() accepts a connector
- * factory directly, so we sidestep the live list entirely.
- */
-const EXTERNAL_WALLETS = [
-  {
-    key: "metamask",
-    name: "MetaMask",
-    tagline: "Browser extension or mobile app",
-    brand: "#f6851b",
-    connector: () => metaMask({ dappMetadata: { name: appMeta.name, url: appMeta.url } }),
-  },
-  {
-    key: "coinbase",
-    name: "Coinbase Wallet",
-    tagline: "App or browser extension",
-    brand: "#0052ff",
-    connector: () =>
-      coinbaseWallet({
-        appName: appMeta.name,
-        appLogoUrl: appMeta.logo,
-        preference: "eoaOnly",
-      }),
-  },
-  ...(import.meta.env.VITE_WALLETCONNECT_PROJECT_ID
-    ? [
-        {
-          key: "walletconnect",
-          name: "Other wallets",
-          tagline: "Trust, Valora and more, via QR code",
-          brand: "#3b99fc",
-          connector: () =>
-            walletConnect({
-              projectId: import.meta.env.VITE_WALLETCONNECT_PROJECT_ID as string,
-              showQrModal: true,
-            }),
-        },
-      ]
-    : []),
-];
-
-type WalletOpt = (typeof EXTERNAL_WALLETS)[number];
 
 type Step =
   | { kind: "list" }
@@ -93,11 +44,9 @@ export default function DynamicConnectModal({ onClose }: Props) {
   const { sdkHasLoaded, user, handleLogOut } = useDynamicContext();
   const { isConnected } = useAccount();
   const { disconnectAsync } = useDisconnect();
-  const { connectAsync } = useConnect();
-  const { switchChainAsync } = useSwitchChain();
+  const { openConnectModal } = useConnectModal();
 
   const [step, setStep] = useState<Step>({ kind: "list" });
-  const externals = EXTERNAL_WALLETS;
 
   const chooseDezenWallet = () => {
     if (!isAuthenticated) {
@@ -111,68 +60,40 @@ export default function DynamicConnectModal({ onClose }: Props) {
     openWalletSetup();
   };
 
-  const connectExternal = async (o: WalletOpt) => {
-    setStep({ kind: "connecting", name: o.name });
-    try {
-      // End the Dezen (Dynamic) wallet session first. While a wallet session is
-      // authenticated, attaching another wallet counts as LINKING it to the
-      // account, which Dynamic guards behind step-up re-auth ("Elevated access
-      // token required") - an emailed code just to connect MetaMask. Ending the
-      // wallet session makes this a plain wallet connect instead: no linking, no
-      // code. The DezenMart login is untouched, and the Dezen Wallet stays on
-      // the account, so it can be reconnected any time.
-      if (user) {
-        try {
-          await handleLogOut();
-        } catch {
-          /* non-fatal - fall through and let the connect attempt report the truth */
-        }
-      } else if (isConnected) {
-        try {
-          await disconnectAsync();
-        } catch {
-          /* non-fatal */
-        }
-      }
-
-      // Hand wagmi back to our own connectors. This unmounts
-      // DynamicWagmiConnector, so Dynamic stops replacing wagmi's connector list
-      // and stops disconnecting it - the external wallet is then a plain wagmi
-      // connection that persists on its own and never becomes a Dynamic identity.
-      setWalletMode("external");
-      // Let the provider tree re-render without DynamicWagmiConnector before
-      // connecting, otherwise the connector list is still Dynamic's.
-      await new Promise((r) => setTimeout(r, 0));
-
-      // wagmi accepts a connector factory, so this never depends on the live
-      // connector list (which Dynamic owns while the Dezen wallet is active).
-      await connectAsync({ connector: o.connector(), chainId: TARGET_CHAIN.id });
+  /**
+   * Hand off to RainbowKit for third-party wallets. It owns the whole
+   * experience from here: wallet list, install prompts, QR and mobile
+   * deep-links, and connection errors.
+   */
+  const useAnotherWallet = async () => {
+    // End the Dezen (Dynamic) wallet session first. While one is authenticated,
+    // attaching another wallet counts as LINKING it to the Dynamic account,
+    // which triggers the information-capture email prompt and the "Elevated
+    // access token required" guard. The DezenMart login is untouched and the
+    // Dezen Wallet stays on the account, so it can be reconnected any time.
+    if (user) {
       try {
-        await switchChainAsync({ chainId: TARGET_CHAIN.id });
+        await handleLogOut();
       } catch {
-        /* keep going - the wrong-network guard elsewhere will prompt again */
+        /* non-fatal */
       }
-      setStep({ kind: "guide", walletKey: o.key, name: o.name });
-    } catch (e) {
-      const raw = (e as Error)?.message ?? "";
-      const msg = raw.toLowerCase();
-      let message: string;
-      if (msg.includes("reject") || msg.includes("cancel")) {
-        message = "Connection was cancelled.";
-      } else if (msg.includes("not installed") || msg.includes("no provider")) {
-        message = `${o.name} isn't installed on this device. Install it, then try again.`;
-      } else if (msg.includes("elevated") || msg.includes("scope")) {
-        message = `Your Dezen Wallet is still active. Disconnect it from the wallet menu, then connect ${o.name}.`;
-      } else if (msg.includes("already") || msg.includes("multi")) {
-        message = `Your Dezen Wallet is already connected. Disconnect it first, then connect ${o.name}.`;
-      } else {
-        // Surface the real reason - a generic message made this undiagnosable.
-        message = raw
-          ? `Couldn't connect ${o.name}: ${raw}`
-          : `Couldn't connect ${o.name}. Please try again.`;
+    } else if (isConnected) {
+      try {
+        await disconnectAsync();
+      } catch {
+        /* non-fatal */
       }
-      setStep({ kind: "error", message });
     }
+
+    // Unmounts DynamicWagmiConnector, so Dynamic stops replacing wagmi's
+    // connector list and stops disconnecting it. The external wallet is then a
+    // plain wagmi connection that persists on its own.
+    setWalletMode("external");
+
+    onClose();
+    // Let the tree re-render without DynamicWagmiConnector before RainbowKit
+    // reads the connector list.
+    setTimeout(() => openConnectModal?.(), 50);
   };
 
   return (
@@ -241,43 +162,30 @@ export default function DynamicConnectModal({ onClose }: Props) {
             </p>
           </div>
 
-          {/* Curated external wallets */}
-          {externals.length > 0 && (
-            <>
-              <div className="flex items-center gap-3">
-                <div className="h-px flex-1 bg-[#292B30]" />
-                <span className="text-[11px] font-medium text-gray-600">Or use another wallet</span>
-                <div className="h-px flex-1 bg-[#292B30]" />
-              </div>
-              <div className="space-y-2">
-                {externals.map((o) => {
-                  return (
-                    <button
-                      key={o.key}
-                      onClick={() => connectExternal(o)}
-                      className="group flex w-full items-center gap-3 rounded-xl border border-[#292B30] bg-[#292B30] p-3.5 text-left transition-all hover:border-[#373A3F] hover:bg-[#373A3F] disabled:opacity-60"
-                    >
-                      <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#1a1c20]">
-                        <span
-                          className="flex h-7 w-7 items-center justify-center rounded-lg text-sm font-bold text-white"
-                          style={{ backgroundColor: o.brand }}
-                        >
-                          {o.name.charAt(0)}
-                        </span>
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold text-white">{o.name}</p>
-                        <p className="text-xs text-gray-500">{o.tagline}</p>
-                      </div>
-                      <svg className="h-4 w-4 flex-shrink-0 text-gray-600 transition-transform group-hover:translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                    </button>
-                  );
-                })}
-              </div>
-            </>
-          )}
+          {/* Third-party wallets: RainbowKit owns this list and its edge cases
+              (installed vs not, QR, mobile deep-links, real wallet icons). */}
+          <div className="flex items-center gap-3">
+            <div className="h-px flex-1 bg-[#292B30]" />
+            <span className="text-[11px] font-medium text-gray-600">Or use another wallet</span>
+            <div className="h-px flex-1 bg-[#292B30]" />
+          </div>
+          <button
+            onClick={useAnotherWallet}
+            className="group flex w-full items-center gap-3 rounded-xl border border-[#292B30] bg-[#292B30] p-3.5 text-left transition-all hover:border-[#373A3F] hover:bg-[#373A3F]"
+          >
+            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[#1a1c20]">
+              <svg className="h-5 w-5 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+              </svg>
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-white">Connect another wallet</p>
+              <p className="text-xs text-gray-500">MetaMask, Coinbase, Valora, Trust and more</p>
+            </div>
+            <svg className="h-4 w-4 flex-shrink-0 text-gray-600 transition-transform group-hover:translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
 
           {!sdkHasLoaded && (
             <p className="text-center text-xs text-gray-600">Loading wallets…</p>

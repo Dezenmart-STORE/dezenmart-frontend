@@ -1,6 +1,14 @@
 import { http, createConfig, fallback } from "wagmi";
 import { celo, celoSepolia } from "wagmi/chains";
 import { coinbaseWallet, metaMask, walletConnect } from "wagmi/connectors";
+import { connectorsForWallets } from "@rainbow-me/rainbowkit";
+import {
+  metaMaskWallet,
+  coinbaseWallet as rkCoinbaseWallet,
+  trustWallet,
+  valoraWallet,
+  walletConnectWallet,
+} from "@rainbow-me/rainbowkit/wallets";
 
 // ---------------------------------------------------------------------------
 // RPC endpoints with fallbacks for reliability
@@ -62,54 +70,51 @@ export const appMeta = {
     : "",
 };
 
+const WC_PROJECT_ID = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID as string | undefined;
+
+/**
+ * External wallet connectors, built by RainbowKit.
+ *
+ * RainbowKit owns the third-party connect experience (install/QR/mobile
+ * deep-links, real wallet icons, "not installed" states) - hand-rolling that
+ * list was where our own version kept breaking. Dynamic is used ONLY for the
+ * Dezen embedded wallet; see config/walletMode.ts for how the two are kept
+ * apart.
+ *
+ * WalletConnect-backed wallets (Trust, Valora, the QR option) need a project
+ * id, so they're only registered when one is configured. MetaMask and Coinbase
+ * work without it via their own SDKs.
+ */
+const externalConnectors = connectorsForWallets(
+  [
+    {
+      groupName: "Recommended",
+      wallets: [
+        metaMaskWallet,
+        rkCoinbaseWallet,
+        ...(WC_PROJECT_ID ? [valoraWallet, trustWallet, walletConnectWallet] : []),
+      ],
+    },
+  ],
+  {
+    appName: appMeta.name,
+    appUrl: appMeta.url,
+    appIcon: appMeta.logo,
+    // RainbowKit requires the field; wallets that don't need it ignore it.
+    projectId: WC_PROJECT_ID ?? "",
+  }
+);
+
 export const wagmiConfig = createConfig({
   chains: [celo, celoSepolia],
   connectors: [
-    // Smart Wallet - email / passkey / phone (best for Web2 users)
+    // Coinbase Smart Wallet - email / passkey, kept for the Web2 path.
     coinbaseWallet({
       appName: appMeta.name,
       appLogoUrl: appMeta.logo,
       preference: "smartWalletOnly",
     }),
-    // Coinbase Wallet - traditional browser extension / mobile app
-    coinbaseWallet({
-      appName: appMeta.name,
-      appLogoUrl: appMeta.logo,
-      preference: "eoaOnly",
-    }),
-    metaMask({
-      dappMetadata: { name: appMeta.name, url: appMeta.url },
-      enableAnalytics: false,
-    }),
-    ...(import.meta.env.VITE_WALLETCONNECT_PROJECT_ID
-      ? [
-          walletConnect({
-            projectId: import.meta.env.VITE_WALLETCONNECT_PROJECT_ID,
-            metadata: {
-              name: appMeta.name,
-              description:
-                "Decentralized marketplace for secure crypto payments",
-              url: appMeta.url,
-              icons: [appMeta.logo],
-            },
-            showQrModal: true,
-            qrModalOptions: {
-              themeMode: "dark" as const,
-              themeVariables: {
-                "--wcm-z-index": "9999",
-                "--wcm-accent-color": "#FF3B30",
-              },
-              explorerRecommendedWalletIds: [
-                "c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96",
-                "fd20dc426fb37566d803205b19bbc1d4096b248ac04548e3cfb6b3a38bd033aa",
-                "4622a2b2d6af1c9844944291e5e7351a6aa24cd7b23099efac1b2fd875da31a0",
-              ],
-              enableExplorer: true,
-            },
-            isNewChainsStale: false,
-          }),
-        ]
-      : []),
+    ...externalConnectors,
   ],
   transports: {
     [celo.id]: fallback(
