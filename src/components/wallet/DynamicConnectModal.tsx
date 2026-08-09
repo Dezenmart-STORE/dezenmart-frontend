@@ -1,4 +1,4 @@
-import { useMemo, useState, Suspense } from "react";
+import { useEffect, useMemo, useState, Suspense } from "react";
 import { useNavigate } from "react-router-dom";
 import { lazyWithReload } from "../../utils/lazyWithReload";
 import { useDynamicContext } from "@dynamic-labs/sdk-react-core";
@@ -34,6 +34,44 @@ const SquidBridgeModal = lazyWithReload(() => import("./SquidBridgeModal"), "Squ
 // RainbowKit's picker: that keeps our copy and layout, and avoids its "Get a
 // Wallet" page, which shipped empty.
 const WALLET_IDS = ["metaMask", "coinbase", "valora", "trust", "walletConnect"];
+
+/** RainbowKit gives iconUrl as either a string or a lazy async loader. */
+type RkIcon = string | (() => Promise<string>) | undefined;
+
+function useResolvedIcon(icon: RkIcon): string | undefined {
+  const [src, setSrc] = useState<string | undefined>(
+    typeof icon === "string" ? icon : undefined
+  );
+  useEffect(() => {
+    let alive = true;
+    if (typeof icon === "string") {
+      setSrc(icon);
+    } else if (typeof icon === "function") {
+      // Most wallets ship the icon as a lazy import, which is why rendering
+      // iconUrl directly left the tiles blank.
+      Promise.resolve(icon())
+        .then((url) => alive && setSrc(url))
+        .catch(() => {});
+    }
+    return () => {
+      alive = false;
+    };
+  }, [icon]);
+  return src;
+}
+
+/** Wallet logo with a lettered fallback while it resolves. */
+function WalletIcon({ icon, name, className = "h-7 w-7" }: { icon: RkIcon; name: string; className?: string }) {
+  const src = useResolvedIcon(icon);
+  if (!src) {
+    return (
+      <span className={`flex ${className} items-center justify-center rounded-md bg-[#3A3A3C] text-xs font-bold text-gray-200`}>
+        {name.charAt(0)}
+      </span>
+    );
+  }
+  return <img src={src} alt="" className={`${className} rounded-md object-contain`} />;
+}
 
 
 type Step =
@@ -142,17 +180,7 @@ export default function DynamicConnectModal({ onClose }: Props) {
                   className="group flex w-full items-center gap-3 rounded-xl border border-[#292B30] bg-[#292B30] p-3.5 text-left transition-all hover:border-[#373A3F] hover:bg-[#373A3F] disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#1a1c20]">
-                    {connector?.iconUrl ? (
-                      <img
-                        src={typeof connector.iconUrl === "string" ? connector.iconUrl : undefined}
-                        alt=""
-                        className="h-7 w-7 rounded-md object-contain"
-                      />
-                    ) : (
-                      <span className="text-sm font-bold text-gray-300">
-                        {(connector?.name ?? id).charAt(0)}
-                      </span>
-                    )}
+                    <WalletIcon icon={connector?.iconUrl} name={connector?.name ?? id} />
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold text-white">{connector?.name ?? id}</p>
@@ -241,10 +269,21 @@ export default function DynamicConnectModal({ onClose }: Props) {
             onClick={useAnotherWallet}
             className="group flex w-full items-center gap-3 rounded-xl border border-[#292B30] bg-[#292B30] p-3.5 text-left transition-all hover:border-[#373A3F] hover:bg-[#373A3F]"
           >
-            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[#1a1c20]">
-              <svg className="h-5 w-5 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-              </svg>
+            {/* Stacked real wallet logos, so the supported wallets are obvious
+                before opening the list. */}
+            <div className="flex flex-shrink-0 -space-x-2.5">
+              {WALLET_IDS.slice(0, 4).map((id) => (
+                <WalletButton.Custom key={id} wallet={id}>
+                  {({ connector }) => {
+                    const c = connector as unknown as { name?: string; iconUrl?: RkIcon };
+                    return (
+                      <span className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-[#1a1c20] ring-2 ring-[#292B30]">
+                        <WalletIcon icon={c?.iconUrl} name={c?.name ?? id} className="h-6 w-6" />
+                      </span>
+                    );
+                  }}
+                </WalletButton.Custom>
+              ))}
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold text-white">Connect another wallet</p>
