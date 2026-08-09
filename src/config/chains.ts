@@ -132,6 +132,31 @@ export const wagmiConfig = createConfig({
   syncConnectedChain: true,
 });
 
+/**
+ * The connector list as originally configured, captured before anything mutates
+ * it.
+ *
+ * DynamicWagmiConnector replaces wagmi's connectors while it is mounted
+ * (`config._internal.connectors.setState([dynamicConnector])`) and does NOT put
+ * them back when it unmounts. Without restoring them ourselves, switching away
+ * from the Dezen wallet leaves wagmi with no connectors at all, which is why
+ * RainbowKit's picker and its "Get a Wallet" page both came up empty.
+ */
+export const ORIGINAL_CONNECTORS = wagmiConfig.connectors;
+
+/** Put our own connectors back after Dynamic has swapped them out. */
+export function restoreOriginalConnectors(): void {
+  try {
+    (
+      wagmiConfig as unknown as {
+        _internal: { connectors: { setState: (c: unknown) => void } };
+      }
+    )._internal.connectors.setState(ORIGINAL_CONNECTORS);
+  } catch {
+    /* wagmi internals moved; the picker will simply show what's registered */
+  }
+}
+
 
 export const CHAIN_IDS = {
   CELO: celo.id,

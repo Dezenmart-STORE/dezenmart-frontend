@@ -1,10 +1,10 @@
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { DynamicContextProvider } from "@dynamic-labs/sdk-react-core";
 import { EthereumWalletConnectors } from "@dynamic-labs/ethereum";
 import { DynamicWagmiConnector } from "@dynamic-labs/wagmi-connector";
 import { WagmiProvider } from "wagmi";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { wagmiConfig, TARGET_CHAIN } from "../../../config/chains";
+import { wagmiConfig, TARGET_CHAIN, restoreOriginalConnectors } from "../../../config/chains";
 import { queryClient } from "../../../config/queryClient";
 import { DYNAMIC_ENV_ID } from "../../../config/smartWallet";
 import { DynamicReadyContext } from "./dynamicReady";
@@ -62,6 +62,14 @@ const DYNAMIC_CSS_OVERRIDES = `
  */
 export default function DynamicRoot({ children }: { children: ReactNode }) {
   const mode = useWalletMode();
+
+  // DynamicWagmiConnector swaps wagmi's connectors for its own and doesn't put
+  // them back on unmount, so leaving Dezen mode left wagmi with no connectors
+  // and RainbowKit's picker empty. Restore ours whenever Dynamic isn't driving.
+  useEffect(() => {
+    if (mode !== "dezen") restoreOriginalConnectors();
+  }, [mode]);
+
   return (
     <DynamicContextProvider
       theme="dark"
