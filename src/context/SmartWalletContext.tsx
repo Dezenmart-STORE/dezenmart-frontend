@@ -21,6 +21,10 @@ import { SMART_WALLET_ENABLED } from "../config/smartWallet";
 import { TARGET_CHAIN } from "../config/chains";
 import { useDynamicReady } from "../components/wallet/smart/dynamicReady";
 import { lazyWithReload } from "../utils/lazyWithReload";
+import { getWalletMode } from "../config/walletMode";
+
+/** Guards the once-per-session "Welcome back" reconnect prompt. */
+const RECONNECT_ASKED_KEY = "dezen_reconnect_asked";
 
 // Dynamic-importing pieces are lazy so the SDK stays out of the default bundle.
 // lazyWithReload recovers from stale-deploy chunk 404s (e.g. after a redeploy a
@@ -144,11 +148,30 @@ export function SmartWalletContextProvider({ children }: { children: ReactNode }
     // (MetaMask) by connecting the embedded connector over it, which is why a
     // third-party wallet appeared to disconnect on every refresh.
     if (isConnecting || isReconnecting || isConnected) return;
+    // Someone who chose a third-party wallet isn't waiting to be pulled back
+    // into the Dezen wallet.
+    if (getWalletMode() !== "dezen") return;
+
     if (phase === "needs-setup") {
       autoPrompted.current = true;
       setModal("setup");
     } else if (phase === "ready") {
+      // "Welcome back" was reappearing on every refresh because the guard was
+      // only a ref, which resets on reload. Ask at most once per browser
+      // session; the wallet stays reachable from the wallet menu.
       autoPrompted.current = true;
+      let askedAlready = false;
+      try {
+        askedAlready = sessionStorage.getItem(RECONNECT_ASKED_KEY) === "1";
+      } catch {
+        /* private mode */
+      }
+      if (askedAlready) return;
+      try {
+        sessionStorage.setItem(RECONNECT_ASKED_KEY, "1");
+      } catch {
+        /* private mode */
+      }
       setModal("reconnect");
     }
   }, [phase, isConnected, isConnecting, isReconnecting]);
