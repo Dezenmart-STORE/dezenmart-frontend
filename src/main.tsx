@@ -37,6 +37,7 @@ import { RampProvider } from "./components/rampp/RampContext.tsx";
 import { FloatingRampButton } from "./components/rampp/FloatingRampButton.tsx";
 import { RampModal } from "./components/rampp/RampModal.tsx";
 import { RampMinimalProvider } from "./components/ramp/USAGE_EXAMPLE.tsx";
+import { CartApp } from "./components/cart/USAGE.tsx";
 
 // ── Startup: version-based stale cache cleanup ──────────────────────────────
 // When a new version is deployed, clear data that may be stale or reference
@@ -176,6 +177,8 @@ const RouterLayout = () => {
           <SmartWalletProvider>
               <AuthProvider>
                 <SmartWalletContextProvider>
+                  <CartApp>
+
                     <RampMinimalProvider
                       // defaultCustomer={{
                       //   email: "user@dezenmart.io",
@@ -208,6 +211,7 @@ const RouterLayout = () => {
                   </CurrencyProvider>
                 </TermsProvider>
                      </RampMinimalProvider>
+                  </CartApp>
                 </SmartWalletContextProvider>
               </AuthProvider>
           </SmartWalletProvider>

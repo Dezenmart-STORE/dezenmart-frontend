@@ -36,6 +36,7 @@ import { useCurrency } from "../context/CurrencyContext";
 import { ProductVariant, Product as ProductType } from "../utils/types";
 import { useAuth } from "../context/AuthContext";
 import { useSnackbar } from "../context/SnackbarContext";
+import { AddToCartButton } from "../components/cart";
 
 type TabType = "details" | "reviews";
 
@@ -315,6 +316,10 @@ const SingleProduct = () => {
                       <FaRegHeart className="text-xl text-white" />
                     )}
                   </button>
+                  {product?
+                  
+                       <AddToCartButton product={product} showControls />
+                  :null}
                 </div>
               </div>
 

@@ -11,6 +11,7 @@ import { useCurrency } from "../../context/CurrencyContext";
 import { motion } from "framer-motion";
 import { useAuth } from "../../context/AuthContext";
 import { useSnackbar } from "../../context/SnackbarContext";
+import { AddToCartButton } from "../cart";
 
 interface ProductCardProps {
   product: Product;
@@ -106,6 +107,7 @@ const ProductCard = React.memo(
                 )}
               </motion.button>
             )}
+            <AddToCartButton product={product} showControls />
           </div>
 
           {/* Image */}

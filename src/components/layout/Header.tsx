@@ -34,6 +34,7 @@ import { lazyWithReload } from "../../utils/lazyWithReload";
 const SefldVerification = lazyWithReload(() => import("../common/SefldVerification"), "SefldVerification");
 import WalkthroughTrigger from "../walkthrough/WalkthroughTrigger";
 import { useWalkthrough } from "../../context/WalkthroughContext";
+import { CartButton } from "../cart";
 
 const NavList = [
   { title: "Home", path: "/" },
@@ -277,6 +278,7 @@ const Header = () => {
               )}
             </NavLink>
           ))}
+              <CartButton variant="inline" />
         </nav>
 
         <div className="flex items-center gap-1 sm:gap-1.5 lg:gap-3">
