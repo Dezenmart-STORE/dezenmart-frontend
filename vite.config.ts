@@ -207,8 +207,20 @@ export default defineConfig({
     minify: "esbuild",
   },
 
-  // Strip console/debugger in production (was terser drop_console).
   esbuild: {
-    drop: ["console", "debugger"],
+    // Strip noisy logs but KEEP console.error and console.warn.
+    //
+    // This used to be `drop: ["console"]`, which removes EVERY console call in
+    // production. That made real failures completely invisible: a wallet error
+    // caught by a library ErrorBoundary, a failed payment, a thrown render - all
+    // silent, with nothing in the console to go on. It also silently disabled
+    // the app's own payment debugger (utils/debug), whose entire output is
+    // console-based, so enablePaymentDebug()/printPaymentDebug() printed nothing
+    // in the only build where they matter.
+    //
+    // `pure` marks these as side-effect-free so the bundler drops them, while
+    // error/warn survive. Same bundle-noise reduction, without going blind.
+    pure: ["console.log", "console.debug", "console.info", "console.trace"],
+    drop: ["debugger"],
   },
 });
