@@ -53,6 +53,12 @@ const Header = () => {
   const { selectedToken, setSelectedToken, tokens } = useCurrency();
   const { resetWalkthrough } = useWalkthrough();
   const [showUserMenu, setShowUserMenu] = useState(false);
+  // Google's avatar CDN (lh3.googleusercontent.com) rate-limits by referrer and
+  // starts returning 429 once a page requests the same avatar repeatedly. The
+  // request is sent with referrerPolicy="no-referrer" to avoid that, and this
+  // flag latches a failure so a rejected avatar isn't re-requested on every
+  // re-render, which is what turned one 429 into a flood of them.
+  const [avatarFailed, setAvatarFailed] = useState(false);
   const [showVerifyModal, setShowVerifyModal] = useState(false);
   const [isHeaderVisible, setIsHeaderVisible] = useState(true);
   const [isAtTop, setIsAtTop] = useState(true); // Track if user is at top of page
@@ -341,13 +347,15 @@ const Header = () => {
                 >
                   <motion.img
                     src={
-                      typeof user?.profileImage === "string"
+                      typeof user?.profileImage === "string" && !avatarFailed
                         ? user.profileImage
                         : `https://avatar.iran.liara.run/username?username=[${
                             user?.name?.split(" ")[0] || ""
                           }+${user?.name?.split(" ")[1] || ""}]`
                     }
                     alt=""
+                    referrerPolicy="no-referrer"
+                    onError={() => setAvatarFailed(true)}
                     className="w-8 h-8 rounded-full ring-2 ring-[#292B30] hover:ring-Red transition-all"
                     loading="lazy"
                     animate={{ rotate: showUserMenu ? 360 : 0 }}

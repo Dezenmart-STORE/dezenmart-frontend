@@ -1,6 +1,6 @@
 import { http, createConfig, fallback } from "wagmi";
 import { celo, celoSepolia } from "wagmi/chains";
-import { coinbaseWallet, metaMask, walletConnect } from "wagmi/connectors";
+import { coinbaseWallet } from "wagmi/connectors";
 import { connectorsForWallets } from "@rainbow-me/rainbowkit";
 import {
   metaMaskWallet,
@@ -132,30 +132,11 @@ export const wagmiConfig = createConfig({
   syncConnectedChain: true,
 });
 
-/**
- * The connector list as originally configured, captured before anything mutates
- * it.
- *
- * DynamicWagmiConnector replaces wagmi's connectors while it is mounted
- * (`config._internal.connectors.setState([dynamicConnector])`) and does NOT put
- * them back when it unmounts. Without restoring them ourselves, switching away
- * from the Dezen wallet leaves wagmi with no connectors at all, which is why
- * RainbowKit's picker and its "Get a Wallet" page both came up empty.
- */
-export const ORIGINAL_CONNECTORS = wagmiConfig.connectors;
-
-/** Put our own connectors back after Dynamic has swapped them out. */
-export function restoreOriginalConnectors(): void {
-  try {
-    (
-      wagmiConfig as unknown as {
-        _internal: { connectors: { setState: (c: unknown) => void } };
-      }
-    )._internal.connectors.setState(ORIGINAL_CONNECTORS);
-  } catch {
-    /* wagmi internals moved; the picker will simply show what's registered */
-  }
-}
+// NOTE: an earlier version swapped wagmi's connectors at runtime to undo
+// DynamicWagmiConnector's takeover. Don't reintroduce that: replacing the list
+// mid-session detaches the live connection from its connector, so disconnecting
+// throws "disconnect is not a function". Switching stacks reloads the page
+// instead (see config/walletMode.ts), so each stack owns wagmi from boot.
 
 
 export const CHAIN_IDS = {

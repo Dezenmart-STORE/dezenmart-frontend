@@ -1,10 +1,10 @@
-import { useEffect, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { DynamicContextProvider } from "@dynamic-labs/sdk-react-core";
 import { EthereumWalletConnectors } from "@dynamic-labs/ethereum";
 import { DynamicWagmiConnector } from "@dynamic-labs/wagmi-connector";
 import { WagmiProvider } from "wagmi";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { wagmiConfig, TARGET_CHAIN, restoreOriginalConnectors } from "../../../config/chains";
+import { wagmiConfig, TARGET_CHAIN } from "../../../config/chains";
 import { queryClient } from "../../../config/queryClient";
 import { DYNAMIC_ENV_ID } from "../../../config/smartWallet";
 import { DynamicReadyContext } from "./dynamicReady";
@@ -60,57 +60,70 @@ const DYNAMIC_CSS_OVERRIDES = `
  * Dynamic must wrap Wagmi for the wagmi connector to bridge the embedded wallet
  * into the app's existing useAccount / signing flows.
  */
+// Celo mainnet is the ONLY network DezenMart settles on. Filter the dashboard's
+// list so external wallets can't be pointed at Ethereum or a Celo testnet from
+// Dynamic's network switcher. Declared at module scope so its identity is stable
+// (see DYNAMIC_SETTINGS below).
+const onlyTargetChain = <T extends { chainId: number | string }>(dashboardNetworks: T[]): T[] =>
+  dashboardNetworks.filter((n) => Number(n.chainId) === TARGET_CHAIN.id);
+
+/**
+ * Frozen at module scope, NOT rebuilt per render.
+ *
+ * This object used to be an inline literal. Every DynamicRoot render produced a
+ * new `settings` (and a new `overrides.evmNetworks` closure), so
+ * DynamicContextProvider saw changed props every time and re-ran its
+ * initialisation, which re-rendered DynamicRoot, which built another new object.
+ * That self-sustaining loop re-rendered the whole app several times a second:
+ * it reset transient UI state (the connect modal closed the instant it opened),
+ * and it re-requested the user's avatar continuously until Google replied 429.
+ *
+ * Nothing here depends on props or state, so a module constant is the simplest
+ * way to guarantee referential stability.
+ */
+const DYNAMIC_SETTINGS = {
+  environmentId: DYNAMIC_ENV_ID,
+  walletConnectors: [EthereumWalletConnectors],
+  cssOverrides: DYNAMIC_CSS_OVERRIDES,
+  // Align any Dynamic-native surface with our curated shortlist. The
+  // authoritative curation (enabled networks = Celo only, embedded wallets
+  // on, wallet allow-list) is set in the Dynamic dashboard.
+  recommendedWallets: [
+    { walletKey: "valora", label: "Celo-native" },
+    { walletKey: "metamask" },
+    { walletKey: "coinbase" },
+    { walletKey: "trust" },
+  ],
+  // Require an explicit confirmation on EVERY transaction. For the Dezen
+  // (embedded) wallet, Dynamic gates that confirmation behind the user's
+  // passcode per the dashboard security policy - so every payment must be
+  // passcode-authorised. Dynamic verifies the passcode itself and only signs on
+  // success; a wrong/cancelled passcode rejects the transaction.
+  // NOTE: the passcode requirement itself is turned on in the Dynamic dashboard
+  // (Embedded wallet -> Security -> require passcode per transaction). This flag
+  // ensures the confirmation view always appears.
+  transactionConfirmation: { required: true },
+  // Connecting a wallet must NOT sign it up as a Dynamic user. Dynamic's
+  // information-capture step then demands an email ("We need a bit of
+  // information" -> "Email already exists"), which is meaningless here: the
+  // person is already signed in to DezenMart with Google, and we only need the
+  // wallet as a signer. The Dezen embedded wallet is unaffected - it
+  // authenticates explicitly through the email OTP flow.
+  initialAuthenticationMode: "connect-only" as const,
+  overrides: { evmNetworks: onlyTargetChain },
+};
+
 export default function DynamicRoot({ children }: { children: ReactNode }) {
   const mode = useWalletMode();
 
-  // DynamicWagmiConnector swaps wagmi's connectors for its own and doesn't put
-  // them back on unmount, so leaving Dezen mode left wagmi with no connectors
-  // and RainbowKit's picker empty. Restore ours whenever Dynamic isn't driving.
-  useEffect(() => {
-    if (mode !== "dezen") restoreOriginalConnectors();
-  }, [mode]);
+  // NOTE: we deliberately do NOT swap wagmi's connectors at runtime any more.
+  // Replacing the list mid-session detached the live connection from its
+  // connector, so disconnecting threw "n.disconnect is not a function". The mode
+  // is persisted and switching reloads the page, so each stack owns wagmi from
+  // boot and no swapping is needed.
 
   return (
-    <DynamicContextProvider
-      theme="dark"
-      settings={{
-        environmentId: DYNAMIC_ENV_ID,
-        walletConnectors: [EthereumWalletConnectors],
-        cssOverrides: DYNAMIC_CSS_OVERRIDES,
-        // Align any Dynamic-native surface with our curated shortlist. The
-        // authoritative curation (enabled networks = Celo only, embedded wallets
-        // on, wallet allow-list) is set in the Dynamic dashboard.
-        recommendedWallets: [
-          { walletKey: "valora", label: "Celo-native" },
-          { walletKey: "metamask" },
-          { walletKey: "coinbase" },
-          { walletKey: "trust" },
-        ],
-        // Require an explicit confirmation on EVERY transaction. For the Dezen
-        // (embedded) wallet, Dynamic gates that confirmation behind the user's
-        // passcode per the dashboard security policy - so every payment must be
-        // passcode-authorised. Dynamic verifies the passcode itself and only
-        // signs on success; a wrong/cancelled passcode rejects the transaction.
-        // NOTE: the passcode requirement itself is turned on in the Dynamic
-        // dashboard (Embedded wallet -> Security -> require passcode per
-        // transaction). This flag ensures the confirmation view always appears.
-        transactionConfirmation: { required: true },
-        // Connecting a wallet must NOT sign it up as a Dynamic user. Dynamic's
-        // information-capture step then demands an email ("We need a bit of
-        // information" -> "Email already exists"), which is meaningless here:
-        // the person is already signed in to DezenMart with Google, and we only
-        // need the wallet as a signer. The Dezen embedded wallet is unaffected -
-        // it authenticates explicitly through the email OTP flow.
-        initialAuthenticationMode: "connect-only",
-        overrides: {
-          // Celo mainnet is the ONLY network DezenMart settles on. Filter the
-          // dashboard's list so external wallets can't be pointed at Ethereum or
-          // a Celo testnet from Dynamic's network switcher.
-          evmNetworks: (dashboardNetworks) =>
-            dashboardNetworks.filter((n) => Number(n.chainId) === TARGET_CHAIN.id),
-        },
-      }}
-    >
+    <DynamicContextProvider theme="dark" settings={DYNAMIC_SETTINGS}>
       <WagmiProvider config={wagmiConfig}>
         <QueryClientProvider client={queryClient}>
           {/* Only bridge Dynamic into wagmi for the embedded Dezen wallet. For a

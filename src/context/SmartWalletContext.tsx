@@ -17,14 +17,16 @@ import {
   useSetupWalletMutation,
   type WalletStatus,
 } from "../store/api";
-import { SMART_WALLET_ENABLED } from "../config/smartWallet";
+import { SMART_WALLET_ENABLED, DYNAMIC_MOUNTED } from "../config/smartWallet";
 import { TARGET_CHAIN } from "../config/chains";
 import { useDynamicReady } from "../components/wallet/smart/dynamicReady";
 import { lazyWithReload } from "../utils/lazyWithReload";
-import { getWalletMode } from "../config/walletMode";
+import { getWalletMode, consumeDezenSetupRequest } from "../config/walletMode";
 
 /** Guards the once-per-session "Welcome back" reconnect prompt. */
 const RECONNECT_ASKED_KEY = "dezen_reconnect_asked";
+/** Guards the one-shot reload that recovers a missing Dynamic tree. */
+const DYNAMIC_RECOVER_KEY = "dezen_dynamic_recover";
 
 // Dynamic-importing pieces are lazy so the SDK stays out of the default bundle.
 // lazyWithReload recovers from stale-deploy chunk 404s (e.g. after a redeploy a
@@ -98,6 +100,26 @@ export function SmartWalletContextProvider({ children }: { children: ReactNode }
 
   const [setupWallet] = useSetupWalletMutation();
 
+  // Safety net. The Dynamic tree is mounted from a boot-time session check
+  // (config/smartWallet.ts) while `isAuthenticated` comes from AuthContext, and
+  // any disagreement leaves a signed-in user with no Dezen wallet: the connect
+  // modal would offer "sign in" to someone already signed in, and nothing would
+  // open. Rather than trust the two checks to stay identical forever, reconcile
+  // at runtime - if we are authenticated without a Dynamic tree, reload once to
+  // bring it up. The sessionStorage guard bounds this to a single reload, so a
+  // permanent disagreement degrades to "no embedded wallet" instead of a reload
+  // loop.
+  useEffect(() => {
+    if (!SMART_WALLET_ENABLED || DYNAMIC_MOUNTED || !isAuthenticated) return;
+    try {
+      if (sessionStorage.getItem(DYNAMIC_RECOVER_KEY) === "1") return;
+      sessionStorage.setItem(DYNAMIC_RECOVER_KEY, "1");
+    } catch {
+      return; // private mode: don't risk an unguarded reload
+    }
+    window.location.reload();
+  }, [isAuthenticated]);
+
   const phase: SmartWalletPhase = useMemo(() => {
     if (!active) return "disabled";
     if (isLoading || (!status && isFetching)) return "loading";
@@ -142,6 +164,13 @@ export function SmartWalletContextProvider({ children }: { children: ReactNode }
   );
   useEffect(() => {
     if (autoPrompted.current) return;
+    // Deliberate switch back to the Dezen wallet (we reloaded to get here), so
+    // open the flow regardless of the once-per-session guard below.
+    if (consumeDezenSetupRequest()) {
+      autoPrompted.current = true;
+      setModal(status?.hasWallet ? "connect" : "setup");
+      return;
+    }
     // Never auto-prompt while a wallet is connected or wagmi is still restoring
     // one. On reload wagmi reconnects the last wallet asynchronously; firing the
     // Dezen reconnect flow into that window hijacked an external wallet

@@ -4,7 +4,13 @@ import { lazyWithReload } from "../../utils/lazyWithReload";
 import { useDynamicContext } from "@dynamic-labs/sdk-react-core";
 import { useAccount, useDisconnect } from "wagmi";
 import { WalletButton } from "@rainbow-me/rainbowkit";
-import { setWalletMode, requestExternalPicker, consumeExternalPickerRequest } from "../../config/walletMode";
+import {
+  setWalletMode,
+  getWalletMode,
+  requestExternalPicker,
+  consumeExternalPickerRequest,
+  requestDezenSetup,
+} from "../../config/walletMode";
 import {
   RiShieldCheckLine,
   RiCheckLine,
@@ -19,6 +25,7 @@ import { useSmartWallet } from "../../context/SmartWalletContext";
 import { TARGET_CHAIN } from "../../config/chains";
 import { getFundGuide } from "./walletFundGuides";
 import DezenWalletIcon from "./DezenWalletIcon";
+import { WALLET_BRANDS } from "./walletBrands";
 
 interface Props {
   onClose: () => void;
@@ -29,11 +36,6 @@ interface Props {
 const SQUID_ENABLED = !!(import.meta.env.VITE_SQUID_INTEGRATOR_ID as string | undefined)?.trim();
 const SquidBridgeModal = lazyWithReload(() => import("./SquidBridgeModal"), "SquidBridgeModal");
 
-// RainbowKit wallet ids, matching what config/chains.ts registers. We render
-// these inside our own modal (via WalletButton.Custom) rather than opening
-// RainbowKit's picker: that keeps our copy and layout, and avoids its "Get a
-// Wallet" page, which shipped empty.
-const WALLET_IDS = ["metaMask", "coinbase", "valora", "trust", "walletConnect"];
 
 /** RainbowKit gives iconUrl as either a string or a lazy async loader. */
 type RkIcon = string | (() => Promise<string>) | undefined;
@@ -89,6 +91,9 @@ export default function DynamicConnectModal({ onClose }: Props) {
   const { sdkHasLoaded, user, handleLogOut } = useDynamicContext();
   const { isConnected } = useAccount();
   const { disconnectAsync } = useDisconnect();
+  // RainbowKit's <WalletButton> is only safe once wagmi actually owns its
+  // connectors, i.e. outside "dezen" mode. See walletBrands.ts.
+  const isExternalMode = getWalletMode() === "external";
 
   // Land straight on the wallet list when we've just reloaded into the external
   // stack for exactly that purpose.
@@ -96,16 +101,30 @@ export default function DynamicConnectModal({ onClose }: Props) {
     consumeExternalPickerRequest() ? { kind: "wallets" } : { kind: "list" }
   );
 
-  const chooseDezenWallet = () => {
+  const chooseDezenWallet = async () => {
     if (!isAuthenticated) {
       onClose();
       navigate("/login");
       return;
     }
-    // Hand wagmi back to Dynamic so it can bridge the embedded wallet in.
+    // Already on the Dezen stack: no reload needed, just open the flow.
+    if (getWalletMode() === "dezen") {
+      onClose();
+      openWalletSetup();
+      return;
+    }
+    // Coming from a third-party wallet. Drop it, then reload so Dynamic owns
+    // wagmi from boot - the same determinism as the other direction.
+    if (isConnected) {
+      try {
+        await disconnectAsync();
+      } catch {
+        /* non-fatal */
+      }
+    }
     setWalletMode("dezen");
-    onClose();
-    openWalletSetup();
+    requestDezenSetup();
+    window.location.reload();
   };
 
   /**
@@ -169,42 +188,48 @@ export default function DynamicConnectModal({ onClose }: Props) {
     >
       {step.kind === "wallets" ? (
         <div className="space-y-2">
-          {WALLET_IDS.map((id) => (
-            <WalletButton.Custom key={id} wallet={id}>
-              {({ ready, connect, connector: rawConnector }) => {
-                // RainbowKit's public type omits the display fields it actually
-                // provides at runtime.
-                const connector = rawConnector as unknown as {
-                  name?: string;
-                  iconUrl?: string | (() => Promise<string>);
-                  installed?: boolean;
-                };
-                return (
-                <button
-                  onClick={() => {
-                    void connect();
-                    onClose();
+          {/* <WalletButton> resolves against wagmi's live connector list and
+              throws "Connector not found" when it isn't there. In "dezen" mode
+              DynamicWagmiConnector has replaced that list with the embedded
+              connector, so it can only be used once we're in "external" mode.
+              Outside that, show the same wallets from static metadata and send
+              the tap through useAnotherWallet(), which reloads into external
+              mode and reopens this list. */}
+          {isExternalMode
+            ? WALLET_BRANDS.map((w) => (
+                <WalletButton.Custom key={w.id} wallet={w.id}>
+                  {({ ready, connect, connector: rawConnector }) => {
+                    // RainbowKit's public type omits the display fields it
+                    // actually provides at runtime.
+                    const connector = rawConnector as unknown as {
+                      name?: string;
+                      iconUrl?: RkIcon;
+                      installed?: boolean;
+                    };
+                    return (
+                      <WalletTile
+                        icon={connector?.iconUrl ?? w.iconUrl}
+                        name={connector?.name ?? w.name}
+                        sublabel={connector?.installed ? "Detected, tap to connect" : "Connect this wallet"}
+                        disabled={!ready}
+                        onClick={() => {
+                          void connect();
+                          onClose();
+                        }}
+                      />
+                    );
                   }}
-                  disabled={!ready}
-                  className="group flex w-full items-center gap-3 rounded-xl border border-[#292B30] bg-[#292B30] p-3.5 text-left transition-all hover:border-[#373A3F] hover:bg-[#373A3F] disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#1a1c20]">
-                    <WalletIcon icon={connector?.iconUrl} name={connector?.name ?? id} />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-white">{connector?.name ?? id}</p>
-                    <p className="text-xs text-gray-500">
-                      {connector?.installed ? "Detected, tap to connect" : "Connect this wallet"}
-                    </p>
-                  </div>
-                  <svg className="h-4 w-4 flex-shrink-0 text-gray-600 transition-transform group-hover:translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </button>
-                );
-              }}
-            </WalletButton.Custom>
-          ))}
+                </WalletButton.Custom>
+              ))
+            : WALLET_BRANDS.map((w) => (
+                <WalletTile
+                  key={w.id}
+                  icon={w.iconUrl}
+                  name={w.name}
+                  sublabel="Connect this wallet"
+                  onClick={useAnotherWallet}
+                />
+              ))}
         </div>
       ) : step.kind === "guide" ? (
         <GuideView name={step.name} walletKey={step.walletKey} onDone={onClose} />
@@ -280,18 +305,17 @@ export default function DynamicConnectModal({ onClose }: Props) {
           >
             {/* Stacked real wallet logos, so the supported wallets are obvious
                 before opening the list. */}
+            {/* Static metadata, NOT <WalletButton>: that resolves against
+                wagmi's live connector list and throws when Dynamic has replaced
+                it, which is every render in "dezen" mode. See walletBrands.ts. */}
             <div className="flex flex-shrink-0 -space-x-2.5">
-              {WALLET_IDS.slice(0, 4).map((id) => (
-                <WalletButton.Custom key={id} wallet={id}>
-                  {({ connector }) => {
-                    const c = connector as unknown as { name?: string; iconUrl?: RkIcon };
-                    return (
-                      <span className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-[#1a1c20] ring-2 ring-[#292B30]">
-                        <WalletIcon icon={c?.iconUrl} name={c?.name ?? id} className="h-6 w-6" />
-                      </span>
-                    );
-                  }}
-                </WalletButton.Custom>
+              {WALLET_BRANDS.slice(0, 4).map((w) => (
+                <span
+                  key={w.id}
+                  className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-[#1a1c20] ring-2 ring-[#292B30]"
+                >
+                  <WalletIcon icon={w.iconUrl} name={w.name} className="h-6 w-6" />
+                </span>
               ))}
             </div>
             <div className="min-w-0 flex-1">
@@ -412,6 +436,40 @@ function Shell({
         <div className="px-5 py-4">{children}</div>
       </div>
     </div>
+  );
+}
+
+/** One row in the third-party wallet list. */
+function WalletTile({
+  icon,
+  name,
+  sublabel,
+  onClick,
+  disabled,
+}: {
+  icon: RkIcon;
+  name: string;
+  sublabel: string;
+  onClick: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className="group flex w-full items-center gap-3 rounded-xl border border-[#292B30] bg-[#292B30] p-3.5 text-left transition-all hover:border-[#373A3F] hover:bg-[#373A3F] disabled:cursor-not-allowed disabled:opacity-40"
+    >
+      <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#1a1c20]">
+        <WalletIcon icon={icon} name={name} />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-semibold text-white">{name}</p>
+        <p className="text-xs text-gray-500">{sublabel}</p>
+      </div>
+      <svg className="h-4 w-4 flex-shrink-0 text-gray-600 transition-transform group-hover:translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+      </svg>
+    </button>
   );
 }
 
