@@ -52,6 +52,47 @@ const subscribe = (l: () => void) => {
   };
 };
 
+/**
+ * Switching stacks is done with a reload rather than by swapping wagmi's
+ * connectors in place.
+ *
+ * DynamicWagmiConnector rewrites `config._internal.connectors` on every render
+ * and never restores them, so hot-swapping raced it: the picker rendered
+ * against a stale or empty list ("Connector not found", every wallet greyed
+ * out). Reloading lets the app boot cleanly into one stack or the other, since
+ * the mode is already persisted. This flag survives the reload so we can drop
+ * the user straight back into the wallet picker.
+ */
+const PICKER_KEY = "dezen_open_wallet_picker";
+
+export function requestExternalPicker(): void {
+  try {
+    sessionStorage.setItem(PICKER_KEY, "1");
+  } catch {
+    /* private mode */
+  }
+}
+
+/** Peek without consuming, so an opener can decide to show the modal. */
+export function hasExternalPickerRequest(): boolean {
+  try {
+    return sessionStorage.getItem(PICKER_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+/** True once, if a picker was requested before the reload. */
+export function consumeExternalPickerRequest(): boolean {
+  try {
+    if (sessionStorage.getItem(PICKER_KEY) !== "1") return false;
+    sessionStorage.removeItem(PICKER_KEY);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export const useWalletMode = (): WalletMode =>
   useSyncExternalStore(
     subscribe,

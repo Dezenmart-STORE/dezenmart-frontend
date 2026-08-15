@@ -4,7 +4,7 @@ import { lazyWithReload } from "../../utils/lazyWithReload";
 import { useDynamicContext } from "@dynamic-labs/sdk-react-core";
 import { useAccount, useDisconnect } from "wagmi";
 import { WalletButton } from "@rainbow-me/rainbowkit";
-import { setWalletMode } from "../../config/walletMode";
+import { setWalletMode, requestExternalPicker, consumeExternalPickerRequest } from "../../config/walletMode";
 import {
   RiShieldCheckLine,
   RiCheckLine,
@@ -90,7 +90,11 @@ export default function DynamicConnectModal({ onClose }: Props) {
   const { isConnected } = useAccount();
   const { disconnectAsync } = useDisconnect();
 
-  const [step, setStep] = useState<Step>({ kind: "list" });
+  // Land straight on the wallet list when we've just reloaded into the external
+  // stack for exactly that purpose.
+  const [step, setStep] = useState<Step>(() =>
+    consumeExternalPickerRequest() ? { kind: "wallets" } : { kind: "list" }
+  );
 
   const chooseDezenWallet = () => {
     if (!isAuthenticated) {
@@ -129,10 +133,15 @@ export default function DynamicConnectModal({ onClose }: Props) {
       }
     }
 
-    // Unmounts DynamicWagmiConnector and restores our own connectors, so the
-    // external wallet is a plain wagmi connection that persists on its own.
+    // Reload into the external stack rather than swapping wagmi's connectors
+    // live. Dynamic rewrites that list on every render and never restores it, so
+    // an in-place switch raced it and left the picker with no usable connectors
+    // ("Connector not found", every wallet greyed out). The mode is persisted,
+    // so after the reload the app boots straight into plain wagmi and the
+    // picker reopens by itself.
     setWalletMode("external");
-    setStep({ kind: "wallets" });
+    requestExternalPicker();
+    window.location.reload();
   };
 
   return (
