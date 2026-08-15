@@ -1,6 +1,6 @@
 import { http, createConfig, fallback } from "wagmi";
 import { celo, celoSepolia } from "wagmi/chains";
-import { coinbaseWallet, metaMask, walletConnect } from "wagmi/connectors";
+import { coinbaseWallet } from "wagmi/connectors";
 import { connectorsForWallets } from "@rainbow-me/rainbowkit";
 import {
   metaMaskWallet,

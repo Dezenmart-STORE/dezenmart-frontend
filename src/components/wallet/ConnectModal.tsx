@@ -3,7 +3,8 @@ import { useModalPresence } from "../../utils/modalPresence";
 import { useConnect, useAccount, type Connector } from "wagmi";
 import { detectMiniPay } from "../../hooks/useMiniPay";
 import { injected } from "wagmi/connectors";
-import { SMART_WALLET_ENABLED } from "../../config/smartWallet";
+import { useNavigate } from "react-router-dom";
+import { SMART_WALLET_ENABLED, DYNAMIC_MOUNTED } from "../../config/smartWallet";
 import { useDynamicReady } from "./smart/dynamicReady";
 import { lazyWithReload } from "../../utils/lazyWithReload";
 
@@ -25,6 +26,10 @@ export default function ConnectModal({ onClose }: Props) {
   // of wallets. Wait for it instead; the legacy picker is only for the
   // feature-disabled build.
   if (SMART_WALLET_ENABLED) {
+    // Signed out: Dynamic's provider tree was never mounted for this page load,
+    // so dynamicReady can never turn true and the loading shell would spin
+    // forever. A wallet belongs to an account here, so send them to sign-in.
+    if (!DYNAMIC_MOUNTED) return <SignInToConnect onClose={onClose} />;
     if (!dynamicReady) return <ConnectLoading onClose={onClose} />;
     return (
       <Suspense fallback={<ConnectLoading onClose={onClose} />}>
@@ -33,6 +38,57 @@ export default function ConnectModal({ onClose }: Props) {
     );
   }
   return <LegacyConnectModal onClose={onClose} />;
+}
+
+/**
+ * Shown when someone signed out reaches a connect entry point (for example the
+ * Buy/Sell Crypto widget's wallet field). The Dezen wallet is tied to a
+ * DezenMart account, so signing in is the actual next step.
+ */
+function SignInToConnect({ onClose }: Props) {
+  useModalPresence();
+  const navigate = useNavigate();
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-end justify-center bg-black/60 p-0 backdrop-blur-sm sm:items-center sm:p-4"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div className="w-full rounded-t-3xl border border-[#292B30] bg-[#212428] p-6 shadow-2xl sm:max-w-md sm:rounded-2xl">
+        <div className="flex flex-col items-center gap-3 py-4 text-center">
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#292B30]">
+            <svg className="h-7 w-7 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1.5}
+                d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
+              />
+            </svg>
+          </div>
+          <h2 className="text-lg font-bold text-white">Sign in to connect a wallet</h2>
+          <p className="text-sm text-gray-400">
+            Your Dezen Wallet is part of your DezenMart account. Sign in and it
+            connects automatically.
+          </p>
+        </div>
+        <button
+          onClick={() => {
+            onClose();
+            navigate("/login");
+          }}
+          className="mt-2 w-full rounded-xl bg-red-600 px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-red-700 active:scale-[0.98]"
+        >
+          Sign in
+        </button>
+        <button
+          onClick={onClose}
+          className="mt-2 w-full rounded-xl px-6 py-3 text-sm font-semibold text-gray-400 transition-colors hover:text-white"
+        >
+          Not now
+        </button>
+      </div>
+    </div>
+  );
 }
 
 /** Shell shown while Dynamic's chunk mounts, so the modal never flashes. */

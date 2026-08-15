@@ -1,6 +1,7 @@
 import { useEffect, useState, startTransition } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { needsReloadForDynamic } from "../config/smartWallet";
 import { useGetUserProfileQuery } from "../store/api";
 import Loadscreen from "./Loadscreen";
 
@@ -46,9 +47,18 @@ const AuthCallback = () => {
       const token = searchParams.get("token");
       if (token) {
         handleAuthCallback(token, userProfile);
-        startTransition(() => {
-          navigate("/", { replace: true });
-        });
+        if (needsReloadForDynamic()) {
+          // Full navigation, not a router push: the Dezen wallet's provider tree
+          // is only mounted for page loads that start with a session, and this
+          // page load started without one. replace() also drops the ?token= URL
+          // from history. This screen is already a full-page loader, so the hard
+          // navigation is invisible.
+          window.location.replace("/");
+        } else {
+          startTransition(() => {
+            navigate("/", { replace: true });
+          });
+        }
       }
     }
   }, [userProfile, shouldFetch, searchParams, handleAuthCallback, navigate]);
