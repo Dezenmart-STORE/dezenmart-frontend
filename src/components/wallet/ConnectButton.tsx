@@ -12,6 +12,7 @@ import { TARGET_CHAIN, getExplorerUrl } from "../../config/chains";
 import { useTokenBalances } from "../../hooks/useTokenBalances";
 import { useCurrency } from "../../context/CurrencyContext";
 import { useSmartWallet } from "../../context/SmartWalletContext";
+import { hasExternalPickerRequest } from "../../config/walletMode";
 import ConnectModal from "./ConnectModal";
 
 // Swap/bridge is an iframe widget, loaded only when opened.
@@ -33,7 +34,9 @@ export default function ConnectButton() {
   // it stays correct even if the stored wallet address is stale or wrong.
   const { isDezenWalletActive: isDezenWallet } = useSmartWallet();
 
-  const [showModal, setShowModal] = useState(false);
+  // Reopen the wallet picker after the reload that switches us into the
+  // external wallet stack (see config/walletMode.ts).
+  const [showModal, setShowModal] = useState(() => hasExternalPickerRequest());
   const [showDropdown, setShowDropdown] = useState(false);
   const [showSwap, setShowSwap] = useState(false);
   const [copied, setCopied] = useState(false);
