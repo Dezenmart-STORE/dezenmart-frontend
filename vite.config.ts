@@ -218,9 +218,12 @@ export default defineConfig({
     // console-based, so enablePaymentDebug()/printPaymentDebug() printed nothing
     // in the only build where they matter.
     //
-    // `pure` marks these as side-effect-free so the bundler drops them, while
-    // error/warn survive. Same bundle-noise reduction, without going blind.
-    pure: ["console.log", "console.debug", "console.info", "console.trace"],
+    // A first attempt kept only error/warn and dropped console.log via `pure`.
+    // That still broke the debug tooling: paymentDebugger prints with
+    // console.log/console.table, so enablePaymentDebug() + printPaymentDebug()
+    // produced nothing and looked like the function was returning undefined.
+    // Console output is worth far more than the handful of KB it costs in a
+    // multi-megabyte bundle, so nothing is stripped now except `debugger`.
     drop: ["debugger"],
   },
 });
