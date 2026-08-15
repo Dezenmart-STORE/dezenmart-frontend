@@ -64,6 +64,27 @@ const subscribe = (l: () => void) => {
  * the user straight back into the wallet picker.
  */
 const PICKER_KEY = "dezen_open_wallet_picker";
+const SETUP_KEY = "dezen_open_wallet_setup";
+
+/** Ask for the Dezen wallet setup/reconnect flow after the reload. */
+export function requestDezenSetup(): void {
+  try {
+    sessionStorage.setItem(SETUP_KEY, "1");
+  } catch {
+    /* private mode */
+  }
+}
+
+/** True once, if the Dezen flow was requested before the reload. */
+export function consumeDezenSetupRequest(): boolean {
+  try {
+    if (sessionStorage.getItem(SETUP_KEY) !== "1") return false;
+    sessionStorage.removeItem(SETUP_KEY);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 export function requestExternalPicker(): void {
   try {

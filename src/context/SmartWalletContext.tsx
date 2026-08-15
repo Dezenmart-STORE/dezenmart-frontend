@@ -21,7 +21,7 @@ import { SMART_WALLET_ENABLED } from "../config/smartWallet";
 import { TARGET_CHAIN } from "../config/chains";
 import { useDynamicReady } from "../components/wallet/smart/dynamicReady";
 import { lazyWithReload } from "../utils/lazyWithReload";
-import { getWalletMode } from "../config/walletMode";
+import { getWalletMode, consumeDezenSetupRequest } from "../config/walletMode";
 
 /** Guards the once-per-session "Welcome back" reconnect prompt. */
 const RECONNECT_ASKED_KEY = "dezen_reconnect_asked";
@@ -142,6 +142,13 @@ export function SmartWalletContextProvider({ children }: { children: ReactNode }
   );
   useEffect(() => {
     if (autoPrompted.current) return;
+    // Deliberate switch back to the Dezen wallet (we reloaded to get here), so
+    // open the flow regardless of the once-per-session guard below.
+    if (consumeDezenSetupRequest()) {
+      autoPrompted.current = true;
+      setModal(status?.hasWallet ? "connect" : "setup");
+      return;
+    }
     // Never auto-prompt while a wallet is connected or wagmi is still restoring
     // one. On reload wagmi reconnects the last wallet asynchronously; firing the
     // Dezen reconnect flow into that window hijacked an external wallet

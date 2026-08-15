@@ -4,7 +4,13 @@ import { lazyWithReload } from "../../utils/lazyWithReload";
 import { useDynamicContext } from "@dynamic-labs/sdk-react-core";
 import { useAccount, useDisconnect } from "wagmi";
 import { WalletButton } from "@rainbow-me/rainbowkit";
-import { setWalletMode, requestExternalPicker, consumeExternalPickerRequest } from "../../config/walletMode";
+import {
+  setWalletMode,
+  getWalletMode,
+  requestExternalPicker,
+  consumeExternalPickerRequest,
+  requestDezenSetup,
+} from "../../config/walletMode";
 import {
   RiShieldCheckLine,
   RiCheckLine,
@@ -96,16 +102,30 @@ export default function DynamicConnectModal({ onClose }: Props) {
     consumeExternalPickerRequest() ? { kind: "wallets" } : { kind: "list" }
   );
 
-  const chooseDezenWallet = () => {
+  const chooseDezenWallet = async () => {
     if (!isAuthenticated) {
       onClose();
       navigate("/login");
       return;
     }
-    // Hand wagmi back to Dynamic so it can bridge the embedded wallet in.
+    // Already on the Dezen stack: no reload needed, just open the flow.
+    if (getWalletMode() === "dezen") {
+      onClose();
+      openWalletSetup();
+      return;
+    }
+    // Coming from a third-party wallet. Drop it, then reload so Dynamic owns
+    // wagmi from boot - the same determinism as the other direction.
+    if (isConnected) {
+      try {
+        await disconnectAsync();
+      } catch {
+        /* non-fatal */
+      }
+    }
     setWalletMode("dezen");
-    onClose();
-    openWalletSetup();
+    requestDezenSetup();
+    window.location.reload();
   };
 
   /**
