@@ -42,7 +42,11 @@ function readSessionAtBoot(): boolean {
     const token = localStorage.getItem(TOKEN_KEY);
     if (!token || !localStorage.getItem(USER_KEY)) return false;
     const { exp } = jwtDecode<{ exp?: number }>(token);
-    return typeof exp === "number" && exp > Date.now() / 1000;
+    // Match AuthContext's check exactly, including its treatment of a missing
+    // `exp` as "not expired". Being stricter here would leave a user that
+    // AuthContext considers signed in with no Dynamic tree at all, so the Dezen
+    // wallet would be permanently unreachable for them.
+    return !(typeof exp === "number" && exp < Date.now() / 1000);
   } catch {
     // Unparseable token or storage blocked (private mode): treat as signed out.
     // AuthContext clears the bad token, and signing in reloads us anyway.
