@@ -14,6 +14,7 @@ import { getEscrowContract, ESCROW_ABI } from "../abi/escrow";
 import { wagmiConfig } from "../config/chains";
 import { parseError, logError } from "../utils/errors";
 import { paymentDebug } from "../utils/paymentDebug";
+import { getWalletMode } from "../config/walletMode";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -124,13 +125,30 @@ export function useEscrow() {
         // ── Execute via @wagmi/core (no React lifecycle dependency) ──
         // Using the core action instead of useWriteContract hook prevents
         // stale-closure and mutation-state issues in long async payment flows.
+        // Dynamic's embedded wallet signs LEGACY transactions. Celo supports
+        // EIP-1559, so viem otherwise attaches maxFeePerGas /
+        // maxPriorityFeePerGas and then rejects them as invalid Legacy
+        // attributes before signing - the reason the Dezen wallet could never
+        // pay while external wallets could. Asking for legacy explicitly makes
+        // viem send gasPrice instead.
+        //
+        // feeCurrency is dropped in the same breath: it is Celo's CIP-64
+        // transaction type, which is 1559-based and cannot be expressed as a
+        // legacy transaction, so the two are mutually exclusive. Paying gas in
+        // the payment token stays available on every external wallet.
+        const isDezenWallet = getWalletMode() === "dezen";
+
         const hash = await writeContract(wagmiConfig, {
           ...contract,
           functionName,
           args,
           gas,
           chainId: liveChainId,
-          ...(feeCurrency ? { feeCurrency } : {}),
+          ...(isDezenWallet
+            ? { type: "legacy" as const }
+            : feeCurrency
+            ? { feeCurrency }
+            : {}),
         } as any);
 
         if (!hash) {

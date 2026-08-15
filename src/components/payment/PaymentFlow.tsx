@@ -6,6 +6,7 @@ import { useTokenBalances } from "../../hooks/useTokenBalances";
 import { useGasEstimate } from "../../hooks/useGasEstimate";
 import { useCurrency } from "../../context/CurrencyContext";
 import { getExplorerUrl } from "../../config/chains";
+import { getWalletMode } from "../../config/walletMode";
 import { useChainId } from "wagmi";
 import TokenSelect from "./TokenSelect";
 import type { StableToken } from "../../config/tokens";
@@ -137,12 +138,21 @@ export default function PaymentFlow({
     ? paymentToken
     : (fallback?.symbol ?? "CELO");
 
-  // feeCurrency works when: address resolved AND wallet isn't MetaMask
-  const supportsFeeCurrency = !!resolvedFeeCurrencyAddr && !isMetaMask;
+  // feeCurrency (Celo CIP-64) needs an allowlist, not just "isn't MetaMask".
+  // Dynamic's embedded wallet signs LEGACY transactions, and CIP-64 is
+  // 1559-based, so it cannot pay gas in an ERC20. Assuming it could made
+  // gasIsCovered pass through the feeCurrency branch, which then reported
+  // "Insufficient balance" to people holding plenty of the payment token and
+  // sent an unsignable transaction. See useEscrow, which drops feeCurrency for
+  // the same reason.
+  const isDezenWallet = getWalletMode() === "dezen";
+  const walletSupportsFeeCurrency = !isMetaMask && !isDezenWallet;
+
+  const supportsFeeCurrency = !!resolvedFeeCurrencyAddr && walletSupportsFeeCurrency;
 
   // Product token fee currency (for post-swap steps)
   const supportsProductFeeCurrency =
-    !!getFeeCurrencyAddress(productToken, chainId) && !isMetaMask;
+    !!getFeeCurrencyAddress(productToken, chainId) && walletSupportsFeeCurrency;
 
   // Gas expressed in the token that will actually pay it
   const gasInFeeToken = convertPrice(gasCelo, "CELO", feeTokenSymbol === "CELO" ? "CELO" : feeTokenSymbol);

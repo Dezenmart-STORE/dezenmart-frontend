@@ -4,6 +4,7 @@ import { waitForTransactionReceipt } from "@wagmi/core";
 import { erc20Abi, parseUnits, formatUnits } from "viem";
 import { getTokenAddress, getTokenDecimals } from "../config/tokens";
 import { getEscrowAddress, wagmiConfig } from "../config/chains";
+import { getWalletMode } from "../config/walletMode";
 
 interface UseApprovalReturn {
   /** Current allowance as a formatted number */
@@ -92,7 +93,16 @@ export function useApproval(
         functionName: "approve",
         args: [escrowAddress, approvalAmount],
         gas: 150_000n,
-        chainId
+        chainId,
+        // Celo supports EIP-1559, so viem attaches maxFeePerGas /
+        // maxPriorityFeePerGas by default. Dynamic's embedded wallet builds a
+        // LEGACY transaction, and viem then rejects the combination with
+        // "`maxFeePerGas`/`maxPriorityFeePerGas` is not a valid Legacy
+        // Transaction attribute" before anything is signed - which is why the
+        // Dezen wallet could never complete a payment while external wallets
+        // (which build 1559 transactions) were fine. Asking for legacy
+        // explicitly makes viem send gasPrice and omit the 1559 fields.
+        ...(getWalletMode() === "dezen" ? { type: "legacy" as const } : {}),
       });
 
       // Wait for confirmation before refreshing allowance - avoids stale "not approved" flash
