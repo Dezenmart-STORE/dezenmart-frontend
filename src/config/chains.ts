@@ -132,11 +132,30 @@ export const wagmiConfig = createConfig({
   syncConnectedChain: true,
 });
 
-// NOTE: an earlier version swapped wagmi's connectors at runtime to undo
-// DynamicWagmiConnector's takeover. Don't reintroduce that: replacing the list
-// mid-session detaches the live connection from its connector, so disconnecting
-// throws "disconnect is not a function". Switching stacks reloads the page
-// instead (see config/walletMode.ts), so each stack owns wagmi from boot.
+/**
+ * The connectors wagmi set up at boot, captured before anything replaces them.
+ *
+ * DynamicWagmiConnector overwrites `config._internal.connectors` with the single
+ * embedded-wallet connector while it is mounted, and never puts them back. So
+ * leaving the Dezen stack has to hand them over explicitly, or the external
+ * picker finds nothing ("Connector not found", every wallet greyed out).
+ *
+ * Read through the PUBLIC `config.connectors` getter - `_internal.connectors`
+ * exposes only setup/setState/subscribe, and calling a getState() on it crashes
+ * the app at import time. `setState` replaces the array rather than mutating it,
+ * so this snapshot keeps pointing at the originals.
+ *
+ * ORDER MATTERS. Restoring while a connection is still live detaches that
+ * connection from its connector and makes disconnect() throw "disconnect is not
+ * a function". Only call this once the wallet is disconnected AND
+ * DynamicWagmiConnector has unmounted; DynamicRoot does exactly that in an
+ * effect keyed on the wallet mode.
+ */
+const ORIGINAL_CONNECTORS = wagmiConfig.connectors;
+
+export function restoreOriginalConnectors(): void {
+  wagmiConfig._internal.connectors.setState(ORIGINAL_CONNECTORS);
+}
 
 
 export const CHAIN_IDS = {

@@ -1,10 +1,10 @@
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { DynamicContextProvider } from "@dynamic-labs/sdk-react-core";
 import { EthereumWalletConnectors } from "@dynamic-labs/ethereum";
 import { DynamicWagmiConnector } from "@dynamic-labs/wagmi-connector";
 import { WagmiProvider } from "wagmi";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { wagmiConfig, TARGET_CHAIN } from "../../../config/chains";
+import { wagmiConfig, TARGET_CHAIN, restoreOriginalConnectors } from "../../../config/chains";
 import { queryClient } from "../../../config/queryClient";
 import { DYNAMIC_ENV_ID } from "../../../config/smartWallet";
 import { DynamicReadyContext } from "./dynamicReady";
@@ -125,39 +125,54 @@ const DYNAMIC_SETTINGS = {
 export default function DynamicRoot({ children }: { children: ReactNode }) {
   const mode = useWalletMode();
 
-  // NOTE: we deliberately do NOT swap wagmi's connectors at runtime any more.
-  // Replacing the list mid-session detached the live connection from its
-  // connector, so disconnecting threw "n.disconnect is not a function". The mode
-  // is persisted and switching reloads the page, so each stack owns wagmi from
-  // boot and no swapping is needed.
+  // Leaving the Dezen stack: hand wagmi's connectors back.
+  //
+  // DynamicWagmiConnector replaced them with the embedded connector and does not
+  // restore them when it unmounts, so without this the external picker would
+  // find nothing. Running it in an effect means React has already committed the
+  // `mode !== "dezen"` render, so the connector is gone and cannot re-take the
+  // list. The caller disconnects the active wallet before flipping the mode,
+  // which is the other half of the ordering rule (see restoreOriginalConnectors).
+  useEffect(() => {
+    if (mode === "dezen") return;
+    restoreOriginalConnectors();
+  }, [mode]);
 
   return (
     <DynamicContextProvider theme="dark" settings={DYNAMIC_SETTINGS}>
       <WagmiProvider config={wagmiConfig}>
         <QueryClientProvider client={queryClient}>
-          {/* Only bridge Dynamic into wagmi for the embedded Dezen wallet. For a
-              third-party wallet we leave wagmi alone: DynamicWagmiConnector
-              replaces wagmi's connector list with its own and disconnects wagmi
-              whenever Dynamic holds no wallet, which turned every external
-              wallet into a Dynamic identity (email capture, elevated-token
-              guard) and dropped it on reload. Dynamic's context stays mounted
-              either way, so the Dezen wallet flows remain available. */}
-          {/* RainbowKit is mounted in both modes: unlike DynamicWagmiConnector
-              it doesn't take over wagmi, it just provides the connect modal, so
-              useConnectModal() is available even while the Dezen wallet holds
-              the connection. */}
           <RainbowKitProvider theme={rkTheme} modalSize="compact" initialChain={TARGET_CHAIN}>
-            {mode === "dezen" ? (
-              <DynamicWagmiConnector>
-                <DynamicReadyContext.Provider value={true}>
-                  {children}
-                </DynamicReadyContext.Provider>
-              </DynamicWagmiConnector>
-            ) : (
-              <DynamicReadyContext.Provider value={true}>
-                {children}
-              </DynamicReadyContext.Provider>
-            )}
+            {/* DynamicWagmiConnector is a SIBLING with no children, and that is
+                deliberate.
+
+                It provides no React context: its inner SyncDynamicWagmi renders
+                <>{children}</> and does all its work in effects
+                (config._internal.connectors.setState, connect/disconnect sync).
+                So it does not need to wrap the app - and wrapping was actively
+                harmful. Toggling the mode changed the element type at the slot
+                holding {children}, so React unmounted and remounted the ENTIRE
+                app on every switch: AuthProvider reset to its initial null user
+                (the "Connect -> Sign In -> Connect" flash), open modals were
+                destroyed, scroll and form state were lost. Reloading the page
+                was only a way of making that unavoidable-looking remount
+                deterministic.
+
+                As a sibling it mounts and unmounts on its own, and {children}
+                below keeps one stable position in the tree across both modes, so
+                switching stacks costs nothing.
+
+                Bonus: children are no longer inside Dynamic's ErrorBoundary,
+                which used to swallow render errors and silently remount the
+                subtree - that boundary is what hid the WalletButton crash. */}
+            {mode === "dezen" && <DynamicWagmiConnector>{null}</DynamicWagmiConnector>}
+
+            {/* RainbowKit stays mounted in both modes: unlike
+                DynamicWagmiConnector it never touches wagmi's connector list,
+                it only supplies the connect modal. */}
+            <DynamicReadyContext.Provider value={true}>
+              {children}
+            </DynamicReadyContext.Provider>
           </RainbowKitProvider>
         </QueryClientProvider>
       </WagmiProvider>

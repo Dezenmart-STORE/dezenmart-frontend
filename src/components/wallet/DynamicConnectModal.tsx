@@ -22,7 +22,7 @@ import {
 import { useModalPresence } from "../../utils/modalPresence";
 import { useAuth } from "../../context/AuthContext";
 import { useSmartWallet } from "../../context/SmartWalletContext";
-import { TARGET_CHAIN } from "../../config/chains";
+import { TARGET_CHAIN, restoreOriginalConnectors } from "../../config/chains";
 import { getFundGuide } from "./walletFundGuides";
 import DezenWalletIcon from "./DezenWalletIcon";
 import { WALLET_BRANDS } from "./walletBrands";
@@ -113,8 +113,10 @@ export default function DynamicConnectModal({ onClose }: Props) {
       openWalletSetup();
       return;
     }
-    // Coming from a third-party wallet. Drop it, then reload so Dynamic owns
-    // wagmi from boot - the same determinism as the other direction.
+    // Coming from a third-party wallet. Drop it first - the connector list must
+    // not be swapped while a connection is live - then switch in place.
+    // DynamicWagmiConnector mounts as a sibling, so {children} keeps its
+    // position and nothing below remounts.
     if (isConnected) {
       try {
         await disconnectAsync();
@@ -123,8 +125,8 @@ export default function DynamicConnectModal({ onClose }: Props) {
       }
     }
     setWalletMode("dezen");
-    requestDezenSetup();
-    window.location.reload();
+    onClose();
+    openWalletSetup();
   };
 
   /**
@@ -152,15 +154,25 @@ export default function DynamicConnectModal({ onClose }: Props) {
       }
     }
 
-    // Reload into the external stack rather than swapping wagmi's connectors
-    // live. Dynamic rewrites that list on every render and never restores it, so
-    // an in-place switch raced it and left the picker with no usable connectors
-    // ("Connector not found", every wallet greyed out). The mode is persisted,
-    // so after the reload the app boots straight into plain wagmi and the
-    // picker reopens by itself.
+    // Switch in place. Flipping the mode unmounts DynamicWagmiConnector (now a
+    // childless sibling, so nothing below it remounts), and DynamicRoot's effect
+    // then hands wagmi's original connectors back - in that order, so nothing
+    // can re-take the list. This used to be a full page reload, which threw away
+    // the modal and everything else on the page for one UI transition.
+    // Restore the connectors SYNCHRONOUSLY, before React re-renders.
+    //
+    // DynamicRoot also does this in an effect, but effects run after render, and
+    // the very next render shows the wallet list - RainbowKit's <WalletButton>
+    // resolves against wagmi's live connector list and THROWS "Connector not
+    // found" when the id is missing. That throw unmounted the modal. Doing it
+    // here means the list is already whole by the time anything renders; the
+    // effect in DynamicRoot stays as a safety net for other paths.
+    //
+    // Safe at this point: the wallet above was disconnected and awaited, so no
+    // live connection can be detached by swapping the list.
     setWalletMode("external");
-    requestExternalPicker();
-    window.location.reload();
+    restoreOriginalConnectors();
+    setStep({ kind: "wallets" });
   };
 
   return (

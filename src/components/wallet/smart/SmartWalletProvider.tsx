@@ -23,6 +23,11 @@ const DynamicRoot = lazyWithReload(() => import("./DynamicRoot"), "DynamicRoot")
  * DYNAMIC_MOUNTED is fixed for the page's lifetime, so this never swaps trees
  * mid-session (that would remount the whole app). Signing in reloads instead.
  */
+/** Matches the app background so the hand-off to the real tree is invisible. */
+function BootSplash() {
+  return <div className="fixed inset-0 bg-[#212428]" aria-hidden="true" />;
+}
+
 export default function SmartWalletProvider({ children }: { children: ReactNode }) {
   if (!DYNAMIC_MOUNTED) {
     return (
@@ -32,16 +37,19 @@ export default function SmartWalletProvider({ children }: { children: ReactNode 
     );
   }
 
-  // Fallback keeps the original tree mounted while Dynamic's chunk loads, so
-  // wagmi context is always available and there's no flash.
+  // The fallback deliberately does NOT render {children}.
+  //
+  // It used to render them inside a plain WagmiProvider, to avoid a flash while
+  // Dynamic's chunk loaded. But that put {children} at a different position in
+  // the tree than the DynamicRoot branch, so the moment the chunk resolved React
+  // unmounted the whole app and mounted it again - AuthProvider reset to its
+  // initial null user, and any transient state went with it. It traded a brief
+  // flash for a guaranteed full remount on every single page load.
+  //
+  // Showing a splash instead means {children} mount exactly once, under
+  // DynamicRoot, and never move.
   return (
-    <Suspense
-      fallback={
-        <WagmiProvider config={wagmiConfig}>
-          <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-        </WagmiProvider>
-      }
-    >
+    <Suspense fallback={<BootSplash />}>
       <DynamicRoot>{children}</DynamicRoot>
     </Suspense>
   );
