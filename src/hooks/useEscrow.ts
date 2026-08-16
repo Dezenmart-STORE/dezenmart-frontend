@@ -12,6 +12,7 @@ import {
 } from "@wagmi/core";
 import { getEscrowContract, ESCROW_ABI } from "../abi/escrow";
 import { wagmiConfig } from "../config/chains";
+import { isDezenSigner, sendViaDezenWallet } from "../utils/dezenTx";
 import { parseError, logError } from "../utils/errors";
 import { paymentDebug } from "../utils/paymentDebug";
 
@@ -124,14 +125,26 @@ export function useEscrow() {
         // ── Execute via @wagmi/core (no React lifecycle dependency) ──
         // Using the core action instead of useWriteContract hook prevents
         // stale-closure and mutation-state issues in long async payment flows.
-        const hash = await writeContract(wagmiConfig, {
-          ...contract,
-          functionName,
-          args,
-          gas,
-          chainId: liveChainId,
-          ...(feeCurrency ? { feeCurrency } : {}),
-        } as any);
+        // The Dezen wallet goes straight to the provider with no fee fields at
+        // all - see utils/dezenTx for why anything we attach collides with
+        // Dynamic's own fee quote. feeCurrency is skipped on that path too: it
+        // is Celo's CIP-64 type, which is a pricing scheme like the others.
+        const hash = isDezenSigner()
+          ? await sendViaDezenWallet({
+              address: contract.address as `0x${string}`,
+              abi: contract.abi,
+              functionName,
+              args,
+              gas,
+            })
+          : await writeContract(wagmiConfig, {
+              ...contract,
+              functionName,
+              args,
+              gas,
+              chainId: liveChainId,
+              ...(feeCurrency ? { feeCurrency } : {}),
+            } as any);
 
         if (!hash) {
           return { success: false, message: "Transaction failed to submit." };
