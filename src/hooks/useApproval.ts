@@ -4,7 +4,6 @@ import { waitForTransactionReceipt } from "@wagmi/core";
 import { erc20Abi, parseUnits, formatUnits } from "viem";
 import { getTokenAddress, getTokenDecimals } from "../config/tokens";
 import { getEscrowAddress, wagmiConfig } from "../config/chains";
-import { getWalletMode } from "../config/walletMode";
 
 interface UseApprovalReturn {
   /** Current allowance as a formatted number */
@@ -93,14 +92,7 @@ export function useApproval(
         functionName: "approve",
         args: [escrowAddress, approvalAmount],
         gas: 150_000n,
-        chainId,
-        // The approval is the FIRST transaction, and where the Dezen wallet
-        // fails: the request reaching Dynamic carries both gasPrice and
-        // maxFeePerGas, so viem infers "legacy" and then rejects the 1559
-        // fields. Pinning eip1559 keeps gasPrice out so the type is
-        // unambiguous. (Forcing "legacy" was tried first and made it worse -
-        // it adds gasPrice, which is the half that causes the bad inference.)
-        ...(getWalletMode() === "dezen" ? { type: "eip1559" as const } : {}),
+        chainId
       });
 
       // Wait for confirmation before refreshing allowance - avoids stale "not approved" flash

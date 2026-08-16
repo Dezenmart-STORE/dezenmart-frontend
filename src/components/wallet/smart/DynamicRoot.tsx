@@ -94,15 +94,24 @@ const DYNAMIC_SETTINGS = {
     { walletKey: "coinbase" },
     { walletKey: "trust" },
   ],
-  // Require an explicit confirmation on EVERY transaction. For the Dezen
-  // (embedded) wallet, Dynamic gates that confirmation behind the user's
-  // passcode per the dashboard security policy - so every payment must be
-  // passcode-authorised. Dynamic verifies the passcode itself and only signs on
-  // success; a wrong/cancelled passcode rejects the transaction.
-  // NOTE: the passcode requirement itself is turned on in the Dynamic dashboard
-  // (Embedded wallet -> Security -> require passcode per transaction). This flag
-  // ensures the confirmation view always appears.
-  transactionConfirmation: { required: true },
+  // DISABLED because it made payments impossible on the Dezen wallet.
+  //
+  // With this on, Dynamic intercepts every write and renders its own confirm
+  // dialog. Pressing Send there (`onClickSend` in the stack trace) makes Dynamic
+  // REBUILD the transaction from its own state rather than forwarding ours, and
+  // on Celo it produces one carrying both gasPrice and maxFeePerGas. viem then
+  // refuses it before signing:
+  //   `maxFeePerGas`/`maxPriorityFeePerGas` is not a valid Legacy Transaction
+  //   attribute
+  // Because the rebuild happens inside the SDK, no call-site parameter can
+  // prevent it - pinning type:"legacy" and type:"eip1559" at both write sites
+  // were each tried and each failed with the identical error.
+  //
+  // Passcode enforcement is NOT lost: that is a dashboard policy (Embedded
+  // wallet -> Security -> require passcode per transaction), which Dynamic
+  // applies when signing regardless of this flag. This flag only controlled
+  // whether Dynamic's own confirmation view was force-shown.
+  transactionConfirmation: { required: false },
   // Connecting a wallet must NOT sign it up as a Dynamic user. Dynamic's
   // information-capture step then demands an email ("We need a bit of
   // information" -> "Email already exists"), which is meaningless here: the
