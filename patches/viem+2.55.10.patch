@@ -1,0 +1,34 @@
+diff --git a/node_modules/viem/_cjs/actions/wallet/prepareTransactionRequest.js b/node_modules/viem/_cjs/actions/wallet/prepareTransactionRequest.js
+index 23d1b7a..7896a27 100644
+--- a/node_modules/viem/_cjs/actions/wallet/prepareTransactionRequest.js
++++ b/node_modules/viem/_cjs/actions/wallet/prepareTransactionRequest.js
+@@ -128,7 +128,11 @@ async function prepareTransactionRequest(client, args) {
+                 ...(type && !request.type ? { type } : {}),
+                 ...(typeof chainId !== 'undefined' ? { chainId } : {}),
+                 ...(typeof gas !== 'undefined' ? { gas } : {}),
+-                ...(typeof gasPrice !== 'undefined' ? { gasPrice } : {}),
++                ...(typeof gasPrice !== 'undefined' &&
++                    typeof maxFeePerGas === 'undefined' &&
++                    typeof maxPriorityFeePerGas === 'undefined'
++                    ? { gasPrice }
++                    : {}),
+                 ...(typeof nonce !== 'undefined' ? { nonce } : {}),
+                 ...(typeof maxFeePerBlobGas !== 'undefined' &&
+                     request.type !== 'legacy' &&
+diff --git a/node_modules/viem/_esm/actions/wallet/prepareTransactionRequest.js b/node_modules/viem/_esm/actions/wallet/prepareTransactionRequest.js
+index f59759a..eef5762 100644
+--- a/node_modules/viem/_esm/actions/wallet/prepareTransactionRequest.js
++++ b/node_modules/viem/_esm/actions/wallet/prepareTransactionRequest.js
+@@ -188,7 +188,11 @@ export async function prepareTransactionRequest(client, args) {
+                 ...(type && !request.type ? { type } : {}),
+                 ...(typeof chainId !== 'undefined' ? { chainId } : {}),
+                 ...(typeof gas !== 'undefined' ? { gas } : {}),
+-                ...(typeof gasPrice !== 'undefined' ? { gasPrice } : {}),
++                ...(typeof gasPrice !== 'undefined' &&
++                    typeof maxFeePerGas === 'undefined' &&
++                    typeof maxPriorityFeePerGas === 'undefined'
++                    ? { gasPrice }
++                    : {}),
+                 ...(typeof nonce !== 'undefined' ? { nonce } : {}),
+                 ...(typeof maxFeePerBlobGas !== 'undefined' &&
+                     request.type !== 'legacy' &&
