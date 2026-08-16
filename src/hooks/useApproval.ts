@@ -94,15 +94,13 @@ export function useApproval(
         args: [escrowAddress, approvalAmount],
         gas: 150_000n,
         chainId,
-        // Celo supports EIP-1559, so viem attaches maxFeePerGas /
-        // maxPriorityFeePerGas by default. Dynamic's embedded wallet builds a
-        // LEGACY transaction, and viem then rejects the combination with
-        // "`maxFeePerGas`/`maxPriorityFeePerGas` is not a valid Legacy
-        // Transaction attribute" before anything is signed - which is why the
-        // Dezen wallet could never complete a payment while external wallets
-        // (which build 1559 transactions) were fine. Asking for legacy
-        // explicitly makes viem send gasPrice and omit the 1559 fields.
-        ...(getWalletMode() === "dezen" ? { type: "legacy" as const } : {}),
+        // The approval is the FIRST transaction, and where the Dezen wallet
+        // fails: the request reaching Dynamic carries both gasPrice and
+        // maxFeePerGas, so viem infers "legacy" and then rejects the 1559
+        // fields. Pinning eip1559 keeps gasPrice out so the type is
+        // unambiguous. (Forcing "legacy" was tried first and made it worse -
+        // it adds gasPrice, which is the half that causes the bad inference.)
+        ...(getWalletMode() === "dezen" ? { type: "eip1559" as const } : {}),
       });
 
       // Wait for confirmation before refreshing allowance - avoids stale "not approved" flash

@@ -125,12 +125,15 @@ export function useEscrow() {
         // ── Execute via @wagmi/core (no React lifecycle dependency) ──
         // Using the core action instead of useWriteContract hook prevents
         // stale-closure and mutation-state issues in long async payment flows.
-        // Dynamic's embedded wallet signs LEGACY transactions. Celo supports
-        // EIP-1559, so viem otherwise attaches maxFeePerGas /
-        // maxPriorityFeePerGas and then rejects them as invalid Legacy
-        // attributes before signing - the reason the Dezen wallet could never
-        // pay while external wallets could. Asking for legacy explicitly makes
-        // viem send gasPrice instead.
+        // The transaction reaching Dynamic carries BOTH gasPrice and
+        // maxFeePerGas. viem infers "legacy" from gasPrice, then asserts and
+        // finds the 1559 fields:
+        //   `maxFeePerGas`/`maxPriorityFeePerGas` is not a valid Legacy
+        //   Transaction attribute
+        // Forcing type:"legacy" made this worse - it tells viem to populate
+        // gasPrice, and Dynamic still contributes its own 1559 estimate.
+        // Pinning eip1559 keeps gasPrice out entirely, so the type can only
+        // resolve one way.
         //
         // feeCurrency is dropped in the same breath: it is Celo's CIP-64
         // transaction type, which is 1559-based and cannot be expressed as a
@@ -145,7 +148,7 @@ export function useEscrow() {
           gas,
           chainId: liveChainId,
           ...(isDezenWallet
-            ? { type: "legacy" as const }
+            ? { type: "eip1559" as const }
             : feeCurrency
             ? { feeCurrency }
             : {}),
