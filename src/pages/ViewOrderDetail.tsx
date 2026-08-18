@@ -18,6 +18,7 @@ import PaymentMethodSelector, {
   type PaymentMethod,
 } from "../components/payment/PaymentMethodSelector";
 import type { TradeState } from "../components/trade/TradeStatus";
+import { FIAT_PAYMENT_ENABLED } from "../config/fiatPayment";
 import type { OrderStatus } from "../utils/types";
 import { useCurrency } from "../context/CurrencyContext";
 import { useAuth } from "../context/AuthContext";
@@ -27,6 +28,20 @@ import {
   DEFAULT_LOGISTICS_PROVIDER,
   getExplorerUrl,
 } from "../config/chains";
+
+/**
+ * Where "Pay Now" lands, and where "back" returns to.
+ *
+ * With fiat ON the buyer picks a method first, so the starting point is null
+ * (no method chosen) and back returns there. With fiat OFF there is only one
+ * method, so we start on crypto and the method-picker step never renders -
+ * which restores the exact pre-fiat flow: Pay Now goes straight to checkout,
+ * and back closes it. Without this, back would clear the method and strand the
+ * buyer on a picker with a single option.
+ */
+const INITIAL_PAYMENT_METHOD: PaymentMethod | null = FIAT_PAYMENT_ENABLED
+  ? null
+  : "crypto";
 
 const ViewOrderDetail = () => {
   const { orderId } = useParams<{ orderId: string }>();
@@ -70,8 +85,19 @@ const ViewOrderDetail = () => {
   const [updateOrderStatus] = useUpdateOrderStatusMutation();
   const [showPayment, setShowPayment] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(
-    null,
+    INITIAL_PAYMENT_METHOD,
   );
+  // Back arrow inside crypto checkout. With fiat ON it returns to the method
+  // picker; with fiat OFF there is no picker to return to, so it closes
+  // checkout entirely rather than becoming a button that does nothing.
+  const goBackFromCheckout = () => {
+    if (FIAT_PAYMENT_ENABLED) {
+      setPaymentMethod(null);
+      return;
+    }
+    setShowPayment(false);
+  };
+
   const [checklistComplete, setChecklistComplete] = useState(false);
   // Set to true the moment buyTrade succeeds so the Pay button never re-appears
   // even if the backend API update is slow or fails.
@@ -390,11 +416,11 @@ const ViewOrderDetail = () => {
                     fiatSummary={formatAmount(orderTotal.total, tokenSymbol)}
                   />
                 </>
-              ) : paymentMethod === "fiat" ? (
+              ) : paymentMethod === "fiat" && FIAT_PAYMENT_ENABLED ? (
                 <>
                   <div className="mb-4 flex items-center gap-2">
                     <button
-                      onClick={() => setPaymentMethod(null)}
+                      onClick={() => setPaymentMethod(INITIAL_PAYMENT_METHOD)}
                       className="rounded-full p-1 text-gray-500 transition-colors hover:bg-[#292B30] hover:text-white"
                     >
                       <svg
@@ -456,7 +482,7 @@ const ViewOrderDetail = () => {
                     }}
                     onClose={() => {
                       setShowPayment(false);
-                      setPaymentMethod(null);
+                      setPaymentMethod(INITIAL_PAYMENT_METHOD);
                     }}
                   />
                 </>
@@ -464,7 +490,7 @@ const ViewOrderDetail = () => {
                 <>
                   <div className="mb-4 flex items-center gap-2">
                     <button
-                      onClick={() => setPaymentMethod(null)}
+                      onClick={goBackFromCheckout}
                       className="rounded-full p-1 text-gray-500 transition-colors hover:bg-[#292B30] hover:text-white"
                     >
                       <svg
@@ -524,7 +550,7 @@ const ViewOrderDetail = () => {
                     }}
                     onClose={() => {
                       setShowPayment(false);
-                      setPaymentMethod(null);
+                      setPaymentMethod(INITIAL_PAYMENT_METHOD);
                     }}
                     productName={order.product?.name}
                     productImage={order.product?.images?.[0]}
