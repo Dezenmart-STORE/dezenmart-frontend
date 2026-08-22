@@ -87,7 +87,7 @@ const WC_PROJECT_ID = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID as string | 
 const externalConnectors = connectorsForWallets(
   [
     {
-      groupName: "",
+      groupName: "Recommended",
       wallets: [
         metaMaskWallet,
         rkCoinbaseWallet,
