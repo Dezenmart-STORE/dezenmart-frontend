@@ -37,7 +37,6 @@ import { RampProvider } from "./components/rampp/RampContext.tsx";
 import { FloatingRampButton } from "./components/rampp/FloatingRampButton.tsx";
 import { RampModal } from "./components/rampp/RampModal.tsx";
 import { RampMinimalProvider } from "./components/ramp/USAGE_EXAMPLE.tsx";
-import { PAYMENTS_ENABLED } from "./config/features";
 
 // ── Startup: version-based stale cache cleanup ──────────────────────────────
 // When a new version is deployed, clear data that may be stale or reference
@@ -132,22 +131,6 @@ const SellCheckout = lazy(() => import("./pages/SellCheckout.tsx"));
 const ViewTrade = lazy(() => import("./pages/Trade.tsx"));
 const ViewTradeDetail = lazy(() => import("./pages/ViewTradeDetail.tsx"));
 const Legal = lazy(() => import("./pages/Legal.tsx"));
-const PaymentsHeld = lazy(() => import("./pages/PaymentsHeld.tsx"));
-
-/**
- * Routes that exist only to move money, swapped out while payments are held
- * (config/features.ts). Doing it here means those pages are never reached, so
- * no payment control can render behind a guard someone forgot to add.
- */
-const RampShell = ({ children }: { children: React.ReactNode }) =>
-  PAYMENTS_ENABLED ? (
-    <RampMinimalProvider>{children}</RampMinimalProvider>
-  ) : (
-    <>{children}</>
-  );
-
-const heldIfPaymentsOff = (element: React.ReactNode) =>
-  PAYMENTS_ENABLED ? element : <PaymentsHeld />;
 
 setupGlobalErrorHandling();
 
@@ -193,16 +176,13 @@ const RouterLayout = () => {
           <SmartWalletProvider>
               <AuthProvider>
                 <SmartWalletContextProvider>
-                    {/* RampMinimalProvider renders the Quidax "Buy / Sell
-                        Crypto" button and its modal - buying and selling
-                        crypto, so it is held with the rest. RampShell drops to
-                        a passthrough when payments are off, which unmounts
-                        both without disturbing the provider tree below.
-
-                        Worth knowing: this provider comes from a file named
-                        USAGE_EXAMPLE.tsx. The example got wired into
-                        production. */}
-                    <RampShell>
+                    <RampMinimalProvider
+                      // defaultCustomer={{
+                      //   email: "user@dezenmart.io",
+                      //   first_name: "John",
+                      //   last_name: "Doe",
+                      // }}
+                    >
                             {/* <FloatingRampButton
                               defaultMode="onramp"
                               position="bottom-right"
@@ -227,7 +207,7 @@ const RouterLayout = () => {
                     </WalkthroughProvider>
                   </CurrencyProvider>
                 </TermsProvider>
-                     </RampShell>
+                     </RampMinimalProvider>
                 </SmartWalletContextProvider>
               </AuthProvider>
           </SmartWalletProvider>
@@ -255,10 +235,10 @@ const router = createBrowserRouter([
         children: [
           { path: "/account", element: <Account /> },
           { path: "/notifications", element: <Notifications /> },
-          { path: "/trades/viewtrades", element: heldIfPaymentsOff(<ViewTrade />) },
-          { path: "/trades/buy/:productId", element: heldIfPaymentsOff(<BuyCheckout />) },
-          { path: "/trades/sell/:productId", element: heldIfPaymentsOff(<SellCheckout />) },
-          { path: "/trades/viewtrades/:tradeId", element: heldIfPaymentsOff(<ViewTradeDetail />) },
+          { path: "/trades/viewtrades", element: <ViewTrade /> },
+          { path: "/trades/buy/:productId", element: <BuyCheckout /> },
+          { path: "/trades/sell/:productId", element: <SellCheckout /> },
+          { path: "/trades/viewtrades/:tradeId", element: <ViewTradeDetail /> },
           { path: "/orders/:orderId", element: <ViewOrderDetail /> },
           { path: "/chat", element: <Chat /> },
           { path: "/chat/:userId", element: <ChatDetail /> },

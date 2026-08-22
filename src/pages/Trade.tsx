@@ -22,7 +22,6 @@ import Tab from "../components/trade/Tab";
 import LazyFloatingButton from "../components/common/LazyFloatingButton";
 import { useAccount } from "wagmi";
 import ConnectModal from "../components/wallet/ConnectModal";
-import { PAYMENTS_ENABLED } from "../config/features";
 
 const ProductCard = lazy(() => import("../components/trade/ProductCard"));
 const IncomingOrderCard = lazy(
@@ -255,10 +254,6 @@ const Trade = () => {
   }, [isConnected, isConnecting]);
 
   if (!isConnected && !isConnecting) {
-    // Belt and braces: the router already swaps this route out while payments
-    // are held, so this branch is unreachable then. Guarded anyway so the page
-    // can never prompt for a wallet if it is ever routed directly.
-    if (!PAYMENTS_ENABLED) return null;
     return (
       <div className="bg-Dark min-h-screen text-white">
         <Container>

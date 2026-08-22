@@ -13,7 +13,6 @@ import { CATEGORIES } from "../utils/categories";
 import { useAuth } from "../context/AuthContext";
 import { useCurrency } from "../context/CurrencyContext";
 import WalletQuickAction from "../components/wallet/WalletQuickAction";
-import { PAYMENTS_ENABLED } from "../config/features";
 import { useGetSponsoredProductsQuery } from "../store/api";
 import { useSEO } from "../hooks/useSEO";
 import {
@@ -170,7 +169,7 @@ const Home = () => {
             </span>
           </Link>
 
-          {PAYMENTS_ENABLED && <WalletQuickAction />}
+          <WalletQuickAction />
         </div>
 
         {/* ── Banner Carousel ───────────────────────────────── */}
