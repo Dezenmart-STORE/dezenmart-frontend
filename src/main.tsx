@@ -8,7 +8,6 @@ import {
 import { createRoot } from "react-dom/client";
 import { Configuration } from "@react-md/layout";
 import Layout from "./components/layout/Layout.tsx";
-import Loadscreen from "./pages/Loadscreen.tsx";
 import { AuthProvider } from "./context/AuthContext.tsx";
 import AuthCallback from "./pages/AuthCallback.tsx";
 import ProtectedRoute from "./components/auth/ProtectedRoute.tsx";
@@ -133,17 +132,6 @@ const Legal = lazy(() => import("./pages/Legal.tsx"));
 
 setupGlobalErrorHandling();
 
-declare global {
-  interface Window {
-    __APP_IS_STANDALONE__?: boolean;
-  }
-}
-
-const initialStandaloneMode: boolean =
-  typeof window !== "undefined"
-    ? Boolean(window.__APP_IS_STANDALONE__)
-    : false;
-
 // Fires app-ready once the full provider tree and layout are mounted.
 // The HTML splash screen listens for this event and begins its fade-out.
 const SplashDismisser = () => {
@@ -192,11 +180,15 @@ const RouterLayout = () => {
                     <WalkthroughProvider>
                       <Layout>
                         <SplashDismisser />
-                        <Suspense
-                          fallback={
-                            initialStandaloneMode ? null : <Loadscreen />
-                          }
-                        >
+                        {/* No fallback UI. A lazy route resolving is not worth
+                            taking the screen for: null keeps the current page
+                            (header, nav and all) visible until the next one is
+                            ready, instead of the full-screen blackout the old
+                            Loadscreen caused. It was `fixed inset-0 z-[9999]`,
+                            so despite this boundary sitting inside <Layout> and
+                            wrapping only the outlet, it covered the entire app
+                            and every navigation looked like a relaunch. */}
+                        <Suspense fallback={null}>
                           <Outlet />
                         </Suspense>
                         <ReferralHandler />
@@ -250,7 +242,6 @@ const router = createBrowserRouter([
       { path: "/privacy", element: <Legal type="privacy_policy" /> },
       { path: "/cookies", element: <Legal type="cookie_policy" /> },
       { path: "/referral", element: <ReferralLanding /> },
-      { path: "/load", element: <Loadscreen /> },
       { path: "/offline", element: <Offline /> },
       { path: "*", element: <NotFound /> },
     ],

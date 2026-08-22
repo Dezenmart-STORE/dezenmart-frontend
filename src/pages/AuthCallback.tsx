@@ -2,7 +2,6 @@ import { useEffect, useState, startTransition } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useGetUserProfileQuery } from "../store/api";
-import Loadscreen from "./Loadscreen";
 
 const AuthCallback = () => {
   const [searchParams] = useSearchParams();
@@ -77,7 +76,18 @@ const AuthCallback = () => {
   }
 
   if (isProcessing) {
-    return <Loadscreen />;
+    // The one place a loader still earns its keep: arriving here from the OAuth
+    // redirect there is no previous page to hold on screen. A small spinner
+    // rather than the old branded full-screen animation - the splash already
+    // played on this page load.
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center bg-[#212428]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#292B30] border-t-red-600" />
+          <p className="text-sm text-gray-500">Signing you in…</p>
+        </div>
+      </div>
+    );
   }
 
   return null;
