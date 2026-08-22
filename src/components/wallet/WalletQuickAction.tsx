@@ -178,7 +178,7 @@ export default function WalletQuickAction() {
           </button>
 
           {/* Swap tokens, powered by Squid */}
-          {SQUID_ENABLED && (
+          {/* {SQUID_ENABLED && (
             <button
               onClick={() => {
                 setShowSwap(true);
@@ -191,7 +191,7 @@ export default function WalletQuickAction() {
               </svg>
               Swap tokens
             </button>
-          )}
+          )} */}
 
           {/* View on explorer */}
           <a
