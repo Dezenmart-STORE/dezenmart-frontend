@@ -4,7 +4,25 @@ import Modal from "./Modal";
 import { v4 as uuidv4 } from "uuid";
 import { SelfQRcodeWrapper } from "@selfxyz/qrcode";
 import { getUniversalLink, SelfAppBuilder } from "@selfxyz/core";
-import type { SelfApp } from "@selfxyz/common/utils/appType";
+// SelfApp comes from @selfxyz/qrcode, which re-exports it, NOT from
+// @selfxyz/common directly.
+//
+// @selfxyz/common is not in package.json - it was only ever a transitive
+// dependency of @selfxyz/qrcode that npm happened to hoist to the top of
+// node_modules. Importing through it meant a build that worked or failed
+// depending on how the tree got flattened. It failed: package.json allows
+// "@selfxyz/qrcode": "^1.0.8", and when the lockfile was regenerated the
+// caret floated it 1.0.11 -> 1.0.25, which renamed that dependency to
+// @selfxyz/sdk-common. Nothing required @selfxyz/common any more, so it left
+// the tree and CI died on TS2307 while local builds stayed green against a
+// stale node_modules.
+//
+// Importing from the direct dependency should make this robust to that:
+// whatever @selfxyz/qrcode re-exports the type from is its business, not ours.
+// Verified against the lockfile we ship (qrcode 1.0.11). NOT verified against
+// 1.0.25 - that install would not complete on Windows - so if the lockfile is
+// ever regenerated, check this import still resolves before trusting it.
+import type { SelfApp } from "@selfxyz/qrcode";
 import { useAuth } from "../../context/AuthContext";
 import { useSnackbar } from "../../context/SnackbarContext";
 // import { useUserManagement } from "../../utils/hooks/useUser";
