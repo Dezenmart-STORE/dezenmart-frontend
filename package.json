@@ -25,9 +25,6 @@
   },
   "dependencies": {
     "@divvi/referral-sdk": "^2.3.0",
-    "@dynamic-labs/ethereum": "^5.0.0",
-    "@dynamic-labs/sdk-react-core": "^5.0.0",
-    "@dynamic-labs/wagmi-connector": "^5.0.0",
     "@hookform/resolvers": "^3.10.0",
     "@mento-protocol/mento-sdk": "^1.10.3",
     "@rainbow-me/rainbowkit": "^2.2.4",

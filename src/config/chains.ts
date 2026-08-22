@@ -77,9 +77,8 @@ const WC_PROJECT_ID = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID as string | 
  *
  * RainbowKit owns the third-party connect experience (install/QR/mobile
  * deep-links, real wallet icons, "not installed" states) - hand-rolling that
- * list was where our own version kept breaking. Dynamic is used ONLY for the
- * Dezen embedded wallet; see config/walletMode.ts for how the two are kept
- * apart.
+ * list was where our own version kept breaking. RainbowKit is now the only
+ * way to connect - the Dynamic embedded wallet has been removed.
  *
  * WalletConnect-backed wallets (Trust, Valora, the QR option) need a project
  * id, so they're only registered when one is configured. MetaMask and Coinbase
@@ -88,7 +87,7 @@ const WC_PROJECT_ID = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID as string | 
 const externalConnectors = connectorsForWallets(
   [
     {
-      groupName: "Recommended",
+      groupName: "",
       wallets: [
         metaMaskWallet,
         rkCoinbaseWallet,
@@ -131,32 +130,6 @@ export const wagmiConfig = createConfig({
   pollingInterval: 12_000,
   syncConnectedChain: true,
 });
-
-/**
- * The connectors wagmi set up at boot, captured before anything replaces them.
- *
- * DynamicWagmiConnector overwrites `config._internal.connectors` with the single
- * embedded-wallet connector while it is mounted, and never puts them back. So
- * leaving the Dezen stack has to hand them over explicitly, or the external
- * picker finds nothing ("Connector not found", every wallet greyed out).
- *
- * Read through the PUBLIC `config.connectors` getter - `_internal.connectors`
- * exposes only setup/setState/subscribe, and calling a getState() on it crashes
- * the app at import time. `setState` replaces the array rather than mutating it,
- * so this snapshot keeps pointing at the originals.
- *
- * ORDER MATTERS. Restoring while a connection is still live detaches that
- * connection from its connector and makes disconnect() throw "disconnect is not
- * a function". Only call this once the wallet is disconnected AND
- * DynamicWagmiConnector has unmounted; DynamicRoot does exactly that in an
- * effect keyed on the wallet mode.
- */
-const ORIGINAL_CONNECTORS = wagmiConfig.connectors;
-
-export function restoreOriginalConnectors(): void {
-  wagmiConfig._internal.connectors.setState(ORIGINAL_CONNECTORS);
-}
-
 
 export const CHAIN_IDS = {
   CELO: celo.id,

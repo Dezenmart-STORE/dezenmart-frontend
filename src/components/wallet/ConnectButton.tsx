@@ -11,8 +11,6 @@ import { truncateAddress, copyToClipboard } from "../../utils/format";
 import { TARGET_CHAIN, getExplorerUrl } from "../../config/chains";
 import { useTokenBalances } from "../../hooks/useTokenBalances";
 import { useCurrency } from "../../context/CurrencyContext";
-import { useSmartWallet } from "../../context/SmartWalletContext";
-import { hasExternalPickerRequest } from "../../config/walletMode";
 import ConnectModal from "./ConnectModal";
 
 // Swap/bridge is an iframe widget, loaded only when opened.
@@ -32,11 +30,9 @@ export default function ConnectButton() {
   const { selectedToken, formatAmount } = useCurrency();
   // Authoritative: reported by the Dynamic bridge from the connector itself, so
   // it stays correct even if the stored wallet address is stale or wrong.
-  const { isDezenWalletActive: isDezenWallet } = useSmartWallet();
 
   // Reopen the wallet picker after the reload that switches us into the
-  // external wallet stack (see config/walletMode.ts).
-  const [showModal, setShowModal] = useState(() => hasExternalPickerRequest());
+  const [showModal, setShowModal] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const [showSwap, setShowSwap] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -153,16 +149,6 @@ export default function ConnectButton() {
             </button>
           )}
 
-          {/* Dezen Wallet notice */}
-          {isDezenWallet && (
-            <div className="mb-2 rounded-lg border border-red-800/40 bg-red-900/15 p-2.5">
-              <p className="text-xs font-semibold text-red-300">You're on your Dezen Wallet</p>
-              <p className="mt-0.5 text-[11px] leading-relaxed text-gray-400">
-                You can disconnect to use MetaMask, Coinbase, Trust or Valora, but we strongly recommend keeping Dezen Wallet for the smoothest, safest experience.
-              </p>
-            </div>
-          )}
-
           {/* Balance section */}
           <div className="mb-2 rounded-lg bg-[#292B30] p-3">
             <div className="flex items-center justify-between">
@@ -217,7 +203,7 @@ export default function ConnectButton() {
             </span>
           </button>
 
-          {/* Swap tokens (Dezen Wallet, powered by Squid) */}
+          {/* Swap tokens, powered by Squid */}
           {SQUID_ENABLED && (
             <button
               onClick={() => {

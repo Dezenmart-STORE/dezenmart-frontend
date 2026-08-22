@@ -5,7 +5,7 @@
  *  - theme:   themeType alone doesn't restyle it, so it rendered in light mode.
  *
  * Palette below is Squid's dark theme with DezenMart red (#dc2626) swapped in
- * for every primary/accent slot, so the embed reads as Dezen Wallet.
+ * for every primary/accent slot, so the embed reads as DezenMart.
  */
 const RED = "#dc2626";
 const OFF_WHITE = "#FBFBFD";

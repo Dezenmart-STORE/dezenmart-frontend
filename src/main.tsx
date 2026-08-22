@@ -19,8 +19,7 @@ import ErrorBoundary from "./components/error/ErrorBoundary.tsx";
 import { setupGlobalErrorHandling } from "./utils/errorHandling";
 import ReferralHandler from "./components/referrals/ReferralHandler.tsx";
 import { CurrencyProvider } from "./context/CurrencyContext.tsx";
-import SmartWalletProvider from "./components/wallet/smart/SmartWalletProvider.tsx";
-import { SmartWalletContextProvider } from "./context/SmartWalletContext.tsx";
+import Web3Provider from "./components/wallet/Web3Provider.tsx";
 import { TermsProvider } from "./context/TermsContext.tsx";
 import { WalkthroughProvider } from "./context/WalkthroughContext.tsx";
 import Walkthrough from "./components/walkthrough/Walkthrough.tsx";
@@ -173,9 +172,8 @@ const RouterLayout = () => {
     <Configuration>
       <SnackbarProvider>
         <Provider store={store}>
-          <SmartWalletProvider>
+          <Web3Provider>
               <AuthProvider>
-                <SmartWalletContextProvider>
                     <RampMinimalProvider
                       // defaultCustomer={{
                       //   email: "user@dezenmart.io",
@@ -208,9 +206,8 @@ const RouterLayout = () => {
                   </CurrencyProvider>
                 </TermsProvider>
                      </RampMinimalProvider>
-                </SmartWalletContextProvider>
               </AuthProvider>
-          </SmartWalletProvider>
+          </Web3Provider>
         </Provider>
       </SnackbarProvider>
     </Configuration>

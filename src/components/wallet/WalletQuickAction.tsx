@@ -6,7 +6,6 @@ import { useCurrency } from "../../context/CurrencyContext";
 import { useTokenBalances } from "../../hooks/useTokenBalances";
 import { truncateAddress, copyToClipboard } from "../../utils/format";
 import { TARGET_CHAIN, getExplorerUrl } from "../../config/chains";
-import { useSmartWallet } from "../../context/SmartWalletContext";
 import { Mywallet } from "../../pages";
 
 // Swap/bridge is an iframe widget, loaded only when opened.
@@ -27,7 +26,6 @@ export default function WalletQuickAction() {
   const { getBalance, refetch: refetchBalances, isLoading: balancesLoading } = useTokenBalances();
   const { selectedToken, formatAmount } = useCurrency();
   // Authoritative: reported by the Dynamic bridge from the connector itself.
-  const { isDezenWalletActive: isDezenWallet } = useSmartWallet();
 
   const [showModal, setShowModal] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -121,16 +119,6 @@ export default function WalletQuickAction() {
             </button>
           )}
 
-          {/* Dezen Wallet notice */}
-          {/* {isDezenWallet && (
-            <div className="mb-2 rounded-lg border border-red-800/40 bg-red-900/15 p-2.5">
-              <p className="text-xs font-semibold text-red-300">You're on your Dezen Wallet</p>
-              <p className="mt-0.5 text-[11px] leading-relaxed text-gray-400">
-                You can disconnect to use MetaMask, Coinbase, Trust or Valora, but we strongly recommend keeping Dezen Wallet for the smoothest, safest experience.
-              </p>
-            </div>
-          )} */}
-
           {/* Balance section */}
           <div className="mb-2 rounded-lg bg-[#292B30] p-3">
             <div className="flex items-center justify-between">
@@ -189,7 +177,7 @@ export default function WalletQuickAction() {
             </span>
           </button>
 
-          {/* Swap tokens (Dezen Wallet, powered by Squid) */}
+          {/* Swap tokens, powered by Squid */}
           {SQUID_ENABLED && (
             <button
               onClick={() => {

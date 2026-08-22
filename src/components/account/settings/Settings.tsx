@@ -16,7 +16,6 @@ import { TwoFactor } from "../../../pages";
 import { useAuth } from "../../../context/AuthContext";
 import { useNavigate } from "react-router";
 import type { AccountViewState } from "../../../pages/Account";
-import SmartWalletCard from "../../wallet/smart/SmartWalletCard";
 
 interface SettingItemProps {
   icon: React.ReactNode;
@@ -180,8 +179,6 @@ const Settings = ({
         </button>
         <h2 className="text-xl font-bold text-white">Settings</h2>
       </div>
-
-      <SmartWalletCard />
 
       <div className="space-y-4">
         {sections.map((section) => (

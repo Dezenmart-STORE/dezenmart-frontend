@@ -4,7 +4,6 @@ import { waitForTransactionReceipt } from "@wagmi/core";
 import { erc20Abi, parseUnits, formatUnits } from "viem";
 import { getTokenAddress, getTokenDecimals } from "../config/tokens";
 import { getEscrowAddress, wagmiConfig } from "../config/chains";
-import { isDezenSigner, sendViaDezenWallet } from "../utils/dezenTx";
 
 interface UseApprovalReturn {
   /** Current allowance as a formatted number */
@@ -87,26 +86,14 @@ export function useApproval(
             return (raw * 105n) / 100n;
           })();
 
-      // The approval is the FIRST transaction, and the one that was failing on
-      // the Dezen wallet. It goes straight to the provider with no fee fields
-      // attached - see utils/dezenTx for why anything we attach collides with
-      // Dynamic's own fee quote.
-      const hash = isDezenSigner()
-        ? await sendViaDezenWallet({
-            address: tokenAddress,
-            abi: erc20Abi,
-            functionName: "approve",
-            args: [escrowAddress, approvalAmount],
-            gas: 150_000n,
-          })
-        : await writeContractAsync({
-            address: tokenAddress,
-            abi: erc20Abi,
-            functionName: "approve",
-            args: [escrowAddress, approvalAmount],
-            gas: 150_000n,
-            chainId,
-          });
+      const hash = await writeContractAsync({
+        address: tokenAddress,
+        abi: erc20Abi,
+        functionName: "approve",
+        args: [escrowAddress, approvalAmount],
+        gas: 150_000n,
+        chainId,
+      });
 
       // Wait for confirmation before refreshing allowance - avoids stale "not approved" flash
       await waitForTransactionReceipt(wagmiConfig, { hash, timeout: 60_000 });

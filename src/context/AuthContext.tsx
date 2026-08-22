@@ -6,7 +6,6 @@ import {
   ReactNode,
 } from "react";
 import { jwtDecode } from "jwt-decode";
-import { needsReloadForDynamic } from "../config/smartWallet";
 import { UserProfile } from "../utils/types";
 import { setSentryUser, clearSentryUser } from "../utils/sentry.config";
 // import { useWallet } from "../utils/hooks/useWallet";
@@ -170,11 +169,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       profile = (pj?.data ?? pj) as UserProfile;
     }
     handleAuthCallback(token, profile);
-    // One Tap signs in without navigating, so this page load still has no
-    // Dynamic provider tree (it is mounted only for loads that start with a
-    // session - see config/smartWallet.ts). Reload in place to bring the Dezen
-    // wallet up; reload() keeps the user on the page they signed in from.
-    if (needsReloadForDynamic()) window.location.reload();
   };
 
   const handleAuthCallback = (token: string, userData: UserProfile) => {

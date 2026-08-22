@@ -5,7 +5,7 @@ import { buildSquidIframeUrl } from "./squidConfig";
 interface Props {
   onClose: () => void;
   /** "bridge" = move funds from another chain to Celo (post-connect guide).
-   *  "swap"   = swap tokens inside the Dezen Wallet (wallet menu). */
+   *  "swap"   = swap tokens inside the connected wallet (wallet menu). */
   variant?: "bridge" | "swap";
 }
 
@@ -54,8 +54,8 @@ export default function SquidBridgeModal({ onClose, variant = "bridge" }: Props)
             </h2>
             <p className="mt-0.5 text-xs text-gray-500">
               {isSwap
-                ? "Swap inside your Dezen Wallet, powered by Squid"
-                : "Bridge from any chain into your Dezen Wallet"}
+                ? "Swap inside your wallet, powered by Squid"
+                : "Bridge from any chain into your wallet"}
             </p>
           </div>
           <button
