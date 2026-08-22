@@ -23,6 +23,7 @@ import { useAuth } from "../../context/AuthContext";
 import Button from "../common/Button";
 import CurrencyToggle from "../common/CurrencyToggle";
 import WalletConnectButton from "../wallet/ConnectButton";
+import { PAYMENTS_ENABLED } from "../../config/features";
 import { useCurrency } from "../../context/CurrencyContext";
 import type { StableToken } from "../../config/tokens";
 import { useAccount, useDisconnect } from "wagmi";
@@ -289,8 +290,10 @@ const Header = () => {
           {/* Currency Toggle - always visible */}
           <CurrencyToggle />
 
-          {/* Token Selector - sm only and lg+; hidden at md (desktop nav takes space) */}
-          {isConnected && (
+          {/* Token Selector - sm only and lg+; hidden at md (desktop nav takes space).
+              The token it selects is the one you pay in, so it goes with the
+              rest while payments are held. */}
+          {PAYMENTS_ENABLED && isConnected && (
             <div className="hidden sm:block md:hidden lg:block">
               <TokenSelector />
             </div>
@@ -304,7 +307,7 @@ const Header = () => {
           {/* Wallet button - only for signed-in users. Logged out shows just
               Sign In; logged in shows Connect (disconnected) or the wallet
               (connected). ConnectButton handles those two states internally. */}
-          {isAuthenticated && <WalletConnectButton />}
+          {PAYMENTS_ENABLED && isAuthenticated && <WalletConnectButton />}
 
           {isAuthenticated ? (
             <>
@@ -417,7 +420,7 @@ const Header = () => {
                       </motion.button>
 
                       {/* Show token selector on mobile (< sm) when wallet is connected */}
-                      {isConnected && (
+                      {PAYMENTS_ENABLED && isConnected && (
                         <div className="sm:hidden border-t border-gray-700/50 my-1 pt-3 pb-2 px-4">
                           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
                             Payment Token

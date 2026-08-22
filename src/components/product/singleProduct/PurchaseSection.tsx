@@ -24,6 +24,7 @@ import { useCurrency } from "../../../context/CurrencyContext";
 import { useSwap } from "../../../hooks/useSwap";
 import { useTokenBalances } from "../../../hooks/useTokenBalances";
 import ConnectModal from "../../wallet/ConnectModal";
+import { PAYMENTS_ENABLED } from "../../../config/features";
 import type { StableToken } from "../../../config/tokens";
 
 import QuantitySelector from "./QuantitySelector";
@@ -397,8 +398,15 @@ export const PurchaseSectionProvider: React.FC<
     updateState({ purchaseError: null });
     if (!isAuthenticated) return startTransition(() => navigate("/login"));
     if (!product) { updateState({ purchaseError: "This product's details didn't load. Refresh the page and try again." }); return; }
-    if (!isConnected) { updateState({ showWalletModal: true }); return; }
-    if (isUnpayable) { updateState({ purchaseError: blockReason }); return; }
+    // With payments held (config/features.ts) ordering still works, so the two
+    // wallet gates below are skipped. Both are about paying, not ordering:
+    // the first opens the connect modal, the second blocks on token balance.
+    // executeOrder itself never touches the wallet - it posts product,
+    // quantity, quoteId and delivery address - so it runs unchanged.
+    if (PAYMENTS_ENABLED) {
+      if (!isConnected) { updateState({ showWalletModal: true }); return; }
+      if (isUnpayable) { updateState({ purchaseError: blockReason }); return; }
+    }
     await executeOrder();
   }, [isAuthenticated, product, isConnected, isUnpayable, blockReason, executeOrder, navigate, updateState]);
 
@@ -509,8 +517,10 @@ export const PurchaseSectionBody: React.FC = () => {
         />
       )}
 
-      {/* Soft payment hint (blocking reason is shown by the footer) */}
-      {product && (
+      {/* Soft payment hint (blocking reason is shown by the footer).
+          Balance and swap guidance is payment guidance, so it goes with the
+          rest while payments are held. */}
+      {PAYMENTS_ENABLED && product && (
         <PaymentHint
           isConnected={isConnected}
           payToken={product.paymentToken}
@@ -523,7 +533,7 @@ export const PurchaseSectionBody: React.FC = () => {
       )}
 
       {/* Wallet info - shown when connected */}
-      {isConnected && (
+      {PAYMENTS_ENABLED && isConnected && (
         <div className="bg-gray-800/60 border border-gray-700/50 rounded-lg p-3 text-xs space-y-2">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-1 text-gray-400">
@@ -574,7 +584,7 @@ export const PurchaseSectionFooter: React.FC = () => {
     <>
       <div className="bg-[#212428] px-4 pb-4 pt-3 md:px-6 md:pb-6 xl:flex-shrink-0 border-t border-gray-700/40">
         {/* Blocking reason (persistent) or a transient action error, by the button */}
-        {blockReason ? (
+        {PAYMENTS_ENABLED && blockReason ? (
           <div className="mb-3">
             <ErrorDisplay error={blockReason} />
           </div>
@@ -585,14 +595,18 @@ export const PurchaseSectionFooter: React.FC = () => {
         ) : null}
         <button
           onClick={handleButtonClick}
-          disabled={isLoading || stockStatus.isOutOfStock || isUnpayable}
+          disabled={
+            isLoading ||
+            stockStatus.isOutOfStock ||
+            (PAYMENTS_ENABLED && isUnpayable)
+          }
           className="bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600 disabled:from-gray-600 disabled:to-gray-600 text-white py-3.5 px-6 rounded-xl w-full flex justify-center items-center gap-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed font-semibold text-sm shadow-lg hover:shadow-xl"
           aria-label={
             !isAuthenticated
               ? "Login to buy this product"
-              : !isConnected
+              : PAYMENTS_ENABLED && !isConnected
               ? "Connect wallet to purchase"
-              : "Complete purchase"
+              : "Place this order"
           }
         >
           {isLoading ? (
@@ -606,7 +620,7 @@ export const PurchaseSectionFooter: React.FC = () => {
               <span>
                 {!isAuthenticated
                   ? "Login to Buy"
-                  : !isConnected
+                  : PAYMENTS_ENABLED && !isConnected
                   ? "Connect Wallet"
                   : stockStatus.isOutOfStock
                   ? "Out of Stock"
@@ -618,7 +632,7 @@ export const PurchaseSectionFooter: React.FC = () => {
       </div>
 
       {/* Connect Wallet modal */}
-      {state.showWalletModal && (
+      {PAYMENTS_ENABLED && state.showWalletModal && (
         <ConnectModal onClose={() => updateState({ showWalletModal: false })} />
       )}
     </>

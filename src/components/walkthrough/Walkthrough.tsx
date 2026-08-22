@@ -10,6 +10,7 @@ import {
   HiSparkles,
 } from "react-icons/hi2";
 import { IoClose, IoChevronBack, IoChevronForward } from "react-icons/io5";
+import { PAYMENTS_ENABLED } from "../../config/features";
 
 interface WalkthroughStep {
   title: string;
@@ -17,22 +18,27 @@ interface WalkthroughStep {
   icon: React.ReactNode;
   tips?: string[];
   illustration?: string;
+  /** Dropped from the tour while payments are held - see below. */
+  paymentRelated?: boolean;
 }
 
-const walkthroughSteps: WalkthroughStep[] = [
+const ALL_STEPS: WalkthroughStep[] = [
   {
     title: "Welcome to DezenMart! 🎉",
     description:
       "Your gateway to secure, decentralized shopping. We've made crypto payments as easy as traditional online shopping, with added security and control.",
     icon: <HiSparkles className="w-12 h-12 text-Red" />,
-    tips: [
-      "Shop with confidence using crypto",
-      "Your money is protected in escrow",
-      "Connect your wallet to get started",
-    ],
+    tips: PAYMENTS_ENABLED
+      ? [
+          "Shop with confidence using crypto",
+          "Your money is protected in escrow",
+          "Connect your wallet to get started",
+        ]
+      : ["Browse products from verified sellers", "Track your orders in real time"],
   },
   {
     title: "Connect Your Wallet 👛",
+    paymentRelated: true,
     description:
       "A crypto wallet is like your digital wallet - it holds your money (cryptocurrencies) and lets you make payments. Don't have one? We'll guide you through setting it up!",
     icon: <HiWallet className="w-12 h-12 text-Red" />,
@@ -44,6 +50,7 @@ const walkthroughSteps: WalkthroughStep[] = [
   },
   {
     title: "Understanding Stablecoins 💵",
+    paymentRelated: true,
     description:
       "We use 'stablecoins' - cryptocurrencies that maintain a stable value (like $1 USD = 1 USDT). This means prices don't fluctuate wildly like Bitcoin!",
     icon: <HiCurrencyDollar className="w-12 h-12 text-Red" />,
@@ -56,6 +63,7 @@ const walkthroughSteps: WalkthroughStep[] = [
   },
   {
     title: "Secure Escrow Protection 🛡️",
+    paymentRelated: true,
     description:
       "Your payment is held securely in a 'smart contract' (an automatic digital safe) until you confirm delivery. The seller only gets paid when you're happy!",
     icon: <HiShieldCheck className="w-12 h-12 text-Red" />,
@@ -83,14 +91,33 @@ const walkthroughSteps: WalkthroughStep[] = [
     description:
       "You're all set! Start exploring amazing products and enjoy the security of blockchain-powered shopping. Need help? Check our FAQ or contact support.",
     icon: <HiCheckCircle className="w-12 h-12 text-Red" />,
-    tips: [
-      "Click 'Connect Wallet' in the top-right",
-      "Browse products and start shopping",
-      "Your funds are always secure",
-      "You can restart this tutorial anytime from settings",
-    ],
+    tips: PAYMENTS_ENABLED
+      ? [
+          "Click 'Connect Wallet' in the top-right",
+          "Browse products and start shopping",
+          "Your funds are always secure",
+          "You can restart this tutorial anytime from settings",
+        ]
+      : [
+          "Browse products and start shopping",
+          "You can restart this tutorial anytime from settings",
+        ],
   },
 ];
+
+/**
+ * While payments are held (config/features.ts) the tour drops the three steps
+ * that teach paying: connecting a wallet, stablecoins, and escrow.
+ *
+ * Leaving them in would have been the worst kind of stale copy. The tour told
+ * new users to "Connect your wallet to get started" next to a header with no
+ * connect button, and devoted a whole step to escrow protection - the very
+ * policy the hold exists over - down to quoting a "2.5% escrow fee". The two
+ * remaining steps cover browsing and ordering, which both still work.
+ */
+const walkthroughSteps: WalkthroughStep[] = PAYMENTS_ENABLED
+  ? ALL_STEPS
+  : ALL_STEPS.filter((step) => !step.paymentRelated);
 
 const Walkthrough = () => {
   const {

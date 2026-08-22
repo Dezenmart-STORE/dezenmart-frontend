@@ -19,6 +19,8 @@ import PaymentMethodSelector, {
 } from "../components/payment/PaymentMethodSelector";
 import type { TradeState } from "../components/trade/TradeStatus";
 import { FIAT_PAYMENT_ENABLED } from "../config/fiatPayment";
+import { PAYMENTS_ENABLED } from "../config/features";
+import PaymentsUnavailable from "../components/payment/PaymentsUnavailable";
 import type { OrderStatus } from "../utils/types";
 import { useCurrency } from "../context/CurrencyContext";
 import { useAuth } from "../context/AuthContext";
@@ -283,7 +285,13 @@ const ViewOrderDetail = () => {
         )}
 
         {/* Wrong network warning (payment pending, wrong chain) */}
-        {!isSeller && canPay && paymentMethod === "crypto" && !isOnCelo && (
+        {/* The wrong-network banner exists only to unblock paying, so it goes
+            with the payment controls. */}
+        {PAYMENTS_ENABLED &&
+          !isSeller &&
+          canPay &&
+          paymentMethod === "crypto" &&
+          !isOnCelo && (
           <div className="rounded-2xl border border-amber-800/40 bg-amber-900/20 p-5">
             <div className="text-center">
               <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full border border-amber-800/50 bg-amber-900/30">
@@ -347,7 +355,28 @@ const ViewOrderDetail = () => {
         {!isSeller && (canPay || showPayment) && (
           <div className="rounded-2xl border border-[#292B30] bg-[#212428] p-5">
             {
-              !showPayment ? (
+              // Payments held (config/features.ts). The order and its total
+              // still show - the buyer placed it and is entitled to see what
+              // they owe - but every route to paying is gone: no Pay Now, no
+              // method picker, no PaymentFlow, no wallet prompt.
+              !PAYMENTS_ENABLED ? (
+                <div className="text-center">
+                  <h3 className="text-base font-semibold text-white">
+                    Payment Pending
+                  </h3>
+                  <div className="mt-3 rounded-lg border border-[#292B30] bg-[#292B30] px-3 py-2.5">
+                    <p className="text-sm font-bold text-white">
+                      Total:{" "}
+                      <span className="text-red-400">
+                        {orderTotal.total.toFixed(2)} {tokenSymbol}
+                      </span>
+                    </p>
+                  </div>
+                  <div className="mt-4">
+                    <PaymentsUnavailable />
+                  </div>
+                </div>
+              ) : !showPayment ? (
                 <div className="text-center">
                   <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full border border-amber-800/50 bg-amber-900/30">
                     <svg
@@ -598,8 +627,23 @@ const ViewOrderDetail = () => {
           </div>
         </div>
 
-        {/* Post-payment actions (buyer only) - valid numeric on-chain purchaseId */}
-        {!isSeller && order.purchaseId && /^\d+$/.test(order.purchaseId) && (
+        {/* Post-payment escrow actions (buyer only) - valid numeric on-chain
+            purchaseId.
+
+            These are held too. Confirm-delivery releases escrowed funds to the
+            seller and raise-dispute starts the arbitration path, so both are
+            escrow features in the sense the compliance hold covers, not merely
+            payment ones.
+
+            Consequence, and it is a real one: anyone whose order is already
+            mid-delivery cannot release funds to their seller through the app
+            while this is off. Their money stays in the contract until the flag
+            is flipped back. That was the accepted trade-off; the alternative
+            was leaving an escrow flow running during a hold on escrow. */}
+        {PAYMENTS_ENABLED &&
+        !isSeller &&
+        order.purchaseId &&
+        /^\d+$/.test(order.purchaseId) ? (
           <TradeActions
             purchaseId={order.purchaseId}
             status={status}
@@ -629,7 +673,13 @@ const ViewOrderDetail = () => {
               if (action === "cancel") navigate("/account");
             }}
           />
-        )}
+        ) : !isSeller &&
+          order.purchaseId &&
+          /^\d+$/.test(order.purchaseId) ? (
+          // Paid order, escrow actions held. Say so rather than showing a card
+          // with nothing in it.
+          <PaymentsUnavailable message="Order actions are temporarily unavailable." />
+        ) : null}
 
         {/* Review - buyer reviews the seller after completion */}
         {!isSeller && status === "completed" && sellerId && orderId && (
