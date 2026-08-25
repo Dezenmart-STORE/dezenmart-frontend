@@ -1,9 +1,16 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useFlutterwave, closePaymentModal } from "flutterwave-react-v3";
 import { useFiatPayment } from "../../hooks/useFiatPayment";
 import {
   FIAT_PROVIDERS,
   type FiatProvider,
 } from "../../services/fiatPaymentService";
+import { launchPaystackCheckout } from "../../services/liveFiatProviders";
+import {
+  isProviderLive,
+  PAYSTACK_PUBLIC_KEY,
+  FLUTTERWAVE_PUBLIC_KEY,
+} from "../../config/paymentProviders";
 
 interface Props {
   orderId: string;
@@ -39,10 +46,13 @@ function formatFiat(amount: number, currency: string) {
 }
 
 /**
- * Fiat checkout flow — provider selection, email capture, then a mock
- * provider "popup" standing in for the real hosted checkout page until the
- * backend endpoints exist. See services/fiatPaymentService.ts for how to
- * swap the mock for a real redirect once they do.
+ * Fiat checkout flow — provider selection, email capture, then:
+ *   - Paystack / Flutterwave: a REAL checkout popup, when their public key
+ *     env vars are set (client-side checkout doesn't need a backend to open;
+ *     it needs one to verify — see confirmPayment/useFiatPayment).
+ *   - Stripe, or any provider whose key isn't set yet: a mock "provider
+ *     popup" screen with Simulate Success/Fail buttons, so the flow is still
+ *     fully testable before keys/backend exist.
  */
 export default function FiatPaymentFlow({
   orderId,
@@ -58,6 +68,83 @@ export default function FiatPaymentFlow({
   const [provider, setProvider] = useState<FiatProvider | null>(null);
   const [email, setEmail] = useState(defaultEmail ?? "");
   const [emailError, setEmailError] = useState("");
+
+  // Flutterwave is hook-based - config is rebuilt each render with whatever
+  // we currently know; the popup only actually opens when we explicitly
+  // call handleFlutterPayment() below.
+  const flutterwaveConfig = {
+    public_key: FLUTTERWAVE_PUBLIC_KEY ?? "",
+    tx_ref: state.reference ?? `pending-${orderId}`,
+    amount,
+    currency,
+    payment_options: "card,mobilemoney,ussd",
+    customer: {
+      email: email || defaultEmail || "",
+      // Flutterwave's config type requires these, but the popup itself lets
+      // the buyer fill in/confirm their own name and phone - safe to leave
+      // generic here.
+      phone_number: "",
+      name: productName ?? "DezenMart buyer",
+    },
+    customizations: {
+      title: "DezenMart",
+      description: productName ?? "Order payment",
+      logo: "/logo192.png", // adjust to your actual logo path in /public
+    },
+  };
+  const handleFlutterPayment = useFlutterwave(flutterwaveConfig);
+
+  // Guards against re-launching the popup on every re-render once we've
+  // already opened it for the current reference.
+  const launchedRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (
+      state.step !== "awaiting-checkout" ||
+      !state.provider ||
+      !state.reference
+    )
+      return;
+    if (!isProviderLive(state.provider)) return;
+    if (launchedRef.current === state.reference) return;
+    launchedRef.current = state.reference;
+
+    if (state.provider === "paystack" && PAYSTACK_PUBLIC_KEY) {
+      launchPaystackCheckout({
+        publicKey: PAYSTACK_PUBLIC_KEY,
+        email,
+        amount,
+        currency,
+        reference: state.reference,
+      }).then((result) => {
+        if (result.status === "success") {
+          confirmPayment("success");
+        } else {
+          reset(); // user closed the popup - let them pick a method again
+        }
+      });
+    }
+
+    if (state.provider === "flutterwave" && FLUTTERWAVE_PUBLIC_KEY) {
+      handleFlutterPayment({
+        callback: (response: { status: string }) => {
+          closePaymentModal();
+          if (
+            response.status === "successful" ||
+            response.status === "completed"
+          ) {
+            confirmPayment("success");
+          } else {
+            confirmPayment("failed");
+          }
+        },
+        onClose: () => {
+          reset();
+        },
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.step, state.provider, state.reference]);
 
   const handleContinue = () => {
     if (!provider) return;
@@ -101,6 +188,7 @@ export default function FiatPaymentFlow({
             {FIAT_PROVIDERS.map((p) => {
               const style = PROVIDER_STYLE[p.id];
               const selected = provider === p.id;
+              const live = isProviderLive(p.id);
               return (
                 <button
                   key={p.id}
@@ -119,9 +207,16 @@ export default function FiatPaymentFlow({
                     </span>
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-white">
-                      {p.label}
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-semibold text-white">
+                        {p.label}
+                      </p>
+                      {!live && (
+                        <span className="rounded-full border border-[#373A3F] px-1.5 py-0.5 text-[10px] font-medium text-gray-500">
+                          Demo
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs text-gray-500">{p.blurb}</p>
                   </div>
                   <div
@@ -191,12 +286,37 @@ export default function FiatPaymentFlow({
     return <LoadingState label={state.message} />;
   }
 
-  // ── awaiting-checkout: mock provider popup ───────────────────────
+  // ── awaiting-checkout ──────────────────────────────────────────
   if (state.step === "awaiting-checkout" && state.provider) {
     const style = PROVIDER_STYLE[state.provider];
     const label =
       FIAT_PROVIDERS.find((p) => p.id === state.provider)?.label ??
       state.provider;
+    const live = isProviderLive(state.provider);
+
+    // Live provider: the real popup (Paystack/Flutterwave) is already open
+    // via the effect above - just show a lightweight waiting state.
+    if (live) {
+      return (
+        <div className="flex flex-col items-center py-10">
+          <div className="h-10 w-10 animate-spin rounded-full border-2 border-[#292B30] border-t-red-600" />
+          <p className="mt-4 text-sm text-gray-400">
+            Waiting for you to complete payment in the {label} window…
+          </p>
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="mt-6 rounded-xl border border-[#292B30] bg-[#292B30] px-6 py-2.5 text-sm font-medium text-gray-400 transition-colors hover:bg-[#373A3F]"
+            >
+              Cancel
+            </button>
+          )}
+        </div>
+      );
+    }
+
+    // Demo mode: no key configured (or Stripe, which always needs a backend
+    // Checkout Session) - stand in with a simulate screen.
     return (
       <div className="space-y-4">
         <div className="rounded-2xl border border-[#292B30] bg-[#1a1c20] p-5 text-center">
@@ -208,7 +328,7 @@ export default function FiatPaymentFlow({
             </span>
           </div>
           <h3 className="text-base font-semibold text-white">
-            {label} Checkout
+            {label} Checkout (Demo)
           </h3>
           <p className="mt-1 text-sm text-gray-400">
             {formatFiat(amount, currency)}
@@ -216,10 +336,20 @@ export default function FiatPaymentFlow({
 
           <div className="mt-4 rounded-xl border border-dashed border-[#373A3F] bg-[#212428] p-4">
             <p className="text-xs text-gray-500">
-              No backend is connected yet, so this stands in for {label}'s
-              hosted checkout page. Once your backend returns a real{" "}
-              <code className="text-gray-400">authorizationUrl</code>, this step
-              will redirect the buyer there instead.
+              {state.provider === "stripe" ? (
+                <>
+                  Stripe's standard checkout needs a backend-created Checkout
+                  Session, so this stands in for it until that endpoint exists.
+                </>
+              ) : (
+                <>
+                  Set{" "}
+                  <code className="text-gray-400">
+                    VITE_{state.provider.toUpperCase()}_PUBLIC_KEY
+                  </code>{" "}
+                  to open a real {label} popup here instead of this demo screen.
+                </>
+              )}
             </p>
           </div>
 
