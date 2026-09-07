@@ -13,12 +13,7 @@ import TradeActions from "../components/trade/TradeActions";
 import TransactionResult from "../components/trade/TransactionResult";
 import PaymentFlow from "../components/payment/PaymentFlow";
 
-import FiatPaymentFlow from "../components/payment/FiatPaymentFlow";
-import PaymentMethodSelector, {
-  type PaymentMethod,
-} from "../components/payment/PaymentMethodSelector";
 import type { TradeState } from "../components/trade/TradeStatus";
-import { FIAT_PAYMENT_ENABLED } from "../config/fiatPayment";
 import type { OrderStatus } from "../utils/types";
 import { useCurrency } from "../context/CurrencyContext";
 import { useAuth } from "../context/AuthContext";
@@ -28,20 +23,6 @@ import {
   DEFAULT_LOGISTICS_PROVIDER,
   getExplorerUrl,
 } from "../config/chains";
-
-/**
- * Where "Pay Now" lands, and where "back" returns to.
- *
- * With fiat ON the buyer picks a method first, so the starting point is null
- * (no method chosen) and back returns there. With fiat OFF there is only one
- * method, so we start on crypto and the method-picker step never renders -
- * which restores the exact pre-fiat flow: Pay Now goes straight to checkout,
- * and back closes it. Without this, back would clear the method and strand the
- * buyer on a picker with a single option.
- */
-const INITIAL_PAYMENT_METHOD: PaymentMethod | null = FIAT_PAYMENT_ENABLED
-  ? null
-  : "crypto";
 
 const ViewOrderDetail = () => {
   const { orderId } = useParams<{ orderId: string }>();
@@ -84,19 +65,9 @@ const ViewOrderDetail = () => {
 
   const [updateOrderStatus] = useUpdateOrderStatusMutation();
   const [showPayment, setShowPayment] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(
-    INITIAL_PAYMENT_METHOD,
-  );
-  // Back arrow inside crypto checkout. With fiat ON it returns to the method
-  // picker; with fiat OFF there is no picker to return to, so it closes
-  // checkout entirely rather than becoming a button that does nothing.
-  const goBackFromCheckout = () => {
-    if (FIAT_PAYMENT_ENABLED) {
-      setPaymentMethod(null);
-      return;
-    }
-    setShowPayment(false);
-  };
+  // Back arrow inside checkout. Crypto is the only payment path, so there is
+  // no method picker to return to - it closes checkout.
+  const goBackFromCheckout = () => setShowPayment(false);
 
   const [checklistComplete, setChecklistComplete] = useState(false);
   // Set to true the moment buyTrade succeeds so the Pay button never re-appears
@@ -283,7 +254,7 @@ const ViewOrderDetail = () => {
         )}
 
         {/* Wrong network warning (payment pending, wrong chain) */}
-        {!isSeller && canPay && paymentMethod === "crypto" && !isOnCelo && (
+        {!isSeller && canPay && !isOnCelo && (
           <div className="rounded-2xl border border-amber-800/40 bg-amber-900/20 p-5">
             <div className="text-center">
               <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full border border-amber-800/50 bg-amber-900/30">
@@ -385,107 +356,6 @@ const ViewOrderDetail = () => {
                     Pay Now
                   </button>
                 </div>
-              ) : !paymentMethod ? (
-                <>
-                  <div className="mb-4 flex items-center gap-2">
-                    <button
-                      onClick={() => setShowPayment(false)}
-                      className="rounded-full p-1 text-gray-500 transition-colors hover:bg-[#292B30] hover:text-white"
-                    >
-                      <svg
-                        className="h-4 w-4"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M15 19l-7-7 7-7"
-                        />
-                      </svg>
-                    </button>
-                    <span className="text-sm font-medium text-gray-300">
-                      Choose Payment Method
-                    </span>
-                  </div>
-                  <PaymentMethodSelector
-                    onSelect={setPaymentMethod}
-                    cryptoSummary={`${orderTotal.total.toFixed(2)} ${tokenSymbol}`}
-                    fiatSummary={formatAmount(orderTotal.total, tokenSymbol)}
-                  />
-                </>
-              ) : paymentMethod === "fiat" && FIAT_PAYMENT_ENABLED ? (
-                <>
-                  <div className="mb-4 flex items-center gap-2">
-                    <button
-                      onClick={() => setPaymentMethod(INITIAL_PAYMENT_METHOD)}
-                      className="rounded-full p-1 text-gray-500 transition-colors hover:bg-[#292B30] hover:text-white"
-                    >
-                      <svg
-                        className="h-4 w-4"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M15 19l-7-7 7-7"
-                        />
-                      </svg>
-                    </button>
-                    <span className="text-sm font-medium text-gray-300">
-                      Complete Payment
-                    </span>
-                  </div>
-                  <FiatPaymentFlow
-                    orderId={orderId!}
-                    // Swap "USD" / a real fiat code + converted amount once you decide
-                    // which local currency to charge in (e.g. via useCurrency().convertPrice).
-                    amount={convertPrice(orderTotal.total, tokenSymbol, "NGN")}
-                    currency="NGN"
-                    defaultEmail={user?.email}
-                    productName={order.product?.name}
-                    productImage={order.product?.images?.[0]}
-                    onSuccess={async (reference, provider) => {
-                      setPaidOnChain(true); // reuse the same "block re-paying" guard as crypto
-
-                      if (orderId) {
-                        let attempt = 0;
-                        while (attempt < 3) {
-                          try {
-                            await updateOrderStatus({
-                              orderId,
-                              details: {
-                                status: "accepted",
-                                paymentMethod: "fiat",
-                                paymentProvider: provider,
-                                paymentReference: reference,
-                              },
-                            }).unwrap();
-                            break;
-                          } catch {
-                            attempt++;
-                            if (attempt < 3) {
-                              await new Promise((r) =>
-                                setTimeout(r, 2000 * attempt),
-                              );
-                            } else {
-                              await refetch();
-                            }
-                          }
-                        }
-                      }
-                    }}
-                    onClose={() => {
-                      setShowPayment(false);
-                      setPaymentMethod(INITIAL_PAYMENT_METHOD);
-                    }}
-                  />
-                </>
               ) : isOnCelo ? (
                 <>
                   <div className="mb-4 flex items-center gap-2">
@@ -550,7 +420,6 @@ const ViewOrderDetail = () => {
                     }}
                     onClose={() => {
                       setShowPayment(false);
-                      setPaymentMethod(INITIAL_PAYMENT_METHOD);
                     }}
                     productName={order.product?.name}
                     productImage={order.product?.images?.[0]}
