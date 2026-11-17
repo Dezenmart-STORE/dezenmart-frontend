@@ -11,8 +11,7 @@ let scriptPromise: Promise<void> | null = null;
 function loadGis(): Promise<void> {
   if (scriptPromise) return scriptPromise;
   scriptPromise = new Promise((resolve, reject) => {
-    // deno-lint-ignore no-explicit-any
-    if ((window as any).google?.accounts?.id) return resolve();
+    if (window.google?.accounts?.id) return resolve();
     const s = document.createElement("script");
     s.src = GIS_SRC;
     s.async = true;
@@ -51,8 +50,7 @@ export function useGoogleOneTap({ enabled, onCredential, onUnavailable }: Option
     loadGis()
       .then(() => {
         if (cancelled) return;
-        // deno-lint-ignore no-explicit-any
-        const g = (window as any).google;
+        const g = window.google;
         if (!g?.accounts?.id) {
           unavailRef.current?.();
           return;
@@ -77,14 +75,12 @@ export function useGoogleOneTap({ enabled, onCredential, onUnavailable }: Option
   }, [enabled]);
 
   const prompt = useCallback(() => {
-    // deno-lint-ignore no-explicit-any
-    const g = (window as any).google;
+    const g = window.google;
     if (!g?.accounts?.id) {
       unavailRef.current?.();
       return;
     }
-    // deno-lint-ignore no-explicit-any
-    g.accounts.id.prompt((notification: any) => {
+    g.accounts.id.prompt((notification) => {
       try {
         if (notification?.isNotDisplayed?.() || notification?.isSkippedMoment?.()) {
           unavailRef.current?.();
@@ -96,8 +92,7 @@ export function useGoogleOneTap({ enabled, onCredential, onUnavailable }: Option
   }, []);
 
   const cancel = useCallback(() => {
-    // deno-lint-ignore no-explicit-any
-    (window as any).google?.accounts?.id?.cancel?.();
+    window.google?.accounts?.id?.cancel?.();
   }, []);
 
   return { ready, prompt, cancel };

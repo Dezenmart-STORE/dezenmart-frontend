@@ -139,6 +139,18 @@ const SUPPORTED_CHAIN_IDS = [CHAIN_IDS.CELO, CHAIN_IDS.CELO_SEPOLIA] as number[]
  *
  * Components simply call `startPayment(params)` and render based on `state.step`.
  */
+/** On-chain DezenMartLogistics.Trade struct, as returned by escrow.getTrade. */
+interface EscrowTrade {
+  seller: `0x${string}`;
+  productCost: bigint;
+  escrowFee: bigint;
+  totalQuantity: bigint;
+  remainingQuantity: bigint;
+  active: boolean;
+  purchaseIds: readonly bigint[];
+  tokenAddress: `0x${string}`;
+}
+
 export function usePayment() {
   const [state, dispatch] = useReducer(reducer, initialState);
   const mountedRef = useRef(true);
@@ -146,6 +158,10 @@ export function usePayment() {
     mountedRef.current = true;
     return () => { mountedRef.current = false; };
   }, []);
+  // Synchronous lock against double-submit. The step only leaves "idle" after
+  // the first await, so a fast double-click could otherwise start two payments
+  // (two approvals, two buyTrade calls). A ref updates immediately; state doesn't.
+  const inFlightRef = useRef(false);
   const { address } = useAccount();
   const { switchChainAsync } = useSwitchChain();
   const { refetch: refetchBalances } = useTokenBalances();
@@ -219,7 +235,7 @@ export function usePayment() {
           gas: 150_000n,
           chainId: activeChainId,
           ...(approvalFeeCurrency ? { feeCurrency: approvalFeeCurrency } : {}),
-        } as any);
+        });
 
         await waitForTransactionReceipt(wagmiConfig, {
           hash: approveHash,
@@ -271,7 +287,8 @@ export function usePayment() {
           }),
         ]);
 
-        const trade = tradeData as any;
+        // Shape of DezenMartLogistics.Trade as returned by getTrade (see abi/dezenmartAbi.json).
+        const trade = tradeData as EscrowTrade | undefined;
 
         preflightDebug = `chain=${activeChainId},tid=${params.tradeId},qty=${safeQuantity},prov=${String(isProviderRegistered)},active=${String(trade?.active)},rem=${trade?.remainingQuantity?.toString() ?? "?"},total=${trade?.totalQuantity?.toString() ?? "?"},cost=${trade?.productCost?.toString() ?? "?"},seller=${trade?.seller ?? "?"}`;
 
@@ -318,7 +335,7 @@ export function usePayment() {
 
         if (
           trade?.remainingQuantity !== undefined &&
-          BigInt(safeQuantity) > (trade.remainingQuantity as bigint)
+          BigInt(safeQuantity) > trade.remainingQuantity
         ) {
           dispatch({
             type: "ERROR",
@@ -401,6 +418,8 @@ export function usePayment() {
   // ---------------------------------------------------------------------------
   const startPayment = useCallback(
     async (params: PaymentParams) => {
+      if (inFlightRef.current) return;
+
       paymentDebug.startSession("usePayment");
 
       if (!address) {
@@ -408,6 +427,7 @@ export function usePayment() {
         return;
       }
 
+      inFlightRef.current = true;
       try {
         const { getChainId, readContract } = await import("@wagmi/core");
         const { erc20Abi } = await import("viem");
@@ -590,6 +610,8 @@ export function usePayment() {
       } catch (err) {
         paymentDebug.error("payment:unexpected", err);
         dispatch({ type: "ERROR", error: getErrorMessage(err) });
+      } finally {
+        inFlightRef.current = false;
       }
     },
     [address, switchChainAsync, refetchBalances, swap, getQuote, _approveAndExecute]
@@ -601,6 +623,7 @@ export function usePayment() {
   const retryEscrow = useCallback(
     async (params: PaymentParams) => {
       if (!state.swapHash || !state.swappedAmount) return;
+      if (inFlightRef.current) return;
 
       const savedSwapHash = state.swapHash;
       const savedAmount = state.swappedAmount;
@@ -612,6 +635,7 @@ export function usePayment() {
         return;
       }
 
+      inFlightRef.current = true;
       try {
         const { getChainId } = await import("@wagmi/core");
 
@@ -643,6 +667,8 @@ export function usePayment() {
       } catch (err) {
         paymentDebug.error("retryEscrow:unexpected", err);
         dispatch({ type: "ERROR", error: getErrorMessage(err) });
+      } finally {
+        inFlightRef.current = false;
       }
     },
     [address, state.swapHash, state.swappedAmount, switchChainAsync, _approveAndExecute]

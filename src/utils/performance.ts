@@ -53,8 +53,8 @@ function sendToAnalytics(metric: Metric) {
   }
 
   // Send to Google Analytics if available
-  if (typeof window !== 'undefined' && 'gtag' in window) {
-    const gtag = (window as any).gtag;
+  if (typeof window !== 'undefined' && window.gtag) {
+    const gtag = window.gtag;
     gtag('event', metric.name, {
       event_category: 'Web Vitals',
       event_label: metric.id,

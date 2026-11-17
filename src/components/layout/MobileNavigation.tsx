@@ -138,7 +138,7 @@ const MobileNavigation = ({ hidden = false }: { hidden?: boolean }) => {
                 <motion.div
                   animate={{
                     scale: linkActive ? 1.1 : 1,
-                    color: linkActive ? "#ef4444" : "#545456",
+                    color: linkActive ? "#ef4444" : "#9ca3af",
                   }}
                   transition={{ duration: 0.2 }}
                   className="relative"
@@ -162,7 +162,7 @@ const MobileNavigation = ({ hidden = false }: { hidden?: boolean }) => {
                 <motion.span
                   className="text-[10px] font-medium"
                   animate={{
-                    color: linkActive ? "#ef4444" : "#545456",
+                    color: linkActive ? "#ef4444" : "#9ca3af",
                     fontWeight: linkActive ? 600 : 500,
                   }}
                   transition={{ duration: 0.2 }}

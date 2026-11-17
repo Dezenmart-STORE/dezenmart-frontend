@@ -247,7 +247,7 @@ const Header = () => {
                     className={`relative z-10 ${
                       isActive
                         ? "text-Red"
-                        : "text-[#545456] group-hover:text-white"
+                        : "text-gray-400 group-hover:text-white"
                     }`}
                     animate={{ scale: isActive ? 1.05 : 1 }}
                     transition={{ duration: 0.2 }}

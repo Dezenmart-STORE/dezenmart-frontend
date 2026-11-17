@@ -1,5 +1,4 @@
-import { useState, useRef, useEffect, Suspense } from "react";
-import { lazyWithReload } from "../../utils/lazyWithReload";
+import { useState, useRef, useEffect } from "react";
 import {
   useAccount,
   useBalance,
@@ -12,11 +11,7 @@ import { TARGET_CHAIN, getExplorerUrl } from "../../config/chains";
 import { useTokenBalances } from "../../hooks/useTokenBalances";
 import { useCurrency } from "../../context/CurrencyContext";
 import ConnectModal from "./ConnectModal";
-
-// Swap/bridge is an iframe widget, loaded only when opened.
-const SQUID_ENABLED = !!(import.meta.env.VITE_SQUID_INTEGRATOR_ID as string | undefined)?.trim();
-const SquidBridgeModal = lazyWithReload(() => import("./SquidBridgeModal"), "SquidBridgeModal");
-
+
 /**
  * Wallet connect/disconnect button with inline dropdown.
  */
@@ -28,13 +23,12 @@ export default function ConnectButton() {
   const { data: celoBalance } = useBalance({ address });
   const { getBalance, refetch: refetchBalances, isLoading: balancesLoading } = useTokenBalances();
   const { selectedToken, formatAmount } = useCurrency();
-  // Authoritative: reported by the Dynamic bridge from the connector itself, so
+  // Authoritative: reported by the connector itself, so
   // it stays correct even if the stored wallet address is stale or wrong.
 
   // Reopen the wallet picker after the reload that switches us into the
   const [showModal, setShowModal] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
-  const [showSwap, setShowSwap] = useState(false);
   const [copied, setCopied] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -203,21 +197,6 @@ export default function ConnectButton() {
             </span>
           </button>
 
-          {/* Swap tokens, powered by Squid */}
-          {SQUID_ENABLED && (
-            <button
-              onClick={() => {
-                setShowSwap(true);
-                setShowDropdown(false);
-              }}
-              className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm text-gray-300 transition-colors hover:bg-[#292B30] hover:text-white"
-            >
-              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4M16 17H4m0 0l4 4m-4-4l4-4" />
-              </svg>
-              Swap tokens
-            </button>
-          )}
 
           {/* View on explorer */}
           <a
@@ -250,11 +229,6 @@ export default function ConnectButton() {
         </div>
       )}
 
-      {showSwap && (
-        <Suspense fallback={null}>
-          <SquidBridgeModal variant="swap" onClose={() => setShowSwap(false)} />
-        </Suspense>
-      )}
     </div>
   );
 }

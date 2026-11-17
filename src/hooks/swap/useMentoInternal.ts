@@ -72,7 +72,8 @@ const COMMON_INTERMEDIARIES = ["cUSD", "USDT", "cEUR", "cREAL", "USDC"];
 const getAddressString = (value: unknown): string | undefined => {
   if (typeof value === "string") return value;
   if (typeof value === "object" && value !== null && "address" in value) {
-    return (value as any).address;
+    const addr = (value as { address: unknown }).address;
+    return typeof addr === "string" ? addr : undefined;
   }
   return undefined;
 };
@@ -119,7 +120,7 @@ const buildRouteFromPair = (
 
       for (const pathItem of tradablePair.path) {
         if (typeof pathItem === "object" && pathItem !== null && "assets" in pathItem) {
-          const assets = (pathItem as any).assets;
+          const assets = (pathItem as { assets: unknown }).assets;
           if (Array.isArray(assets)) {
             for (const assetAddr of assets) {
               const token = TOKENS.find((t) => {
@@ -205,7 +206,7 @@ export function useMentoInternal() {
             on: (_: string, __: (...args: unknown[]) => void): void => {},
             removeListener: (_: string, __: (...args: unknown[]) => void): void => {},
           };
-          const provider = new providers.Web3Provider(eip1193 as any, {
+          const provider = new providers.Web3Provider(eip1193 as providers.ExternalProvider, {
             chainId: TARGET_CHAIN.id,
             name: TARGET_CHAIN.name,
           });
@@ -430,7 +431,7 @@ export function useMentoInternal() {
         gas: allowanceTxObj.gasLimit ? BigInt(allowanceTxObj.gasLimit.toString()) : undefined,
         chain: celoChain,
         ...(feeCurrency ? { feeCurrency } : {}),
-      } as any);
+      });
 
       const allowanceReceipt = await publicClient.waitForTransactionReceipt({
         hash: allowanceHash,
@@ -457,7 +458,7 @@ export function useMentoInternal() {
         gas: swapTxObj.gasLimit ? BigInt(swapTxObj.gasLimit.toString()) : undefined,
         chain: celoChain,
         ...(feeCurrency ? { feeCurrency } : {}),
-      } as any);
+      });
 
       const swapReceipt = await publicClient.waitForTransactionReceipt({
         hash: swapHash,

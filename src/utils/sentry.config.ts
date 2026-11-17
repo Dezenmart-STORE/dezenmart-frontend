@@ -1,10 +1,4 @@
-import * as _SentryImport from "@sentry/react";
-
-// @sentry/react v10 re-exports captureException etc. from @sentry/browser v10,
-// but a stale top-level @sentry/browser v5 package confuses TS type resolution.
-// Cast to any here; the runtime calls are correct.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const Sentry = _SentryImport as any;
+import * as Sentry from "@sentry/react";
 
 // Initialize Sentry only in production
 export const initSentry = () => {

@@ -112,7 +112,7 @@ export const productsApi = baseApi.injectEndpoints({
           description: "",
           quantity: 1,
           images: [],
-          seller: { _id: "", name: "" } as any,
+          seller: { _id: "", name: "", rating: 0, profileImage: "" },
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         } as unknown as Product;

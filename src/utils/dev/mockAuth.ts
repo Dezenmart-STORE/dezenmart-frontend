@@ -91,7 +91,7 @@ export function initMockAuth(): boolean {
  * Enable mock authentication and reload page
  * Call this from browser console: enableMockAuth()
  */
-(window as any).enableMockAuth = () => {
+window.enableMockAuth = () => {
   localStorage.setItem('DEV_MOCK_AUTH', 'true');
   console.log('✅ Mock auth enabled! Reloading page...');
   setTimeout(() => window.location.reload(), 500);
@@ -101,7 +101,7 @@ export function initMockAuth(): boolean {
  * Disable mock authentication and reload page
  * Call this from browser console: disableMockAuth()
  */
-(window as any).disableMockAuth = () => {
+window.disableMockAuth = () => {
   localStorage.removeItem('DEV_MOCK_AUTH');
   localStorage.removeItem('auth_token');
   localStorage.removeItem('auth_user');

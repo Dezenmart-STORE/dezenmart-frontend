@@ -259,8 +259,8 @@ const Account = () => {
         setViewState={handleOverview}
         currentProfile={{
           ...(selectedUser || {}),
-          dob: (selectedUser as any)?.dob || "",
-          phone: (selectedUser as any)?.phone || "",
+          dob: selectedUser?.dateOfBirth || "",
+          phone: selectedUser?.phoneNumber || "",
         }}
       />
     );

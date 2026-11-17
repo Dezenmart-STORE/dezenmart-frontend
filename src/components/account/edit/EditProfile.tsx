@@ -147,7 +147,7 @@ const EditProfile: React.FC<EditProfileProps> = ({
       showSnackbar("Profile updated successfully", "success");
       setViewState();
     } catch (error) {
-      showSnackbar((error as any)?.data?.message || "Failed to update profile", "error");
+      showSnackbar((error as { data?: { message?: string } } | undefined)?.data?.message || "Failed to update profile", "error");
     }
   };
 

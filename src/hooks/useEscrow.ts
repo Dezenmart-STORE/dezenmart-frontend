@@ -111,7 +111,7 @@ export function useEscrow() {
           });
           if (request.gas) gas = (request.gas * 120n) / 100n;
         } catch (simErr) {
-          const simMsg = ((simErr as any)?.message ?? "").toLowerCase();
+          const simMsg = (simErr instanceof Error ? simErr.message : String(simErr ?? "")).toLowerCase();
           const isRevert =
             simMsg.includes("revert") ||
             simMsg.includes("execution reverted") ||
@@ -131,7 +131,7 @@ export function useEscrow() {
           gas,
           chainId: liveChainId,
           ...(feeCurrency ? { feeCurrency } : {}),
-        } as any);
+        });
 
         if (!hash) {
           return { success: false, message: "Transaction failed to submit." };

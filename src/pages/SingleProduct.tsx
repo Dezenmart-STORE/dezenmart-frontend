@@ -330,7 +330,7 @@ const SingleProduct = () => {
           <div className="w-full xl:w-7/12 xl:h-full xl:flex xl:flex-col xl:min-h-0">
             {showPurchase ? (
               <PurchaseSectionProvider
-                product={formattedProduct as any}
+                product={formattedProduct ?? undefined}
                 selectedVariant={selectedVariant as ProductVariant}
               >
                 <div className="xl:flex-1 xl:min-h-0 xl:flex xl:flex-col bg-[#292B30] shadow-xl text-white w-full rounded-xl overflow-hidden">

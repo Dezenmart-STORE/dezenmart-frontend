@@ -94,7 +94,7 @@ const ChatConversation: React.FC<ChatConversationProps> = ({
                   isOwn={
                     typeof message.sender === "string"
                       ? message.sender === currentUserId
-                      : (message.sender as any)._id === currentUserId
+                      : message.sender._id === currentUserId
                   }
                   isRead={message.read}
                 />

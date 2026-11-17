@@ -224,7 +224,7 @@ export function useUniswapInternal() {
       let retries = 0;
       while (retries < MAX_RETRIES) {
         try {
-          const provider = new ethers.providers.Web3Provider(window.ethereum as any);
+          const provider = new ethers.providers.Web3Provider(window.ethereum as ethers.providers.ExternalProvider);
           const network = await provider.getNetwork();
           if (network.chainId !== TARGET_CHAIN.id) {
             throw new Error(`Please switch to ${TARGET_CHAIN.name}`);
@@ -412,7 +412,7 @@ export function useUniswapInternal() {
         account: address as `0x${string}`,
         chain: celoChain,
         ...(feeCurrency ? { feeCurrency } : {}),
-      } as any);
+      });
 
       const allowanceReceipt = await publicClient.waitForTransactionReceipt({
         hash: allowanceHash,
@@ -464,7 +464,7 @@ export function useUniswapInternal() {
         gas: gasWithBuffer,
         chain: celoChain,
         ...(feeCurrency ? { feeCurrency } : {}),
-      } as any);
+      });
 
       const swapReceipt = await publicClient.waitForTransactionReceipt({
         hash: swapHash,

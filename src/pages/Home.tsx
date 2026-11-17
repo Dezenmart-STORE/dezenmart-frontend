@@ -13,7 +13,7 @@ import { CATEGORIES } from "../utils/categories";
 import { useAuth } from "../context/AuthContext";
 import { useCurrency } from "../context/CurrencyContext";
 import WalletQuickAction from "../components/wallet/WalletQuickAction";
-import { useGetSponsoredProductsQuery } from "../store/api";
+import { useGetProductsQuery, useGetSponsoredProductsQuery } from "../store/api";
 import { useSEO } from "../hooks/useSEO";
 import {
   PAGE_SEO,
@@ -90,6 +90,14 @@ const Home = () => {
   const { data: sponsoredProducts = [], isLoading: sponsoredLoading } =
     useGetSponsoredProductsQuery();
 
+  // Same cached request every shelf and the grid read, so this adds no fetch.
+  // When it fails they all render nothing, so the page owns the one message.
+  const {
+    isError: productsFailed,
+    isFetching: productsRetrying,
+    refetch: refetchProducts,
+  } = useGetProductsQuery();
+
   useSEO({
     title: PAGE_SEO.home.title,
     description: PAGE_SEO.home.description,
@@ -122,7 +130,7 @@ const Home = () => {
 
         {/* ── Greeting ─────────────────────────────────────── */}
         <div className="mb-4">
-          <h4 className="text-xl text-white font-medium flex items-center gap-2">
+          <h1 className="text-xl text-white font-medium flex items-center gap-2">
             {greeting}
             {isAuthenticated && (
               user?.selfVerification?.isVerified ? (
@@ -137,7 +145,7 @@ const Home = () => {
                 />
               )
             )}
-          </h4>
+          </h1>
           <p className="text-[#C6C6C8] text-sm mt-0.5">
             What would you like to do today?
           </p>
@@ -186,6 +194,23 @@ const Home = () => {
             maxItems={4}
           />
         ) : null}
+
+        {/* ── Products failed to load ───────────────────────── */}
+        {productsFailed && (
+          <div role="alert" className="text-center py-12 bg-[#292B30] rounded-xl mt-8">
+            <p className="text-gray-300 font-medium">Couldn't load products</p>
+            <p className="text-gray-400 text-sm mt-1">
+              Check your connection, then try again.
+            </p>
+            <button
+              onClick={() => refetchProducts()}
+              disabled={productsRetrying}
+              className="mt-3 text-red-400 hover:text-red-300 text-sm font-medium transition-colors disabled:opacity-50"
+            >
+              {productsRetrying ? "Retrying…" : "Retry"}
+            </button>
+          </div>
+        )}
 
         {/* ── Fresh Arrivals shelf ──────────────────────────── */}
         <ProductShelf

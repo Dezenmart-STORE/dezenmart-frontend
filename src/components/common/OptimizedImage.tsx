@@ -1,7 +1,11 @@
 import { ImgHTMLAttributes, useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
-interface OptimizedImageProps extends Omit<ImgHTMLAttributes<HTMLImageElement>, 'alt'> {
+interface OptimizedImageProps extends Omit<
+  ImgHTMLAttributes<HTMLImageElement>,
+  // framer-motion redefines these handlers with different signatures on motion.img.
+  'alt' | 'onDrag' | 'onDragStart' | 'onDragEnd' | 'onAnimationStart'
+> {
   src: string;
   alt: string; // Made required for SEO
   width?: number | string;
@@ -198,7 +202,7 @@ const OptimizedImage = ({
           initial={{ opacity: 0 }}
           animate={{ opacity: imageLoaded ? 1 : 0 }}
           transition={{ duration: 0.4, ease: "easeOut" }}
-          {...(props as any)}
+          {...props}
         />
       )}
 
