@@ -136,6 +136,8 @@ setupGlobalErrorHandling();
 // The HTML splash screen listens for this event and begins its fade-out.
 const SplashDismisser = () => {
   useEffect(() => {
+    // Mark lets Sentry/web-vitals and devtools measure time-to-usable.
+    performance.mark("app-ready");
     window.dispatchEvent(new Event("app-ready"));
   }, []);
   return null;

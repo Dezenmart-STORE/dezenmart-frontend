@@ -80,29 +80,92 @@ const WC_PROJECT_ID = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID as string | 
  * list was where our own version kept breaking. RainbowKit is now the only
  * way to connect - the Dynamic embedded wallet has been removed.
  *
- * WalletConnect-backed wallets (Trust, Valora, the QR option) need a project
- * id, so they're only registered when one is configured. MetaMask and Coinbase
- * work without it via their own SDKs.
+ * WalletConnect-backed wallets need a project id, so they're only offered when
+ * one is configured. Coinbase works without it via its own SDK.
  */
+const rkOptions = {
+  appName: appMeta.name,
+  appUrl: appMeta.url,
+  appIcon: appMeta.logo,
+  // RainbowKit requires the field; wallets that don't need it ignore it.
+  projectId: WC_PROJECT_ID ?? "",
+};
+
+/**
+ * MetaMask runs on its injected provider when the extension (or MetaMask's own
+ * browser) is present. Everywhere else - most phones - RainbowKit's MetaMask
+ * option connects over WalletConnect, so it is deferred with the WalletConnect
+ * wallets below. Without a project id it can't use WalletConnect at all, so it
+ * stays in the startup list as before.
+ */
+const metaMaskInjected = (() => {
+  if (typeof window === "undefined") return false;
+  const eth = window.ethereum as
+    | { isMetaMask?: boolean; providers?: { isMetaMask?: boolean }[] }
+    | undefined;
+  return Boolean(eth?.isMetaMask || eth?.providers?.some((p) => p?.isMetaMask));
+})();
+const deferMetaMask = !metaMaskInjected && !!WC_PROJECT_ID;
+
 const externalConnectors = connectorsForWallets(
   [
     {
       groupName: "Recommended",
-      wallets: [
-        metaMaskWallet,
-        rkCoinbaseWallet,
-        ...(WC_PROJECT_ID ? [valoraWallet, trustWallet, walletConnectWallet] : []),
-      ],
+      wallets: deferMetaMask ? [rkCoinbaseWallet] : [metaMaskWallet, rkCoinbaseWallet],
     },
   ],
-  {
-    appName: appMeta.name,
-    appUrl: appMeta.url,
-    appIcon: appMeta.logo,
-    // RainbowKit requires the field; wallets that don't need it ignore it.
-    projectId: WC_PROJECT_ID ?? "",
-  }
+  rkOptions
 );
+
+/**
+ * WalletConnect-backed wallets (MetaMask without its extension, Valora, Trust,
+ * the QR option) are NOT in the initial config. wagmi's WalletConnect connector
+ * starts its provider in setup(), the moment it is registered: ~245 KB gzipped
+ * of JavaScript and a relay connection on every page load, for every visitor.
+ * They are registered on demand by ensureWalletConnectWallets() instead - when
+ * the wallet picker opens, or at startup only for a visitor whose last wallet
+ * was one of them.
+ */
+const deferredMetaMaskFns = deferMetaMask
+  ? connectorsForWallets([{ groupName: "Recommended", wallets: [metaMaskWallet] }], rkOptions)
+  : [];
+const walletConnectConnectorFns = WC_PROJECT_ID
+  ? connectorsForWallets(
+      [{ groupName: "Recommended", wallets: [valoraWallet, trustWallet, walletConnectWallet] }],
+      rkOptions
+    )
+  : [];
+
+/**
+ * The connector id a WalletConnect-based wallet is saved under as the
+ * last-used one. RainbowKit builds every such wallet on wagmi's walletConnect
+ * connector and only adds rkDetails, so they all share this id.
+ */
+export const WALLETCONNECT_CONNECTOR_IDS: ReadonlySet<string> = new Set(["walletConnect"]);
+
+let walletConnectRegistered = false;
+
+/**
+ * Register the deferred wallets with wagmi, once. Safe to call repeatedly.
+ * Uses the same internal registry wagmi uses for wallets it discovers itself
+ * (EIP-6963), and RainbowKit reads the connector list reactively, so the
+ * wallets appear in an open picker straight away. MetaMask goes back to the
+ * front of the RainbowKit group and the rest after it, so the picker keeps its
+ * original order: MetaMask, Coinbase, Valora, Trust, WalletConnect.
+ */
+export function ensureWalletConnectWallets(): void {
+  if (walletConnectRegistered) return;
+  if (deferredMetaMaskFns.length === 0 && walletConnectConnectorFns.length === 0) return;
+  walletConnectRegistered = true;
+  const registry = wagmiConfig._internal.connectors;
+  const metaMask = deferredMetaMaskFns.map((fn) => registry.setup(fn));
+  const rest = walletConnectConnectorFns.map((fn) => registry.setup(fn));
+  registry.setState((current) => {
+    const firstRk = current.findIndex((c) => "rkDetails" in c);
+    const at = firstRk === -1 ? current.length : firstRk;
+    return [...current.slice(0, at), ...metaMask, ...current.slice(at), ...rest];
+  });
+}
 
 export const wagmiConfig = createConfig({
   chains: [celo, celoSepolia],

@@ -158,15 +158,28 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="preconnect" href="https://api.coingecko.com" />
+    <!-- Product data: open the connection while the app bundle downloads. -->
+    <link rel="preconnect" href="https://dezenmart-server.onrender.com" crossorigin />
 
     <!-- Canonical URL -->
     <link rel="canonical" href="https://dezenmart.com/" />
 
-    <!-- Fonts -->
+    <!-- Fonts - loaded without blocking render. A plain stylesheet link to a
+         third-party host held back the first paint (splash included) until
+         Google answered. The system font fallback in the splash/body stack
+         shows until Roboto arrives (display=swap). -->
     <link
+      rel="preload"
+      as="style"
       href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&display=swap"
-      rel="stylesheet"
+      onload="this.onload=null;this.rel='stylesheet'"
     />
+    <noscript>
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&display=swap"
+      />
+    </noscript>
 
     <!-- Splash screen styles - loaded synchronously to prevent any white flash -->
     <style>

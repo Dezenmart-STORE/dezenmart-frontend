@@ -3,6 +3,7 @@ import { useConnect, useAccount } from "wagmi";
 import { injected } from "wagmi/connectors";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { detectMiniPay } from "../../hooks/useMiniPay";
+import { ensureWalletConnectWallets } from "../../config/chains";
 
 interface Props {
   onClose: () => void;
@@ -54,6 +55,8 @@ export default function ConnectModal({ onClose }: Props) {
   useEffect(() => {
     if (isMiniPay || opened.current) return;
     opened.current = true;
+    // WalletConnect wallets are registered on first use, not at startup.
+    ensureWalletConnectWallets();
     openConnectModal?.();
     onClose();
   }, [isMiniPay, openConnectModal, onClose]);

@@ -121,6 +121,7 @@ export interface PaymentParams {
   feeCurrencyFallback?: `0x${string}`;
 }
 
+type SupportedChainId = (typeof CHAIN_IDS)[keyof typeof CHAIN_IDS];
 const SUPPORTED_CHAIN_IDS = [CHAIN_IDS.CELO, CHAIN_IDS.CELO_SEPOLIA] as number[];
 
 // ---------------------------------------------------------------------------
@@ -179,7 +180,7 @@ export function usePayment() {
       params: PaymentParams,
       /** Precise string amount of productToken to approve and send */
       effectiveAmountStr: string,
-      activeChainId: number,
+      activeChainId: SupportedChainId,
       priorSwapHash?: string
     ) => {
       const { readContract, writeContract, waitForTransactionReceipt } =
