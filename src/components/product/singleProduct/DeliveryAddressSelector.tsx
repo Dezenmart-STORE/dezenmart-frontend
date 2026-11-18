@@ -7,6 +7,7 @@ import {
 } from '../../../store/api';
 import type { DeliveryAddress, CreateDeliveryAddressParams } from '../../../utils/types';
 import LoadingSpinner from '../../common/LoadingSpinner';
+import { useAuth } from '../../../context/AuthContext';
 import AddressCard from '../../account/address/AddressCard';
 import AddressForm from '../../account/address/AddressForm';
 
@@ -19,8 +20,11 @@ const DeliveryAddressSelector: React.FC<DeliveryAddressSelectorProps> = ({
   selectedAddress,
   onAddressSelect,
 }) => {
+  const { isAuthenticated } = useAuth();
+  // Addresses belong to an account: asking for them signed out only earns a
+  // 401, which would show as a load error on every product page.
   const { data: addresses = [], isLoading, isError, refetch } =
-    useGetDeliveryAddressesQuery();
+    useGetDeliveryAddressesQuery(undefined, { skip: !isAuthenticated });
   const [createAddress, { isLoading: isCreating }] = useCreateDeliveryAddressMutation();
 
   const [showAddForm, setShowAddForm] = useState(false);
@@ -54,6 +58,19 @@ const DeliveryAddressSelector: React.FC<DeliveryAddressSelectorProps> = ({
       console.error('Failed to create address:', error);
     }
   };
+
+  // The buy button already offers sign-in, so this only says why there's no list.
+  if (!isAuthenticated) {
+    return (
+      <div className="space-y-3">
+        <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+          <FaMapMarkerAlt className="text-red-500" aria-hidden />
+          Delivery Address
+        </h3>
+        <p className="text-sm text-gray-400">Sign in to choose where we deliver.</p>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
