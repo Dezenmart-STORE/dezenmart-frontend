@@ -33,6 +33,7 @@ import { NairaPriceField, FulfilmentOptions } from "./BankTransferListingFields"
 import { parseNairaInput } from "../../../../utils/format";
 import { apiErrorStatus } from "../../../../utils/errors";
 import { BANK_TRANSFER_ENABLED } from "../../../../config/features";
+import { LISTING_CATEGORIES } from "../../../../utils/validation/listing";
 
 interface CreateProductProps {
   onProductCreated?: () => void;
@@ -54,16 +55,7 @@ interface FormErrors {
   submit?: string;
 }
 
-const CATEGORIES = [
-  "Electronics",
-  "Clothing",
-  "Home & Garden",
-  "Beauty & Personal Care",
-  "Sports & Outdoors",
-  "Art Work",
-  "Accessories",
-  "Other",
-];
+const CATEGORIES = LISTING_CATEGORIES;
 
 // ── Reusable field wrapper ─────────────────────────────────────────────
 function Field({

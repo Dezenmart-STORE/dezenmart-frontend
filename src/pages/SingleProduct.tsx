@@ -31,6 +31,7 @@ import {
   BankTransferPurchaseFooter,
 } from "../components/product/singleProduct/BankTransferPurchase";
 import { useListingPrice } from "../hooks/useListingPrice";
+import Button from "../components/common/Button";
 import ProductLoadingSkeleton from "../components/product/singleProduct/LoadingSkeleton";
 import ProductCard from "../components/product/ProductCard";
 import {
@@ -260,15 +261,17 @@ const SingleProduct = () => {
     );
   }
 
-  // Only show purchase UI when viewer is not the seller
   // Naira listings check out by bank transfer; the rest by wallet.
   const Purchase =
     formattedProduct && isNaira(formattedProduct)
       ? { Provider: BankTransferPurchaseProvider, Body: BankTransferPurchaseBody, Footer: BankTransferPurchaseFooter }
       : { Provider: PurchaseSectionProvider, Body: PurchaseSectionBody, Footer: PurchaseSectionFooter };
+  // Only show purchase UI when viewer is not the seller
   const showPurchase =
     typeof formattedProduct.seller === "object" &&
     formattedProduct.seller?._id !== user?._id;
+  const isOwner =
+    !!user?._id && typeof formattedProduct.seller === "object" && formattedProduct.seller?._id === user._id;
 
   return (
     <motion.div
@@ -403,6 +406,19 @@ const SingleProduct = () => {
                       {displayPrice}
                     </span>
                   </div>
+                  {isOwner && (
+                    <div className="mt-3 flex items-center gap-3">
+                      <Button
+                        variant="secondary"
+                        title="Edit listing"
+                        path={`/product/${formattedProduct._id}/edit`}
+                        className="bg-[#3A3C41] hover:bg-[#45474D] text-sm py-2"
+                      />
+                      {formattedProduct.isActive === false && (
+                        <span className="text-xs font-medium text-amber-300">Paused: buyers can't see it</span>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Always visible: tabs */}

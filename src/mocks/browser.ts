@@ -3,13 +3,14 @@ import {
   createHandlers,
   resetMockState,
   restoreMockState,
+  seedMockListing,
   seedMockOrder,
   seedMockSeller,
   setMockPollsUntilPaid,
   snapshotMockState,
   type MockSnapshot,
 } from "./handlers";
-import { MOCK_USER_ID, awaitingPaymentOrder, user, verifiedSeller } from "./fixtures";
+import { MOCK_USER_ID, awaitingPaymentOrder, bankListing, user, verifiedSeller } from "./fixtures";
 
 const STATE_KEY = "dezen-mock-state";
 
@@ -20,6 +21,8 @@ export interface MockControls {
   /** Make the signed-in user a seller whose shop matches the fixture orders. */
   seedSeller: () => void;
   setPollsUntilPaid: (polls: number) => void;
+  /** Make the fixture listing belong to the signed-in user, so it can be edited. */
+  ownListing: () => void;
   reset: () => void;
 }
 
@@ -72,6 +75,10 @@ export async function startMockBackend() {
     },
     setPollsUntilPaid: (polls) => {
       setMockPollsUntilPaid(polls);
+      persist();
+    },
+    ownListing: () => {
+      seedMockListing(bankListing({ seller: { _id: MOCK_USER_ID, name: user.name, rating: 0, profileImage: "" } }));
       persist();
     },
     reset: () => {

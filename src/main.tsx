@@ -113,6 +113,7 @@ const Product = lazy(() => import("./pages/Product.tsx"));
 const SingleProduct = lazy(() => import("./pages/SingleProduct.tsx"));
 const Account = lazy(() => import("./pages/Account.tsx"));
 const OrderDetailRoute = lazy(() => import("./pages/OrderDetailRoute.tsx"));
+const EditListing = lazy(() => import("./pages/EditListing.tsx"));
 const ComingSoon = lazy(() => import("./pages/ComingSoon.tsx"));
 const Notifications = lazy(() => import("./pages/Notifications.tsx"));
 const Community = lazy(() => import("./pages/Community.tsx"));
@@ -228,6 +229,7 @@ const router = createBrowserRouter([
           { path: "/trades/sell/:productId", element: <SellCheckout /> },
           { path: "/trades/viewtrades/:tradeId", element: <ViewTradeDetail /> },
           { path: "/orders/:orderId", element: <OrderDetailRoute /> },
+          { path: "/product/:productId/edit", element: <EditListing /> },
           { path: "/chat", element: <Chat /> },
           { path: "/chat/:userId", element: <ChatDetail /> },
         ],

@@ -1,5 +1,6 @@
 import { http, HttpResponse, type HttpHandler } from "msw";
 import type { BankTransferOrder, SellerProfile } from "../utils/validation/bankTransfer";
+import type { Product } from "../utils/types";
 import {
   UNKNOWN_ACCOUNT_NUMBER,
   awaitingPaymentOrder,
@@ -28,14 +29,17 @@ interface MockState {
   orders: Map<string, BankTransferOrder>;
   /** Payment status polls left before a pending payment is reported paid. */
   pollsUntilPaid: number;
+  /** The one listing the mock serves; null means the fixture as it is. */
+  listing: Product | null;
 }
 
-const state: MockState = { seller: null, orders: new Map(), pollsUntilPaid: 2 };
+const state: MockState = { seller: null, orders: new Map(), pollsUntilPaid: 2, listing: null };
 
 export function resetMockState() {
   state.seller = null;
   state.orders.clear();
   state.pollsUntilPaid = 2;
+  state.listing = null;
 }
 
 /** The store as plain data, so the browser mock can keep it across reloads. */
@@ -43,16 +47,28 @@ export interface MockSnapshot {
   seller: SellerProfile | null;
   orders: BankTransferOrder[];
   pollsUntilPaid: number;
+  listing?: Product | null;
 }
 
 export function snapshotMockState(): MockSnapshot {
-  return { seller: state.seller, orders: [...state.orders.values()], pollsUntilPaid: state.pollsUntilPaid };
+  return {
+    seller: state.seller,
+    orders: [...state.orders.values()],
+    pollsUntilPaid: state.pollsUntilPaid,
+    listing: state.listing,
+  };
 }
 
 export function restoreMockState(snapshot: MockSnapshot) {
   state.seller = snapshot.seller;
   state.orders = new Map(snapshot.orders.map((o) => [o._id, o]));
   state.pollsUntilPaid = snapshot.pollsUntilPaid;
+  state.listing = snapshot.listing ?? null;
+}
+
+/** Serve this listing in place of the fixture, e.g. one the signed-in user owns. */
+export function seedMockListing(listing: Product) {
+  state.listing = listing;
 }
 
 /** Seller moves the server allows, as `${from}:${action}` -> to. */
@@ -124,11 +140,34 @@ export function createHandlers(baseUrl: string): HttpHandler[] {
 
     // Listings, and what the product page loads around one.
     http.post(api("/products"), () => ok({ product: { _id: "65fa0c2e9b1d4a00dddddddd" } }, 201)),
-    http.get(api("/products"), () => HttpResponse.json([bankListing()])),
+    http.get(api("/products"), () => HttpResponse.json([state.listing ?? bankListing()])),
     http.get(api("/products/sponsored"), () => HttpResponse.json([])),
-    http.get(api("/products/:id"), ({ params }) =>
-      params.id === bankListing()._id ? HttpResponse.json(bankListing()) : fail(404, "Product not found")
-    ),
+    http.get(api("/products/:id"), ({ params }) => {
+      const listing = state.listing ?? bankListing();
+      return params.id === listing._id ? HttpResponse.json(listing) : fail(404, "Product not found");
+    }),
+    // Applies the fields the real endpoint documents; the owner check uses the mock user.
+    http.put(api("/products/:id"), async ({ params, request }) => {
+      const listing = state.listing ?? bankListing();
+      if (params.id !== listing._id) return fail(404, "Product not found");
+      if (listing.seller._id !== user._id) return fail(403, "Not the owner");
+      const form = await request.formData();
+      const text = (key: string) => {
+        const value = form.get(key);
+        return typeof value === "string" ? value : undefined;
+      };
+      const updated: Product = { ...listing };
+      if (text("name") !== undefined) updated.name = text("name") ?? listing.name;
+      if (text("description") !== undefined) updated.description = text("description") ?? listing.description;
+      if (text("category") !== undefined) updated.category = text("category") ?? listing.category;
+      if (text("isActive") !== undefined) updated.isActive = text("isActive") === "true";
+      if (text("price") !== undefined) updated.price = Number(text("price"));
+      if (text("stock") !== undefined) updated.stock = Number(text("stock"));
+      const fulfilment = text("fulfilment");
+      if (fulfilment) updated.fulfilment = JSON.parse(fulfilment) as Product["fulfilment"];
+      state.listing = updated;
+      return ok({ product: updated });
+    }),
     http.get(api("/watchlist"), () => ok({ watchlist: [] })),
     http.get(api("/watchlist/:id/check"), () => ok({ isWatchlist: false })),
     http.get(api("/reviews/:kind/:id"), () => ok({ reviews: [] })),

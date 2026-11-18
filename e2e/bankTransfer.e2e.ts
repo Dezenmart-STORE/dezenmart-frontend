@@ -103,3 +103,15 @@ test("a buyer gives a bank account for a refund", async ({ page }) => {
 
   await expect(page.getByText("Your refund of ₦14,750.50 is being sent to your bank.")).toBeVisible();
 });
+
+test("a seller edits a naira listing's price from its product page", async ({ page }) => {
+  await start(page, `/product/${PRODUCT_ID}`, (mock) => mock.ownListing());
+
+  await page.getByRole("link", { name: "Edit listing" }).click();
+  await expect(page.getByRole("heading", { name: "Edit listing" })).toBeVisible();
+  await page.getByLabel(/^Price/).fill("15,000");
+  await page.getByRole("button", { name: "Save changes" }).click();
+
+  await expect(page).toHaveURL(new RegExp(`/product/${PRODUCT_ID}$`));
+  await expect(page.getByText("₦15,000.00").first()).toBeVisible();
+});
