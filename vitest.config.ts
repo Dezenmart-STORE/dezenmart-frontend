@@ -8,6 +8,9 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: './src/test/setup.ts',
+    // Suites import the wallet and checkout modules in beforeAll; on a busy
+    // machine or CI runner that alone can pass the 10-second default.
+    hookTimeout: 30_000,
     css: true,
     coverage: {
       provider: 'v8',

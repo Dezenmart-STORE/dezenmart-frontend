@@ -114,3 +114,26 @@ export function parseNairaInput(input: string): number {
   const cleaned = input.replace(/[\s,]/g, "");
   return /^\d+(\.\d{1,2})?$/.test(cleaned) ? Number(cleaned) : NaN;
 }
+
+const nairaFormat = new Intl.NumberFormat("en-NG", {
+  style: "currency",
+  currency: "NGN",
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
+/**
+ * A naira amount to the kobo: ₦14,750.50. Always two decimals, because a bank
+ * transfer must match the amount exactly.
+ */
+export function formatNaira(amount: number): string {
+  return nairaFormat.format(amount);
+}
+
+/** A time later today as "4:30 PM", or with its date when it isn't today. */
+export function formatDeadline(iso: string, now: Date = new Date()): string {
+  const date = new Date(iso);
+  const time = date.toLocaleTimeString("en-NG", { hour: "numeric", minute: "2-digit" });
+  if (date.toDateString() === now.toDateString()) return time;
+  return `${date.toLocaleDateString("en-NG", { day: "numeric", month: "short" })}, ${time}`;
+}

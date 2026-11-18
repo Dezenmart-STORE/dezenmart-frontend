@@ -255,6 +255,32 @@ describe("orders", () => {
   });
 });
 
+describe("order kind", () => {
+  it("routes a bank-transfer order to its screen and seeds it, so it isn't fetched twice", async () => {
+    routes({ [`GET /orders/${ORDER_ID}`]: { body: { data: { order: order({ paymentMethod: "fiat" }) } } } });
+    const store = makeStore();
+
+    const kind = await store.dispatch(api.endpoints.getOrderKind.initiate(ORDER_ID));
+    expect(kind.data?.kind).toBe("bank");
+
+    // The order screen reads the seeded order instead of asking the server again.
+    const sub = store.dispatch(api.endpoints.getBankTransferOrder.initiate(ORDER_ID));
+    await vi.waitFor(() =>
+      expect(api.endpoints.getBankTransferOrder.select(ORDER_ID)(store.getState()).data?._id).toBe(ORDER_ID)
+    );
+    sub.unsubscribe();
+    expect(calls(`GET /orders/${ORDER_ID}`)).toHaveLength(1);
+  });
+
+  it("leaves crypto orders to the crypto screen", async () => {
+    routes({ [`GET /orders/${ORDER_ID}`]: { body: { data: { order: { _id: ORDER_ID, status: "pending" } } } } });
+
+    const kind = await makeStore().dispatch(api.endpoints.getOrderKind.initiate(ORDER_ID));
+
+    expect(kind.data).toEqual({ kind: "crypto" });
+  });
+});
+
 describe("payment", () => {
   it("asks for a one-time account for the order", async () => {
     routes({ "POST /payments/fiat/initialize": { status: 201, body: { data: instructions } } });

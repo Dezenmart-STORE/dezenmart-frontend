@@ -12,6 +12,7 @@ import {
 import { Product } from "../../utils/types";
 import LoadingSpinner from "../common/LoadingSpinner";
 import { useAuth } from "../../context/AuthContext";
+import { useListingPrice } from "../../hooks/useListingPrice";
 import EmptyState from "../account/overview/EmptyState";
 
 interface Props {
@@ -54,8 +55,6 @@ const ProductList = ({
   filterBy,
   maxPrice,
   minPrice,
-  layout = "default",
-  showSellerBadge = false,
   icon: Icon,
   iconColor = "text-Red",
 }: Props) => {
@@ -93,7 +92,7 @@ const ProductList = ({
   const {
     data: userProducts = [],
     isLoading: loadingUser,
-  } = useGetProductsBySellerQuery(user?._id!, {
+  } = useGetProductsBySellerQuery(user?._id ?? "", {
     skip: !shouldFetchUser,
   });
 
@@ -196,6 +195,8 @@ const ProductList = ({
   ]);
 
   // Helper to check if product is new
+  const { listingPriceUSD } = useListingPrice();
+
   const isNewProduct = useCallback((createdAt: string) => {
     const createdDate = new Date(createdAt);
     const now = new Date();
@@ -222,7 +223,7 @@ const ProductList = ({
               new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
             break;
           case "price":
-            comparison = a.price - b.price;
+            comparison = listingPriceUSD(a) - listingPriceUSD(b);
             break;
           case "stock":
             comparison = Number(b.stock) - Number(a.stock);
@@ -232,7 +233,7 @@ const ProductList = ({
         return sortOrder === "asc" ? -comparison : comparison;
       });
     },
-    [sortBy, sortOrder]
+    [sortBy, sortOrder, listingPriceUSD]
   );
 
   // Client-side filtering function
@@ -243,12 +244,13 @@ const ProductList = ({
       // Apply filterBy
       if (filterBy) {
         switch (filterBy) {
-          case "new":
+          case "new": {
             // Products created in last 7 days
             const weekAgo = new Date();
             weekAgo.setDate(weekAgo.getDate() - 7);
             filtered = filtered.filter((p) => new Date(p.createdAt) > weekAgo);
             break;
+          }
 
           case "topSellers":
             // Products from sellers with rating >= 4.5
@@ -268,8 +270,8 @@ const ProductList = ({
           case "priceRange":
             // Price range filtering
             filtered = filtered.filter((p) => {
-              const meetsMin = minPrice ? p.price >= minPrice : true;
-              const meetsMax = maxPrice ? p.price <= maxPrice : true;
+              const meetsMin = minPrice ? listingPriceUSD(p) >= minPrice : true;
+              const meetsMax = maxPrice ? listingPriceUSD(p) <= maxPrice : true;
               return meetsMin && meetsMax;
             });
             break;
@@ -279,15 +281,15 @@ const ProductList = ({
       // Apply price range even without filterBy
       if (!filterBy && (minPrice || maxPrice)) {
         filtered = filtered.filter((p) => {
-          const meetsMin = minPrice ? p.price >= minPrice : true;
-          const meetsMax = maxPrice ? p.price <= maxPrice : true;
+          const meetsMin = minPrice ? listingPriceUSD(p) >= minPrice : true;
+          const meetsMax = maxPrice ? listingPriceUSD(p) <= maxPrice : true;
           return meetsMin && meetsMax;
         });
       }
 
       return filtered;
     },
-    [filterBy, minPrice, maxPrice]
+    [filterBy, minPrice, maxPrice, listingPriceUSD]
   );
 
   // Apply sorting and filtering to products

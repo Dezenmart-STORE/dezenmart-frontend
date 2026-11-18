@@ -25,9 +25,14 @@ import {
   PurchaseSectionBody,
   PurchaseSectionFooter,
 } from "../components/product/singleProduct/PurchaseSection";
+import {
+  BankTransferPurchaseProvider,
+  BankTransferPurchaseBody,
+  BankTransferPurchaseFooter,
+} from "../components/product/singleProduct/BankTransferPurchase";
+import { useListingPrice } from "../hooks/useListingPrice";
 import ProductLoadingSkeleton from "../components/product/singleProduct/LoadingSkeleton";
 import ProductCard from "../components/product/ProductCard";
-import { useAccount } from "wagmi";
 import {
   useGetProductByIdQuery,
   useGetProductsByCategoryQuery,
@@ -43,7 +48,6 @@ const SingleProduct = () => {
   const { user } = useAuth();
   const { productId } = useParams();
   const navigate = useNavigate();
-  const { isConnected } = useAccount();
   const { showSnackbar } = useSnackbar();
 
   const {
@@ -76,6 +80,7 @@ const SingleProduct = () => {
     convertPrice,
   } = useCurrency();
 
+  const { isNaira, formatListingPrice } = useListingPrice();
   const [activeTab, setActiveTab] = useState<TabType>("details");
   const [reviewCount, setReviewCount] = useState(0);
   const [selectedVariant, setSelectedVariant] =
@@ -104,7 +109,7 @@ const SingleProduct = () => {
 
   useSEO({
     title: formattedProduct?.name
-      ? `${formattedProduct.name} - Buy with Crypto`
+      ? `${formattedProduct.name} - ${isNaira(formattedProduct) ? "Pay by bank transfer" : "Buy with Crypto"}`
       : "Product Details",
     description:
       typeof formattedProduct?.description === "string"
@@ -133,7 +138,7 @@ const SingleProduct = () => {
                 ? formattedProduct.description
                 : "",
             price: formattedProduct.price,
-            currency: "USD",
+            currency: isNaira(formattedProduct) ? "NGN" : "USD",
             images: formattedProduct.images || [],
             category: formattedProduct.category,
             seller:
@@ -186,10 +191,12 @@ const SingleProduct = () => {
 
   const displayPrice = useMemo(() => {
     if (!formattedProduct) return null;
+    // Naira listings are priced and paid in naira, whatever the display currency.
+    if (isNaira(formattedProduct)) return formatListingPrice(formattedProduct);
     return secondaryCurrency === "TOKEN"
       ? formattedProduct.formattedTokenPrice
       : formattedProduct.formattedFiatPrice;
-  }, [formattedProduct, secondaryCurrency]);
+  }, [formattedProduct, secondaryCurrency, isNaira, formatListingPrice]);
 
   const handleGoBack = () => navigate(-1);
 
@@ -254,6 +261,11 @@ const SingleProduct = () => {
   }
 
   // Only show purchase UI when viewer is not the seller
+  // Naira listings check out by bank transfer; the rest by wallet.
+  const Purchase =
+    formattedProduct && isNaira(formattedProduct)
+      ? { Provider: BankTransferPurchaseProvider, Body: BankTransferPurchaseBody, Footer: BankTransferPurchaseFooter }
+      : { Provider: PurchaseSectionProvider, Body: PurchaseSectionBody, Footer: PurchaseSectionFooter };
   const showPurchase =
     typeof formattedProduct.seller === "object" &&
     formattedProduct.seller?._id !== user?._id;
@@ -329,7 +341,7 @@ const SingleProduct = () => {
           {/* ── Right column - product info panel ── */}
           <div className="w-full xl:w-7/12 xl:h-full xl:flex xl:flex-col xl:min-h-0">
             {showPurchase ? (
-              <PurchaseSectionProvider
+              <Purchase.Provider
                 product={formattedProduct ?? undefined}
                 selectedVariant={selectedVariant as ProductVariant}
               >
@@ -371,13 +383,13 @@ const SingleProduct = () => {
                     )}
 
                     {/* Purchase body (quantity, address, logistics, swap, wallet info) */}
-                    <PurchaseSectionBody />
+                    <Purchase.Body />
                   </div>
 
                   {/* ④  Always visible: buy button */}
-                  <PurchaseSectionFooter />
+                  <Purchase.Footer />
                 </div>
-              </PurchaseSectionProvider>
+              </Purchase.Provider>
             ) : (
               // Viewer IS the seller - no purchase section
               <div className="xl:flex-1 xl:min-h-0 xl:flex xl:flex-col bg-[#292B30] shadow-xl text-white w-full rounded-xl overflow-hidden">

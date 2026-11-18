@@ -13,7 +13,6 @@ import {
   HiCurrencyDollar,
   HiSignal,
   HiExclamationTriangle,
-  HiCheckCircle,
 } from "react-icons/hi2";
 import { Product, ProductVariant } from "../../../utils/types";
 import { useCreateOrderMutation } from "../../../store/api";
@@ -27,6 +26,8 @@ import ConnectModal from "../../wallet/ConnectModal";
 import type { StableToken } from "../../../config/tokens";
 
 import QuantitySelector from "./QuantitySelector";
+import StockStatus from "./StockStatus";
+import { LOW_STOCK_THRESHOLD } from "./stock";
 import DeliveryAddressSelector from "./DeliveryAddressSelector";
 import LogisticsProviderSelector from "./LogisticsProviderSelector";
 import type { DeliveryAddress, AvailableProvider, CreateOrderParams } from "../../../utils/types";
@@ -50,7 +51,6 @@ interface PurchaseSectionProps {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const BALANCE_PRECISION = 6;
-const MIN_STOCK_THRESHOLD = 10;
 
 // ── Internal state hook ───────────────────────────────────────────────────────
 const usePurchaseState = () => {
@@ -156,28 +156,6 @@ const ErrorDisplay = memo(({ error }: { error: string | null }) => {
     <div className="bg-red-500/10 border border-red-500/30 text-red-400 p-3 rounded-lg text-sm flex items-center gap-2">
       <HiExclamationTriangle className="w-4 h-4 flex-shrink-0" />
       <span>{error}</span>
-    </div>
-  );
-});
-
-const StockStatus = memo(({ availableQty }: { availableQty: number }) => {
-  const isOutOfStock = availableQty <= 0;
-  const isLowStock = availableQty > 0 && availableQty < MIN_STOCK_THRESHOLD;
-  return (
-    <div className="text-xs">
-      {isOutOfStock ? (
-        <span className="text-red-500 font-medium flex items-center gap-1">
-          <HiExclamationTriangle className="w-3 h-3" /> Out of stock
-        </span>
-      ) : isLowStock ? (
-        <span className="text-yellow-500 flex items-center gap-1">
-          <HiSignal className="w-3 h-3" /> Only {availableQty} left
-        </span>
-      ) : (
-        <span className="text-green-500 flex items-center gap-1">
-          <HiCheckCircle className="w-3 h-3" /> {availableQty} available
-        </span>
-      )}
     </div>
   );
 });
@@ -289,7 +267,7 @@ export const PurchaseSectionProvider: React.FC<
 
   const stockStatus = useMemo(() => ({
     isOutOfStock: availableQty <= 0,
-    isLowStock: availableQty > 0 && availableQty < MIN_STOCK_THRESHOLD,
+    isLowStock: availableQty > 0 && availableQty < LOW_STOCK_THRESHOLD,
   }), [availableQty]);
 
   const computedTotals = useCalculatedTotals({
@@ -460,7 +438,6 @@ export const PurchaseSectionBody: React.FC = () => {
     state,
     updateState,
     availableQty,
-    stockStatus,
     computedTotals,
     hasSufficientBalance,
     isUnpayable,

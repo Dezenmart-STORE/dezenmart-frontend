@@ -9,11 +9,13 @@ import {
   type PaymentInstructions,
   type SellerProfile,
 } from "../utils/validation/bankTransfer";
+import type { DeliveryAddress, Product, ProviderQuote } from "../utils/types";
 
 /**
  * Sample data for the mock backend (tests, `npm run dev:mock`, end-to-end
- * runs). Every fixture is parsed through the same schema the app parses real
- * responses with, so the fixtures can't drift from the contract unnoticed.
+ * runs). Every bank-transfer fixture is parsed through the same schema the app
+ * parses real responses with, so they can't drift from the contract unnoticed.
+ * Listings, addresses and quotes have no schema yet and are typed only.
  */
 
 export const MOCK_USER_ID = "65fa0c2e9b1d4a0012340000";
@@ -93,3 +95,58 @@ export const user = {
   availablePoints: 0,
   referralCount: 0,
 };
+
+/** A naira listing sold by the mock seller, delivered or picked up. */
+export const bankListing = (overrides: Partial<Product> = {}): Product => ({
+  _id: MOCK_PRODUCT_ID,
+  name: "Ankara tote bag",
+  description: "Hand-sewn tote in bright Ankara print.",
+  price: 12500.5,
+  category: "Fashion",
+  seller: { _id: "65fa0c2e9b1d4a00eeeeeeee", name: "Ada Obi", rating: 4.8, profileImage: "" },
+  sellerWalletAddress: "",
+  images: ["https://placehold.co/600x600?text=Tote"],
+  isSponsored: false,
+  isActive: true,
+  createdAt: "2026-11-01T09:00:00.000Z",
+  updatedAt: "2026-11-01T09:00:00.000Z",
+  stock: 8,
+  type: [],
+  logisticsCost: [],
+  paymentToken: "",
+  logisticsProviders: [],
+  weight: 0.5,
+  state: "Lagos",
+  lga: "Ikeja",
+  acceptedPayments: ["pandascrow"],
+  fulfilment: ["delivery", "pickup"],
+  ...overrides,
+});
+
+export const deliveryAddress: DeliveryAddress = {
+  _id: "65fa0c2e9b1d4a00ffffffff",
+  user: MOCK_USER_ID,
+  label: "Home",
+  fullName: "Tunde Bello",
+  phone: "08012345678",
+  street: "12 Allen Avenue",
+  lga: "Ikeja",
+  state: "Lagos",
+  country: "Nigeria",
+  zipCode: "100271",
+  isDefault: true,
+  createdAt: "2026-11-01T09:00:00.000Z",
+  updatedAt: "2026-11-01T09:00:00.000Z",
+};
+
+/** Quotes are priced in US dollars, as the real endpoint prices them. */
+export const deliveryQuotes: ProviderQuote[] = [
+  {
+    quoteId: "65fa0c2e9b1d4a0099999999",
+    providerId: "65fa0c2e9b1d4a0088888888",
+    deliveryFee: 1.3,
+    provider: { id: "65fa0c2e9b1d4a0088888888", name: "Swift Riders", rating: 4.6, walletAddress: "0x0000000000000000000000000000000000000001" },
+    estimatedDaysMin: 1,
+    estimatedDaysMax: 2,
+  },
+];

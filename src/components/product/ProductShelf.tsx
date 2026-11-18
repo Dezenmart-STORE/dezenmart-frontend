@@ -12,6 +12,7 @@ import {
   useGetSponsoredProductsQuery,
 } from "../../store/api";
 import { useAuth } from "../../context/AuthContext";
+import { useListingPrice } from "../../hooks/useListingPrice";
 import ProductCard from "./ProductCard";
 import Title from "../common/Title";
 import { Product } from "../../utils/types";
@@ -83,6 +84,8 @@ const ProductShelf = ({
 
   const isLoading = isFeatured ? loadingSponsored : loadingAll;
 
+  const { listingPriceUSD } = useListingPrice();
+
   const products = useMemo(() => {
     let raw: Product[] = isFeatured ? sponsoredProducts : allProducts;
 
@@ -117,7 +120,7 @@ const ProductShelf = ({
 
     // Price ceiling
     if (maxPrice != null) {
-      raw = raw.filter((p) => p.price <= maxPrice);
+      raw = raw.filter((p) => listingPriceUSD(p) <= maxPrice);
     }
 
     // Sort
@@ -126,7 +129,7 @@ const ProductShelf = ({
         const cmp =
           sortBy === "createdAt"
             ? new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-            : a.price - b.price;
+            : listingPriceUSD(a) - listingPriceUSD(b);
         return sortOrder === "asc" ? -cmp : cmp;
       });
     }
@@ -142,6 +145,7 @@ const ProductShelf = ({
     sortBy,
     sortOrder,
     maxItems,
+    listingPriceUSD,
     user,
   ]);
 

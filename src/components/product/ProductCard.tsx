@@ -7,7 +7,7 @@ import {
   useAddToWatchlistMutation,
   useRemoveFromWatchlistMutation,
 } from "../../store/api";
-import { useCurrency } from "../../context/CurrencyContext";
+import { useListingPrice } from "../../hooks/useListingPrice";
 import { motion } from "framer-motion";
 import { useAuth } from "../../context/AuthContext";
 import { useSnackbar } from "../../context/SnackbarContext";
@@ -33,7 +33,7 @@ const ProductCard = React.memo(
     const { isAuthenticated } = useAuth();
     const { showSnackbar } = useSnackbar();
     const { _id, name, description, images, isSponsored, price } = product;
-    const { formatDisplayPrice } = useCurrency();
+    const { formatListingPrice } = useListingPrice();
 
     const { data: watchlistData } = useCheckWatchlistQuery(_id, {
       skip: !isAuthenticated,
@@ -43,9 +43,10 @@ const ProductCard = React.memo(
 
     const isFavorite = watchlistData?.isWatchlist || false;
 
+    const acceptedPayments = product.acceptedPayments;
     const displayPrice = useMemo(
-      () => formatDisplayPrice(price),
-      [price, formatDisplayPrice]
+      () => formatListingPrice({ price, acceptedPayments }),
+      [price, acceptedPayments, formatListingPrice]
     );
 
     const imageUrl =

@@ -18,6 +18,7 @@ export { usePayment } from "./usePayment";
 export type { PaymentStep, PaymentParams } from "./usePayment";
 
 export { usePrices } from "./usePrices";
+export { useListingPrice } from "./useListingPrice";
 
 export { useChainGuard } from "./useChainGuard";
 export type { ChainGuard } from "./useChainGuard";

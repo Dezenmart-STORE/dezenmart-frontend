@@ -1,7 +1,7 @@
 import React, { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { WatchlistItem } from "../../../utils/types";
-import { useCurrency } from "../../../context/CurrencyContext";
+import { useListingPrice } from "../../../hooks/useListingPrice";
 
 interface Props {
   item: WatchlistItem;
@@ -12,7 +12,7 @@ interface Props {
 
 const SavedItem: React.FC<Props> = React.memo(({ item, onRemove, viewMode = "list" }) => {
   const navigate = useNavigate();
-  const { formatAmount } = useCurrency();
+  const { formatListingPrice } = useListingPrice();
 
   const productImage = useMemo(
     () => item.product?.images?.[0] || "https://placehold.co/200x200?text=?",
@@ -20,9 +20,12 @@ const SavedItem: React.FC<Props> = React.memo(({ item, onRemove, viewMode = "lis
   );
 
   const price = useMemo(
-    () => formatAmount(item.product?.price ?? 0, "USDm"),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [item.product?.price]
+    () =>
+      formatListingPrice({
+        price: item.product?.price ?? 0,
+        acceptedPayments: item.product?.acceptedPayments,
+      }),
+    [item.product?.price, item.product?.acceptedPayments, formatListingPrice]
   );
 
   if (viewMode === "grid") {

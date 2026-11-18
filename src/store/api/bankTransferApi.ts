@@ -49,6 +49,8 @@ const json = { "Content-Type": "application/json" } as const;
 
 export type OrderSide = "buyer" | "seller";
 
+export type OrderKind = { kind: "bank"; order: BankTransferOrder } | { kind: "crypto" };
+
 /** One key per checkout attempt, so a retried "Place order" returns the same order. */
 export function newIdempotencyKey(): string {
   // randomUUID only exists in secure contexts (HTTPS, localhost); a phone on the
@@ -191,6 +193,37 @@ export const bankTransferApi = baseApi.injectEndpoints({
       ],
     }),
 
+    /**
+     * Which screen an order id belongs to. GET /orders/{id} serves crypto and
+     * bank-transfer orders alike; only a bank order carries paymentMethod "fiat".
+     * A bank order is parsed here and seeded into getBankTransferOrder, so the
+     * screen doesn't fetch it twice.
+     */
+    getOrderKind: builder.query<OrderKind, string>({
+      query: (orderId) => `/orders/${encodeURIComponent(orderId)}`,
+      transformResponse: (res: unknown): OrderKind => {
+        const raw = (res as { data?: { order?: { paymentMethod?: unknown } } } | null)?.data?.order;
+        if (raw?.paymentMethod !== "fiat") return { kind: "crypto" };
+        return { kind: "bank", order: parseEnvelope(bankTransferOrderSchema, res, "order", "GET /orders/{id}") };
+      },
+      async onQueryStarted(orderId, { dispatch, queryFulfilled }) {
+        try {
+          const { data } = await queryFulfilled;
+          // upsertQueryEntries stores the parsed order as is; upsertQueryData
+          // would run it through the envelope parser a second time and fail.
+          if (data.kind === "bank") {
+            dispatch(
+              bankTransferApi.util.upsertQueryEntries([
+                { endpointName: "getBankTransferOrder", arg: orderId, value: data.order },
+              ])
+            );
+          }
+        } catch {
+          // The query's own error state reports this.
+        }
+      },
+    }),
+
     getBankTransferOrder: builder.query<BankTransferOrder, string>({
       query: (orderId) => `/orders/${encodeURIComponent(orderId)}`,
       transformResponse: (res: unknown) =>
@@ -307,6 +340,7 @@ export const {
   useCreateBankTransferOrderMutation,
   useGetBankTransferOrdersQuery,
   useGetBankTransferOrderQuery,
+  useGetOrderKindQuery,
   useSellerOrderActionMutation,
   useCancelBankTransferOrderMutation,
   useConfirmBankTransferDeliveryMutation,

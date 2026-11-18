@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { Product } from "../../utils/types";
 import { GoVerified } from "react-icons/go";
-import { useCurrency } from "../../context/CurrencyContext";
+import { useListingPrice } from "../../hooks/useListingPrice";
 
 interface Props {
   title: string;
@@ -11,7 +11,7 @@ interface Props {
 }
 
 const FeaturedHero = ({ title, subtitle, products, maxItems = 4 }: Props) => {
-  const { formatDisplayPrice } = useCurrency();
+  const { formatListingPrice } = useListingPrice();
 
   const displayProducts = products.slice(0, maxItems);
 
@@ -32,7 +32,7 @@ const FeaturedHero = ({ title, subtitle, products, maxItems = 4 }: Props) => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
         {displayProducts.map((product) => {
-          const displayPrice = formatDisplayPrice(product.price);
+          const displayPrice = formatListingPrice(product);
 
           return (
             <Link

@@ -19,6 +19,8 @@ interface Props {
   quantity: number;
   selectedProvider: AvailableProvider | null;
   onProviderSelect: (provider: AvailableProvider) => void;
+  /** How to show a fee given in US dollars; defaults to the shopper's display currency. */
+  formatCost?: (usdAmount: number) => string;
 }
 
 const SEARCH_THRESHOLD = 4; // only show the search box beyond this many providers
@@ -49,12 +51,14 @@ const LogisticsProviderSelector: React.FC<Props> = ({
   quantity,
   selectedProvider,
   onProviderSelect,
+  formatCost,
 }) => {
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState(false);
   // Delivery fees come from the quote endpoint in USD, so format them exactly
   // like the product price (selected token or local fiat).
   const { formatDisplayPrice } = useCurrency();
+  const showCost = formatCost ?? formatDisplayPrice;
 
   // Origin + weight (fall back to legacy defaults for older products).
   const fromState = product.state || LEGACY_ORIGIN.state;
@@ -144,7 +148,7 @@ const LogisticsProviderSelector: React.FC<Props> = ({
           name={selectedProvider.name ?? ""}
           rating={selectedProvider.rating ?? 0}
           estimatedDays={selectedProvider.estimatedDays}
-          costLabel={selectedProvider.cost != null ? formatDisplayPrice(selectedProvider.cost) : undefined}
+          costLabel={selectedProvider.cost != null ? showCost(selectedProvider.cost) : undefined}
           selected
           onSelect={() => setExpanded(true)}
         />
@@ -220,7 +224,7 @@ const LogisticsProviderSelector: React.FC<Props> = ({
                   name={q.provider.name}
                   rating={q.provider.rating}
                   estimatedDays={daysLabel(q.estimatedDaysMin, q.estimatedDaysMax)}
-                  costLabel={q.deliveryFee != null ? formatDisplayPrice(q.deliveryFee) : undefined}
+                  costLabel={q.deliveryFee != null ? showCost(q.deliveryFee) : undefined}
                   selected={selectedProvider?._id === q.providerId}
                   onSelect={() => handleSelect(q)}
                 />

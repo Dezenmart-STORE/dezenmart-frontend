@@ -444,6 +444,7 @@ export interface WatchlistItem {
     price: number;
     seller: string;
     images: string[];
+    acceptedPayments?: Product["acceptedPayments"];
   };
   createdAt: string;
   updatedAt: string;
