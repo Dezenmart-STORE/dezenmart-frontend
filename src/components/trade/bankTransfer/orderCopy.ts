@@ -59,7 +59,7 @@ function refundLine(order: BankTransferOrder): string | undefined {
   const refund = order.refund?.amount !== undefined ? `Your refund of ${formatNaira(order.refund.amount)}` : "Your refund";
   switch (order.refund?.status) {
     case "awaiting_account":
-      return "We need your bank account details to send your refund. Contact support to add them.";
+      return "Add your bank account below so we can send your refund.";
     case "processing":
       return `${refund} is being sent to your bank.`;
     case "sent":

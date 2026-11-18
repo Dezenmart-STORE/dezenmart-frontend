@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useCallback, useState } from "react";
+import React, { lazy, Suspense, useCallback, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { LazyMotion, domAnimation, m } from "framer-motion";
 import { RiListCheck2, RiGridFill } from "react-icons/ri";
@@ -10,6 +10,11 @@ import { TabType, Order } from "../../../utils/types";
 import ReferralsTab from "./referrals";
 import LoadingSpinner from "../../common/LoadingSpinner";
 import { useGetUserOrdersQuery } from "../../../store/api/ordersApi";
+import { useGetBankTransferOrdersQuery } from "../../../store/api/bankTransferApi";
+import type { BankTransferOrder } from "../../../utils/validation/bankTransfer";
+import { BANK_TRANSFER_ENABLED } from "../../../config/features";
+import BankOrderHistoryItem from "./BankOrderHistoryItem";
+import StatusBox from "../../common/StatusBox";
 import {
   useGetWatchlistQuery,
   useRemoveFromWatchlistMutation,
@@ -18,6 +23,10 @@ import {
 const ProductContainer = lazy(() => import("./products/Container"));
 
 type ViewMode = "list" | "grid";
+
+type HistoryRow =
+  | { kind: "crypto"; order: Order; at: number }
+  | { kind: "bank"; order: BankTransferOrder; at: number };
 
 interface TabContentProps {
   activeTab: TabType;
@@ -237,6 +246,17 @@ const TabContent: React.FC<TabContentProps> = React.memo(({ activeTab }) => {
     { skip: activeTab !== "3" || !isSales }
   );
 
+  // Bank-transfer orders live on their own endpoint; Order History shows both kinds together.
+  const {
+    data: bankOrders,
+    isLoading: bankLoading,
+    isError: bankFailed,
+    refetch: refetchBank,
+  } = useGetBankTransferOrdersQuery(
+    { side: orderRole },
+    { skip: !BANK_TRANSFER_ENABLED || activeTab !== "3" }
+  );
+
   const {
     data: watchlistData,
     isLoading: watchlistLoading,
@@ -251,7 +271,24 @@ const TabContent: React.FC<TabContentProps> = React.memo(({ activeTab }) => {
   const historyLoading = isSales ? sellerLoading : buyerLoading;
   const historyError = isSales ? sellerError : buyerError;
   const refetchHistory = isSales ? refetchSeller : refetchBuyer;
-  const regularOrders = historyData?.filter((o: Order) => !o.dispute?.raisedBy) ?? [];
+  const regularOrders = useMemo(
+    () => historyData?.filter((o: Order) => !o.dispute?.raisedBy) ?? [],
+    [historyData]
+  );
+
+  // Newest first across both kinds of order.
+  const historyRows = useMemo(() => {
+    const crypto: HistoryRow[] = regularOrders
+      .filter((o: Order) => o?._id && o?.product?._id)
+      .map((o: Order) => ({ kind: "crypto", order: o, at: Date.parse(o.createdAt) || 0 }));
+    const bank: HistoryRow[] = (bankOrders ?? []).map((o) => ({
+      kind: "bank",
+      order: o,
+      at: o.createdAt ? Date.parse(o.createdAt) : 0,
+    }));
+    return [...bank, ...crypto].sort((a, b) => b.at - a.at);
+  }, [regularOrders, bankOrders]);
+  const anyHistoryLoading = historyLoading || bankLoading;
 
   // Disputes stay purchase-based.
   const disputeOrders = buyerOrders?.filter((o: Order) => o.dispute?.raisedBy) ?? [];
@@ -324,10 +361,13 @@ const TabContent: React.FC<TabContentProps> = React.memo(({ activeTab }) => {
         <m.div {...slideProps}>
           <OrderRoleToggle role={orderRole} onChange={setOrderRole} />
           <TabPanel
-            isLoading={historyLoading}
-            hasError={!!historyError && regularOrders.length === 0}
-            onRetry={refetchHistory}
-            isEmpty={!historyLoading && !historyError && regularOrders.length === 0}
+            isLoading={anyHistoryLoading}
+            hasError={!!historyError && historyRows.length === 0}
+            onRetry={() => {
+              void refetchHistory();
+              if (BANK_TRANSFER_ENABLED) void refetchBank();
+            }}
+            isEmpty={!anyHistoryLoading && !historyError && !bankFailed && historyRows.length === 0}
             emptyMessage={
               isSales
                 ? "You haven't made any sales yet."
@@ -336,8 +376,26 @@ const TabContent: React.FC<TabContentProps> = React.memo(({ activeTab }) => {
             emptyButtonText={isSales ? "List a Product" : "Browse Products"}
             emptyButtonPath={isSales ? "/account?tab=5" : "/product"}
           >
+            {bankFailed && (
+              <div className="mt-4">
+                <StatusBox
+                  tone="warning"
+                  action={
+                    <button
+                      type="button"
+                      onClick={() => void refetchBank()}
+                      className="rounded text-sm font-medium text-amber-300 underline hover:text-amber-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+                    >
+                      Retry
+                    </button>
+                  }
+                >
+                  Couldn't load your bank-transfer orders.
+                </StatusBox>
+              </div>
+            )}
             <ContentHeader
-              count={regularOrders.filter((o: Order) => o?._id && o?.product?._id).length}
+              count={historyRows.length}
               label={isSales ? "sales" : "purchases"}
               mode={ordersMode}
               onModeChange={setOrdersMode}
@@ -349,17 +407,24 @@ const TabContent: React.FC<TabContentProps> = React.memo(({ activeTab }) => {
                   : "space-y-3"
               }
             >
-              {regularOrders
-                .filter((o: Order) => o?._id && o?.product?._id)
-                .map((o: Order, i: number) => (
+              {historyRows.map((row, i) =>
+                row.kind === "bank" ? (
+                  <BankOrderHistoryItem
+                    key={row.order._id}
+                    order={row.order}
+                    role={orderRole}
+                    viewMode={ordersMode}
+                  />
+                ) : (
                   <OrderHistoryItem
-                    key={o.orderId}
-                    {...o}
+                    key={row.order.orderId}
+                    {...row.order}
                     role={orderRole}
                     index={i}
                     viewMode={ordersMode}
                   />
-                ))}
+                )
+              )}
             </div>
           </TabPanel>
         </m.div>

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeAll, afterAll, afterEach } from "vitest";
-import { render, screen, fireEvent, within } from "@testing-library/react";
+import { render, screen, fireEvent, within, waitFor } from "@testing-library/react";
 import { Provider } from "react-redux";
 import { MemoryRouter } from "react-router-dom";
 import { configureStore } from "@reduxjs/toolkit";
@@ -119,6 +119,30 @@ describe("BankTransferOrderView, buyer", () => {
 
     expect(await screen.findByText("Order complete. Thanks for shopping.")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "I have my order" })).toBeNull();
+  });
+});
+
+describe("BankTransferOrderView, refunds", () => {
+  it("takes the buyer's bank account for a refund once the bank confirms the name", async () => {
+    renderOrder({ status: "cancelled", refund: { status: "awaiting_account", amount: 14750.5 } });
+
+    expect(await screen.findByRole("heading", { name: "Where should we send your refund?" })).toBeTruthy();
+    const bank = screen.getByLabelText(/^Bank/);
+    await waitFor(() => expect(screen.getByRole("option", { name: "GTBank" })).toBeTruthy());
+    fireEvent.change(bank, { target: { value: "058" } });
+    fireEvent.change(screen.getByLabelText(/^Account number/), { target: { value: "0123456789" } });
+    expect(await screen.findByText("ADA CHIOMA OBI")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Send my refund here" }));
+
+    expect(await screen.findByText("Your refund of ₦14,750.50 is being sent to your bank.")).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: "Where should we send your refund?" })).toBeNull();
+  });
+
+  it("doesn't ask for an account when no refund is waiting on one", async () => {
+    renderOrder({ status: "cancelled", refund: { status: "processing", amount: 14750.5 } });
+
+    expect(await screen.findByText(/is being sent to your bank/)).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: "Where should we send your refund?" })).toBeNull();
   });
 });
 

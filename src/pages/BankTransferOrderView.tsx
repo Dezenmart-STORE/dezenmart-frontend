@@ -2,12 +2,13 @@ import { useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useGetBankTransferOrderQuery, useGetMySellerProfileQuery } from "../store/api";
 import type { BankTransferOrder } from "../utils/validation/bankTransfer";
-import { progressSteps, type OrderRole } from "../utils/bankTransferLifecycle";
+import { buyerActions, progressSteps, type OrderRole } from "../utils/bankTransferLifecycle";
 import { formatNaira } from "../utils/format";
 import StatusBox from "../components/common/StatusBox";
 import OrderProgress from "../components/trade/bankTransfer/OrderProgress";
 import PaymentPanel from "../components/trade/bankTransfer/PaymentPanel";
 import OrderActions from "../components/trade/bankTransfer/OrderActions";
+import RefundAccountPanel from "../components/trade/bankTransfer/RefundAccountPanel";
 import { nextStepText, offPathMessage, type OffPathMessage } from "../components/trade/bankTransfer/orderCopy";
 
 const OFF_PATH_TONE: Record<OffPathMessage["tone"], string> = {
@@ -132,6 +133,8 @@ function OrderBody({ order, role, onOrderStale }: { order: BankTransferOrder; ro
       {role === "buyer" && order.status === "awaiting_payment" && (
         <PaymentPanel order={order} onOrderStale={onOrderStale} />
       )}
+
+      {role === "buyer" && buyerActions(order).includes("addRefundAccount") && <RefundAccountPanel order={order} />}
 
       <OrderActions order={order} role={role} onOrderStale={onOrderStale} />
 

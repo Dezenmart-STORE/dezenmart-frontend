@@ -38,6 +38,23 @@ export function resetMockState() {
   state.pollsUntilPaid = 2;
 }
 
+/** The store as plain data, so the browser mock can keep it across reloads. */
+export interface MockSnapshot {
+  seller: SellerProfile | null;
+  orders: BankTransferOrder[];
+  pollsUntilPaid: number;
+}
+
+export function snapshotMockState(): MockSnapshot {
+  return { seller: state.seller, orders: [...state.orders.values()], pollsUntilPaid: state.pollsUntilPaid };
+}
+
+export function restoreMockState(snapshot: MockSnapshot) {
+  state.seller = snapshot.seller;
+  state.orders = new Map(snapshot.orders.map((o) => [o._id, o]));
+  state.pollsUntilPaid = snapshot.pollsUntilPaid;
+}
+
 /** Seller moves the server allows, as `${from}:${action}` -> to. */
 const VENDOR_TRANSITIONS: Record<string, BankTransferOrder["status"]> = {
   "paid:accept": "preparing",
@@ -134,7 +151,8 @@ export function createHandlers(baseUrl: string): HttpHandler[] {
     http.get(api("/orders"), ({ request }) => {
       const url = new URL(request.url);
       if (url.searchParams.get("paymentMethod") !== "fiat") return HttpResponse.json([]);
-      return ok({ orders: [...state.orders.values()] });
+      const status = url.searchParams.get("status");
+      return ok({ orders: [...state.orders.values()].filter((o) => !status || o.status === status) });
     }),
     http.get(api("/orders/:id"), ({ params }) => {
       const order = state.orders.get(String(params.id));
@@ -164,6 +182,14 @@ export function createHandlers(baseUrl: string): HttpHandler[] {
         (order.fulfilment === "delivery" && order.status === "out_for_delivery");
       if (!inHand) return fail(409, "Not delivered yet");
       return ok({ order: save({ ...order, status: "completed", payout: { status: "processing" } }) });
+    }),
+    http.post(api("/orders/:id/refund-account"), async ({ params, request }) => {
+      const order = state.orders.get(String(params.id));
+      if (!order) return fail(404, "Order not found");
+      if (order.refund?.status !== "awaiting_account") return fail(409, "No refund is waiting for an account");
+      const { accountNumber } = (await request.json()) as { accountNumber: string };
+      if (accountNumber === UNKNOWN_ACCOUNT_NUMBER) return fail(422, "Could not verify the account");
+      return ok({ order: save({ ...order, refund: { ...order.refund, status: "processing" } }) });
     }),
     http.post(api("/orders/:id/dispute"), ({ params }) => {
       const order = state.orders.get(String(params.id));

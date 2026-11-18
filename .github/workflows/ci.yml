@@ -74,6 +74,28 @@ jobs:
         run: npm run lint
         continue-on-error: true
 
+  e2e:
+    name: Browser tests (mock backend)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Money paths
+        run: npm run test:e2e
+      - name: Keep traces of failures
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: test-results/
+          retention-days: 7
+
   security-audit:
     name: Dependency audit (advisory)
     runs-on: ubuntu-latest

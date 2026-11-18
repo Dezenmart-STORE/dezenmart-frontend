@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   HiOutlineGift,
@@ -11,7 +11,8 @@ import {
 } from "react-icons/hi";
 import Modal from "../common/Modal";
 import LoadingSpinner from "../common/LoadingSpinner";
-import { useGetOrderByIdQuery } from "../../store/api";
+import { useGetOrderByIdQuery, useGetOrderKindQuery } from "../../store/api";
+import { BANK_TRANSFER_ENABLED } from "../../config/features";
 import { useCurrency } from "../../context/CurrencyContext";
 import {
   parseOrderCode,
@@ -66,14 +67,28 @@ export default function NotificationActionSheet({ notification, variant, onClose
   // order for the logistics-pending sheet (they may not even have access here).
   const skipOrder = variant === "logistics-pending" || !orderId;
 
-  const { data: order, isLoading } = useGetOrderByIdQuery(orderId ?? "", {
-    skip: skipOrder,
+  // A bank-transfer order has its own screen and none of the token fields this
+  // sheet shows, so it opens straight away; the crypto lookup waits for the answer.
+  const { data: kind, isLoading: kindLoading } = useGetOrderKindQuery(orderId ?? "", {
+    skip: skipOrder || !BANK_TRANSFER_ENABLED,
   });
+  const isBankOrder = kind?.kind === "bank";
+  const { data: order, isLoading: orderLoading } = useGetOrderByIdQuery(orderId ?? "", {
+    skip: skipOrder || (BANK_TRANSFER_ENABLED && kind?.kind !== "crypto"),
+  });
+  const isLoading = kindLoading || orderLoading;
 
   const go = (to: string) => {
     onClose();
     navigate(to);
   };
+
+  useEffect(() => {
+    if (isBankOrder && orderId) {
+      onClose();
+      navigate(`/orders/${orderId}`);
+    }
+  }, [isBankOrder, orderId, onClose, navigate]);
 
   // The notification is addressed to this user, so the recipient id tells us
   // whether they are the buyer or the seller of the order.

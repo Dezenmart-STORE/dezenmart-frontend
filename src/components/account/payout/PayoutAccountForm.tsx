@@ -8,7 +8,9 @@ import {
 import {
   accountNumberSchema,
   bankCodeSchema,
+  payoutAccountInputSchema,
   sellerApplicationSchema,
+  type PayoutAccountInput,
   type SellerProfile,
 } from "../../../utils/validation/bankTransfer";
 import { apiErrorStatus } from "../../../utils/errors";
@@ -26,6 +28,17 @@ interface Props {
   askPickupAddress?: boolean;
   onSaved?: (profile: SellerProfile) => void;
   onCancel?: () => void;
+  /**
+   * Send the checked account somewhere other than the seller application, such
+   * as a refund. Rejects with the server's error so its status can be read.
+   */
+  submit?: (account: PayoutAccountInput) => Promise<unknown>;
+  submitLabel?: string;
+  /** Words for a refused submit, by status; defaults to the seller-account ones. */
+  failureMessage?: (status: number | undefined) => string;
+  successMessage?: string;
+  /** Under the account number: what the account will be used for. */
+  numberHint?: string;
 }
 
 /** Each lookup is tied to the bank and number it was asked for. */
@@ -58,11 +71,18 @@ const PayoutAccountForm: React.FC<Props> = ({
   askPickupAddress = true,
   onSaved,
   onCancel,
+  submit,
+  submitLabel = "Save bank account",
+  failureMessage = saveFailureMessage,
+  successMessage = "Bank account saved",
+  numberHint = "We'll check the name with your bank. Payouts go to this account.",
 }) => {
   const { data: banks = [], isLoading: banksLoading, isError: banksFailed, refetch: refetchBanks } =
     useGetBanksQuery();
   const [resolveAccount] = useResolveBankAccountMutation();
-  const [applyAsSeller, { isLoading: saving }] = useApplyAsSellerMutation();
+  const [applyAsSeller, { isLoading: applying }] = useApplyAsSellerMutation();
+  const [submitting, setSubmitting] = useState(false);
+  const saving = applying || submitting;
   const { showSnackbar } = useSnackbar();
 
   const [bankCode, setBankCode] = useState("");
@@ -114,10 +134,11 @@ const PayoutAccountForm: React.FC<Props> = ({
     if (savingRef.current) return;
     setSubmitError(undefined);
 
-    const parsed = sellerApplicationSchema.safeParse({
-      payout: { bankCode, accountNumber },
-      address: address.trim() || undefined,
-    });
+    // Only the seller application takes an address; other uses send the account alone.
+    const account = { bankCode, accountNumber };
+    const parsed = submit
+      ? payoutAccountInputSchema.safeParse(account)
+      : sellerApplicationSchema.safeParse({ payout: account, address: address.trim() || undefined });
     if (!parsed.success) {
       const next: FieldErrors = {};
       for (const issue of parsed.error.issues) {
@@ -136,15 +157,21 @@ const PayoutAccountForm: React.FC<Props> = ({
 
     savingRef.current = true;
     try {
-      const profile = await applyAsSeller(parsed.data).unwrap();
-      showSnackbar("Bank account saved", "success");
-      onSaved?.(profile);
+      if (submit) {
+        setSubmitting(true);
+        await submit(account);
+      } else if ("payout" in parsed.data) {
+        const profile = await applyAsSeller(parsed.data).unwrap();
+        onSaved?.(profile);
+      }
+      showSnackbar(successMessage, "success");
     } catch (err) {
-      const message = saveFailureMessage(apiErrorStatus(err));
+      const message = failureMessage(apiErrorStatus(err));
       setSubmitError(message);
       showSnackbar(message, "error");
     } finally {
       savingRef.current = false;
+      setSubmitting(false);
     }
   };
 
@@ -242,7 +269,7 @@ const PayoutAccountForm: React.FC<Props> = ({
         surface={surface}
         error={errors.accountNumber}
         status={numberStatus}
-        hint="We'll check the name with your bank. Payouts go to this account."
+        hint={numberHint}
       >
         {({ id, describedBy, invalid }) => (
           <input
@@ -305,7 +332,7 @@ const PayoutAccountForm: React.FC<Props> = ({
           loadingTitle="Saving…"
           icon={<HiCheckCircle className="w-4 h-4" aria-hidden />}
           iconPosition="start"
-          title="Save bank account"
+          title={submitLabel}
           className="flex-1"
         />
         {onCancel && (

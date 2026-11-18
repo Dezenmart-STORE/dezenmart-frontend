@@ -34,3 +34,7 @@ coverage/
 .DS_Store
 *.sw?
 settings.json
+
+# Playwright output
+/test-results/
+/playwright-report/
