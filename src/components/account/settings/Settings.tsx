@@ -10,12 +10,14 @@ import {
   RiFileList3Line,
   RiShieldUserLine,
   RiCupLine,
+  RiBankLine,
 } from "react-icons/ri";
 import { FaQuestion } from "react-icons/fa";
 import { TwoFactor } from "../../../pages";
 import { useAuth } from "../../../context/AuthContext";
 import { useNavigate } from "react-router";
 import type { AccountViewState } from "../../../pages/Account";
+import { BANK_TRANSFER_ENABLED } from "../../../config/features";
 
 interface SettingItemProps {
   icon: React.ReactNode;
@@ -89,6 +91,15 @@ const Settings = ({
           label: "Delivery Addresses",
           onClick: () => setViewState("delivery-addresses"),
         },
+        ...(BANK_TRANSFER_ENABLED
+          ? [
+              {
+                icon: <RiBankLine className="text-white text-base" />,
+                label: "Bank Account for Payouts",
+                onClick: () => setViewState("payout-account"),
+              },
+            ]
+          : []),
         // Telegram community removed - we only use X and LinkedIn.
         // {
         //   icon: <RiContactsBook2Fill className="text-white text-base" />,

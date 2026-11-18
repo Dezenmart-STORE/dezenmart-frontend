@@ -8,6 +8,8 @@ import {
 import { jwtDecode } from "jwt-decode";
 import { UserProfile } from "../utils/types";
 import { setSentryUser, clearSentryUser } from "../utils/sentry.config";
+import { store } from "../store/store";
+import { baseApi } from "../store/api/baseApi";
 // import { useWallet } from "../utils/hooks/useWallet";
 
 interface JwtPayload {
@@ -27,8 +29,8 @@ interface AuthContextType {
   /** Exchange a Google One Tap ID token for our session, in place. */
   loginWithGoogleCredential: (credential: string) => Promise<void>;
   // loginWithWallet: (walletAddress: string) => Promise<void>;
-  handleUserUpdate: (userData: any) => void;
-  handleAuthCallback: (token: string, userData: any) => void;
+  handleUserUpdate: (userData: UserProfile) => void;
+  handleAuthCallback: (token: string, userData: UserProfile) => void;
   logout: () => void;
   getToken: () => string | null;
 }
@@ -62,7 +64,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             } else {
               const parsedUser = JSON.parse(storedUser);
               setUser(parsedUser);
-              setSentryUser({ id: parsedUser._id, name: parsedUser.name, email: parsedUser.email });
+              setSentryUser({ id: parsedUser._id });
             }
           } catch (error) {
             console.error("Invalid token:", error);
@@ -71,8 +73,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         } else {
           // console.log("No token or user found in storage");
         }
-      } catch (error) {
-        // console.error("Error checking auth status:", error);
+      } catch {
         clearAuthState();
       } finally {
         setIsLoading(false);
@@ -141,7 +142,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         email: userData.email,
         picture: typeof userData.profileImage === "string" ? userData.profileImage : null,
       }));
-    } catch {}
+    } catch {
+      // Best effort: the account hint is a convenience, never worth a crash.
+    }
   };
 
   // One Tap hands us a Google ID token; the backend verifies it and returns our
@@ -176,7 +179,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       storage.setItem(TOKEN_KEY, token);
       storage.setItem(USER_KEY, JSON.stringify(userData));
       setUser(userData);
-      setSentryUser({ id: userData._id, name: userData.name, email: userData.email });
+      setSentryUser({ id: userData._id });
       saveLastAccount(userData);
     } catch (error) {
       console.error("Error in handleAuthCallback:", error);
@@ -205,6 +208,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     });
     clearAuthState();
+    // Drop every cached response so the next person on this device sees none of it.
+    store.dispatch(baseApi.util.resetApiState());
   };
 
   const getToken = (): string | null => {

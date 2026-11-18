@@ -4,7 +4,7 @@
  * Tracks Web3 transactions and provides live updates
  */
 
-interface TransactionStatus {
+export interface TransactionStatus {
   hash: string;
   type: 'approval' | 'purchase';
   status: 'pending' | 'confirmed' | 'failed';

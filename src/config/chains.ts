@@ -156,7 +156,6 @@ let walletConnectRegistered = false;
 export function ensureWalletConnectWallets(): void {
   if (walletConnectRegistered) return;
   if (deferredMetaMaskFns.length === 0 && walletConnectConnectorFns.length === 0) return;
-  walletConnectRegistered = true;
   const registry = wagmiConfig._internal.connectors;
   const metaMask = deferredMetaMaskFns.map((fn) => registry.setup(fn));
   const rest = walletConnectConnectorFns.map((fn) => registry.setup(fn));
@@ -165,6 +164,8 @@ export function ensureWalletConnectWallets(): void {
     const at = firstRk === -1 ? current.length : firstRk;
     return [...current.slice(0, at), ...metaMask, ...current.slice(at), ...rest];
   });
+  // Set only after it worked, so a failure here can be retried on the next open.
+  walletConnectRegistered = true;
 }
 
 export const wagmiConfig = createConfig({

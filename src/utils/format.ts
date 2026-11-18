@@ -97,3 +97,20 @@ export function calculateOrderTotal(
   const total = Math.round((subtotal + logisticsCost) * SCALE) / SCALE;
   return { subtotal, logisticsCost, total };
 }
+
+/**
+ * Show only the last four digits of a bank account number, whatever form the
+ * server sends it in (full, partly starred), so a full number never renders.
+ */
+export function maskAccountNumber(accountNumber: string | undefined): string | undefined {
+  if (!accountNumber) return undefined;
+  const digits = accountNumber.replace(/\D/g, "");
+  if (digits.length < 4) return "••••";
+  return `•••• ${digits.slice(-4)}`;
+}
+
+/** A naira amount as typed ("50,000", " 1,250.50"), or NaN when it isn't one. */
+export function parseNairaInput(input: string): number {
+  const cleaned = input.replace(/[\s,]/g, "");
+  return /^\d+(\.\d{1,2})?$/.test(cleaned) ? Number(cleaned) : NaN;
+}

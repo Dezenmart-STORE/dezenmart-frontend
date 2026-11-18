@@ -5,7 +5,7 @@
  * injectAuthToken("your_jwt_token_here")
  */
 
-export function injectAuthToken(token: string, userData?: any) {
+export function injectAuthToken(token: string, userData?: Record<string, unknown>) {
   try {
     // Decode the JWT to get user info
     const parts = token.split('.');
@@ -59,20 +59,24 @@ export function injectAuthToken(token: string, userData?: any) {
 // Expose to window for console access
 declare global {
   interface Window {
-    injectAuthToken: (token: string, userData?: any) => boolean;
+    injectAuthToken: (token: string, userData?: Record<string, unknown>) => boolean;
     clearAuth: () => void;
   }
 }
 
-window.injectAuthToken = injectAuthToken;
+// Console login helpers are for local development only: in a production build
+// they would let anyone plant a token from the browser console.
+if (import.meta.env.DEV) {
+  window.injectAuthToken = injectAuthToken;
 
-window.clearAuth = () => {
-  localStorage.removeItem('auth_token');
-  localStorage.removeItem('auth_user');
-  console.log('🗑️ Auth cleared. Reloading...');
-  setTimeout(() => window.location.reload(), 500);
-};
+  window.clearAuth = () => {
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('auth_user');
+    console.log('🗑️ Auth cleared. Reloading...');
+    setTimeout(() => window.location.reload(), 500);
+  };
 
-console.log('🔐 Auth Injection Tools Available:');
-console.log('  injectAuthToken(token) - Inject JWT token for testing');
-console.log('  clearAuth()            - Clear authentication');
+  console.log('🔐 Auth Injection Tools Available:');
+  console.log('  injectAuthToken(token) - Inject JWT token for testing');
+  console.log('  clearAuth()            - Clear authentication');
+}

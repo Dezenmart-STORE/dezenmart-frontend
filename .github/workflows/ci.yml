@@ -16,6 +16,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Full history, so the changed-files lint can diff against the base.
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -28,6 +31,24 @@ jobs:
       # ── Blocking gates ────────────────────────────────────────────────
       - name: Type-check
         run: npm run type-check
+
+      # Every file a change touches must be lint-clean, so the backlog shrinks
+      # instead of growing. The whole repo stays advisory (below) until it's cleared.
+      - name: Lint changed files
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if [ -z "$BASE_SHA" ] || ! git cat-file -e "$BASE_SHA^{commit}" 2>/dev/null; then
+            echo "No base commit to compare with; skipping."
+            exit 0
+          fi
+          git diff --name-only --diff-filter=ACMR "$BASE_SHA" HEAD -- '*.ts' '*.tsx' \
+            | grep -v '^src/mocks/public/' > changed.txt || true
+          if [ ! -s changed.txt ]; then
+            echo "No TypeScript files changed."
+            exit 0
+          fi
+          xargs npx eslint < changed.txt
 
       - name: Test
         run: npm run test:run
@@ -48,8 +69,8 @@ jobs:
             | awk '{ printf "%8.1f kB  %s\n", $1/1024, $2 }' >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
 
-      # ── Advisory (non-blocking until the lint backlog is cleared) ──────
-      - name: Lint (advisory)
+      # ── Advisory: whole-repo lint, until the backlog is cleared ─────────
+      - name: Lint whole repo (advisory)
         run: npm run lint
         continue-on-error: true
 

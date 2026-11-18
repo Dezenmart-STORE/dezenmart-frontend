@@ -31,9 +31,6 @@ import {
 import { registerServiceWorker, triggerSWUpdate } from "./utils/pwa/index.ts";
 import { initDebugTools } from "./utils/debug/index.ts";
 import "./utils/dev/injectAuth.ts";
-import { RampProvider } from "./components/rampp/RampContext.tsx";
-import { FloatingRampButton } from "./components/rampp/FloatingRampButton.tsx";
-import { RampModal } from "./components/rampp/RampModal.tsx";
 import { RampMinimalProvider } from "./components/ramp/USAGE_EXAMPLE.tsx";
 
 // ── Startup: version-based stale cache cleanup ──────────────────────────────
@@ -275,8 +272,20 @@ const App = () => {
   );
 };
 
-createRoot(document.getElementById("root")!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>
-);
+const mount = () =>
+  createRoot(document.getElementById("root")!).render(
+    <StrictMode>
+      <App />
+    </StrictMode>
+  );
+
+// `npm run dev:mock` runs against the in-browser mock backend. The import sits
+// behind the mode check so the mock code never reaches a production bundle.
+if (import.meta.env.MODE === "mock") {
+  import("./mocks/browser")
+    .then(({ startMockBackend }) => startMockBackend())
+    .catch((err) => console.error("[mock] backend failed to start", err))
+    .finally(mount);
+} else {
+  mount();
+}

@@ -14,6 +14,8 @@ interface ImportMetaEnv {
   readonly VITE_APP_VERSION: string;
   readonly VITE_DIVVI_CONSUMER_ADDRESS: string;
   readonly VITE_SW_DEV?: string;
+  /** "true" turns on naira bank-transfer selling and buying. */
+  readonly VITE_ENABLE_BANK_TRANSFER?: string;
   readonly NODE_ENV: "development" | "production" | "test";
 }
 

@@ -8,6 +8,7 @@
   },
   "scripts": {
     "dev": "vite",
+    "dev:mock": "vite --mode mock",
     "build": "tsc -b && vite build",
     "build:analyze": "ANALYZE=true npm run build",
     "build:production": "npm run generate-sitemap && npm run build",
@@ -70,7 +71,7 @@
     "thirdweb": "^5.96.5",
     "uuid": "^11.1.0",
     "viem": "^2.55.10",
-    "wagmi": "^2.0.0",
+    "wagmi": "~2.16.1",
     "web3": "^4.16.0"
   },
   "devDependencies": {
@@ -92,6 +93,7 @@
     "eslint-plugin-react-refresh": "^0.4.18",
     "globals": "^15.14.0",
     "jsdom": "^27.1.0",
+    "msw": "^2.7.0",
     "patch-package": "^8.0.1",
     "postcss": "^8.5.3",
     "rollup-plugin-visualizer": "^6.0.5",

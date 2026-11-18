@@ -1,4 +1,27 @@
-import { defineConfig } from "vite";
+import { defineConfig, type Plugin, type PluginOption } from "vite";
+import { readFileSync } from "node:fs";
+
+/**
+ * `npm run dev:mock`: serve the MSW service worker from the site root in mock
+ * mode only. It lives in src/mocks/public, not public/, so it never ships.
+ */
+const mockServiceWorker = (): Plugin => {
+  let enabled = false;
+  return {
+    name: "dezen-mock-service-worker",
+    apply: "serve",
+    configResolved(config) {
+      enabled = config.mode === "mock";
+    },
+    configureServer(server) {
+      if (!enabled) return;
+      server.middlewares.use("/mockServiceWorker.js", (_req, res) => {
+        res.setHeader("Content-Type", "application/javascript");
+        res.end(readFileSync(new URL("./src/mocks/public/mockServiceWorker.js", import.meta.url)));
+      });
+    },
+  };
+};
 import react from "@vitejs/plugin-react";
 import { visualizer } from "rollup-plugin-visualizer";
 import { nodePolyfills } from "vite-plugin-node-polyfills";
@@ -6,6 +29,7 @@ import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig({
   plugins: [
+    mockServiceWorker(),
     react(),
     nodePolyfills({
       protocolImports: true,
@@ -100,7 +124,7 @@ export default defineConfig({
             filename: "dist/stats.html",
             gzipSize: true,
             brotliSize: true,
-          }) as any,
+          }) as PluginOption,
         ]
       : []),
   ],
@@ -173,12 +197,7 @@ export default defineConfig({
         // dynamic import().
 
         // Optimize chunk names for better caching
-        chunkFileNames: (chunkInfo) => {
-          const facadeModuleId = chunkInfo.facadeModuleId
-            ? chunkInfo.facadeModuleId.split("/").pop()
-            : "chunk";
-          return `assets/js/[name]-[hash].js`;
-        },
+        chunkFileNames: "assets/js/[name]-[hash].js",
 
         entryFileNames: "assets/js/[name]-[hash].js",
         assetFileNames: "assets/[ext]/[name]-[hash].[ext]",

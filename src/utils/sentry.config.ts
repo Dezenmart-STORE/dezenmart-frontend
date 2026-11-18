@@ -81,8 +81,6 @@ export const initSentry = () => {
           dsn,
           environment,
           tracesSampleRate: environment === "production" ? 0.1 : 1.0, // 10% in prod, 100% in staging
-          replaysSessionSampleRate: 0.1,
-          replaysOnErrorSampleRate: 1.0,
           beforeSend,
         });
         sentry = mod;
@@ -103,9 +101,10 @@ export const initSentry = () => {
   });
 };
 
-// Helper to set user context after login
-export const setSentryUser = (user: { id: string; email?: string; name?: string }) => {
-  run((s) => s.setUser({ id: user.id, email: user.email, username: user.name }));
+// Only the account id reaches Sentry: name and email are personal data the
+// privacy notice doesn't cover, and the id is enough to find the account.
+export const setSentryUser = (user: { id: string }) => {
+  run((s) => s.setUser({ id: user.id }));
 };
 
 // Helper to clear user context on logout
@@ -115,10 +114,13 @@ export const clearSentryUser = () => {
 
 // Helper to capture custom errors
 export const captureError = (error: unknown, context?: Record<string, unknown>) => {
-  run((s) => {
-    if (context) s.setContext("additional", context);
-    s.captureException(error);
-  });
+  // A scope per error, so one report's context never leaks into the next.
+  run((s) =>
+    s.withScope((scope) => {
+      if (context) scope.setContext("additional", context);
+      s.captureException(error);
+    })
+  );
 };
 
 // Helper to capture custom messages

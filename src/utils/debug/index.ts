@@ -5,19 +5,20 @@
  */
 
 import paymentDebugger from './paymentDebugger';
-import transactionMonitor from './transactionMonitor';
+import transactionMonitor, { type TransactionStatus } from './transactionMonitor';
 import errorAnalyzer from './errorAnalyzer';
-import { injectAuthToken } from '../dev/injectAuth';
 
 // Initialize all debuggers
 export const initDebugTools = () => {
   console.log('🛠️ Debug Tools Initialized');
   console.log('');
   console.log('📋 Available Commands:');
-  console.log('  Authentication:');
-  console.log('    injectAuthToken(token) - Login with JWT token');
-  console.log('    clearAuth()            - Logout and clear auth');
-  console.log('');
+  if (import.meta.env.DEV) {
+    console.log('  Authentication:');
+    console.log('    injectAuthToken(token) - Login with JWT token');
+    console.log('    clearAuth()            - Logout and clear auth');
+    console.log('');
+  }
   console.log('  Payment Debugging:');
   console.log('    enablePaymentDebug()  - Track all payment flows');
   console.log('    printPaymentDebug()   - Show current session');
@@ -35,7 +36,7 @@ export const initDebugTools = () => {
 export const logPaymentStep = (
   step: string,
   status: 'pending' | 'success' | 'error',
-  data?: any,
+  data?: unknown,
   error?: string
 ) => {
   if (paymentDebugger.isEnabled()) {
@@ -69,13 +70,13 @@ export const trackTransaction = (
 export const updateTransactionStatus = (
   hash: string,
   status: 'confirmed' | 'failed',
-  details?: any
+  details?: Partial<TransactionStatus>
 ) => {
   transactionMonitor.updateStatus(hash, status, details);
 };
 
 // Helper to analyze error
-export const analyzePaymentError = (error: any) => {
+export const analyzePaymentError = (error: unknown) => {
   return errorAnalyzer.analyzeError(error);
 };
 

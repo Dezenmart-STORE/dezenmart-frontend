@@ -9,9 +9,15 @@ import {
 import { FiInfo, FiCheck } from "react-icons/fi";
 import {
   useCreateProductMutation,
+  useGetMySellerProfileQuery,
   useGetNigerianStatesQuery,
   useGetStateLgasQuery,
 } from "../../../../store/api";
+import {
+  bankTransferListingInputSchema,
+  toBankTransferListingFormData,
+  type Fulfilment,
+} from "../../../../utils/validation/bankTransfer";
 import { FALLBACK_STATES } from "../../../account/address/constants";
 import { useSnackbar } from "../../../../context/SnackbarContext";
 import { useAccount, useChainId } from "wagmi";
@@ -20,6 +26,13 @@ import { TOKENS, buildTradeParams } from "../../../../config/tokens";
 import MediaUpload, { MediaFile } from "./MediaUpload";
 import VariantsSection, { ProductVariant } from "./VariantsSection";
 import PriceField from "./PriceField";
+import PaymentTypeChoice, { type PaymentType } from "./PaymentTypeChoice";
+import BankPayoutStatus from "./BankPayoutStatus";
+import StatusBox from "../../../common/StatusBox";
+import { NairaPriceField, FulfilmentOptions } from "./BankTransferListingFields";
+import { parseNairaInput } from "../../../../utils/format";
+import { apiErrorStatus } from "../../../../utils/errors";
+import { BANK_TRANSFER_ENABLED } from "../../../../config/features";
 
 interface CreateProductProps {
   onProductCreated?: () => void;
@@ -37,6 +50,7 @@ interface FormErrors {
   lga?: string;
   sellerWalletAddress?: string;
   variants?: string;
+  fulfilment?: string;
   submit?: string;
 }
 
@@ -78,8 +92,8 @@ function Field({
 
 // ── Input style ────────────────────────────────────────────────────────
 const inputCls = (hasError?: boolean) =>
-  `w-full bg-[#3A3C41] text-white px-3 py-3 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-600 transition-all placeholder-gray-600 ${
-    hasError ? "ring-1 ring-red-500" : ""
+  `w-full bg-[#3A3C41] text-white px-3 py-3 rounded-xl text-sm border focus:outline-none focus:ring-2 focus:ring-red-400/60 transition-all placeholder-gray-500 ${
+    hasError ? "border-red-400" : "border-[#767C87] focus:border-red-400"
   }`;
 
 // ── Select chevron ─────────────────────────────────────────────────────
@@ -128,7 +142,31 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
     lga: "",
     sellerWalletAddress: "",
     listPrice: "",
+    nairaPrice: "",
   });
+  const [paymentType, setPaymentType] = useState<PaymentType>("crypto");
+  const isBank = paymentType === "bank";
+  const [fulfilment, setFulfilment] = useState<Fulfilment[]>(["delivery"]);
+
+  // Bank-transfer listings need a verified payout account; only asked for in that mode.
+  const {
+    data: sellerProfile,
+    isLoading: profileLoading,
+    isError: profileError,
+    refetch: refetchProfile,
+  } = useGetMySellerProfileQuery(undefined, { skip: !isBank });
+  const hasPayoutAccount = Boolean(sellerProfile?.payoutAccount);
+  const canOfferPickup = Boolean(sellerProfile?.address);
+
+  // Offer pickup by default once we know the seller has somewhere to collect from.
+  useEffect(() => {
+    if (canOfferPickup) setFulfilment((f) => (f.includes("pickup") ? f : [...f, "pickup"]));
+  }, [canOfferPickup]);
+
+  const toggleFulfilment = (option: Fulfilment) => {
+    setFulfilment((f) => (f.includes(option) ? f.filter((o) => o !== option) : [...f, option]));
+    setErrors((prev) => ({ ...prev, fulfilment: undefined }));
+  };
 
   // Origin state/LGA come from the backend; LGAs depend on the selected state.
   const { data: fetchedStates = [] } = useGetNigerianStatesQuery();
@@ -214,47 +252,87 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
     [variants]
   );
 
+  // `type` as the API expects it (empty when there are no variants).
+  const formattedVariants = useCallback(
+    () =>
+      variants
+        .filter((v) => v.properties.length > 0)
+        .map((v) => {
+          const obj: Record<string, string | number> = { quantity: v.quantity || 0 };
+          v.properties.forEach((p) => {
+            const n = Number(p.value);
+            obj[p.name.toLowerCase()] = !isNaN(n) && p.value.trim() !== "" ? n : p.value;
+          });
+          return obj;
+        }),
+    [variants]
+  );
+
+  /** The bank-transfer payload, before the schema checks it. */
+  const bankListingInput = useCallback(
+    () => ({
+      name: form.name.trim(),
+      description: form.description.trim(),
+      category: form.category,
+      price: parseNairaInput(form.nairaPrice),
+      stock: Number(form.stock),
+      weight: Number(form.weight),
+      state: form.state,
+      lga: form.lga,
+      fulfilment,
+      type: formattedVariants(),
+    }),
+    [form, fulfilment, formattedVariants]
+  );
+
   const validate = useCallback((): boolean => {
     const e: FormErrors = {};
-    const { name, description, category, stock, sellerWalletAddress } = form;
+    const stockNum = parseInt(form.stock, 10);
 
-    if (!name.trim())        e.name        = "Product name is required";
-    if (!description.trim()) e.description = "Description is required";
-    if (!category)           e.category    = "Category is required";
-
-    if (!form.listPrice.trim())  e.price = "Price is required";
-    else if (priceUSD <= 0) e.price = "Enter a valid price greater than zero";
-
-    const stockNum = parseInt(stock, 10);
-    if (!stock.trim()) e.stock = "Stock quantity is required";
-    else if (isNaN(stockNum) || stockNum <= 0) e.stock = "Enter a valid whole number";
-
-    const weightNum = parseFloat(form.weight);
-    if (!form.weight.trim()) e.weight = "Weight is required";
-    else if (isNaN(weightNum) || weightNum <= 0) e.weight = "Enter a valid weight in kg";
-
-    if (!form.state) e.state = "Origin state is required";
-    if (!form.lga) e.lga = "Origin city / LGA is required";
-
-    if (!sellerWalletAddress.trim()) {
-      e.sellerWalletAddress = "Wallet address is required";
-    } else if (!/^0x[a-fA-F0-9]{40}$/.test(sellerWalletAddress)) {
-      e.sellerWalletAddress = "Enter a valid Celo / EVM wallet address";
-    }
-
+    // Photos and variant totals sit outside the payload schema, so both modes check them here.
     if (mediaFiles.length === 0) e.media = "At least one photo is required";
-
     const nonEmpty = variants.filter((v) => v.properties.length > 0);
     if (nonEmpty.length > 0) {
-      if (nonEmpty.some((v) => !v.quantity))
-        e.variants = "Set a quantity for each variant";
+      if (nonEmpty.some((v) => !v.quantity)) e.variants = "Set a quantity for each variant";
       else if (totalVariantQty !== stockNum)
         e.variants = `Variant total (${totalVariantQty}) must equal stock (${stockNum})`;
     }
 
+    if (isBank) {
+      // One validator for bank-transfer listings: the payload schema, which
+      // carries the same rules the server enforces.
+      const parsed = bankTransferListingInputSchema.safeParse(bankListingInput());
+      if (!parsed.success) {
+        for (const issue of parsed.error.issues) {
+          const key = String(issue.path[0]);
+          const field = (key === "type" ? "variants" : key) as keyof FormErrors;
+          e[field] ??= issue.message;
+        }
+      }
+      if (!hasPayoutAccount) e.submit = "Add your bank account under Receive Payment first.";
+    } else {
+      const { name, description, category, stock, sellerWalletAddress } = form;
+      if (!name.trim()) e.name = "Product name is required";
+      if (!description.trim()) e.description = "Description is required";
+      if (!category) e.category = "Category is required";
+      if (!form.listPrice.trim()) e.price = "Price is required";
+      else if (priceUSD <= 0) e.price = "Enter a valid price greater than zero";
+      if (!stock.trim()) e.stock = "Stock quantity is required";
+      else if (isNaN(stockNum) || stockNum <= 0) e.stock = "Enter a valid whole number";
+      const weightNum = parseFloat(form.weight);
+      if (!form.weight.trim()) e.weight = "Weight is required";
+      else if (isNaN(weightNum) || weightNum <= 0) e.weight = "Enter a valid weight in kg";
+      if (!form.state) e.state = "Origin state is required";
+      if (!form.lga) e.lga = "Origin city / LGA is required";
+      if (!sellerWalletAddress.trim()) e.sellerWalletAddress = "Wallet address is required";
+      else if (!/^0x[a-fA-F0-9]{40}$/.test(sellerWalletAddress))
+        e.sellerWalletAddress = "Enter a valid Celo / EVM wallet address";
+    }
+
     setErrors(e);
     return Object.keys(e).length === 0;
-  }, [form, priceUSD, mediaFiles, variants, totalVariantQty]);
+  }, [form, priceUSD, mediaFiles, variants, totalVariantQty, isBank, hasPayoutAccount, bankListingInput]);
+
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -264,6 +342,14 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
     setErrors({});
 
     try {
+      if (isBank) {
+        await createProduct(
+          toBankTransferListingFormData(bankListingInput(), mediaFiles.map((m) => m.file))
+        ).unwrap();
+        finishListing();
+        return;
+      }
+
       const { name, description, category, stock, sellerWalletAddress } = form;
       const stockQty = parseInt(stock, 10) || 0;
       const tokenSymbol = paymentToken || "USDT";
@@ -300,37 +386,43 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
       // so nothing product-specific is sent here anymore.
 
       // `type` is required by the API - always send it (empty array when no variants).
-      const validVariants = variants.filter((v) => v.properties.length > 0);
-      const formattedVariants = validVariants.map((v) => {
-        const obj: Record<string, string | number> = { quantity: v.quantity || 0 };
-        v.properties.forEach((p) => {
-          const n = Number(p.value);
-          obj[p.name.toLowerCase()] = !isNaN(n) && p.value.trim() !== "" ? n : p.value;
-        });
-        return obj;
-      });
-      formData.append("type", JSON.stringify(formattedVariants));
+      formData.append("type", JSON.stringify(formattedVariants()));
 
       mediaFiles.forEach((m) => formData.append("images", m.file));
 
       await createProduct(formData).unwrap();
-      setSuccess(true);
-      showSnackbar("Product listed successfully!", "success");
-      onProductCreated?.();
-
-      setTimeout(() => {
-        setForm({ name: "", description: "", category: "", stock: "", weight: "", state: "", lga: "", sellerWalletAddress: address ?? "", listPrice: "" });
-        setMediaFiles([]);
-        setVariants([{ id: `v-${Date.now()}`, properties: [], quantity: 0 }]);
-        setSuccess(false);
-      }, 1500);
-    } catch {
-      setErrors({ submit: "Failed to list product. Please try again." });
-      showSnackbar("Failed to list product. Please try again.", "error");
+      finishListing();
+    } catch (err) {
+      const status = isBank ? apiErrorStatus(err) : undefined;
+      const message =
+        status === 400
+          ? "Your bank account isn't verified yet. Add it under Receive Payment, then try again."
+          : status === 403
+            ? "Your seller account can't list right now. Contact support."
+            : status === 422
+              ? "Some details weren't accepted. Pickup needs a pickup address in Settings; check that and try again."
+              : "Failed to list product. Please try again.";
+      setErrors({ submit: message });
+      showSnackbar(message, "error");
     } finally {
       setSubmitting(false);
     }
   };
+
+  function finishListing() {
+    setSuccess(true);
+    showSnackbar("Product listed successfully!", "success");
+    onProductCreated?.();
+
+    setTimeout(() => {
+      setForm({ name: "", description: "", category: "", stock: "", weight: "", state: "", lga: "", sellerWalletAddress: address ?? "", listPrice: "", nairaPrice: "" });
+      setMediaFiles([]);
+      setVariants([{ id: `v-${Date.now()}`, properties: [], quantity: 0 }]);
+      setSuccess(false);
+    }, 1500);
+  }
+
+  const submitBlocked = isBank ? !hasPayoutAccount : !isConnected;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3 pb-6">
@@ -384,8 +476,28 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
         </Field>
       </Section>
 
+      {/* How buyers pay */}
+      {BANK_TRANSFER_ENABLED && (
+      <Section title="How buyers pay">
+        <PaymentTypeChoice
+          value={paymentType}
+          onChange={(type) => {
+            setPaymentType(type);
+            setErrors({});
+          }}
+        />
+      </Section>
+      )}
+
       {/* Pricing */}
       <Section title="Price">
+        {isBank ? (
+          <NairaPriceField
+            value={form.nairaPrice}
+            error={errors.price}
+            onChange={(v) => setField("nairaPrice", v)}
+          />
+        ) : (
         <PriceField
           listPrice={form.listPrice}
           priceCurrency={priceCurrency}
@@ -400,6 +512,7 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
           onTokenChange={handleTokenChange}
           error={errors.price}
         />
+        )}
       </Section>
 
       {/* Inventory */}
@@ -428,7 +541,7 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
 
       {/* Delivery - origin + weight drive the buyer's shipping options & cost */}
       <Section title="Delivery">
-        <p className="text-xs text-gray-500 -mt-1">
+        <p className="text-xs text-gray-400 -mt-1">
           Buyers see delivery providers and cost at checkout based on where this
           ships from and how much it weighs.
         </p>
@@ -492,10 +605,27 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
             </Field>
           </div>
         </div>
+
+        {isBank && (
+          <FulfilmentOptions
+            value={fulfilment}
+            canOfferPickup={canOfferPickup}
+            error={errors.fulfilment}
+            onToggle={toggleFulfilment}
+          />
+        )}
       </Section>
 
       {/* Payment wallet */}
       <Section title="Receive Payment">
+        {isBank ? (
+          <BankPayoutStatus
+            profile={sellerProfile}
+            isLoading={profileLoading}
+            isError={profileError}
+            onRetry={refetchProfile}
+          />
+        ) : (
         <Field label="Wallet Address" error={errors.sellerWalletAddress}>
           <div className="space-y-1.5">
             <input
@@ -521,11 +651,12 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
             )}
           </div>
         </Field>
+        )}
       </Section>
 
       {/* Submit */}
       <div className="pt-1">
-        {!isConnected && (
+        {!isBank && !isConnected && (
           <div className="mb-3 flex items-start gap-2 bg-amber-900/20 border border-amber-800/40 rounded-xl px-3 py-3">
             <FiInfo className="text-amber-400 flex-shrink-0 mt-0.5" size={14} />
             <p className="text-amber-300 text-xs">
@@ -535,9 +666,9 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
         )}
 
         {errors.submit && (
-          <p className="text-red-400 text-sm text-center mb-3" role="alert">
-            {errors.submit}
-          </p>
+          <div className="mb-3">
+            <StatusBox tone="danger">{errors.submit}</StatusBox>
+          </div>
         )}
 
         {success && (
@@ -548,13 +679,15 @@ const CreateProduct: React.FC<CreateProductProps> = ({ onProductCreated }) => {
 
         <button
           type="submit"
-          disabled={!isConnected || submitting || isLoading}
+          disabled={submitBlocked || submitting || isLoading}
           className="w-full bg-red-600 text-white py-3.5 rounded-xl text-sm font-semibold hover:bg-red-700 active:scale-[0.99] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {submitting || isLoading
             ? "Listing product…"
-            : !isConnected
+            : !isBank && !isConnected
             ? "Connect wallet to list"
+            : isBank && !hasPayoutAccount
+            ? "Add your bank account to list"
             : "List Product"}
         </button>
       </div>

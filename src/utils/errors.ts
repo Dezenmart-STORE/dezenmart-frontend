@@ -267,7 +267,12 @@ function extractMessage(error: unknown): string {
   if (!error) return "";
   if (typeof error === "string") return error;
 
-  const err = error as Record<string, any>;
+  // The shapes viem, wagmi and fetch errors take; every field is optional.
+  const err = error as {
+    cause?: { data?: { errorName?: string; args?: unknown[] }; reason?: string };
+    shortMessage?: string;
+    message?: string;
+  };
 
   // Viem ContractFunctionExecutionError: the decoded custom Solidity error name
   // lives at cause.data.errorName (e.g. "InvalidLogisticsProvider").
@@ -355,4 +360,16 @@ function _forwardToReporter(
   } catch {
     // reporter itself failed - don't crash the app
   }
+}
+
+/**
+ * HTTP status of a failed RTK Query call, or undefined for network and
+ * client-side failures. Lets screens map documented status codes to plain copy.
+ */
+export function apiErrorStatus(error: unknown): number | undefined {
+  if (error && typeof error === "object" && "status" in error) {
+    const { status } = error as { status: unknown };
+    return typeof status === "number" ? status : undefined;
+  }
+  return undefined;
 }

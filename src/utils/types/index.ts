@@ -59,7 +59,8 @@ export interface LegalDocument {
 //product
 export interface ProductVariant {
   quantity: number;
-  [key: string]: any;
+  /** Variant properties as the seller named them, e.g. { color: "black", size: 42 }. */
+  [key: string]: string | number;
 }
 export interface Product {
   _id: string;
@@ -85,7 +86,16 @@ export interface Product {
   state: string;
   lga: string;
   tradeId?: string;
+  /** ["pandascrow"] marks a naira listing bought by bank transfer; crypto listings send []. */
+  acceptedPayments?: string[];
+  /** Naira listings only: how the buyer can receive it. */
+  fulfilment?: ("delivery" | "pickup")[];
+  minOrderQty?: number;
 }
+
+/** A listing is either bank transfer (priced in naira) or crypto, never both. */
+export const isBankTransferListing = (product: Pick<Product, "acceptedPayments">): boolean =>
+  product.acceptedPayments?.includes("pandascrow") ?? false;
 //review
 export interface Review {
   _id: string;
@@ -213,7 +223,7 @@ export interface CreateTradeParams {
 export interface TradeResponse {
   status: "success" | "error";
   message: string;
-  data: any;
+  data: unknown;
 }
 export interface LogisticsProvider {
   address: string;
@@ -474,7 +484,7 @@ export interface Notification {
   read: boolean;
   metadata: {
     orderId?: string;
-    [key: string]: any;
+    [key: string]: unknown;
   };
   createdAt: string;
   updatedAt: string;

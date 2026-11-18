@@ -7,11 +7,11 @@ import TabNavigation from "../components/account/overview/TabNavigation";
 import LoadingSpinner from "../components/common/LoadingSpinner";
 import { useGetUserProfileQuery } from "../store/api";
 import { TabOption, TabType } from "../utils/types";
-import { useAuth } from "../context/AuthContext";
 import { lazyWithReload } from "../utils/lazyWithReload";
 // Heavy (@selfxyz ~2MB): load only when the verification modal opens.
 const SefldVerification = lazyWithReload(() => import("../components/common/SefldVerification"), "SefldVerification");
 import DeliveryAddressManager from "../components/account/DeliveryAddressManager";
+import { BANK_TRANSFER_ENABLED } from "../config/features";
 import { LiaAngleLeftSolid } from "react-icons/lia";
 
 const TabContent = lazy(() => import("../components/account/overview/TabContent"));
@@ -21,6 +21,7 @@ const Safety      = lazy(() => import("../components/account/settings/Safety"));
 const TwoFactorAuth = lazy(() => import("../components/account/settings/TwoFactorAuth"));
 const HelpSupport = lazy(() => import("../components/account/settings/HelpSupport"));
 const About       = lazy(() => import("../components/account/settings/About"));
+const PayoutAccount = lazy(() => import("../components/account/payout/PayoutAccount"));
 
 const TAB_OPTIONS: TabOption[] = [
   { id: "1", label: "Saved Items" },
@@ -35,6 +36,7 @@ export type AccountViewState =
   | "settings"
   | "edit-profile"
   | "delivery-addresses"
+  | "payout-account"
   | "safety"
   | "two-factor"
   | "help"
@@ -171,7 +173,6 @@ const RateApp = ({ onBack }: { onBack: () => void }) => {
 
 const Account = () => {
   const { data: selectedUser, isLoading, error, refetch } = useGetUserProfileQuery();
-  const { user: _user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [activeTab, setActiveTab] = useState<TabType>("1");
@@ -267,6 +268,9 @@ const Account = () => {
   }
   if (viewState === "delivery-addresses") {
     return subViewWrapper(<DeliveryAddressManager onBack={handleBackToSettings} />);
+  }
+  if (viewState === "payout-account" && BANK_TRANSFER_ENABLED) {
+    return subViewWrapper(<PayoutAccount onBack={handleBackToSettings} />);
   }
   if (viewState === "safety") {
     return subViewWrapper(<Safety onBack={handleBackToSettings} />);

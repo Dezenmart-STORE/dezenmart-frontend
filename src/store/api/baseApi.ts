@@ -60,6 +60,9 @@ export const baseApi = createApi({
     'DeliveryAddress',
     'Legal',
     'Wallet',
+    'BankTransferOrder',
+    'BankTransferOrders',
+    'SellerProfile',
   ],
   endpoints: () => ({}),
 });
