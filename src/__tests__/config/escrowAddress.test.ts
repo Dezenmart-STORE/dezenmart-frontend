@@ -11,6 +11,8 @@ let chains: typeof import("../../config/chains");
 beforeAll(async () => {
   vi.stubEnv("VITE_ESCROW_CONTRACT_MAINNET", MAINNET);
   vi.stubEnv("VITE_ESCROW_CONTRACT_TESTNET", TESTNET);
+  // The wallet config refuses to load without one; CI has no .env to supply it.
+  vi.stubEnv("VITE_WALLETCONNECT_PROJECT_ID", "test-project-id");
   chains = await import("../../config/chains");
 });
 
