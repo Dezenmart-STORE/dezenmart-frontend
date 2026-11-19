@@ -188,9 +188,10 @@ const PayoutAccountForm: React.FC<Props> = ({
 
   const numberStatus =
     current?.state === "checking" ? (
-      <p className="text-gray-300 flex items-center gap-1.5">
+      // A div, not a p: the spinner is itself a div.
+      <div className="text-gray-300 flex items-center gap-1.5">
         <LoadingSpinner size="sm" /> Checking with your bank…
-      </p>
+      </div>
     ) : current?.state === "found" ? (
       <p className="text-green-300 flex items-center gap-1">
         <HiCheckCircle className="w-3 h-3" aria-hidden />

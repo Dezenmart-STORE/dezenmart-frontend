@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useGetMySellerProfileQuery, useGetProductByIdQuery, useUpdateProductMutation } from "../store/api";
 import { useAuth } from "../context/AuthContext";
@@ -10,7 +10,8 @@ import {
   listingUpdateSchema,
   toListingUpdateFormData,
 } from "../utils/validation/listing";
-import type { Fulfilment } from "../utils/validation/bankTransfer";
+import { LISTING_IMAGE_LIMITS, type Fulfilment } from "../utils/validation/bankTransfer";
+import MediaUpload, { type MediaFile } from "../components/account/overview/products/MediaUpload";
 import { apiErrorStatus } from "../utils/errors";
 import { parseNairaInput } from "../utils/format";
 import Button from "../components/common/Button";
@@ -38,7 +39,9 @@ const saveFailure = (status: number | undefined) =>
       ? "This listing no longer exists."
       : status === 422
         ? "Some details weren't accepted. Pickup needs a pickup address in Settings, and stock can't be below the minimum order."
-        : "Couldn't save your changes. Try again.";
+        : status === 400
+          ? "A photo wasn't accepted. Use JPG, PNG, GIF or WebP files of 5 MB or less."
+          : "Couldn't save your changes. Try again.";
 
 const sellerIdOf = (product: Product) => (typeof product.seller === "object" ? product.seller?._id : product.seller);
 
@@ -126,6 +129,21 @@ function EditForm({ product, onDone }: { product: Product; onDone: () => void })
   const [errors, setErrors] = useState<Errors>({});
   const [submitError, setSubmitError] = useState<string>();
 
+  const currentPhotos = product.images ?? [];
+  // null keeps the current photos; a list (even empty) means the seller is replacing them.
+  const [newPhotos, setNewPhotos] = useState<MediaFile[] | null>(null);
+  const [photoError, setPhotoError] = useState<string>();
+  // Previews are object URLs; free them when this screen goes.
+  const photosRef = useRef<MediaFile[] | null>(null);
+  photosRef.current = newPhotos;
+  useEffect(() => () => photosRef.current?.forEach((p) => URL.revokeObjectURL(p.preview)), []);
+
+  const keepCurrentPhotos = () => {
+    newPhotos?.forEach((p) => URL.revokeObjectURL(p.preview));
+    setNewPhotos(null);
+    setPhotoError(undefined);
+  };
+
   // Editing again clears the last save error.
   useEffect(() => setSubmitError(undefined), [form]);
 
@@ -144,11 +162,14 @@ function EditForm({ product, onDone }: { product: Product; onDone: () => void })
             kind: "naira",
             ...common,
             price: parseNairaInput(form.price),
-            stock: hasOptions ? undefined : form.stock.trim() === "" ? NaN : Number(form.stock),
+            stock: form.stock.trim() === "" ? NaN : Number(form.stock),
             fulfilment: form.fulfilment,
           }
         : { kind: "crypto", ...common }
     );
+    // Saving with no photos would leave the old ones; say so instead of pretending to replace them.
+    const noPhotos = newPhotos !== null && newPhotos.length === 0;
+    if (noPhotos) setPhotoError("Add at least one photo, or keep the current ones.");
     if (!parsed.success) {
       const next: Errors = {};
       for (const issue of parsed.error.issues) {
@@ -158,8 +179,10 @@ function EditForm({ product, onDone }: { product: Product; onDone: () => void })
       setErrors(next);
       return;
     }
+    if (noPhotos) return;
     try {
-      await updateProduct({ id: product._id, data: toListingUpdateFormData(parsed.data) }).unwrap();
+      const photos = newPhotos?.map((p) => p.file) ?? [];
+      await updateProduct({ id: product._id, data: toListingUpdateFormData(parsed.data, photos) }).unwrap();
       showSnackbar("Listing updated", "success");
       onDone();
     } catch (err) {
@@ -228,30 +251,94 @@ function EditForm({ product, onDone }: { product: Product; onDone: () => void })
         </Field>
       </Section>
 
+      <Section title="Photos">
+        {newPhotos === null ? (
+          <>
+            {currentPhotos.length > 0 ? (
+              <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                {currentPhotos.map((src, i) => (
+                  <img
+                    key={src}
+                    src={src}
+                    alt={`Current photo ${i + 1}`}
+                    className="aspect-square w-full rounded-xl object-cover bg-[#3A3C41]"
+                    loading="lazy"
+                  />
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-400">This listing has no photos.</p>
+            )}
+            <Button
+              variant="secondary"
+              title={currentPhotos.length > 0 ? "Replace photos" : "Add photos"}
+              onClick={() => setNewPhotos([])}
+              className="bg-[#3A3C41] hover:bg-[#45474D]"
+            />
+          </>
+        ) : (
+          <>
+            {currentPhotos.length > 0 && (
+              <p className="text-sm text-gray-300">
+                The photos you add here replace all of the current ones when you save.
+              </p>
+            )}
+            <MediaUpload
+              files={newPhotos}
+              onAdd={(incoming) => {
+                setNewPhotos((prev) => [...(prev ?? []), ...incoming].slice(0, LISTING_IMAGE_LIMITS.max));
+                setPhotoError(undefined);
+              }}
+              onRemove={(index) =>
+                setNewPhotos((prev) => {
+                  if (!prev) return prev;
+                  URL.revokeObjectURL(prev[index].preview);
+                  return prev.filter((_, i) => i !== index);
+                })
+              }
+              error={photoError}
+            />
+            {currentPhotos.length > 0 && (
+              <button
+                type="button"
+                onClick={keepCurrentPhotos}
+                className="rounded text-sm font-medium text-red-300 underline hover:text-red-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
+              >
+                Keep the current photos
+              </button>
+            )}
+          </>
+        )}
+      </Section>
+
       <Section title="Price and stock">
         {naira ? (
           <>
             <NairaPriceField value={form.price} error={errors.price} onChange={(v) => set("price", v)} />
-            {hasOptions ? (
-              <p className="text-sm text-gray-300">
-                This listing has options, each with its own stock. Changing them here isn't available yet.
-              </p>
-            ) : (
-              <Field label="Stock" required surface="card" error={errors.stock} hint="How many you have to sell.">
-                {({ id, describedBy, invalid }) => (
-                  <input
-                    id={id}
-                    type="text"
-                    inputMode="numeric"
-                    value={form.stock}
-                    onChange={(e) => set("stock", e.target.value.replace(/\D/g, ""))}
-                    aria-invalid={invalid}
-                    aria-describedby={describedBy}
-                    className={inputClass("card", invalid)}
-                  />
-                )}
-              </Field>
-            )}
+            <Field
+              label="Stock"
+              required
+              surface="card"
+              error={errors.stock}
+              hint={
+                hasOptions
+                  ? "How many you have in total, across all options. Each order takes from this number."
+                  : "How many you have to sell."
+              }
+            >
+              {({ id, describedBy, invalid }) => (
+                <input
+                  id={id}
+                  type="text"
+                  inputMode="numeric"
+                  value={form.stock}
+                  onChange={(e) => set("stock", e.target.value.replace(/\D/g, ""))}
+                  aria-invalid={invalid}
+                  aria-describedby={describedBy}
+                  className={inputClass("card", invalid)}
+                />
+              )}
+            </Field>
             <FulfilmentOptions
               value={form.fulfilment}
               canOfferPickup={Boolean(shop?.address) || form.fulfilment.includes("pickup")}

@@ -165,6 +165,12 @@ export function createHandlers(baseUrl: string): HttpHandler[] {
       if (text("stock") !== undefined) updated.stock = Number(text("stock"));
       const fulfilment = text("fulfilment");
       if (fulfilment) updated.fulfilment = JSON.parse(fulfilment) as Product["fulfilment"];
+      // Like the server, new photos replace all the old ones.
+      const photos = form.getAll("images").filter((f): f is File => typeof f !== "string");
+      if (photos.length > 5) return fail(400, "Too many files");
+      if (photos.length > 0) {
+        updated.images = photos.map((p, i) => `https://placehold.co/600x600?text=${encodeURIComponent(p.name || `Photo ${i + 1}`)}`);
+      }
       state.listing = updated;
       return ok({ product: updated });
     }),

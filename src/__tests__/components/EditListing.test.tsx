@@ -4,6 +4,7 @@ import { Provider } from "react-redux";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { configureStore } from "@reduxjs/toolkit";
 import { setupServer } from "msw/node";
+import { File as NodeFile } from "node:buffer";
 
 // Editing a listing against the shared mock backend: what a naira listing can
 // change, what a wallet listing can't, and who may edit at all.
@@ -15,6 +16,10 @@ vi.mock("../../context/AuthContext", () => ({
   useAuth: () => ({ user: { _id: "65fa0c2e9b1d4a0012340000" }, isAuthenticated: true }),
 }));
 
+// jsdom has no object URLs; the photo previews only need a string.
+URL.createObjectURL = vi.fn(() => "blob:preview");
+URL.revokeObjectURL = vi.fn();
+
 let server: ReturnType<typeof setupServer>;
 let baseApi: typeof import("../../store/api/baseApi").baseApi;
 let EditListing: typeof import("../../pages/EditListing").default;
@@ -24,6 +29,8 @@ let fixtures: typeof import("../../mocks/fixtures");
 
 /** Every PUT /products/{id} body the server saw, as plain fields. */
 let saves: Record<string, string>[] = [];
+/** How many photos each save carried. */
+let photosSent: number[] = [];
 
 beforeAll(async () => {
   vi.stubEnv("VITE_API_URL", API);
@@ -35,7 +42,8 @@ beforeAll(async () => {
   server.events.on("request:start", async ({ request }) => {
     if (request.method === "PUT") {
       const form = await request.clone().formData();
-      saves.push(Object.fromEntries([...form.entries()].map(([k, v]) => [k, String(v)])));
+      photosSent.push(form.getAll("images").length);
+      saves.push(Object.fromEntries([...form.entries()].filter(([k]) => k !== "images").map(([k, v]) => [k, String(v)])));
     }
   });
   ({ baseApi } = await import("../../store/api/baseApi"));
@@ -46,6 +54,7 @@ beforeAll(async () => {
 afterEach(() => {
   handlers.resetMockState();
   saves = [];
+  photosSent = [];
 });
 
 afterAll(() => {
@@ -119,6 +128,61 @@ describe("EditListing", () => {
     expect(saves[0]).toMatchObject({ name: "Ankara tote bag (large)" });
     expect(saves[0]).not.toHaveProperty("price");
     expect(saves[0]).not.toHaveProperty("stock");
+  });
+
+  it("lets a listing with options change its total stock", async () => {
+    handlers.seedMockListing(fixtures.bankListing({ seller: OWNER, type: [{ size: "S", quantity: 4 }, { size: "L", quantity: 6 }] }));
+    renderEdit();
+
+    const stock = await screen.findByLabelText(/^Stock/);
+    expect(screen.getByText(/across all options/)).toBeTruthy();
+    fireEvent.change(stock, { target: { value: "12" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+    expect(await screen.findByText("Product page")).toBeTruthy();
+    expect(saves[0]).toMatchObject({ stock: "12" });
+  });
+
+  it("sends new photos only when the seller replaces them", async () => {
+    handlers.seedMockListing(fixtures.bankListing({ seller: OWNER }));
+    renderEdit();
+
+    expect(await screen.findByAltText("Current photo 1")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Replace photos" }));
+    const input = document.querySelector<HTMLInputElement>('input[type="file"]');
+    if (!input) throw new Error("no file input");
+    // Node's own File: the request goes out through Node's fetch, which can't send jsdom's.
+    const photo = new NodeFile(["x"], "tote-front.jpg", { type: "image/jpeg" }) as unknown as File;
+    fireEvent.change(input, { target: { files: [photo] } });
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+    expect(await screen.findByText("Product page")).toBeTruthy();
+    expect(photosSent).toEqual([1]);
+  });
+
+  it("won't save an empty photo replacement, and keeps the photos when asked", async () => {
+    handlers.seedMockListing(fixtures.bankListing({ seller: OWNER }));
+    renderEdit();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Replace photos" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    expect(await screen.findByText("Add at least one photo, or keep the current ones.")).toBeTruthy();
+    expect(saves).toHaveLength(0);
+
+    fireEvent.click(screen.getByRole("button", { name: "Keep the current photos" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    expect(await screen.findByText("Product page")).toBeTruthy();
+    expect(photosSent).toEqual([0]);
+  });
+
+  it("asks for a name the server will accept", async () => {
+    handlers.seedMockListing(fixtures.bankListing({ seller: OWNER }));
+    renderEdit();
+
+    fireEvent.change(await screen.findByLabelText(/^Name/), { target: { value: "Ab" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    expect(await screen.findByText("Give it a name of at least 3 characters")).toBeTruthy();
+    expect(saves).toHaveLength(0);
   });
 
   it("refuses to edit someone else's listing", async () => {
