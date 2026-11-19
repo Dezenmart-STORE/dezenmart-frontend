@@ -127,9 +127,10 @@ describe("BankTransferOrderView, refunds", () => {
     renderOrder({ status: "cancelled", refund: { status: "awaiting_account", amount: 14750.5 } });
 
     expect(await screen.findByRole("heading", { name: "Where should we send your refund?" })).toBeTruthy();
-    const bank = screen.getByLabelText(/^Bank/);
-    await waitFor(() => expect(screen.getByRole("option", { name: "GTBank" })).toBeTruthy());
-    fireEvent.change(bank, { target: { value: "058" } });
+    const bank = screen.getByRole("combobox", { name: /^Bank/ });
+    await waitFor(() => expect(bank).toBeEnabled());
+    fireEvent.change(bank, { target: { value: "gtb" } });
+    fireEvent.mouseDown(await screen.findByRole("option", { name: "GTBank" }));
     fireEvent.change(screen.getByLabelText(/^Account number/), { target: { value: "0123456789" } });
     expect(await screen.findByText("ADA CHIOMA OBI")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Send my refund here" }));

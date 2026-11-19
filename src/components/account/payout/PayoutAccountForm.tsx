@@ -18,8 +18,9 @@ import { useSnackbar } from "../../../context/SnackbarContext";
 import LoadingSpinner from "../../common/LoadingSpinner";
 import Button from "../../common/Button";
 import StatusBox from "../../common/StatusBox";
-import { Field, SelectChevron } from "../../common/form/Field";
-import { inputClass, optionClass, type FieldSurface } from "../../common/form/fieldStyles";
+import { Field } from "../../common/form/Field";
+import { inputClass, type FieldSurface } from "../../common/form/fieldStyles";
+import BankSearchField from "./BankSearchField";
 
 interface Props {
   /** "page" in Settings, "card" inside the listing form's sections. */
@@ -233,32 +234,19 @@ const PayoutAccountForm: React.FC<Props> = ({
       ) : (
       <Field label="Bank" required surface={surface} error={errors.bankCode}>
         {({ id, describedBy, invalid }) => (
-            <div className="relative">
-              <select
-                id={id}
-                value={bankCode}
-                onChange={(e) => {
-                  setBankCode(e.target.value);
-                  clearFeedback("bankCode");
-                }}
-                disabled={banksLoading}
-                aria-invalid={invalid}
-                aria-describedby={describedBy}
-                className={`${inputClass(surface, invalid)} appearance-none cursor-pointer pr-8 ${
-                  bankCode ? "text-white" : "text-gray-400"
-                }`}
-              >
-                <option value="" disabled>
-                  {banksLoading ? "Loading banks…" : "Select your bank"}
-                </option>
-                {banks.map((bank) => (
-                  <option key={bank.code} value={bank.code} className={optionClass(surface)}>
-                    {bank.name}
-                  </option>
-                ))}
-              </select>
-              <SelectChevron />
-            </div>
+          <BankSearchField
+            id={id}
+            describedBy={describedBy}
+            invalid={invalid}
+            surface={surface}
+            banks={banks}
+            loading={banksLoading}
+            value={bankCode}
+            onChange={(code) => {
+              setBankCode(code);
+              clearFeedback("bankCode");
+            }}
+          />
         )}
       </Field>
       )}

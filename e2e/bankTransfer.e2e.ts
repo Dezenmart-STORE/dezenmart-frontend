@@ -96,7 +96,8 @@ test("a buyer gives a bank account for a refund", async ({ page }) => {
   );
 
   await expect(page.getByRole("heading", { name: "Where should we send your refund?" })).toBeVisible();
-  await page.getByLabel(/^Bank/).selectOption({ label: "GTBank" });
+  await page.getByRole("combobox", { name: /^Bank/ }).fill("gtb");
+  await page.getByRole("option", { name: "GTBank" }).click();
   await page.getByLabel(/^Account number/).fill("0123456789");
   await expect(page.getByText("ADA CHIOMA OBI")).toBeVisible();
   await page.getByRole("button", { name: "Send my refund here" }).click();

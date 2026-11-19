@@ -54,12 +54,18 @@ function renderForm() {
   );
 }
 
+/** Type into the bank search and pick a result, as a seller would. */
+async function chooseBank(typed: string, name: string) {
+  const bank = await screen.findByRole("combobox", { name: /^Bank/ });
+  await waitFor(() => expect(bank).toBeEnabled());
+  fireEvent.change(bank, { target: { value: typed } });
+  fireEvent.mouseDown(await screen.findByRole("option", { name }));
+}
+
 describe("PayoutAccountForm", () => {
   it("shows the bank's name for the account and only then allows saving", async () => {
     renderForm();
-    const bank = await screen.findByLabelText(/^Bank/);
-    await waitFor(() => expect(screen.getByRole("option", { name: "GTBank" })).toBeInTheDocument());
-    fireEvent.change(bank, { target: { value: "058" } });
+    await chooseBank("gtb", "GTBank");
 
     const save = screen.getByRole("button", { name: /save bank account/i });
     expect(save).toBeDisabled();
@@ -83,9 +89,7 @@ describe("PayoutAccountForm", () => {
       })
     );
     renderForm();
-    const bank = await screen.findByLabelText(/^Bank/);
-    await waitFor(() => expect(screen.getByRole("option", { name: "GTBank" })).toBeInTheDocument());
-    fireEvent.change(bank, { target: { value: "058" } });
+    await chooseBank("gtb", "GTBank");
 
     const number = screen.getByLabelText(/^Account number/);
     fireEvent.change(number, { target: { value: SLOW_NUMBER } });
@@ -101,9 +105,7 @@ describe("PayoutAccountForm", () => {
 
   it("says plainly when the bank can't find the account", async () => {
     renderForm();
-    const bank = await screen.findByLabelText(/^Bank/);
-    await waitFor(() => expect(screen.getByRole("option", { name: "GTBank" })).toBeInTheDocument());
-    fireEvent.change(bank, { target: { value: "058" } });
+    await chooseBank("gtb", "GTBank");
     fireEvent.change(screen.getByLabelText(/^Account number/), { target: { value: "0000000000" } });
 
     expect(await screen.findByText(/couldn't find this account/i)).toBeInTheDocument();
