@@ -2,6 +2,7 @@ import type { ComponentType } from 'react';
 import {
   ElectronicsIcon,
   ClothingIcon,
+  NativeAttireIcon,
   HomeGardenIcon,
   BeautyIcon,
   SportsIcon,
@@ -40,6 +41,14 @@ export const CATEGORIES: readonly CategoryDef[] = [
     bg: 'bg-purple-500/15',
     ring: 'ring-purple-500/50',
     hex: '#a855f7',
+  },
+  {
+    name: 'Aso-oke & Native Attire',
+    Icon: NativeAttireIcon,
+    color: 'text-teal-400',
+    bg: 'bg-teal-500/15',
+    ring: 'ring-teal-500/50',
+    hex: '#14b8a6',
   },
   {
     name: 'Home & Garden',

@@ -9,7 +9,7 @@ import { useGetProductsQuery } from '../../store/api';
  *
  * Mobile  → horizontal scroll; w-[72px] tiles + gap-3 ≈ 4.5 visible at 375 px
  *           giving a natural scroll hint without any extra markup.
- * Desktop → flat 7-column grid (no scroll).
+ * Desktop → one flat row, a column per category (no scroll).
  *
  * Product counts are derived from the `getProducts` cache that ProductShelf
  * components on the same page already populate - zero extra network requests.
@@ -39,7 +39,7 @@ const CategoryPreview = () => {
       </div>
 
       {/* Grid / scroll container */}
-      <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2 md:grid md:grid-cols-7 md:overflow-visible md:pb-0">
+      <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2 md:grid md:grid-cols-8 md:overflow-visible md:pb-0">
         {CATEGORIES.map((cat) => {
           const { Icon, name, bg, color } = cat;
           const count = counts[name];

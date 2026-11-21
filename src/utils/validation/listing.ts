@@ -12,6 +12,7 @@ import { LISTING_IMAGE_LIMITS, fulfilmentSchema } from "./bankTransfer";
 export const LISTING_CATEGORIES = [
   "Electronics",
   "Clothing",
+  "Aso-oke & Native Attire",
   "Home & Garden",
   "Beauty & Personal Care",
   "Sports & Outdoors",

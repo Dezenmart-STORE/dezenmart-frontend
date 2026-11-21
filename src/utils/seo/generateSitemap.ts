@@ -85,6 +85,7 @@ export const generateCategorySitemap = (): string => {
   const categories = [
     "Electronics",
     "Clothing",
+    "Aso-oke & Native Attire",
     "Home & Garden",
     "Beauty & Personal Care",
     "Sports & Outdoors",
@@ -93,7 +94,8 @@ export const generateCategorySitemap = (): string => {
   ];
 
   const categoryUrls: SitemapUrl[] = categories.map((category) => ({
-    loc: `${SEO_CONFIG.siteUrl}/product/category/${category.toLowerCase().replace(/\s+/g, "-")}`,
+    // Same address the app links to (categoryHref): the page matches the encoded name, not a hyphenated slug.
+    loc: `${SEO_CONFIG.siteUrl}/product/category/${encodeURIComponent(category.toLowerCase())}`,
     lastmod: new Date().toISOString().split("T")[0],
     changefreq: "daily",
     priority: 0.8,

@@ -311,11 +311,50 @@ export const AccessoriesIcon: React.FC<IconProps> = ({
   </svg>
 );
 
+// ─── Aso-oke & Native Attire ─────────────────────────────────────────────────
+// A flowing robe (agbada / kaftan) with wide sleeves, an embroidered panel and
+// woven bands across the hem, standing for both the garment and the cloth.
+
+export const NativeAttireIcon: React.FC<IconProps> = ({
+  className = "w-8 h-8",
+}) => (
+  <svg
+    className={className}
+    viewBox="0 0 64 64"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    {/* Robe: shoulders spread into wide sleeves, then a long body */}
+    <path
+      d="M24,8 L40,8 L58,22 L52,32 L44,28 L46,58 L18,58 L20,28 L12,32 L6,22 Z"
+      stroke="currentColor" strokeWidth="2.5" strokeLinejoin="round"
+      fill="currentColor" fillOpacity="0.08"
+    />
+    {/* Neckline */}
+    <path
+      d="M26,8 Q32,16 38,8"
+      stroke="currentColor" strokeWidth="2" fill="none"
+    />
+    {/* Embroidered panel down the chest */}
+    <path
+      d="M27,16 L37,16 L35,36 Q32,40 29,36 Z"
+      fill="currentColor" fillOpacity="0.55"
+    />
+    {/* Woven aso-oke bands across the hem */}
+    <line x1="19" y1="48" x2="45" y2="48" stroke="currentColor" strokeWidth="2" opacity="0.6" />
+    <line x1="19" y1="53" x2="45" y2="53" stroke="currentColor" strokeWidth="2" opacity="0.6" />
+    {/* Embroidery dots */}
+    <circle cx="32" cy="22" r="1.6" fill="currentColor" />
+    <circle cx="32" cy="29" r="1.6" fill="currentColor" />
+  </svg>
+);
+
 // ─── Named map (kept for any code that still uses the bracket-accessor pattern)
 
 export const CategoryIcons = {
   Electronics: ElectronicsIcon,
   Clothing: ClothingIcon,
+  "Aso-oke & Native Attire": NativeAttireIcon,
   "Home & Garden": HomeGardenIcon,
   "Beauty & Personal Care": BeautyIcon,
   "Sports & Outdoors": SportsIcon,

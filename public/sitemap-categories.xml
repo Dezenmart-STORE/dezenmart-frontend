@@ -16,6 +16,14 @@
     <priority>0.8</priority>
   </url>
 
+  <!-- Aso-oke & Native Attire Category -->
+  <url>
+    <loc>https://dezenmart.com/product/category/aso-oke%20%26%20native%20attire</loc>
+    <lastmod>2026-11-21</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>
+
   <!-- Home & Garden Category -->
   <url>
     <loc>https://dezenmart.com/product/category/home%20%26%20garden</loc>
